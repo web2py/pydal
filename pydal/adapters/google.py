@@ -3,10 +3,10 @@ import os
 import re
 
 from .._compat import pjoin
-from .._globals import IDENTITY, LOGGER, THREAD_LOCAL
-from .._load import classobj, gae, ndb, NDBDecimalProperty, GAEDecimalProperty, \
-    namespace_manager, Key, NDBPolyModel, PolyModel, rdbms, have_serializers, \
-    serializers, simplejson
+from .._globals import IDENTITY, THREAD_LOCAL
+from .._load import json
+from .._gae import classobj, gae, ndb, NDBDecimalProperty, GAEDecimalProperty, \
+    namespace_manager, Key, NDBPolyModel, PolyModel, rdbms
 from ..objects import Table, Field, Expression, Query
 from ..helpers.classes import SQLCustomType, SQLALL, Reference, UseDatabaseStoredFile
 from ..helpers.methods import use_common_filters, xorify
@@ -176,12 +176,10 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
 
     def represent(self, obj, fieldtype):
         if fieldtype == "json":
-            if have_serializers:
-                return serializers.json(obj)
-            elif simplejson:
-                return simplejson.dumps(obj)
+            if self.db.has_serializer('json'):
+                return self.db.serialize('json', obj)
             else:
-                raise Exception("Could not dump json object (missing json library)")
+                return json.dumps(obj)
         else:
             return NoSQLAdapter.represent(self, obj, fieldtype)
 
@@ -596,7 +594,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 setattr(item, field.name, self.represent(value,field.type))
             item.put()
             counter += 1
-        LOGGER.info(str(counter))
+        self.db.logger.info(str(counter))
         return counter
 
     def insert(self,table,fields):

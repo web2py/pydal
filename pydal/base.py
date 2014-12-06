@@ -142,10 +142,12 @@ import time
 import copy
 import traceback
 import glob
+import logging
+from uuid import uuid4
 
 from ._compat import pickle, hashlib_md5, pjoin, ogetattr, osetattr, copyreg
-from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, LOGGER, DEFAULT
-from ._load import have_serializers, serializers, is_jdbc, OrderedDict
+from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT, GLOBALS
+from ._load import OrderedDict
 from .helpers.classes import SQLCallableList
 from .helpers.methods import hide_password, smart_query, sqlhtml_validators
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME, REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
@@ -158,6 +160,24 @@ TABLE_ARGS = set(
     ('migrate','primarykey','fake_migrate','format','redefine',
      'singular','plural','trigger_name','sequence_name','fields',
      'common_filter','polymodel','table_class','on_define','rname'))
+
+
+class MetaDAL(type):
+    def __call__(cls, *args, **kwargs):
+        #: intercept arguments for DAL costumisation on call
+        intercepts = [
+            'logger', 'representers', 'serializers', 'uuid', 'validators']
+        intercepted = []
+        for name in intercepts:
+            val = kwargs.get(name)
+            if val:
+                intercepted.append((name, val))
+                del kwargs[name]
+        for tup in intercepted:
+            setattr(cls, tup[0], tup[1])
+
+        obj = super(MetaDAL, cls).__call__(*args, **kwargs)
+        return obj
 
 
 class DAL(object):
@@ -235,15 +255,23 @@ class DAL(object):
 
 
     """
+    __metaclass__ = MetaDAL
+
+    serializers = None
+    validators = None
+    representers = {}
+    uuid = lambda: str(uuid4())
+    logger = logging.getLogger("pyDAL")
+
     Table = Table
 
     def __new__(cls, uri='sqlite://dummy.db', *args, **kwargs):
-        if not hasattr(THREAD_LOCAL,'db_instances'):
+        if not hasattr(THREAD_LOCAL, 'db_instances'):
             THREAD_LOCAL.db_instances = {}
-        if not hasattr(THREAD_LOCAL,'db_instances_zombie'):
+        if not hasattr(THREAD_LOCAL, 'db_instances_zombie'):
             THREAD_LOCAL.db_instances_zombie = {}
         if uri == '<zombie>':
-            db_uid = kwargs['db_uid'] # a zombie must have a db_uid!
+            db_uid = kwargs['db_uid']  # a zombie must have a db_uid!
             if db_uid in THREAD_LOCAL.db_instances:
                 db_group = THREAD_LOCAL.db_instances[db_uid]
                 db = db_group[-1]
@@ -253,13 +281,13 @@ class DAL(object):
                 db = super(DAL, cls).__new__(cls)
                 THREAD_LOCAL.db_instances_zombie[db_uid] = db
         else:
-            db_uid = kwargs.get('db_uid',hashlib_md5(repr(uri)).hexdigest())
+            db_uid = kwargs.get('db_uid', hashlib_md5(repr(uri)).hexdigest())
             if db_uid in THREAD_LOCAL.db_instances_zombie:
                 db = THREAD_LOCAL.db_instances_zombie[db_uid]
                 del THREAD_LOCAL.db_instances_zombie[db_uid]
             else:
                 db = super(DAL, cls).__new__(cls)
-            db_group = THREAD_LOCAL.db_instances.get(db_uid,[])
+            db_group = THREAD_LOCAL.db_instances.get(db_uid, [])
             db_group.append(db)
             THREAD_LOCAL.db_instances[db_uid] = db_group
         db._db_uid = db_uid
@@ -287,7 +315,7 @@ class DAL(object):
             }
 
         """
-        dbs = getattr(THREAD_LOCAL,'db_instances',{}).items()
+        dbs = getattr(THREAD_LOCAL, 'db_instances', {}).items()
         infos = {}
         for db_uid, db_group in dbs:
             for db in db_group:
@@ -350,7 +378,12 @@ class DAL(object):
                  after_connection=None, tables=None, ignore_field_case=True,
                  entity_quoting=False, table_hash=None):
 
-        if uri == '<zombie>' and db_uid is not None: return
+        if uri == '<zombie>' and db_uid is not None:
+            return
+
+        from .drivers import DRIVERS, is_jdbc
+        self._drivers_available = DRIVERS
+
         if not decode_credentials:
             credential_decoder = lambda cred: cred
         else:
@@ -384,7 +417,7 @@ class DAL(object):
         if not str(attempts).isdigit() or attempts < 0:
             attempts = 5
         if uri:
-            uris = isinstance(uri,(list,tuple)) and uri or [uri]
+            uris = isinstance(uri, (list, tuple)) and uri or [uri]
             error = ''
             connected = False
             for k in range(attempts):
@@ -423,7 +456,7 @@ class DAL(object):
                         raise
                     except Exception:
                         tb = traceback.format_exc()
-                        LOGGER.debug('DEBUG: connect attempt %i, connection error:\n%s' % (k, tb))
+                        self.logger.debug('DEBUG: connect attempt %i, connection error:\n%s' % (k, tb))
                 if connected:
                     break
                 else:
@@ -440,12 +473,13 @@ class DAL(object):
         self._uri_hash = table_hash or hashlib_md5(adapter.uri).hexdigest()
         self.check_reserved = check_reserved
         if self.check_reserved:
-            from reserved_sql_keywords import ADAPTERS as RSK
+            from .contrib.reserved_sql_keywords import ADAPTERS as RSK
             self.RSK = RSK
         self._migrate = migrate
         self._fake_migrate = fake_migrate
         self._migrate_enabled = migrate_enabled
         self._fake_migrate_all = fake_migrate_all
+        GLOBALS['serializers'] = self.serializers
         if auto_import or tables:
             self.import_table_definitions(adapter.folder,
                                           tables=tables)
@@ -848,23 +882,30 @@ class DAL(object):
                                         sanitize=sanitize))
         return db_as_dict
 
+    def has_serializer(self, name):
+        return hasattr(self.serializers, name) and \
+            callable(getattr(self.serializers, 'loads_json'))
+
+    def serialize(self, name, *args, **kwargs):
+        return getattr(self.serializers, name)(*args, **kwargs)
+
     def as_xml(self, sanitize=True):
-        if not have_serializers:
+        if not self.has_serializer('xml'):
             raise ImportError("No xml serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return serializers.xml(d)
+        return self.serialize('xml', d)
 
     def as_json(self, sanitize=True):
-        if not have_serializers:
+        if not self.has_serializer('json'):
             raise ImportError("No json serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return serializers.json(d)
+        return self.serialize('json', d)
 
     def as_yaml(self, sanitize=True):
-        if not have_serializers:
+        if not self.has_serializer('yaml'):
             raise ImportError("No YAML serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return serializers.yaml(d)
+        return self.serialize('yaml', d)
 
     def __contains__(self, tablename):
         try:
@@ -875,8 +916,8 @@ class DAL(object):
 
     has_key = __contains__
 
-    def get(self,key,default=None):
-        return self.__dict__.get(key,default)
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
 
     def __iter__(self):
         for tablename in self.tables:
@@ -1036,6 +1077,12 @@ class DAL(object):
         for table in self:
             table._referenced_by = [field for field in table._referenced_by
                                     if not field.table==thistable]
+
+    def has_representer(self, name):
+        return callable(self.representers.get(name))
+
+    def represent(self, name, *args, **kwargs):
+        return self.representers[name](*args, **kwargs)
 
     def export_to_csv_file(self, ofile, *args, **kwargs):
         step = long(kwargs.get('max_fetch_rows,',500))

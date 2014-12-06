@@ -2,7 +2,7 @@
 import re
 import sys
 
-from .._globals import IDENTITY, LOGGER
+from .._globals import IDENTITY
 from ..helpers.methods import varquote_aux
 from .base import BaseAdapter
 
@@ -115,7 +115,7 @@ class MSSQLAdapter(BaseAdapter):
                     raise SyntaxError('DSN required')
             except SyntaxError:
                 e = sys.exc_info()[1]
-                LOGGER.error('NdGpatch error')
+                self.db.logger.error('NdGpatch error')
                 raise e
             # was cnxn = 'DSN=%s' % dsn
             cnxn = dsn
@@ -480,7 +480,7 @@ class SybaseAdapter(MSSQLAdapter):
                     raise SyntaxError('DSN required')
             except SyntaxError:
                 e = sys.exc_info()[1]
-                LOGGER.error('NdGpatch error')
+                self.db.logger.error('NdGpatch error')
                 raise e
         else:
             m = self.REGEX_URI.match(uri)

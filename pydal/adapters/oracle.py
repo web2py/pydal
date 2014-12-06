@@ -4,8 +4,9 @@ import datetime
 import re
 
 from .._globals import IDENTITY
-from .._load import cx_Oracle
+from ..drivers import cx_Oracle
 from .base import BaseAdapter
+
 
 class OracleAdapter(BaseAdapter):
     drivers = ('cx_Oracle',)

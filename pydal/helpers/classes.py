@@ -5,7 +5,6 @@ import struct
 import traceback
 
 from .._compat import exists, copyreg
-from .._globals import LOGGER
 
 
 class Reference(long):
@@ -265,7 +264,7 @@ class DatabaseStoredFile:
             return True
 
         DatabaseStoredFile.try_create_web2py_filesystem(db)
-        
+
         query = "SELECT path FROM web2py_filesystem WHERE path='%s'" % filename
         try:
             if db.executesql(query):
@@ -276,7 +275,7 @@ class DatabaseStoredFile:
                 raise
             # no web2py_filesystem found?
             tb = traceback.format_exc()
-            LOGGER.error("Could not retrieve %s\n%s" % (filename, tb))
+            db.logger.error("Could not retrieve %s\n%s" % (filename, tb))
         return False
 
 

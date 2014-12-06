@@ -220,9 +220,9 @@ def sqlhtml_validators(field):
     fieldtype
     """
     db = field.db
-    try:
-        from gluon import validators
-    except ImportError:
+    if db.validators is not None:
+        validators = db.validators
+    else:
         return []
     field_type, field_length = field.type, field.length
     if isinstance(field_type, SQLCustomType):

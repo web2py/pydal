@@ -12,8 +12,10 @@ import sys
 import types
 
 from ._compat import StringIO, ogetattr, osetattr, pjoin, exists, hashlib_md5
-from ._globals import DEFAULT, IDENTITY, AND, OR
-from ._load import have_serializers, serializers, simplejson, DRIVERS, Key, web2py_uuid
+from ._globals import GLOBALS, DEFAULT, IDENTITY, AND, OR
+from ._load import json
+from ._gae import Key
+from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
     REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
     REGEX_CLEANUP_FN
@@ -36,25 +38,26 @@ class Row(object):
     this is only used to store a `Row`
     """
 
-    __init__ = lambda self,*args,**kwargs: self.__dict__.update(*args,**kwargs)
+    __init__ = lambda self, *args, **kwargs: self.__dict__.update(
+        *args, **kwargs)
 
     def __getitem__(self, k):
         if isinstance(k, Table):
             try:
                 return ogetattr(self, k._tablename)
-            except (KeyError,AttributeError,TypeError):
+            except (KeyError, AttributeError, TypeError):
                 pass
         elif isinstance(k, Field):
             try:
                 return ogetattr(self, k.name)
-            except (KeyError,AttributeError,TypeError):
+            except (KeyError, AttributeError, TypeError):
                 pass
             try:
                 return ogetattr(ogetattr(self, k.tablename), k.name)
-            except (KeyError,AttributeError,TypeError):
+            except (KeyError, AttributeError, TypeError):
                 pass
 
-        key=str(k)
+        key = str(k)
         _extra = ogetattr(self, '__dict__').get('_extra', None)
         if _extra is not None:
             v = _extra.get(key, DEFAULT)
@@ -62,18 +65,18 @@ class Row(object):
                 return v
         try:
             return ogetattr(self, key)
-        except (KeyError,AttributeError,TypeError):
+        except (KeyError, AttributeError, TypeError):
             pass
 
         m = REGEX_TABLE_DOT_FIELD.match(key)
         if m:
             try:
                 return ogetattr(self, m.group(1))[m.group(2)]
-            except (KeyError,AttributeError,TypeError):
+            except (KeyError, AttributeError, TypeError):
                 key = m.group(2)
         try:
             return ogetattr(self, key)
-        except (KeyError,AttributeError,TypeError), ae:
+        except (KeyError, AttributeError, TypeError), ae:
             try:
                 self[key] = ogetattr(self,'__get_lazy_reference__')(key)
                 return self[key]
@@ -201,14 +204,13 @@ class Row(object):
 
         item = self.as_dict(**kwargs)
         if serialize:
-            if have_serializers:
-                return serializers.json(item,
-                                        default=default or
-                                        serializers.custom_json)
-            elif simplejson:
-                return simplejson.dumps(item)
+            if hasattr(GLOBALS.get('serializers'), 'json'):
+                custom_json = GLOBALS['serializers']['custom_json'] if \
+                    hasattr(GLOBALS['serializers'], 'custom_json') else None
+                return GLOBALS['serializers']['json'](
+                    item, default=default or custom_json)
             else:
-                raise RuntimeError("missing simplejson")
+                return json.dumps(item)
         else:
             return item
 
@@ -508,7 +510,7 @@ class Table(object):
             """ for keyed table """
             query = self._build_query(key)
             return self._db(query).select(limitby=(0, 1), orderby_on_limitby=False).first()
-        elif str(key).isdigit() or 'google' in DRIVERS and isinstance(key, Key):
+        elif str(key).isdigit() or 'google' in self._db._drivers_available and isinstance(key, Key):
             return self._db(self._id == key).select(limitby=(0, 1), orderby_on_limitby=False).first()
         elif key:
             return ogetattr(self, str(key))
@@ -690,7 +692,7 @@ class Table(object):
                 if not (value is None or isinstance(value, str)):
                     if hasattr(value, 'file') and hasattr(value, 'filename'):
                         new_name = field.store(value.file, filename=value.filename)
-                    elif isinstance(value,dict): 
+                    elif isinstance(value,dict):
                         if 'data' in value and 'filename' in value:
                             stream = StringIO.StringIO(value['data'])
                             new_name = field.store(stream, filename=value['filename'])
@@ -998,22 +1000,22 @@ class Table(object):
         return table_as_dict
 
     def as_xml(self, sanitize=True):
-        if not have_serializers:
+        if not self._db.has_serializer('xml'):
             raise ImportError("No xml serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return serializers.xml(d)
+        return self._db.serialize('xml', d)
 
     def as_json(self, sanitize=True):
-        if not have_serializers:
+        if not self._db.has_serializer('json'):
             raise ImportError("No json serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return serializers.json(d)
+        return self._db.serialize('json', d)
 
     def as_yaml(self, sanitize=True):
-        if not have_serializers:
+        if not self._db.has_serializer('yaml'):
             raise ImportError("No YAML serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return serializers.yaml(d)
+        return self._db.serialize('yaml', d)
 
     def with_alias(self, alias):
         return self._db._adapter.alias(self, alias)
@@ -1505,7 +1507,7 @@ class Field(Expression):
         filename = os.path.basename(filename.replace('/', os.sep).replace('\\', os.sep))
         m = REGEX_STORE_PATTERN.search(filename)
         extension = m and m.group('e') or 'txt'
-        uuid_key = web2py_uuid().replace('-', '')[-16:]
+        uuid_key = self._db.uuid().replace('-', '')[-16:]
         encoded_filename = base64.b16encode(filename).lower()
         newfilename = '%s.%s.%s.%s' % \
             (self._tablename, self.name, uuid_key, encoded_filename)
@@ -1556,13 +1558,12 @@ class Field(Expression):
         self_uploadfield = self.uploadfield
         if self.custom_retrieve:
             return self.custom_retrieve(name, path)
-        import gluon.http as http
         if self.authorize or isinstance(self_uploadfield, str):
             row = self.db(self == name).select().first()
             if not row:
-                raise http.HTTP(404)
+                raise NotFoundException
         if self.authorize and not self.authorize(row):
-            raise http.HTTP(403)
+            raise NotAuthorizedException
         file_properties = self.retrieve_file_properties(name, path)
         filename = file_properties['filename']
         if isinstance(self_uploadfield, str):  # ## if file is in DB
@@ -1686,27 +1687,22 @@ class Field(Expression):
         return d
 
     def as_xml(self, sanitize=True):
-        if have_serializers:
-            xml = serializers.xml
-        else:
+        if not self._db.has_serializer('xml'):
             raise ImportError("No xml serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return xml(d)
+        return self._db.serialize('xml', d)
 
     def as_json(self, sanitize=True):
-        if have_serializers:
-            json = serializers.json
-        else:
+        if not self._db.has_serializer('json'):
             raise ImportError("No json serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return json(d)
+        return self._db.serialize('json', d)
 
     def as_yaml(self, sanitize=True):
-        if have_serializers:
-            d = self.as_dict(flat=True, sanitize=sanitize)
-            return serializers.yaml(d)
-        else:
+        if not self._db.has_serializer('yaml'):
             raise ImportError("No YAML serializers available")
+        d = self.as_dict(flat=True, sanitize=sanitize)
+        return self._db.serialize('yaml', d)
 
     def __nonzero__(self):
         return True
@@ -1838,32 +1834,31 @@ class Query(object):
                         newd[k] = v.__name__
                     elif isinstance(v, basestring):
                         newd[k] = v
-                    else: pass  # not callable or string
+                    else:
+                        pass  # not callable or string
                 elif isinstance(v, SERIALIZABLE_TYPES):
                     if isinstance(v, dict):
                         newd[k] = loop(v)
-                    else: newd[k] = v
+                    else:
+                        newd[k] = v
             return newd
 
         if flat:
             return loop(self.__dict__)
-        else: return self.__dict__
+        else:
+            return self.__dict__
 
     def as_xml(self, sanitize=True):
-        if have_serializers:
-            xml = serializers.xml
-        else:
+        if not self._db.has_serializer('xml'):
             raise ImportError("No xml serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return xml(d)
+        return self._db.serialize('xml', d)
 
     def as_json(self, sanitize=True):
-        if have_serializers:
-            json = serializers.json
-        else:
+        if not self._db.has_serializer('json'):
             raise ImportError("No json serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return json(d)
+        return self._db.serialize('json', d)
 
 
 class Set(object):
@@ -1962,20 +1957,16 @@ class Set(object):
         else: return self.__dict__
 
     def as_xml(self, sanitize=True):
-        if have_serializers:
-            xml = serializers.xml
-        else:
+        if not self._db.has_serializer('xml'):
             raise ImportError("No xml serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return xml(d)
+        return self._db.serialize('xml', d)
 
     def as_json(self, sanitize=True):
-        if have_serializers:
-            json = serializers.json
-        else:
+        if not self._db.has_serializer('json'):
             raise ImportError("No json serializers available")
         d = self.as_dict(flat=True, sanitize=sanitize)
-        return json(d)
+        return self._db.serialize('json', d)
 
     def parse(self, dquery):
         "Experimental: Turn a dictionary into a Query object"
@@ -2477,7 +2468,9 @@ class Rows(object):
 
         if i is None:
             return (self.render(i, fields=fields) for i in range(len(self)))
-        import gluon.sqlhtml as sqlhtml
+        if not self.db.has_representer('rows_render'):
+            raise RuntimeError("Rows.render() needs a `rows_render` \
+                               representer in DAL instance")
         row = copy.deepcopy(self.records[i])
         keys = row.keys()
         tables = [f.tablename for f in fields] if fields \
@@ -2489,8 +2482,9 @@ class Rows(object):
                                     isinstance(self.db[table][k], Field)
                                     and self.db[table][k].represent)]
             for field in repr_fields:
-                row[table][field] = sqlhtml.represent(
-                    self.db[table][field], row[table][field], row[table])
+                row[table][field] = self.db.represent(
+                    'rows_render', self.db[table][field], row[table][field],
+                    row[table])
         if self.compact and len(keys) == 1 and keys[0] != '_extra':
             return row[keys[0]]
         return row
@@ -2567,7 +2561,7 @@ class Rows(object):
         :param render: whether we will render the fields using their represent
                        (default False) can be a list of fields to render or
                        True to render all.
-        """        
+        """
         roots = []
         drows = {}
         rows = list(self.render(fields=None if render is True else render)) if render else self
@@ -2660,10 +2654,12 @@ class Rows(object):
                     row.append(none_exception(value))
             writer.writerow(row)
 
-    def xml(self,strict=False,row_name='row',rows_name='rows'):
+    def xml(self, strict=False, row_name='row', rows_name='rows'):
         """
         Serializes the table using sqlhtml.SQLTABLE (if present)
         """
+        if not strict and not self.db.has_representer('rows_xml'):
+            strict = True
 
         if strict:
             return '<%s>\n%s\n</%s>' % (rows_name,
@@ -2671,8 +2667,10 @@ class Rows(object):
                                      colnames=self.colnames) for
                           row in self), rows_name)
 
-        import gluon.sqlhtml as sqlhtml
-        return sqlhtml.SQLTABLE(self).xml()
+        rv = self.db.represent('rows_xml', self)
+        if hasattr(rv, 'xml') and callable(getattr(rv, 'xml')):
+            return rv.xml()
+        return rv
 
     def as_xml(self,row_name='row',rows_name='rows'):
         return self.xml(strict=True, row_name=row_name, rows_name=rows_name)
@@ -2689,16 +2687,14 @@ class Rows(object):
                                 colnames=self.colnames) for
                  record in self]
 
-        if have_serializers:
-            return serializers.json(items,
-                                    default=default or
-                                    serializers.custom_json)
-        elif simplejson:
-            return simplejson.dumps(items)
+        if self.db.has_serializer('json'):
+            custom_json = self.db.serializers.custom_json if \
+                self.db.has_serializer('custom_json') else None
+            return self.db.serialize('json', items,
+                                     default=default or custom_json)
         else:
-            raise RuntimeError("missing simplejson")
+            return json.dumps(items)
 
     # for consistent naming yet backwards compatible
     as_csv = __str__
     json = as_json
-

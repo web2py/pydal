@@ -11,10 +11,10 @@ import time
 import base64
 import types
 
-from .._compat import pjoin, exists, pickle, hashlib_md5
-from .._globals import IDENTITY, LOGGER
-from .._load import DRIVERS, get_driver, have_portalocker, portalocker, have_serializers, \
-    serializers, simplejson, gae
+from .._compat import pjoin, exists, pickle, hashlib_md5, iterkeys
+from .._globals import IDENTITY
+from .._load import have_portalocker, portalocker, json
+from .._gae import gae
 from ..connection import ConnectionPool
 from ..objects import Expression, Field, Query, Table, Row, FieldVirtual, \
     FieldMethod, LazyReferenceGetter, LazySet, VirtualCommand, Rows
@@ -67,7 +67,7 @@ class BaseAdapter(ConnectionPool):
     driver_auto_json = []
     driver = None
     driver_name = None
-    drivers = () # list of drivers from which to pick
+    drivers = ()  # list of drivers from which to pick
     connection = None
     commit_on_alter_table = False
     support_distributed_transaction = False
@@ -75,7 +75,7 @@ class BaseAdapter(ConnectionPool):
     can_select_for_update = True
     dbpath = None
     folder = None
-    connector = lambda *args, **kwargs: None # __init__ should override this
+    connector = lambda *args, **kwargs: None  # __init__ should override this
 
     TRUE = 'T'
     FALSE = 'F'
@@ -155,15 +155,15 @@ class BaseAdapter(ConnectionPool):
     def file_delete(self, filename):
         os.unlink(filename)
 
-    def find_driver(self,adapter_args,uri=None):
+    def find_driver(self, adapter_args, uri=None):
         self.adapter_args = adapter_args
-        if getattr(self,'driver',None) != None:
+        if getattr(self, 'driver', None) is not None:
             return
         drivers_available = [driver for driver in self.drivers
-                             if driver in DRIVERS]
+                             if driver in iterkeys(self.db._drivers_available)]
         if uri:
-            items = uri.split('://',1)[0].split(':')
-            request_driver = items[1] if len(items)>1 else None
+            items = uri.split('://', 1)[0].split(':')
+            request_driver = items[1] if len(items) > 1 else None
         else:
             request_driver = None
         request_driver = request_driver or adapter_args.get('driver')
@@ -171,13 +171,13 @@ class BaseAdapter(ConnectionPool):
             if request_driver in drivers_available:
                 self.driver_name = request_driver
                 #self.driver = globals().get(request_driver)
-                self.driver = get_driver(request_driver)
+                self.driver = self.db._drivers_available[request_driver]
             else:
                 raise RuntimeError("driver %s not available" % request_driver)
         elif drivers_available:
             self.driver_name = drivers_available[0]
             #self.driver = globals().get(self.driver_name)
-            self.driver = get_driver(self.driver_name)
+            self.driver = self.db._drivers_available[self.driver_name]
         else:
             raise RuntimeError("no driver available %s" % str(self.drivers))
 
@@ -267,13 +267,13 @@ class BaseAdapter(ConnectionPool):
                     rfieldname = rfield.name
                     rtablename = referenced
                 except (KeyError, ValueError, AttributeError), e:
-                    LOGGER.debug('Error: %s' % e)
+                    self.db.logger.debug('Error: %s' % e)
                     try:
                         rtablename,rfieldname = referenced.split('.')
                         rtable = db[rtablename]
                         rfield = rtable[rfieldname]
                     except Exception, e:
-                        LOGGER.debug('Error: %s' %e)
+                        self.db.logger.debug('Error: %s' %e)
                         raise KeyError('Cannot resolve reference %s in %s definition' % (referenced, table._tablename))
 
                 # must be PK reference or unique
@@ -1304,7 +1304,7 @@ class BaseAdapter(ConnectionPool):
         if hasattr(self,'filter_sql_command'):
             command = self.filter_sql_command(command)
         if self.db._debug:
-            LOGGER.debug('SQL: %s' % command)
+            self.db.logger.debug('SQL: %s' % command)
         self.db._lastsql = command
         t0 = time.time()
         ret = self.cursor.execute(command, *a[1:], **b)
@@ -1395,13 +1395,11 @@ class BaseAdapter(ConnectionPool):
         elif fieldtype == 'json':
             if not 'dumps' in self.driver_auto_json:
                 # always pass a string JSON string
-                if have_serializers:
-                    obj = serializers.json(obj)
-                elif simplejson:
-                    obj = simplejson.dumps(obj)
+                if self.db.has_serializer('json'):
+                    obj = self.db.serialize('json', obj)
                 else:
-                    raise RuntimeError("missing simplejson")
-        if not isinstance(obj,bytes):
+                    obj = json.dumps(obj)
+        if not isinstance(obj, bytes):
             obj = bytes(obj)
         try:
             obj.decode(self.db_codec)
@@ -1537,12 +1535,10 @@ class BaseAdapter(ConnectionPool):
                 raise RuntimeError('json data not a string')
             if isinstance(value, unicode):
                 value = value.encode('utf-8')
-            if have_serializers:
-                value = serializers.loads_json(value)
-            elif simplejson:
-                value = simplejson.loads(value)
+            if self.db.has_serializer('loads_json'):
+                value = self.db.serialize('loads_json', value)
             else:
-                raise RuntimeError("missing simplejson")
+                value = json.loads(value)
         return value
 
     def build_parsemap(self):
@@ -1787,12 +1783,10 @@ class NoSQLAdapter(BaseAdapter):
             elif fieldtype == 'json':
                 if isinstance(obj, basestring):
                     obj = self.to_unicode(obj)
-                    if have_serializers:
-                        obj = serializers.loads_json(obj)
-                    elif simplejson:
-                        obj = simplejson.loads(obj)
+                    if self.db.has_serializer('loads_json'):
+                        obj = self.db.serialize('loads_json', obj)
                     else:
-                        raise RuntimeError("missing simplejson")
+                        obj = json.loads(obj)
             elif is_string and field_is_type('list:string'):
                 return map(self.to_unicode,obj)
             elif is_list:

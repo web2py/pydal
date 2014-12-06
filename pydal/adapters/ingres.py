@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 from .._globals import IDENTITY
-from .._load import pyodbc
+from ..drivers import pyodbc
 from .base import BaseAdapter
 
-# NOTE invalid database object name (ANSI-SQL wants 
+# NOTE invalid database object name (ANSI-SQL wants
 #      this form of name to be a delimited identifier)
 INGRES_SEQNAME='ii***lineitemsequence'
 

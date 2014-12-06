@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import re
 
-from .._load import psycopg2_adapt
-from .._globals import IDENTITY, LOGGER
+from .._globals import IDENTITY
+from ..drivers import psycopg2_adapt
 from ..helpers.methods import varquote_aux
 from .base import BaseAdapter
 
@@ -104,7 +104,7 @@ class PostgreSQLAdapter(BaseAdapter):
         self.srid = srid
         self.find_or_make_work_folder()
         self._last_insert = None # for INSERT ... RETURNING ID
-        
+
         ruri = uri.split('://',1)[1]
         m = self.REGEX_URI.match(ruri)
         if not m:
@@ -183,7 +183,7 @@ class PostgreSQLAdapter(BaseAdapter):
             supports_json = self.connection.server_version >= 90200
         elif self.driver_name == "zxJDBC":
             supports_json = self.connection.dbversion >= "9.2.0"
-        else: 
+        else:
             supports_json = None
         if supports_json:
             self.types["json"] = "JSON"
@@ -191,7 +191,7 @@ class PostgreSQLAdapter(BaseAdapter):
                 self.driver.__version__ >= '2.5.0'):
                 self.driver_auto_json = ['loads']
         else:
-            LOGGER.debug("Your database version does not support the JSON"
+            self.db.logger.debug("Your database version does not support the JSON"
                 " data type (using TEXT instead)")
 
     def LIKE(self,first,second):

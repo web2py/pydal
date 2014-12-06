@@ -3,7 +3,7 @@ import datetime
 import re
 import sys
 
-from .._globals import IDENTITY, GLOBAL_LOCKER, LOGGER
+from .._globals import IDENTITY, GLOBAL_LOCKER
 from ..connection import ConnectionPool
 from ..objects import Field, Query, Expression
 from ..helpers.classes import SQLALL
@@ -66,7 +66,7 @@ class IMAPAdapter(NoSQLAdapter):
     attachments   list           Each non text part as dict
     encoding      string         The main detected encoding
     ===========   ============== ===========
-    
+
     (*) At the application side it is measured as the length of the RFC822
     message string
 
@@ -303,7 +303,7 @@ class IMAPAdapter(NoSQLAdapter):
                 last_message = 1
         except (IndexError, ValueError, TypeError, KeyError):
             e = sys.exc_info()[1]
-            LOGGER.debug("Error retrieving the last mailbox" +
+            self.db.logger.debug("Error retrieving the last mailbox" +
                          " sequence number. %s" % str(e))
         return last_message
 
@@ -346,7 +346,7 @@ class IMAPAdapter(NoSQLAdapter):
                 return datetime.datetime(year, month, day,
                     hms[0], hms[1], hms[2]) + add
             except (ValueError, AttributeError, IndexError), e:
-                LOGGER.error("Could not parse date text: %s. %s" %
+                self.db.logger.error("Could not parse date text: %s. %s" %
                              (date, e))
                 return None
         elif isinstance(date, (datetime.date, datetime.datetime)):
@@ -903,7 +903,7 @@ class IMAPAdapter(NoSQLAdapter):
                 pedestal, threshold = self.get_uid_bounds(first.tablename)
             except TypeError:
                 e = sys.exc_info()[1]
-                LOGGER.debug("Error requesting uid bounds: %s", str(e))
+                self.db.logger.debug("Error requesting uid bounds: %s", str(e))
                 return ""
             try:
                 lower_limit = int(self.expand(second)) + 1
@@ -933,7 +933,7 @@ class IMAPAdapter(NoSQLAdapter):
                 pedestal, threshold = self.get_uid_bounds(first.tablename)
             except TypeError:
                 e = sys.exc_info()[1]
-                LOGGER.debug("Error requesting uid bounds: %s", str(e))
+                self.db.logger.debug("Error requesting uid bounds: %s", str(e))
                 return ""
             lower_limit = self.expand(second)
             result = "UID %s:%s" % (lower_limit, threshold)
@@ -953,7 +953,7 @@ class IMAPAdapter(NoSQLAdapter):
                 pedestal, threshold = self.get_uid_bounds(first.tablename)
             except TypeError:
                 e = sys.exc_info()[1]
-                LOGGER.debug("Error requesting uid bounds: %s", str(e))
+                self.db.logger.debug("Error requesting uid bounds: %s", str(e))
                 return ""
             try:
                 upper_limit = int(self.expand(second)) - 1
@@ -979,7 +979,7 @@ class IMAPAdapter(NoSQLAdapter):
                 pedestal, threshold = self.get_uid_bounds(first.tablename)
             except TypeError:
                 e = sys.exc_info()[1]
-                LOGGER.debug("Error requesting uid bounds: %s", str(e))
+                self.db.logger.debug("Error requesting uid bounds: %s", str(e))
                 return ""
             upper_limit = int(self.expand(second))
             result = "UID %s:%s" % (pedestal, upper_limit)

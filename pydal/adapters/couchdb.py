@@ -2,7 +2,8 @@
 import datetime
 
 from .._globals import IDENTITY
-from .._load import serializers, couchdb, web2py_uuid
+from .._load import json
+from ..drivers import couchdb
 from ..objects import Field, Query
 from ..helpers.classes import SQLALL
 from ..helpers.methods import uuid2int
@@ -66,12 +67,17 @@ class CouchDBAdapter(NoSQLAdapter):
 
     def represent(self, obj, fieldtype):
         value = NoSQLAdapter.represent(self, obj, fieldtype)
-        if fieldtype=='id':
+        if fieldtype == 'id':
             return repr(str(long(value)))
-        elif fieldtype in ('date','time','datetime','boolean'):
-            return serializers.json(value)
-        return repr(not isinstance(value,unicode) and value \
-                        or value and value.encode('utf8'))
+        elif fieldtype in ('date', 'time', 'datetime', 'boolean'):
+            if self.db.has_serializer('json'):
+                return self.db.serialize('json', value)
+            else:
+                return json.dumps(value)
+            if not self._db.has_serializer('json'):
+                raise ImportError("No json serializers available")
+        return repr(not isinstance(value, unicode) and value
+                    or value and value.encode('utf8'))
 
     def __init__(self,db,uri='couchdb://127.0.0.1:5984',
                  pool_size=0,folder=None,db_codec ='UTF-8',
@@ -100,7 +106,7 @@ class CouchDBAdapter(NoSQLAdapter):
                 pass
 
     def insert(self,table,fields):
-        id = uuid2int(web2py_uuid())
+        id = uuid2int(self.db.uuid())
         ctable = self.connection[table._tablename]
         values = dict((k.name,self.represent(v,k.type)) for k,v in fields)
         values['_id'] = str(id)
