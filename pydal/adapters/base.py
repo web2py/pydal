@@ -13,7 +13,7 @@ import types
 
 from .._compat import pjoin, exists, pickle, hashlib_md5, iterkeys
 from .._globals import IDENTITY
-from .._load import have_portalocker, portalocker, json
+from .._load import portalocker, json
 from .._gae import gae
 from ..connection import ConnectionPool
 from ..objects import Expression, Field, Query, Table, Row, FieldVirtual, \
@@ -141,7 +141,7 @@ class BaseAdapter(ConnectionPool):
 
     def file_open(self, filename, mode='rb', lock=True):
         #to be used ONLY for files that on GAE may not be on filesystem
-        if have_portalocker and lock:
+        if lock:
             fileobj = portalocker.LockedFile(filename,mode)
         else:
             fileobj = open(filename,mode)
