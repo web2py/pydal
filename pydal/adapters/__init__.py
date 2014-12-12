@@ -64,4 +64,4 @@ try:
     ADAPTERS['google:sql'] = GoogleSQLAdapter
 except:
     # don't bother, we're not on Google AppEngine
-    pass
+    GoogleDatastoreAdapter = None

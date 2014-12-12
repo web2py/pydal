@@ -1563,7 +1563,7 @@ class BaseAdapter(ConnectionPool):
 
     def parse(self, rows, fields, colnames, blob_decode=True,
               cacheable = False):
-        from .google import GoogleDatastoreAdapter
+        from . import GoogleDatastoreAdapter
         db = self.db
         virtualtables = []
         new_rows = []
@@ -1604,7 +1604,7 @@ class BaseAdapter(ConnectionPool):
                         # temporary hack to deal with
                         # GoogleDatastoreAdapter
                         # references
-                        if isinstance(self, GoogleDatastoreAdapter):
+                        if GoogleDatastoreAdapter and isinstance(self, GoogleDatastoreAdapter):
                             id = value.key.id() if self.use_ndb else value.key().id_or_name()
                             colset[fieldname] = id
                             colset.gae_item = value
