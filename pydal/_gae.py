@@ -79,9 +79,5 @@ try:
             raise TypeError("Property %s must be a Decimal or string."
                             % self._name)
 except ImportError:
-    classobj = None
     gae = None
-    ndb = None
-    namespace_manager = rdbms = None
     Key = None
-    PolyModel = NDBPolyModel = None
