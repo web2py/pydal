@@ -14,7 +14,7 @@ env:
   - DB=mysql://root:@localhost/pydal
   - DB=postgres://postgres:@localhost/pydal
   - DB=google:datastore
-  - DB=mongodb://mongodb:mongodb@localhost/pydal
+  - DB=mongodb://localhost/pydal
   - DB=imap://imap:imap@localhost:993
 
 before_script:
@@ -32,7 +32,7 @@ before_script:
 
   # Install pymongo
   - if [[ $DB == mongodb* ]]; then pip install pymongo; fi
-  - if [[ $DB == mongodb* ]]; then mongo pydal --eval "db.addUser('mongodb', 'mongodb');"; fi
+  #- if [[ $DB == mongodb* ]]; then mongo pydal --eval "db.addUser('mongodb', 'mongodb');"; fi
 
 matrix:
   exclude:
