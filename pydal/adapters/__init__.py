@@ -12,7 +12,6 @@ from .teradata import TeradataAdapter
 from .ingres import IngresAdapter, IngresUnicodeAdapter
 from .sapdb import SAPDBAdapter
 from .cubrid import CubridAdapter
-from .google import GoogleDatastoreAdapter, GoogleSQLAdapter
 from .couchdb import CouchDBAdapter
 from .mongo import MongoDBAdapter
 from .imap import IMAPAdapter
@@ -50,11 +49,19 @@ ADAPTERS = {
     'jdbc:sqlite': JDBCSQLiteAdapter,
     'jdbc:sqlite:memory': JDBCSQLiteAdapter,
     'jdbc:postgres': JDBCPostgreSQLAdapter,
-    'gae': GoogleDatastoreAdapter, # discouraged, for backward compatibility
-    'google:datastore': GoogleDatastoreAdapter,
-    'google:datastore+ndb': GoogleDatastoreAdapter,
-    'google:sql': GoogleSQLAdapter,
     'couchdb': CouchDBAdapter,
     'mongodb': MongoDBAdapter,
     'imap': IMAPAdapter
 }
+
+try:
+    from .google import GoogleDatastoreAdapter, GoogleSQLAdapter
+    # discouraged, for backward compatibility
+    ADAPTERS['gae'] = GoogleDatastoreAdapter
+    # add gae adapters
+    ADAPTERS['google:datastore'] = GoogleDatastoreAdapter
+    ADAPTERS['google:datastore+ndb'] = GoogleDatastoreAdapter
+    ADAPTERS['google:sql'] = GoogleSQLAdapter
+except:
+    # don't bother, we're not on Google AppEngine
+    GoogleDatastoreAdapter = None

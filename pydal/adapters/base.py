@@ -13,7 +13,7 @@ import types
 
 from .._compat import pjoin, exists, pickle, hashlib_md5, iterkeys
 from .._globals import IDENTITY
-from .._load import have_portalocker, portalocker, json
+from .._load import portalocker, json
 from .._gae import gae
 from ..connection import ConnectionPool
 from ..objects import Expression, Field, Query, Table, Row, FieldVirtual, \
@@ -141,7 +141,7 @@ class BaseAdapter(ConnectionPool):
 
     def file_open(self, filename, mode='rb', lock=True):
         #to be used ONLY for files that on GAE may not be on filesystem
-        if have_portalocker and lock:
+        if lock:
             fileobj = portalocker.LockedFile(filename,mode)
         else:
             fileobj = open(filename,mode)
@@ -339,6 +339,8 @@ class BaseAdapter(ConnectionPool):
                         % (field_type, field_name))
                 ftype = types[geotype]
                 if self.dbengine == 'postgres' and geotype == 'geometry':
+                    if self.ignore_field_case is True:
+                        field_name = field_name.lower()
                     # parameters: schema, srid, dimension
                     dimension = 2 # GIS.dimension ???
                     parms = parms.split(',')
@@ -1321,9 +1323,9 @@ class BaseAdapter(ConnectionPool):
             obj = obj()
         if isinstance(fieldtype, SQLCustomType):
             value = fieldtype.encoder(obj)
-            if fieldtype.type in ('string','text', 'json'):
+            if value and fieldtype.type in ('string','text', 'json'):
                 return self.adapt(value)
-            return value
+            return value or 'NULL'
         if isinstance(obj, (Expression, Field)):
             return str(obj)
         if field_is_type('list:'):
@@ -1563,7 +1565,7 @@ class BaseAdapter(ConnectionPool):
 
     def parse(self, rows, fields, colnames, blob_decode=True,
               cacheable = False):
-        from .google import GoogleDatastoreAdapter
+        from . import GoogleDatastoreAdapter
         db = self.db
         virtualtables = []
         new_rows = []
@@ -1604,7 +1606,7 @@ class BaseAdapter(ConnectionPool):
                         # temporary hack to deal with
                         # GoogleDatastoreAdapter
                         # references
-                        if isinstance(self, GoogleDatastoreAdapter):
+                        if GoogleDatastoreAdapter and isinstance(self, GoogleDatastoreAdapter):
                             id = value.key.id() if self.use_ndb else value.key().id_or_name()
                             colset[fieldname] = id
                             colset.gae_item = value
