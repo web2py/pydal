@@ -252,6 +252,7 @@ class Table(object):
         # import DAL here to avoid circular imports
         from .base import DAL
         self._actual = False  # set to True by define_table()
+        self._db = db
         self._tablename = tablename
         if (not isinstance(tablename, str) or tablename[0] == '_'
             or hasattr(DAL, tablename) or '.' in tablename
@@ -328,7 +329,6 @@ class Table(object):
                 raise SyntaxError(
                     'define_table argument is not a Field or Table: %s' % field)
         fields = newfields
-        self._db = db
         tablename = tablename
         self._fields = SQLCallableList()
         self.virtualfields = []
