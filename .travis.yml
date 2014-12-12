@@ -26,6 +26,7 @@ before_script:
   - if [[ $DB == postgres* ]]; then psql -c 'create extension postgis;' -U postgres -d pydal; fi
 
   # Install last sdk for app engine (update only whenever a new release is available)
+  - if [[ $DB == google* ]]; then pip install pyyaml; fi;
   - if [[ $DB == google* ]]; then wget http://googleappengine.googlecode.com/files/google_appengine_1.8.9.zip -nv; fi
   - if [[ $DB == google* ]]; then unzip -q google_appengine_1.8.9.zip; fi
   - if [[ $DB == google* ]]; then mv -f ./google_appengine/google ./google; fi
