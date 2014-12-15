@@ -6,17 +6,12 @@
 import sys
 import os
 import glob
-
-if sys.version < "2.7":
-    import unittest2 as unittest
-else:
-    import unittest
-
 import datetime
 try:
     import cStringIO as StringIO
 except:
     from io import StringIO
+from ._compat import unittest
 
 
 #for travis-ci

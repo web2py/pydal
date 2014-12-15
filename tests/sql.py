@@ -6,13 +6,12 @@
 import sys
 import os
 import glob
-
-import unittest
 import datetime
 try:
     import cStringIO as StringIO
 except:
     from io import StringIO
+from ._compat import unittest
 
 
 #for travis-ci

@@ -1,6 +1,6 @@
-import unittest
 import re
 import os
+from ._compat import unittest
 from pydal import DAL, Field
 
 DEFAULT_URI = os.getenv('DB', 'sqlite:memory')
