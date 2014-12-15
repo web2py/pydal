@@ -509,11 +509,23 @@ class Table(object):
         elif isinstance(key, dict):
             """ for keyed table """
             query = self._build_query(key)
-            return self._db(query).select(limitby=(0, 1), orderby_on_limitby=False).first()
-        elif str(key).isdigit() or 'google' in self._db._drivers_available and isinstance(key, Key):
-            return self._db(self._id == key).select(limitby=(0, 1), orderby_on_limitby=False).first()
-        elif key:
-            return ogetattr(self, str(key))
+            return self._db(query).select(
+                limitby=(0, 1),
+                orderby_on_limitby=False
+            ).first()
+        else:
+            try:
+                isgoogle = 'google' in self._db._drivers_available and \
+                    isinstance(key, Key)
+            except:
+                isgoogle = False
+            if str(key).isdigit() or isgoogle:
+                return self._db(self._id == key).select(
+                    limitby=(0, 1),
+                    orderby_on_limitby=False
+                ).first()
+            else:
+                return ogetattr(self, str(key))
 
     def __call__(self, key=DEFAULT, **kwargs):
         for_update = kwargs.get('_for_update', False)
