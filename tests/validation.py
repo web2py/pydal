@@ -5,6 +5,7 @@ from pydal import DAL, Field
 
 DEFAULT_URI = os.getenv('DB', 'sqlite:memory')
 NOSQL = any([name in DEFAULT_URI for name in ("datastore", "mongodb", "imap")])
+IS_IMAP = "imap" in DEFAULT_URI
 
 regex_isint = re.compile('^[+-]?\d+$')
 
@@ -40,6 +41,7 @@ class IS_INT_IN_RANGE(object):
         return (value, self.error_message)
 
 
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestValidateAndInsert(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
