@@ -30,12 +30,13 @@ IS_IMAP = "imap" in DEFAULT_URI
 
 if IS_IMAP:
     from pydal.adapters import IMAPAdapter
-    from contrib import mockimaplib
+    from pydal.contrib import mockimaplib
     IMAPAdapter.driver = mockimaplib
 
 from pydal import DAL, Field
 from pydal.objects import Table
 from pydal.helpers.classes import SQLALL
+
 
 def drop(table, cascade=None):
     # mongodb implements drop()
