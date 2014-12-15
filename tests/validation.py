@@ -4,6 +4,7 @@ import os
 from pydal import DAL, Field
 
 DEFAULT_URI = os.getenv('DB', 'sqlite:memory')
+NOSQL = any([name in DEFAULT_URI for name in ("datastore", "mongodb", "imap")])
 
 regex_isint = re.compile('^[+-]?\d+$')
 
@@ -47,7 +48,10 @@ class TestValidateAndInsert(unittest.TestCase):
                         Field('bb', 'integer',
                               requires=IS_INT_IN_RANGE(1, 5)))
         rtn = db.val_and_insert.validate_and_insert(aa='test1', bb=2)
-        self.assertEqual(rtn.id, 1)
+        if NOSQL:
+            self.assertEqual(isinstance(rtn.id, long), True)
+        else:
+            self.assertEqual(rtn.id, 1)
         #errors should be empty
         self.assertEqual(len(rtn.errors.keys()), 0)
         #this insert won't pass
