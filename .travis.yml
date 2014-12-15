@@ -29,13 +29,13 @@ before_script:
 matrix:
   exclude:
     - python: 'pypy'
-      env: DB=postgres
+      env: ADAPTER=postgres
     - python: 'pypy'
-      env: DB=mysql
+      env: ADAPTER=mysql
     - python: 'pypy'
-      env: DB=google
+      env: ADAPTER=google
     - python: '2.6'
-      env: DB=google
+      env: ADAPTER=google
 
 script:
   - tox -e $(echo py$TRAVIS_PYTHON_VERSION | tr -d . | sed -e 's/pypypy/pypy/')-$ADAPTER
