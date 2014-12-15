@@ -13,7 +13,7 @@ env:
   - ADAPTER=mysql
   - ADAPTER=postgres
   - ADAPTER=google
-  - ADAPTER=mongodb
+  - ADAPTER=mongo
   - ADAPTER=imap
 
 before_script:
