@@ -7,3 +7,5 @@ if NOSQL:
     from nosql import *
 else:
     from sql import *
+
+from validation import TestValidateAndInsert

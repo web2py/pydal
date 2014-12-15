@@ -6,17 +6,12 @@
 import sys
 import os
 import glob
-
-if sys.version < "2.7":
-    import unittest2 as unittest
-else:
-    import unittest
-
 import datetime
 try:
     import cStringIO as StringIO
 except:
     from io import StringIO
+from ._compat import unittest
 
 
 #for travis-ci
@@ -30,12 +25,13 @@ IS_IMAP = "imap" in DEFAULT_URI
 
 if IS_IMAP:
     from pydal.adapters import IMAPAdapter
-    from contrib import mockimaplib
+    from pydal.contrib import mockimaplib
     IMAPAdapter.driver = mockimaplib
 
 from pydal import DAL, Field
 from pydal.objects import Table
 from pydal.helpers.classes import SQLALL
+
 
 def drop(table, cascade=None):
     # mongodb implements drop()
@@ -557,6 +553,9 @@ class TestMinMaxSumAvg(unittest.TestCase):
         self.assertEqual(db().select(s).first()[s], 2)
         drop(db.tt)
 
+"""
+[gi0baro] removed cache test due to web2py's dependency.
+          TODO: re-implement adding a caching system
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestCache(unittest.TestCase):
     def testRun(self):
@@ -575,6 +574,8 @@ class TestCache(unittest.TestCase):
         r4 = db().select(db.tt.ALL, cache=(cache, 1000), cacheable=True)
         self.assertEqual(len(r0),len(r4))
         drop(db.tt)
+"""
+
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
 class TestMigrations(unittest.TestCase):
@@ -872,37 +873,6 @@ class TestDALDictImportExport(unittest.TestCase):
         drop(db6.staff)
         drop(db6.tvshow)
         db6.commit()
-
-
-"""
-[gi0baro] removed validation test due to web2py's dependency.
-          TODO: re-implement adding a validator here
-
-@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
-class TestValidateAndInsert(unittest.TestCase):
-
-    def testRun(self):
-        import datetime
-        from gluon.validators import IS_INT_IN_RANGE
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('val_and_insert',
-                        Field('aa'),
-                        Field('bb', 'integer',
-                              requires=IS_INT_IN_RANGE(1,5))
-                       )
-        rtn = db.val_and_insert.validate_and_insert(aa='test1', bb=2)
-        self.assertEqual(isinstance(rtn.id, long), True)
-        #errors should be empty
-        self.assertEqual(len(rtn.errors.keys()), 0)
-        #this insert won't pass
-        rtn = db.val_and_insert.validate_and_insert(bb="a")
-        #the returned id should be None
-        self.assertEqual(rtn.id, None)
-        #an error message should be in rtn.errors.bb
-        self.assertNotEqual(rtn.errors.bb, None)
-        #cleanup table
-        drop(db.val_and_insert)
-"""
 
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
