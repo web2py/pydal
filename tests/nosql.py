@@ -558,6 +558,9 @@ class TestMinMaxSumAvg(unittest.TestCase):
         self.assertEqual(db().select(s).first()[s], 2)
         drop(db.tt)
 
+"""
+[gi0baro] removed cache test due to web2py's dependency.
+          TODO: re-implement adding a caching system
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestCache(unittest.TestCase):
     def testRun(self):
@@ -576,6 +579,8 @@ class TestCache(unittest.TestCase):
         r4 = db().select(db.tt.ALL, cache=(cache, 1000), cacheable=True)
         self.assertEqual(len(r0),len(r4))
         drop(db.tt)
+"""
+
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
 class TestMigrations(unittest.TestCase):
