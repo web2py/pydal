@@ -10,6 +10,23 @@ IS_IMAP = "imap" in DEFAULT_URI
 regex_isint = re.compile('^[+-]?\d+$')
 
 
+def drop(table, cascade=None):
+    # mongodb implements drop()
+    # although it seems it does not work properly
+    if NOSQL:
+        # GAE drop/cleanup is not implemented
+        db = table._db
+        db(table).delete()
+        del db[table._tablename]
+        del db.tables[db.tables.index(table._tablename)]
+        db._remove_references_to(table)
+    else:
+        if cascade:
+            table.drop(cascade)
+        else:
+            table.drop()
+
+
 def range_error_message(error_message, what_to_enter, minimum, maximum):
     "build the error message for the number range validators"
     if error_message is None:
@@ -63,4 +80,4 @@ class TestValidateAndInsert(unittest.TestCase):
         #an error message should be in rtn.errors.bb
         self.assertNotEqual(rtn.errors.bb, None)
         #cleanup table
-        db.val_and_insert.drop()
+        drop(db.val_and_insert)
