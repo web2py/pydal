@@ -880,37 +880,6 @@ class TestDALDictImportExport(unittest.TestCase):
         db6.commit()
 
 
-"""
-[gi0baro] removed validation test due to web2py's dependency.
-          TODO: re-implement adding a validator here
-
-@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
-class TestValidateAndInsert(unittest.TestCase):
-
-    def testRun(self):
-        import datetime
-        from gluon.validators import IS_INT_IN_RANGE
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('val_and_insert',
-                        Field('aa'),
-                        Field('bb', 'integer',
-                              requires=IS_INT_IN_RANGE(1,5))
-                       )
-        rtn = db.val_and_insert.validate_and_insert(aa='test1', bb=2)
-        self.assertEqual(isinstance(rtn.id, long), True)
-        #errors should be empty
-        self.assertEqual(len(rtn.errors.keys()), 0)
-        #this insert won't pass
-        rtn = db.val_and_insert.validate_and_insert(bb="a")
-        #the returned id should be None
-        self.assertEqual(rtn.id, None)
-        #an error message should be in rtn.errors.bb
-        self.assertNotEqual(rtn.errors.bb, None)
-        #cleanup table
-        drop(db.val_and_insert)
-"""
-
-
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestSelectAsDict(unittest.TestCase):
 
