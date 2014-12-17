@@ -1132,24 +1132,28 @@ class Expression(object):
         db = self.db
         return Expression(db, db._adapter.EPOCH, self, None, 'integer')
 
-    def __getslice__(self, start, stop):
-        db = self.db
-        if start < 0:
-            pos0 = '(%s - %d)' % (self.len(), abs(start) - 1)
-        else:
-            pos0 = start + 1
-
-        if stop < 0:
-            length = '(%s - %d - %s)' % (self.len(), abs(stop) - 1, pos0)
-        elif stop == sys.maxint:
-            length = self.len()
-        else:
-            length = '(%s - %s)' % (stop + 1, pos0)
-        return Expression(db, db._adapter.SUBSTRING,
-                          self, (pos0, length), self.type)
-
     def __getitem__(self, i):
-        return self[i:i + 1]
+        if isinstance(i, slice):
+            start = i.start
+            stop   = i.stop
+
+            db = self.db
+            if start < 0:
+                pos0 = '(%s - %d)' % (self.len(), abs(start) - 1)
+            else:
+                pos0 = start + 1
+
+            if stop == None or stop == sys.maxint:
+                length = self.len()
+            elif stop < 0:
+                length = '(%s - %d - %s)' % (self.len(), abs(stop) - 1, pos0)
+            else:
+                length = '(%s - %s)' % (stop + 1, pos0)
+
+            return Expression(db, db._adapter.SUBSTRING,
+                              self, (pos0, length), self.type)
+        else:
+            return self[i:i + 1]
 
     def __str__(self):
         return self.db._adapter.expand(self, self.type)
