@@ -5,7 +5,7 @@ from .._globals import IDENTITY
 from ..drivers import psycopg2_adapt
 from ..helpers.methods import varquote_aux
 from .base import BaseAdapter
-
+from ..objects import Expression
 
 class PostgreSQLAdapter(BaseAdapter):
     drivers = ('psycopg2','pg8000')
@@ -40,9 +40,7 @@ class PostgreSQLAdapter(BaseAdapter):
         'big-reference': 'BIGINT REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'reference FK': ', CONSTRAINT  "FK_%(constraint_name)s" FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'reference TFK': ' CONSTRAINT  "FK_%(foreign_table)s_PK" FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_table)s (%(foreign_key)s) ON DELETE %(on_delete_action)s',
-
-        }
-
+    }
 
     def varquote(self,name):
         return varquote_aux(name,'"%s"')
@@ -347,7 +345,9 @@ class NewPostgreSQLAdapter(PostgreSQLAdapter):
         'geography': 'GEOGRAPHY',
         'big-id': 'BIGSERIAL PRIMARY KEY',
         'big-reference': 'BIGINT REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
-        }
+        'reference FK': ', CONSTRAINT  "FK_%(constraint_name)s" FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference TFK': ' CONSTRAINT  "FK_%(foreign_table)s_PK" FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_table)s (%(foreign_key)s) ON DELETE %(on_delete_action)s',
+    }
 
     def parse_list_integers(self, value, field_type):
         return value
@@ -370,7 +370,34 @@ class NewPostgreSQLAdapter(PostgreSQLAdapter):
             else:
                 obj = map(int,obj)
             return 'ARRAY[%s]' % ','.join(repr(item) for item in obj)
-        return BaseAdapter.represent(self, obj, fieldtype)
+        return PostgreSQLAdapter.represent(self, obj, fieldtype)
+
+    def CONTAINS(self, first, second, case_sensitive=True):
+        if first.type.startswith('list'):
+            f = self.expand(second, 'string')
+            s = self.ANY(first)
+            op = self.EQ if case_sensitive == True else self.ILIKE
+            return op(f, s)
+        else:
+            return PostgreSQLAdapter.CONTAINS(self, first, second, case_sensitive=case_sensitive)
+
+    def ANY(self, first):
+        return "ANY(%s)" % self.expand(first)
+
+    def ILIKE(self, first, second):
+        if first and 'type' not in first:
+            args = (first, self.expand(second))
+            ilike = '(%s ILIKE %s)' % args
+        else:
+            ilike = PostgreSQLAdapter.ILIKE(self, first, second)
+        return ilike
+
+    def EQ(self, first, second=None):
+        if first and 'type' not in first:
+            eq = '(%s = %s)' % (first, self.expand(second))
+        else:
+            eq = PostgreSQLAdapter.EQ(self, first, second)
+        return eq
 
 
 class JDBCPostgreSQLAdapter(PostgreSQLAdapter):
