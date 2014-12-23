@@ -12,14 +12,15 @@ env:
   - ADAPTER=sqlite
   - ADAPTER=mysql
   - ADAPTER=postgres
+  - ADAPTER=postgres2
   - ADAPTER=google
   - ADAPTER=mongo
   - ADAPTER=imap
 
 before_script:
   - if [[ $ADAPTER == mysql ]]; then mysql -e 'create database pydal;'; fi
-  - if [[ $ADAPTER == postgres ]]; then psql -c 'create database pydal;' -U postgres; fi
-  - if [[ $ADAPTER == postgres ]]; then psql -c 'create extension postgis;' -U postgres -d pydal; fi
+  - if [[ $ADAPTER == postgres* ]]; then psql -c 'create database pydal;' -U postgres; fi
+  - if [[ $ADAPTER == postgres* ]]; then psql -c 'create extension postgis;' -U postgres -d pydal; fi
 
   # Install last sdk for app engine (update only whenever a new release is available)
   - if [[ $ADAPTER == google ]]; then wget http://googleappengine.googlecode.com/files/google_appengine_1.8.9.zip -nv; fi
@@ -30,6 +31,8 @@ matrix:
   exclude:
     - python: 'pypy'
       env: ADAPTER=postgres
+    - python: 'pypy'
+      env: ADAPTER=postgres2
     - python: 'pypy'
       env: ADAPTER=mysql
     - python: 'pypy'
