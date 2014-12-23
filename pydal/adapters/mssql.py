@@ -421,7 +421,7 @@ class VerticaAdapter(MSSQLAdapter):
 
 
 class SybaseAdapter(MSSQLAdapter):
-    drivers = ('Sybase',)
+    drivers = ('Sybase')
 
     types = {
         'boolean': 'BIT',
@@ -450,17 +450,17 @@ class SybaseAdapter(MSSQLAdapter):
         'big-reference': 'BIGINT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'reference FK': ', CONSTRAINT FK_%(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'reference TFK': ' CONSTRAINT FK_%(foreign_table)s_PK FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_table)s (%(foreign_key)s) ON DELETE %(on_delete_action)s',
-        }
+    }
 
-
-    def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
+    def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}, do_connect=True, srid=4326,
                  after_connection=None):
         self.db = db
         self.dbengine = "sybase"
         self.uri = uri
-        if do_connect: self.find_driver(adapter_args,uri)
+        if do_connect:
+            self.find_driver(adapter_args, uri)
         self.pool_size = pool_size
         self.folder = folder
         self.db_codec = db_codec
@@ -468,7 +468,7 @@ class SybaseAdapter(MSSQLAdapter):
         self.srid = srid
         self.find_or_make_work_folder()
         # ## read: http://bytes.com/groups/python/460325-cx_oracle-utf8
-        ruri = uri.split('://',1)[1]
+        ruri = uri.split('://', 1)[1]
         if '@' not in ruri:
             try:
                 m = self.REGEX_DSN.match(ruri)
@@ -501,13 +501,13 @@ class SybaseAdapter(MSSQLAdapter):
                 raise SyntaxError('Database name required')
             port = m.group('port') or '1433'
 
-            dsn = 'sybase:host=%s:%s;dbname=%s' % (host,port,db)
+            dsn = 'sybase:host=%s:%s;dbname=%s' % (host, port, db)
 
-            driver_args.update(user = credential_decoder(user),
-                               password = credential_decoder(password))
+            driver_args.update(user=credential_decoder(user),
+                               passwd=credential_decoder(password))
 
-        def connector(dsn=dsn,driver_args=driver_args):
-            return self.driver.connect(dsn,**driver_args)
+        def connector(dsn=dsn, driver_args=driver_args):
+            return self.driver.connect(dsn, **driver_args)
         self.connector = connector
-        if do_connect: self.reconnect()
-
+        if do_connect:
+            self.reconnect()
