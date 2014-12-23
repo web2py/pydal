@@ -1,12 +1,18 @@
 # Database Abstraction Layer
 
-This is the web2py's Database Abstraction Layer. It does not require web2py and can be used with any Python program. It is documented here:
+This is the web2py's Database Abstraction Layer. It does not require web2py and can be used with any Python program.
+
+## Tests
+
+[![Build Status](https://img.shields.io/travis/web2py/pydal.svg?style=flat-square)](https://travis-ci.org/web2py/pydal)
+
+It is documented here:
 
 http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer
 
 ## Quick example
 
-    >>> from dal import DAL, Field
+    >>> from pydal import DAL, Field
     >>> db = DAL('sqlite://storage.db')
     >>> db.define_table('thing',Field('name'))
     >>> db.thing.insert(name="Chair')
