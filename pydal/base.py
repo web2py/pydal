@@ -149,7 +149,7 @@ from ._compat import pickle, hashlib_md5, pjoin, ogetattr, osetattr, copyreg
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT, GLOBALS
 from ._load import OrderedDict
 from .helpers.classes import SQLCallableList
-from .helpers.methods import hide_password, smart_query, sqlhtml_validators
+from .helpers.methods import hide_password, smart_query, auto_validators
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME, REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
 from .objects import Table, Field, Row, Set
 from .adapters import ADAPTERS
@@ -166,7 +166,8 @@ class MetaDAL(type):
     def __call__(cls, *args, **kwargs):
         #: intercept arguments for DAL costumisation on call
         intercepts = [
-            'logger', 'representers', 'serializers', 'uuid', 'validators']
+            'logger', 'representers', 'serializers', 'uuid', 'validators',
+            'validators_method']
         intercepted = []
         for name in intercepts:
             val = kwargs.get(name)
@@ -259,6 +260,7 @@ class DAL(object):
 
     serializers = None
     validators = None
+    validators_method = None
     representers = {}
     uuid = lambda: str(uuid4())
     logger = logging.getLogger("pyDAL")
@@ -842,7 +844,7 @@ class DAL(object):
         table._create_references()
         for field in table:
             if field.requires == DEFAULT:
-                field.requires = sqlhtml_validators(field)
+                field.requires = auto_validators(field)
 
         migrate = self._migrate_enabled and args_get('migrate',self._migrate)
         if migrate and not self._uri in (None,'None') \
