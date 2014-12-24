@@ -1,16 +1,22 @@
-# Database Abstraction Layer
+# pyDAL
 
-This is the web2py's Database Abstraction Layer. It does not require web2py and can be used with any Python program.
+pyDAL is a pure Python Database Abstraction Layer.
 
-## Tests
+It dynamically generates the SQL in real time using the specified dialect for the database back end, so that you do not have to write SQL code or learn different SQL dialects (the term SQL is used generically), and your code will be portable among different types of databases.
 
-[![Build Status](https://img.shields.io/travis/web2py/pydal.svg?style=flat-square)](https://travis-ci.org/web2py/pydal)
+pyDAL comes from the original web2py's DAL, with the aim of being wide-compatible. pyDAL doesn't require web2py and can be used in any Python context.
 
-It is documented here:
+[![Build Status](https://img.shields.io/travis/web2py/pydal.svg?style=flat)](https://travis-ci.org/web2py/pydal)
 
-http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer
+## Installation
 
-## Quick example
+You can install pyDAL using pip:
+
+    pip install pyDAL
+
+## Usage and documentation
+
+Here is a quick example:
 
     >>> from pydal import DAL, Field
     >>> db = DAL('sqlite://storage.db')
@@ -21,16 +27,39 @@ http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer
     >>> print rows[0].name
     Chair
 
-## Supported Databases
+The complete documentation is available on http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer
 
-sqlite, postgresql, mysql, mssql, db2, firebird, sybase, oracle, informix, teradata, sapdb, ingres, cubrid, imap, mongodb
+## What's in the box?
 
-## Features
+A little *taste* of pyDAL features:
 
-Transactions, Aggregates, Inner Joins, Outer Joins, Nested Selects
+* Transactions
+* Aggregates
+* Inner Joins
+* Outer Joins
+* Nested Selects
+
+## Which databases are supported?
+
+pyDAL actually support these databases:
+
+* sqlite
+* postgresql
+* mysql
+* mssql
+* db2
+* firebird
+* sybase
+* oracle
+* informix
+* teradata
+* sapdb
+* ingres
+* cubrid
+* imap
+* mongodb
 
 ## License
 
-BSD v3
-
-
+pyDAL is released under the BSDv3 License.   
+For further details, please check the `LICENSE` file.
