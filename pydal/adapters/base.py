@@ -547,9 +547,9 @@ class BaseAdapter(ConnectionPool):
                     ftype.startswith('geometry')):
                     geotype, parms = ftype[:-1].split('(')
                     schema = parms.split(',')[0]
-                    query = [ "SELECT DropGeometryColumn ('%(schema)s', "+
-                              "'%(table)s', '%(field)s');" %
-                              dict(schema=schema, table=tablename, field=key,) ]
+                    query = [ "SELECT DropGeometryColumn ('%(schema)s', \
+                              '%(table)s', '%(field)s');" %
+                              dict(schema=schema, table=tablename, field=key) ]
                 elif self.dbengine in ('firebird',):
                     query = ['ALTER TABLE %s DROP %s;' %
                              (self.QUOTE_TEMPLATE % tablename, self.QUOTE_TEMPLATE % key)]
