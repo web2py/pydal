@@ -1,29 +1,38 @@
 """
-pyDAL description...
+pyDAL is a pure Python Database Abstraction Layer.
+
+It dynamically generates the SQL in real time using the specified dialect for
+the database back end, so that you do not have to write SQL code or learn
+different SQL dialects (the term SQL is used generically), and your code will
+be portable among different types of databases.
+
+pyDAL comes from the original web2py's DAL, with the aim of being
+wide-compatible. pyDAL doesn't require web2py and can be used in any
+Python context.
 
 
 Links
 -----
-* `website <http://>`_
-* `documentation <http://>`_
-* `git repo <http://>`_
+* `website <https://github.com/web2py/pydal>`_
+* `documentation <http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer>`_
 """
 
 from setuptools import setup
 setup(
     name='pyDAL',
-    version='1.0',
-    url='http://',
+    version='0.12.25',
+    url='http://https://github.com/web2py/pydal',
     license='BSD',
     author='Massimo Di Pierro',
     author_email='mdipierro@cs.depaul.edu',
     maintainer='Giovanni Barillari',
     maintainer_email='gi0baro@d4net.org',
-    description='Some description needed here',
+    description='a pure Python Database Abstraction Layer',
     long_description=__doc__,
     packages=['pydal', 'pydal.adapters', 'pydal.helpers', 'pydal.contrib',
               'pydal.contrib.pg8000', 'pydal.contrib.pymysql',
-              'pydal.contrib.pymysql.constants', 'pydal.contrib.simplejson'],
+              'pydal.contrib.pymysql.constants', 'pydal.contrib.pymysql.tests',
+              'pydal.contrib.simplejson'],
     include_package_data=True,
     zip_safe=False,
     platforms='any',
@@ -35,7 +44,7 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
-        'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+        'Topic :: Database :: Front-Ends',
         'Topic :: Software Development :: Libraries :: Python Modules'
     ]
 )
