@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import re
+import re, os, sys
 from ._gae import gae
 
 DRIVERS = {}
@@ -61,7 +61,8 @@ else:
     try:
         # first try contrib driver, then from site-packages (if installed)
         try:
-            from .contrib.pg8000 import dbapi as pg8000
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), "contrib"))
+            import contrib.pg8000 as pg8000
         except ImportError:
             import pg8000.dbapi as pg8000
         DRIVERS['pg8000'] = pg8000

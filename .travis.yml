@@ -12,6 +12,7 @@ env:
   - ADAPTER=sqlite
   - ADAPTER=mysql
   - ADAPTER=postgres
+  - ADAPTER=postgresPG8000
   - ADAPTER=postgres2
   - ADAPTER=google
   - ADAPTER=mongo
