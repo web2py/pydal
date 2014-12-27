@@ -16,12 +16,26 @@ Links
 * `website <https://github.com/web2py/pydal>`_
 * `documentation <http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer>`_
 """
-DEFAULTS = dict(
+
+from setuptools import setup
+setup(
+    name='pyDAL',
+    version='0.12.25',
+    url='http://https://github.com/web2py/pydal',
+    license='BSD',
+    author='Massimo Di Pierro',
+    author_email='mdipierro@cs.depaul.edu',
+    maintainer='Giovanni Barillari',
+    maintainer_email='gi0baro@d4net.org',
+    description='a pure Python Database Abstraction Layer',
     long_description=__doc__,
     packages=['pydal', 'pydal.adapters', 'pydal.helpers', 'pydal.contrib',
               'pydal.contrib.pg8000', 'pydal.contrib.pymysql',
               'pydal.contrib.pymysql.constants', 'pydal.contrib.pymysql.tests',
               'pydal.contrib.simplejson'],
+    include_package_data=True,
+    zip_safe=False,
+    platforms='any',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
@@ -32,20 +46,5 @@ DEFAULTS = dict(
         'Programming Language :: Python :: 2',
         'Topic :: Database :: Front-Ends',
         'Topic :: Software Development :: Libraries :: Python Modules'
-    ],
-    include_package_data=True,
-    zip_safe=False,
-    platforms='any',
-)
-
-from ConfigParser import SafeConfigParser
-config_values = SafeConfigParser()
-config_values.read('setup.cfg')
-for k, v in config_values.items('metadata'):
-    DEFAULTS[k] = v
-
-from setuptools import setup
-
-setup(
-    **DEFAULTS
+    ]
 )
