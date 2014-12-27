@@ -11,3 +11,5 @@
 *.orig
 Thumbs.db
 .DS_Store
+pyDAL.egg-info/*
+dist/*

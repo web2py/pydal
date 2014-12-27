@@ -41,7 +41,7 @@ DEFAULTS = dict(
 from ConfigParser import SafeConfigParser
 config_values = SafeConfigParser()
 config_values.read('setup.cfg')
-for k,v in config_values.items('metadata'):
+for k, v in config_values.items('metadata'):
     DEFAULTS[k] = v
 
 from setuptools import setup
