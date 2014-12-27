@@ -8,6 +8,8 @@ pyDAL comes from the original web2py's DAL, with the aim of being wide-compatibl
 
 [![pip version](https://img.shields.io/pypi/v/pydal.svg?style=flat)](https://pypi.python.org/pypi/pydal) 
 [![Build Status](https://img.shields.io/travis/web2py/pydal.svg?style=flat)](https://travis-ci.org/web2py/pydal)
+[![Coverage Status](https://img.shields.io/coveralls/web2py/pydal.svg?style=flat-square)](https://coveralls.io/r/web2py/pydal)
+[![API Docs Status](https://readthedocs.org/projects/pydal/badge/?version=latest&style=flat-square)](http://pydal.rtfd.org/)
 
 ## Installation
 
