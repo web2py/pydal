@@ -361,6 +361,17 @@ class TestContains(unittest.TestCase):
         self.assertEqual(db(db.tt.bb.contains('b')).count(), 1)
         self.assertEqual(db(db.tt.bb.contains('d')).count(), 0)
         self.assertEqual(db(db.tt.aa.contains(db.tt.bb)).count(), 1)
+        #case-sensitivity tests, if 1 it isn't
+        is_case_insensitive = db(db.tt.bb.like('%AA%')).count()
+        if is_case_insensitive:
+            self.assertEqual(db(db.tt.aa.contains('AAA')).count(), 2)
+            self.assertEqual(db(db.tt.bb.contains('A')).count(), 3)
+        else:
+            self.assertEqual(db(db.tt.aa.contains('AAA', case_sensitive=True)).count(), 0)
+            self.assertEqual(db(db.tt.bb.contains('A', case_sensitive=True)).count(), 0)
+            self.assertEqual(db(db.tt.aa.contains('AAA', case_sensitive=False)).count(), 2)
+            self.assertEqual(db(db.tt.bb.contains('A', case_sensitive=False)).count(), 3)
+
         db.tt.drop()
 
 
