@@ -200,7 +200,7 @@ class PostgreSQLAdapter(BaseAdapter):
 
     def ILIKE(self,first,second):
         args = (self.expand(first), self.expand(second,'string'))
-        if not first.type in ('string', 'text', 'json'):
+        if not first.type in ('string', 'text', 'json', 'list:string'):
             return '(%s LIKE %s)' % (
                 self.CAST(args[0], 'CHAR(%s)' % first.length), args[1])
         else:
