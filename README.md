@@ -29,6 +29,7 @@ Here is a quick example:
     >>> rows = db(query).select()
     >>> print rows[0].name
     Chair
+    >>> db.commit()
 
 The complete documentation is available on http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer
 
