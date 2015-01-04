@@ -309,6 +309,8 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db((db.tt.aa > '1') | (db.tt.aa < '3')).count(), 3)
         self.assertEqual(db((db.tt.aa > '1') & ~(db.tt.aa > '2')).count(), 1)
         self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
+        # Test for REGEX_TABLE_DOT_FIELD
+        self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa], '1')
         db.tt.drop()
 
 class TestAddMethod(unittest.TestCase):
