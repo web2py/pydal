@@ -1037,11 +1037,6 @@ class BaseAdapter(ConnectionPool):
         tablenames = tables(query)
         tablenames_for_common_filters = tablenames
         for field in fields:
-            if isinstance(field, basestring):
-                m = self.REGEX_TABLE_DOT_FIELD.match(field)
-                if m:
-                    tn,fn = m.groups()
-                    field = self.db[tn][fn]
             for tablename in tables(field):
                 if not tablename in tablenames:
                     tablenames.append(tablename)
