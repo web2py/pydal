@@ -466,6 +466,8 @@ class TestExpressions(unittest.TestCase):
         sum = (db.tt.aa + 1).sum()
         self.assertEqual(db(db.tt.aa == 2).select(sum).first()[sum], 3)
         self.assertEqual(db(db.tt.aa == -2).select(sum).first()[sum], None)
+        # Test basic expressions evaluated at python level
+        self.assertEqual(db((1==1) & (db.tt.id>0)).count(), 3)
         db.tt.drop()
 
     def testSubstring(self):
