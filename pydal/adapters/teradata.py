@@ -31,6 +31,7 @@ class TeradataAdapter(BaseAdapter):
         'list:integer': 'VARCHAR(4000)',
         'list:string': 'VARCHAR(4000)',
         'list:reference': 'VARCHAR(4000)',
+        'geometry': 'ST_GEOMETRY',
         'big-id': 'BIGINT GENERATED ALWAYS AS IDENTITY',  # Teradata Specific
         'big-reference': 'BIGINT',
         'reference FK': ' REFERENCES %(foreign_key)s',
