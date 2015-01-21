@@ -30,8 +30,6 @@ setup(
     description='a pure Python Database Abstraction Layer',
     long_description=__doc__,
     packages=['pydal', 'pydal.adapters', 'pydal.helpers', 'pydal.contrib',
-              'pydal.contrib.pg8000', 'pydal.contrib.pymysql',
-              'pydal.contrib.pymysql.constants', 'pydal.contrib.pymysql.tests',
               'pydal.contrib.simplejson'],
     include_package_data=True,
     zip_safe=False,
