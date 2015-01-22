@@ -262,7 +262,7 @@ class DAL(object):
     validators = None
     validators_method = None
     representers = {}
-    uuid = lambda: str(uuid4())
+    uuid = lambda x: str(uuid4())
     logger = logging.getLogger("pyDAL")
 
     Table = Table
