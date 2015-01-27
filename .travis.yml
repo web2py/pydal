@@ -1,22 +1,31 @@
 language: python
 
+sudo: false
+
+cache:
+  directories:
+    - $HOME/.pip-cache/
+
 python:
   - '2.6'
   - '2.7'
   - 'pypy'
 
 install:
-  - pip install tox>=1.8
+  - pip install --download-cache $HOME/.pip-cache tox>=1.8
 
 env:
-  - ADAPTER=sqlite
-  - ADAPTER=mysql
-  - ADAPTER=postgres
-  - ADAPTER=postgresPG8000
-  - ADAPTER=postgres2
-  - ADAPTER=google
-  - ADAPTER=mongo
-  - ADAPTER=imap
+  global:
+    - PIP_DOWNLOAD_CACHE=$HOME/.pip-cache
+  matrix:
+    - ADAPTER=sqlite
+    - ADAPTER=mysql
+    - ADAPTER=postgres
+    - ADAPTER=postgresPG8000
+    - ADAPTER=postgres2
+    - ADAPTER=google
+    - ADAPTER=mongo
+    - ADAPTER=imap
 
 before_script:
   - if [[ $ADAPTER == mongo ]]; then sleep 15; fi;
@@ -47,6 +56,6 @@ script:
   - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then tox -e coveralls-$ADAPTER; fi
 
 notifications:
-  email: false
+  email: true
 
 services: mongodb
