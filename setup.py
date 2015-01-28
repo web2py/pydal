@@ -21,7 +21,7 @@ from setuptools import setup
 setup(
     name='pyDAL',
     version='0.12.25',
-    url='http://https://github.com/web2py/pydal',
+    url='https://github.com/web2py/pydal',
     license='BSD',
     author='Massimo Di Pierro',
     author_email='mdipierro@cs.depaul.edu',
