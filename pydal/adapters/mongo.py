@@ -9,9 +9,10 @@ from ..helpers.classes import SQLALL
 from ..helpers.methods import xorify
 from .base import NoSQLAdapter
 
+
 class MongoDBAdapter(NoSQLAdapter):
     drivers = ('pymongo',)
-    driver_auto_json = ['loads','dumps']
+    driver_auto_json = ['loads', 'dumps']
 
     uploads_in_blob = False
 
@@ -40,8 +41,8 @@ class MongoDBAdapter(NoSQLAdapter):
     error_messages = {"javascript_needed": "This must yet be replaced" +
                       " with javascript in order to work."}
 
-    def __init__(self,db,uri='mongodb://127.0.0.1:5984/db',
-                 pool_size=0, folder=None, db_codec ='UTF-8',
+    def __init__(self, db, uri='mongodb://127.0.0.1:5984/db',
+                 pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}, do_connect=True, after_connection=None):
 
@@ -67,21 +68,19 @@ class MongoDBAdapter(NoSQLAdapter):
         self.pool_size = pool_size
         #this is the minimum amount of replicates that it should wait
         # for on insert/update
-        self.minimumreplication = adapter_args.get('minimumreplication',0)
+        self.minimumreplication = adapter_args.get('minimumreplication', 0)
         # by default all inserts and selects are performand asynchronous,
         # but now the default is
         # synchronous, except when overruled by either this default or
         # function parameter
-        self.safe = adapter_args.get('safe',True)
-        # load user setting for uploads in blob storage
-        self.uploads_in_blob = adapter_args.get('uploads_in_blob', False)
+        self.safe = adapter_args.get('safe', True)
 
-        if isinstance(m,tuple):
-            m = {"database" : m[1]}
+        if isinstance(m, tuple):
+            m = {"database": m[1]}
         if m.get('database') is None:
             raise SyntaxError("Database is required!")
 
-        def connector(uri=self.uri,m=m):
+        def connector(uri=self.uri, m=m):
             # Connection() is deprecated
             if hasattr(self.driver, "MongoClient"):
                 Connection = self.driver.MongoClient
@@ -89,7 +88,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 Connection = self.driver.Connection
             return Connection(uri)[m.get('database')]
 
-        self.reconnect(connector,cursor=False)
+        self.reconnect(connector, cursor=False)
 
     def object_id(self, arg=None):
         """ Convert input to a valid Mongodb ObjectId instance
