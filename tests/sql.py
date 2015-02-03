@@ -605,29 +605,6 @@ class TestMinMaxSumAvg(unittest.TestCase):
         db.tt.drop()
 
 
-"""
-[gi0baro] removed cache test due to web2py's dependency.
-          TODO: re-implement adding a caching system
-
-class TestCacheSelect(unittest.TestCase):
-    def testRun(self):
-        cache = CacheInRam()
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', Field('aa'))
-        db.tt.insert(aa='1')
-        r0 = db().select(db.tt.ALL)
-        r1 = db().select(db.tt.ALL, cache=(cache, 1000))
-        self.assertEqual(len(r0),len(r1))
-        r2 = db().select(db.tt.ALL, cache=(cache, 1000))
-        self.assertEqual(len(r0),len(r2))
-        r3 = db().select(db.tt.ALL, cache=(cache, 1000), cacheable=True)
-        self.assertEqual(len(r0),len(r3))
-        r4 = db().select(db.tt.ALL, cache=(cache, 1000), cacheable=True)
-        self.assertEqual(len(r0),len(r4))
-        db.tt.drop()
-"""
-
-
 class TestMigrations(unittest.TestCase):
 
     def testRun(self):
