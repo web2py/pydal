@@ -1,0 +1,24 @@
+pydal changelog
+===============
+
+Version 15.02
+-------------
+
+(release date to be announced)
+
+- Updated pg8000 support in `PostgreSQLAdapter`
+- Fixed `ilike` for `Field` type 'list:string' in `PostgreSQLAdapter`
+- Added case sensitive/insensitive tests for `contains`
+- Fixed expression evaluation on `PostgreSQLAdapter`
+- Fixed `common_filter` issue in `_enable_record_versioning`
+- Removed contrib drivers
+- Fixed `uuid` attribute of `DAL` class
+- Added caching tests
+
+
+Version 0.12.25
+---------------
+
+Released on December 25th 2014
+
+First public preview release.
