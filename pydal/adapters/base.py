@@ -18,10 +18,12 @@ from .._gae import gae
 from ..connection import ConnectionPool
 from ..objects import Expression, Field, Query, Table, Row, FieldVirtual, \
     FieldMethod, LazyReferenceGetter, LazySet, VirtualCommand, Rows
-from ..helpers.regex import REGEX_NO_GREEDY_ENTITY_NAME, REGEX_TYPE, REGEX_SELECT_AS_PARSER
+from ..helpers.regex import REGEX_NO_GREEDY_ENTITY_NAME, REGEX_TYPE, \
+    REGEX_SELECT_AS_PARSER
 from ..helpers.methods import xorify, use_common_filters, bar_encode, \
     bar_decode_integer, bar_decode_string
-from ..helpers.classes import SQLCustomType, SQLALL, Reference, RecordUpdater, RecordDeleter
+from ..helpers.classes import SQLCustomType, SQLALL, Reference, \
+    RecordUpdater, RecordDeleter
 
 
 TIMINGSSIZE = 100
@@ -29,8 +31,9 @@ CALLABLETYPES = (types.LambdaType, types.FunctionType,
                  types.BuiltinFunctionType,
                  types.MethodType, types.BuiltinMethodType)
 SELECT_ARGS = set(
-    ('orderby', 'groupby', 'limitby','required', 'cache', 'left',
-     'distinct', 'having', 'join','for_update', 'processor','cacheable', 'orderby_on_limitby'))
+    ('orderby', 'groupby', 'limitby', 'required', 'cache', 'left', 'distinct',
+     'having', 'join', 'for_update', 'processor', 'cacheable',
+     'orderby_on_limitby'))
 
 
 class AdapterMeta(type):
@@ -40,6 +43,10 @@ class AdapterMeta(type):
     """
 
     def __call__(cls, *args, **kwargs):
+        uploads_in_blob = kwargs.get('adapter_args', {}).get(
+            'uploads_in_blob', cls.uploads_in_blob)
+        cls.uploads_in_blob = uploads_in_blob
+
         entity_quoting = kwargs.get('entity_quoting', False)
         if 'entity_quoting' in kwargs:
             del kwargs['entity_quoting']
@@ -51,11 +58,8 @@ class AdapterMeta(type):
         else:
             quot = obj.QUOTE_TEMPLATE
             regex_ent = REGEX_NO_GREEDY_ENTITY_NAME
-        obj.REGEX_TABLE_DOT_FIELD = re.compile(r'^' + \
-                                                    quot % regex_ent + \
-                                                    r'\.' + \
-                                                    quot % regex_ent + \
-                                                    r'$')
+        obj.REGEX_TABLE_DOT_FIELD = re.compile(
+            r'^' + quot % regex_ent + r'\.' + quot % regex_ent + r'$')
 
         return obj
 
