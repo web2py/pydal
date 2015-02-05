@@ -20,7 +20,7 @@ Links
 from setuptools import setup
 setup(
     name='pyDAL',
-    version='0.12.25',
+    version='15.02-dev',
     url='https://github.com/web2py/pydal',
     license='BSD',
     author='Massimo Di Pierro',
@@ -35,7 +35,7 @@ setup(
     zip_safe=False,
     platforms='any',
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
