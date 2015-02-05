@@ -6,17 +6,6 @@
 | License: LGPLv3 (http://www.gnu.org/licenses/lgpl.html)
 |
 
-Thanks to
-
-  - Niall Sweeny <niall.sweeny@fonjax.com> for MS SQL support
-  - Marcel Leuthi <mluethi@mlsystems.ch> for Oracle support
-  - Denes
-  - Chris Clark
-  - clach05
-  - Denes Lengyel
-
-and many others who have contributed to current and previous versions
-
 This file contains the DAL support for many relational databases, including:
 
   - SQLite & SpatiaLite
