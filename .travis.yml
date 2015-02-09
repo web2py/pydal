@@ -32,6 +32,7 @@ before_script:
   - if [[ $ADAPTER == mysql ]]; then mysql -e 'create database pydal;'; fi
   - if [[ $ADAPTER == postgres* ]]; then psql -c 'create database pydal;' -U postgres; fi
   - if [[ $ADAPTER == postgres* ]]; then psql -c 'create extension postgis;' -U postgres -d pydal; fi
+  - if [[ $ADAPTER == postgres* ]]; then psql -c 'SHOW SERVER_VERSION' -U postgres; fi
 
   # Install last sdk for app engine (update only whenever a new release is available)
   - if [[ $ADAPTER == google ]]; then wget http://googleappengine.googlecode.com/files/google_appengine_1.8.9.zip -nv; fi
@@ -59,3 +60,7 @@ notifications:
   email: true
 
 services: mongodb
+
+addons:
+  postgresql: "9.4"
+
