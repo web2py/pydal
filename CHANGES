@@ -4,7 +4,7 @@ pydal changelog
 Version 15.02
 -------------
 
-(release date to be announced)
+Released on February 11th 2015
 
 - Updated pg8000 support in `PostgreSQLAdapter`
 - Fixed `ilike` for `Field` type 'list:string' in `PostgreSQLAdapter`
