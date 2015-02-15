@@ -34,8 +34,8 @@ before_script:
   - if [[ $ADAPTER == postgres* ]]; then psql -c 'create extension postgis;' -U postgres -d pydal; fi
 
   # Install last sdk for app engine (update only whenever a new release is available)
-  - if [[ $ADAPTER == google ]]; then wget http://googleappengine.googlecode.com/files/google_appengine_1.8.9.zip -nv; fi
-  - if [[ $ADAPTER == google ]]; then unzip -q google_appengine_1.8.9.zip; fi
+  - if [[ $ADAPTER == google ]]; then wget https://storage.googleapis.com/appengine-sdks/featured/google_appengine_1.9.17.zip -nv; fi
+  - if [[ $ADAPTER == google ]]; then unzip -q google_appengine_1.9.17.zip; fi
   - if [[ $ADAPTER == google ]]; then mv -f ./google_appengine/google ./google; fi
 
 matrix:
