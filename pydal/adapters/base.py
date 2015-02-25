@@ -1198,7 +1198,7 @@ class BaseAdapter(ConnectionPool):
         else:
             (cache_model, time_expire) = cache
             key = self.uri + '/' + sql + '/rows'
-            if len(key)>200: key = hashlib_md5(key).hexdigest()
+            key = hashlib_md5(key).hexdigest()
             def _select_aux2():
                 self.execute(sql)
                 return self._fetchall()
@@ -1221,7 +1221,7 @@ class BaseAdapter(ConnectionPool):
             del attributes['cache']
             (cache_model, time_expire) = cache
             key = self.uri + '/' + sql
-            if len(key)>200: key = hashlib_md5(key).hexdigest()
+            key = hashlib_md5(key).hexdigest()
             args = (sql,fields,attributes)
             return cache_model(
                 key,
