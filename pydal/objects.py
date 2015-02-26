@@ -2057,7 +2057,7 @@ class Set(object):
             cache_model, time_expire = cache
             sql = self._count(distinct=distinct)
             key = db._uri + '/' + sql
-            if len(key)>200: key = hashlib_md5(key).hexdigest()
+            key = hashlib_md5(key).hexdigest()
             return cache_model(
                 key,
                 (lambda self=self,distinct=distinct: \
