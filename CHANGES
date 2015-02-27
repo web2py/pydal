@@ -1,6 +1,14 @@
 pydal changelog
 ===============
 
+Version 15.02.27
+----------------
+
+Released on February 27th 2015
+
+- Fixed a connection bug
+- Fixed a security flaw which could lead to db password storing in cache
+
 Version 15.02
 -------------
 
