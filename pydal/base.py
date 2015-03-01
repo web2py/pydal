@@ -793,7 +793,9 @@ class DAL(object):
             else:
                 raise SyntaxError("missing table name")
         elif hasattr(self,tablename) or tablename in self.tables:
-            if not args.get('redefine',False):
+            if args.get('redefine',False):
+                delattr(self, tablename)
+            else:
                 raise SyntaxError('table already defined: %s' % tablename)
         elif tablename.startswith('_') or hasattr(self,tablename) or \
                 REGEX_PYTHON_KEYWORDS.match(tablename):
@@ -805,7 +807,7 @@ class DAL(object):
             if invalid_args:
                 raise SyntaxError('invalid table "%s" attributes: %s' \
                     % (tablename,invalid_args))
-        if self._lazy_tables and not tablename in self._LAZY_TABLES:
+        if self._lazy_tables and tablename not in self._LAZY_TABLES:
             self._LAZY_TABLES[tablename] = (tablename,fields,args)
             table = None
         else:

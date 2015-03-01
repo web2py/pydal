@@ -1653,6 +1653,20 @@ class TestLazy(unittest.TestCase):
         db.t0.drop()
         return
 
+class TestRedefine(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'], lazy_tables=True, migrate=False)
+        db.define_table('t_a', Field('code'))
+        self.assertTrue('code' in db.t_a)
+        self.assertTrue('code' in db['t_a'])
+        db.define_table('t_a', Field('code_a'), redefine=True)
+        self.assertFalse('code' in db.t_a)
+        self.assertFalse('code' in db['t_a'])
+        self.assertTrue('code_a' in db.t_a)
+        self.assertTrue('code_a' in db['t_a'])
+        return
+
 if __name__ == '__main__':
     unittest.main()
     tearDownModule()
