@@ -47,8 +47,6 @@ matrix:
     - python: 'pypy'
       env: ADAPTER=postgres2
     - python: 'pypy'
-      env: ADAPTER=mysql
-    - python: 'pypy'
       env: ADAPTER=google
     - python: '2.6'
       env: ADAPTER=google
