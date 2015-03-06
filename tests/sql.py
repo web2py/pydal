@@ -1654,7 +1654,6 @@ class TestLazy(unittest.TestCase):
         db.t0.drop()
         return
 
-
 class TestRedefine(unittest.TestCase):
 
     def testRun(self):
@@ -1703,7 +1702,6 @@ class TestBulkInsert(unittest.TestCase):
             self.assertTrue(db(t0.name == 'web2py_%s' % pos).count() == 1)
         self.assertTrue(ctr == len(items))
         return
-
 
 if __name__ == '__main__':
     unittest.main()
