@@ -2,16 +2,20 @@
 """
     Basic unit tests
 """
-
 import sys
 import os
 import glob
 import datetime
+from pydal import DAL, Field
+from pydal.helpers.classes import SQLALL
+from pydal.objects import Table
+from ._compat import unittest
+
+
 try:
     import cStringIO as StringIO
 except:
     from io import StringIO
-from ._compat import unittest
 
 
 #for travis-ci
@@ -20,9 +24,6 @@ DEFAULT_URI = os.getenv('DB', 'sqlite:memory')
 print 'Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
                                           DEFAULT_URI)
 
-from pydal import DAL, Field
-from pydal.objects import Table
-from pydal.helpers.classes import SQLALL
 
 ALLOWED_DATATYPES = [
     'string',
@@ -1665,6 +1666,41 @@ class TestRedefine(unittest.TestCase):
         self.assertFalse('code' in db['t_a'])
         self.assertTrue('code_a' in db.t_a)
         self.assertTrue('code_a' in db['t_a'])
+        return
+
+class TestUpdateInsert(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t0 = db.define_table('t0', Field('name'))
+        i_id = t0.update_or_insert((t0.id == 1), name='web2py')
+        u_id = t0.update_or_insert((t0.id == i_id), name='web2py2')
+        self.assertTrue(i_id != None)
+        self.assertTrue(u_id == None)
+        self.assertTrue(db(t0).count() == 1)
+        self.assertTrue(db(t0.name == 'web2py').count() == 0)
+        self.assertTrue(db(t0.name == 'web2py2').count() == 1)
+        return
+
+
+class TestBulkInsert(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t0 = db.define_table('t0', Field('name'))
+        global ctr
+        ctr = 0
+        def test_after_insert(i, r):
+            global ctr
+            ctr += 1
+            return True
+        t0._after_insert.append(test_after_insert)
+        items = [{'name':'web2py_%s' % pos} for pos in range(0, 10, 1)]
+        t0.bulk_insert(items)
+        self.assertTrue(db(t0).count() == len(items))
+        for pos in range(0, 10, 1):
+            self.assertTrue(db(t0.name == 'web2py_%s' % pos).count() == 1)
+        self.assertTrue(ctr == len(items))
         return
 
 if __name__ == '__main__':
