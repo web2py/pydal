@@ -60,3 +60,22 @@ class TestValidateAndInsert(unittest.TestCase):
         self.assertNotEqual(rtn.errors.bb, None)
         #cleanup table
         drop(db.val_and_insert)
+
+
+class TestValidateUpdateInsert(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t1 = db.define_table('t1', Field('int_level', requires=IS_INT_IN_RANGE(1, 5)))
+        i_response = t1.validate_and_update_or_insert((t1.int_level == 1), int_level=1)
+        u_response = t1.validate_and_update_or_insert((t1.int_level == 1), int_level=2)
+        e_response = t1.validate_and_update_or_insert((t1.int_level == 1), int_level=6)
+        self.assertTrue(i_response.id != None)
+        self.assertTrue(u_response.id != None)
+        self.assertTrue(e_response.id == None and len(e_response.errors.keys()) != 0)
+        self.assertTrue(db(t1).count() == 1)
+        self.assertTrue(db(t1.int_level == 1).count() == 0)
+        self.assertTrue(db(t1.int_level == 6).count() == 0)
+        self.assertTrue(db(t1.int_level == 2).count() == 1)
+        db.t1.drop()
+	return
