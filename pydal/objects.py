@@ -828,10 +828,11 @@ class Table(object):
 
         if record:
             response = self.validate_and_update(_key, **fields)
-            primary_keys = {}
-            for key in self._primarykey:
-                primary_keys[key] = getattr(record, key)
-            response.id = primary_keys
+            if hasattr(self, '_primarykey'):
+                primary_keys = {}
+                for key in self._primarykey:
+                    primary_keys[key] = getattr(record, key)
+                response.id = primary_keys
         else:
             response = self.validate_and_insert(**fields)
         return response
