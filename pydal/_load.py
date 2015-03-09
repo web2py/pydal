@@ -9,7 +9,11 @@ try:
     import json
 except:
     from .contrib import simplejson as json
-try:
-    import portalocker
-except ImportError:
-    from .contrib import portalocker
+
+from .contrib import portalocker
+# TODO: uncomment the lines below when contrib/portalocker will be
+# inline with the one shipped with pip
+#try:
+#    import portalocker
+#except ImportError:
+#    from .contrib import portalocker
