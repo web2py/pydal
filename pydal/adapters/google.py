@@ -68,12 +68,13 @@ class GoogleSQLAdapter(UseDatabaseStoredFile, MySQLAdapter):
 
 class GAEF(object):
     def __init__(self,name,op,value,apply):
-        self.name=name=='id' and '__key__' or name
+        self.name = ('__key__' if name=='id' else name)
         self.op=op
         self.value=value
         self.apply=apply
     def __repr__(self):
-        return '(%s %s %s:%s)' % (self.name, self.op, repr(self.value), type(self.value))
+        return '(%s %s %s:%s)' % (
+            self.name, self.op, repr(self.value), type(self.value))
 
 
 class GoogleDatastoreAdapter(NoSQLAdapter):
@@ -434,7 +435,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 if filter.value==0:
                     items = []
                 elif isinstance(filter.value, (self.use_ndb and ndb.Key) or Key):
-                    # key qeuries return a class instance,
+                    # key queries return a class instance,
                     # can't use projection
                     # extra values will be ignored in post-processing later
                     item = filter.value.get() if self.use_ndb else tableobj.get(filter.value)

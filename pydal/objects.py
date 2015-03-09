@@ -540,12 +540,18 @@ class Table(object):
         if not key is DEFAULT:
             if isinstance(key, Query):
                 record = self._db(key).select(
-                    limitby=(0,1),for_update=for_update, orderby=orderby, orderby_on_limitby=False).first()
+                    limitby=(0,1),
+                    for_update=for_update,
+                    orderby=orderby,
+                    orderby_on_limitby=False).first()
             elif not str(key).isdigit():
                 record = None
             else:
                 record = self._db(self._id == key).select(
-                    limitby=(0,1),for_update=for_update, orderby=orderby, orderby_on_limitby=False).first()
+                    limitby=(0,1),
+                    for_update=for_update,
+                    orderby=orderby,
+                    orderby_on_limitby=False).first()
             if record:
                 for k,v in kwargs.iteritems():
                     if record[k]!=v: return None
