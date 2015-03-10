@@ -16,7 +16,8 @@ class ConnectionPool(object):
 
     # ## this allows gluon to commit/rollback all dbs in this thread
 
-    def close(self, action='commit', really=False):
+    def close(self, action='commit', really=True):
+        success = True
         if action:
             try:
                 if callable(action):
@@ -24,17 +25,17 @@ class ConnectionPool(object):
                 else:
                     getattr(self, action)()
             except:
-                really = True
+                success = False
 
         # If you want pools, recycle this connection
-        if self.pool_size and really == False:
+        if self.pool_size and success:
             GLOBAL_LOCKER.acquire()
             pool = ConnectionPool.POOLS[self.uri]
             if len(pool) < self.pool_size:
                 pool.append(self.connection)
                 really = False
             GLOBAL_LOCKER.release()
-        if really:
+        if really or not success:
             try:
                 self.close_connection()
             except:

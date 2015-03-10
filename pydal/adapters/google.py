@@ -108,7 +108,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}, do_connect=True, after_connection=None):
-        self.use_ndb = adapter_args.get('use_ndb',uri.startswith('google:datastore+ndb'))
+        self.use_ndb = adapter_args.get('use_ndb', uri.startswith('google:datastore+ndb'))
         if self.use_ndb is True:
             self.types.update({
                 'boolean': ndb.BooleanProperty,
