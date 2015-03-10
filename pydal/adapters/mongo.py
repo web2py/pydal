@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import datetime
-import logging
 import re
 
 from .._globals import IDENTITY
@@ -251,7 +250,7 @@ class MongoDBAdapter(NoSQLAdapter):
 
     def truncate(self, table, mode, safe=None):
         if safe == None:
-            safe=self.safe
+            safe = self.safe
         ctable = self.connection[table._tablename]
         ctable.remove(None, safe=True)
 
@@ -265,11 +264,12 @@ class MongoDBAdapter(NoSQLAdapter):
         limitby = attributes.get('limitby', False)
         # distinct = attributes.get('distinct', False)
         if 'for_update' in attributes:
-            logging.warn('mongodb does not support for_update')
-        for key in set(attributes.keys())-set(('limitby',
-                                               'orderby','for_update')):
+            self.db.logger.warn('mongodb does not support for_update')
+        for key in set(attributes.keys())-set(('limitby', 'orderby',
+                                               'for_update')):
             if attributes[key] is not None:
-                logging.warn('select attribute not implemented: %s' % key)
+                self.db.logger.warn(
+                    'select attribute not implemented: %s' % key)
         if limitby:
             limitby_skip, limitby_limit = limitby[0], int(limitby[1])
         else:
@@ -289,7 +289,7 @@ class MongoDBAdapter(NoSQLAdapter):
             else:
                 new_fields.append(item)
         fields = new_fields
-        if isinstance(query,Query):
+        if isinstance(query, Query):
             tablename = self.get_table(query)
         elif len(fields) != 0:
             tablename = fields[0].tablename
@@ -302,16 +302,15 @@ class MongoDBAdapter(NoSQLAdapter):
             mongofields_dict[field.name] = 1
         ctable = self.connection[tablename]
         if count:
-            return {'count' : ctable.find(
+            return {'count': ctable.find(
                     mongoqry_dict, mongofields_dict,
                     skip=limitby_skip, limit=limitby_limit,
                     sort=mongosort_list, snapshot=snapshot).count()}
         else:
             # pymongo cursor object
-            mongo_list_dicts = ctable.find(mongoqry_dict,
-                                mongofields_dict, skip=limitby_skip,
-                                limit=limitby_limit, sort=mongosort_list,
-                                snapshot=snapshot)
+            mongo_list_dicts = ctable.find(
+                mongoqry_dict, mongofields_dict, skip=limitby_skip,
+                limit=limitby_limit, sort=mongosort_list, snapshot=snapshot)
         rows = []
         # populate row in proper order
         # Here we replace ._id with .id to follow the standard naming
@@ -327,7 +326,7 @@ class MongoDBAdapter(NoSQLAdapter):
             newnames.append(".".join((tablename, field.name)))
 
         for record in mongo_list_dicts:
-            row=[]
+            row = []
             for colname in colnames:
                 tablename, fieldname = colname.split(".")
                 # switch to Mongo _id uuids for retrieving

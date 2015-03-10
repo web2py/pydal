@@ -5,7 +5,6 @@ import sys
 import locale
 import datetime
 import decimal
-import logging
 import copy
 import time
 import base64
@@ -518,7 +517,7 @@ class BaseAdapter(ConnectionPool):
         sql_fields_old = dict(map(fix,sql_fields_old.iteritems()))
         sql_fields_aux = dict(map(fix,sql_fields_aux.iteritems()))
         if db._debug:
-            logging.debug('migrating %s to %s' % (sql_fields_old,sql_fields))
+            db.logger.debug('migrating %s to %s' % (sql_fields_old,sql_fields))
 
         keys = sql_fields.keys()
         for key in sql_fields_old:
