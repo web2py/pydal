@@ -9,7 +9,13 @@
 *.class
 *.rej
 *.orig
+*.spec
 Thumbs.db
 .DS_Store
 pyDAL.egg-info/*
 dist/*
+build/*
+.project
+.pydevproject
+.settings
+
