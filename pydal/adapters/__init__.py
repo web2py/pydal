@@ -67,4 +67,3 @@ else:
     ADAPTERS['google:datastore'] = GoogleDatastoreAdapter
     ADAPTERS['google:datastore+ndb'] = GoogleDatastoreAdapter
     ADAPTERS['google:sql'] = GoogleSQLAdapter
-
