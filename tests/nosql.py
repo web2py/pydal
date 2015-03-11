@@ -56,6 +56,7 @@ if IS_GAE:
     gaetestbed = testbed.Testbed()
     gaetestbed.activate()
     gaetestbed.init_datastore_v3_stub()
+    gaetestbed.init_memcache_stub()
 
 
 ALLOWED_DATATYPES = [
