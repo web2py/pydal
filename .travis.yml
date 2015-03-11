@@ -58,7 +58,9 @@ script:
 notifications:
   email: true
 
-services: mongodb
+services: 
+  - mongodb
+  - memcached
 
 addons:
   postgresql: "9.4"
