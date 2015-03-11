@@ -55,13 +55,16 @@ ADAPTERS = {
 }
 
 try:
-    from .google import GoogleDatastoreAdapter, GoogleSQLAdapter
+    from google.appengine.ext import ndb
+except ImportError:
+    # don't bother, we're not on Google AppEngine
+    GoogleDatastoreAdapter = None
+else:
+    from .google_adapters import GoogleDatastoreAdapter, GoogleSQLAdapter
     # discouraged, for backward compatibility
     ADAPTERS['gae'] = GoogleDatastoreAdapter
     # add gae adapters
     ADAPTERS['google:datastore'] = GoogleDatastoreAdapter
     ADAPTERS['google:datastore+ndb'] = GoogleDatastoreAdapter
     ADAPTERS['google:sql'] = GoogleSQLAdapter
-except:
-    # don't bother, we're not on Google AppEngine
-    GoogleDatastoreAdapter = None
+

@@ -110,8 +110,7 @@ Supported DAL URI strings::
     'informix://user:password@server:3050/database'
     'informixu://user:password@server:3050/database' # unicode informix
     'ingres://database'  # or use an ODBC connection string, e.g. 'ingres://dsn=dsn_name'
-    'google:datastore' # for google app engine datastore
-    'google:datastore+ndb' # for google app engine datastore + ndb
+    'google:datastore' # for google app engine datastore (uses ndb by default)
     'google:sql' # for google app engine with sql (mysql compatible)
     'teradata://DSN=dsn;UID=user;PWD=pass; DATABASE=database' # experimental
     'imap://user:password@server:port' # experimental
@@ -417,6 +416,8 @@ class DAL(object):
                         if is_jdbc and not uri.startswith('jdbc:'):
                             uri = 'jdbc:'+uri
                         self._dbname = REGEX_DBNAME.match(uri).group()
+                        print self._dbname
+                        print ADAPTERS
                         if not self._dbname in ADAPTERS:
                             raise SyntaxError("Error in URI '%s' or database not supported" % self._dbname)
                         # notice that driver args or {} else driver_args

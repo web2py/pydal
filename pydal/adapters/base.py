@@ -1606,7 +1606,7 @@ class BaseAdapter(ConnectionPool):
                         # GoogleDatastoreAdapter
                         # references
                         if GoogleDatastoreAdapter and isinstance(self, GoogleDatastoreAdapter):
-                            id = value.key.id() if self.use_ndb else value.key().id_or_name()
+                            id = value.key.id()
                             colset[fieldname] = id
                             colset.gae_item = value
                         else:

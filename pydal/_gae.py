@@ -2,6 +2,11 @@
 import decimal
 
 try:
+    from google.appengine.ext import ndb
+except ImportError:
+    gae = None
+    Key = None
+else:
     from new import classobj
     from google.appengine.ext import db as gae
     from google.appengine.ext import ndb
@@ -78,6 +83,3 @@ try:
                 return decimal.Decimal(value)
             raise TypeError("Property %s must be a Decimal or string."
                             % self._name)
-except ImportError:
-    gae = None
-    Key = None
