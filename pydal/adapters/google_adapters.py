@@ -258,7 +258,6 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         }
 
     def gaef(self,first, op, second):
-        print first, op, second
         value = self.represent(second,first.type,first._tablename)
         name = first.name if first.name != 'id' else 'key' 
         if name == 'key' and op in ('>','!=') and second in (0,'0'):
@@ -336,9 +335,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
 
         #tableobj is a GAE/NDB Model class (or subclass)
         tableobj = db[tablename]._tableobj
-        print 'query',query
         filters = self.expand(query)
-        print 'filters',filters
 
         ## DETERMINE PROJECTION
         projection = None
@@ -371,7 +368,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         cursor = args_get('reusecursor')
         cursor = cursor if isinstance(cursor, str) else None
         qo = ndb.QueryOptions(projection=query_projection, cursor=cursor)
-        print str(filters)
+        
         if filters == None:
             items = tableobj.query(default_options=qo)
         elif (hasattr(filters,'_FilterNode__name') and 
