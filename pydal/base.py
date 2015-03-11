@@ -416,8 +416,6 @@ class DAL(object):
                         if is_jdbc and not uri.startswith('jdbc:'):
                             uri = 'jdbc:'+uri
                         self._dbname = REGEX_DBNAME.match(uri).group()
-                        print self._dbname
-                        print ADAPTERS
                         if not self._dbname in ADAPTERS:
                             raise SyntaxError("Error in URI '%s' or database not supported" % self._dbname)
                         # notice that driver args or {} else driver_args
