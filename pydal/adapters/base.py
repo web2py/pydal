@@ -1737,6 +1737,7 @@ class NoSQLAdapter(BaseAdapter):
                 obj = []
             if not isinstance(obj, (list, tuple)):
                 obj = [obj]
+            obj = [item for item in obj if item]
         if obj == '' and not \
                 (is_string and fieldtype[:2] in ['st','te', 'pa','up']):
             return None
