@@ -144,7 +144,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
 
     def represent(self, obj, fieldtype, tablename=None):
         if isinstance(obj, ndb.Key):
-            return obj
+            return obj        
         elif fieldtype == 'id' and tablename:
             return ndb.Key(tablename, long(obj))
         elif fieldtype == "json":
@@ -152,6 +152,9 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 return self.db.serialize('json', obj)
             else:
                 return json.dumps(obj)
+        elif isinstance(obj, (list,tuple)):
+            if fieldtype=='list:integer':
+                obj = map(int,obj)
         else:
             return NoSQLAdapter.represent(self, obj, fieldtype)
 
@@ -210,7 +213,9 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         return None
 
     def expand(self,expression,field_type=None):
-        if isinstance(expression,Field):
+        if expression is None:
+            return None
+        elif isinstance(expression,Field):
             if expression.type in ('text', 'blob', 'json'):
                 raise SyntaxError('AppEngine does not index by: %s' % expression.type)
             return expression.name
@@ -226,15 +231,21 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         elif isinstance(expression,(list,tuple)):
             return ','.join([self.represent(item,field_type) for item in expression])
         else:
-            return str(expression)
+            raise NotImplemtedError
 
     def AND(self,first,second):
-        if first == None: return second # none means lack of query (true)
-        return ndb.AND(self.expand(first),self.expand(second))
+        first = self.expand(first)
+        second = self.expand(second)
+        # none means lack of query (true)
+        if first == None: return second 
+        return ndb.AND(first, second)
 
     def OR(self,first,second):
-        if first == None or second == None: return None # none means lack of query (true)
-        return ndb.OR(self.expand(first),self.expand(second))
+        first = self.expand(first)
+        second = self.expand(second)
+        # none means lack of query (true)
+        if first == None or second == None: return None 
+        return ndb.OR(first, second)
 
     GAE_FILTER_OPTIONS = {
         '=': lambda a,b: a==b,
@@ -250,7 +261,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         print first, op, second
         value = self.represent(second,first.type,first._tablename)
         name = first.name if first.name != 'id' else 'key' 
-        if name == 'key' and second in (0,'0'):
+        if name == 'key' and op in ('>','!=') and second in (0,'0'):
             return  None
         gfield = getattr(first.table._tableobj, name)
         token = self.GAE_FILTER_OPTIONS[op](gfield,value)
@@ -278,7 +289,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         return '-%s' % first.name
 
     def COMMA(self,first,second):
-        return '%s, %s' % (self.expand(first),self.expand(second))
+        return '%s, %s' % (first.name,second.name)
 
     def BELONGS(self,first,second=None):
         if not isinstance(second,(list, tuple, set)):
@@ -289,7 +300,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         # silently ignoring: GAE can only do case sensitive matches!
         if not first.type.startswith('list:'):
             raise SyntaxError("Not supported")
-        return self.gaef(first,'=',self.expand(second,first.type[5:]))
+        return self.gaef(first,'=',second)
 
     def NOT(self,first):
         raise NotImplementedError
@@ -325,7 +336,9 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
 
         #tableobj is a GAE/NDB Model class (or subclass)
         tableobj = db[tablename]._tableobj
+        print 'query',query
         filters = self.expand(query)
+        print 'filters',filters
 
         ## DETERMINE PROJECTION
         projection = None
@@ -358,8 +371,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         cursor = args_get('reusecursor')
         cursor = cursor if isinstance(cursor, str) else None
         qo = ndb.QueryOptions(projection=query_projection, cursor=cursor)
-        print filters
-        print dir(filters)
+        print str(filters)
         if filters == None:
             items = tableobj.query(default_options=qo)
         elif (hasattr(filters,'_FilterNode__name') and 
@@ -373,7 +385,6 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         if count_only:
             items = [len(items) if isinstance(items,list) else items.count()]
         elif not isinstance(items,list):
-            query = items
             if args_get('left', None):
                 raise SyntaxError('Set: no left join in appengine')
             if args_get('groupby', None):
@@ -395,21 +406,18 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                         return  (desc and  -getattr(tableobj, s)) or getattr(tableobj, s)
                     orders = {'-id':-tableobj._key,'id':tableobj._key}
                     _order = orders.get(order, make_order(order))
-                    query = query.order(_order)
-                    
+                    items = items.order(_order)
+
             if args_get('limitby', None):
                 (lmin, lmax) = attributes['limitby']
                 limit, fetch_args = lmax-lmin, {'offset':lmin,'keys_only':True}
 
-                keys, cursor, more = query.fetch_page(limit,**fetch_args)
+                keys, cursor, more = items.fetch_page(limit,**fetch_args)
                 items = ndb.get_multi(keys)
                 # cursor is only useful if there was a limit and we 
                 # didn't return all results
                 if args_get('reusecursor'):
                     db['_lastcursor'] = cursor
-            else:
-                # if a limit is not specified, always return an iterator
-                items = query
 
         return (items, tablename, projection or db[tablename].fields)
 
