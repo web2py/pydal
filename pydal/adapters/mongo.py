@@ -5,7 +5,7 @@ import re
 from .._globals import IDENTITY
 from ..objects import Table, Query, Field, Expression
 from ..helpers.classes import SQLALL
-from ..helpers.methods import xorify
+from ..helpers.methods import use_common_filters, xorify
 from .base import NoSQLAdapter
 
 
@@ -296,6 +296,11 @@ class MongoDBAdapter(NoSQLAdapter):
         else:
             raise SyntaxError("The table name could not be found in " +
                               "the query nor from the select statement.")
+
+        if query:
+            if use_common_filters(query):
+                query = self.common_filter(query,[tablename])
+
         mongoqry_dict = self.expand(query)
         fields = fields or self.db[tablename]
         for field in fields:
