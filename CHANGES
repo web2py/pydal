@@ -1,6 +1,18 @@
 pydal changelog
 ===============
 
+Next (version to be selected)
+-----------------------------
+
+(Release date to be announced)
+
+- Fixed `redefine` with lazy tables
+- Added tests for `update_or_insert`, `bulk_insert`,
+  `validate_and_update_or_insert`
+- Fixed common filter in `MongoDBAdapter`
+- Enhanced connections open/close flow
+
+
 Version 15.02.27
 ----------------
 
@@ -8,6 +20,7 @@ Released on February 27th 2015
 
 - Fixed a connection bug
 - Fixed a security flaw which could lead to db password storing in cache
+
 
 Version 15.02
 -------------
