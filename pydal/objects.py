@@ -2493,7 +2493,6 @@ class Rows(object):
             fields: a list of fields to transform (if None, all fields with
                 "represent" attributes will be transformed)
         """
-
         if i is None:
             return (self.render(i, fields=fields) for i in range(len(self)))
         if not self.db.has_representer('rows_render'):
@@ -2662,6 +2661,7 @@ class Rows(object):
                 return bar_encode(value)
             return value
 
+        repr_cache = {}
         for record in self:
             row = []
             for col in colnames:
@@ -2678,7 +2678,14 @@ class Rows(object):
                     if field.type=='blob' and not value is None:
                         value = base64.b64encode(value)
                     elif represent and field.represent:
-                        value = field.represent(value,record)
+                        if field.type.startswith('reference'):
+                            if field not in repr_cache:
+                                repr_cache[field] = {}
+                            if value not in repr_cache[field]:
+                                repr_cache[field][value] = field.represent(value, record)
+                            value = repr_cache[field][value]
+                        else:
+                            value = field.represent(value, record)
                     row.append(none_exception(value))
             writer.writerow(row)
 
