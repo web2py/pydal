@@ -298,6 +298,8 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
     def BELONGS(self,first,second=None):
         if not isinstance(second,(list, tuple, set)):
             raise SyntaxError("Not supported")
+        if not isinstance(second, list):
+            second = list(second)
         return self.gaef(first,'in',second)
 
     def CONTAINS(self,first,second,case_sensitive=False):
