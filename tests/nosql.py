@@ -137,7 +137,7 @@ class TestFields(unittest.TestCase):
             else:
                 isinstance(f.formatter(datetime.datetime.now()), str)
 
-    @unittest.skipIf(IS_GAE or IS_MONGODB, 'TODO: Datastore does accept dict objects as json field input. MongoDB assertion error Binary("x", 0) != "x"')
+    @unittest.skipIf(IS_MONGODB, 'TODO: Datastore does accept dict objects as json field input. MongoDB assertion error Binary("x", 0) != "x"')
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
@@ -157,10 +157,11 @@ class TestFields(unittest.TestCase):
         self.assertEqual(isinstance(db.tt.insert(aa=True), long), True)
         self.assertEqual(db().select(db.tt.aa)[0].aa, True)
         drop(db.tt)
-        db.define_table('tt', Field('aa', 'json', default={}))
-        self.assertEqual(isinstance(db.tt.insert(aa={}), long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, {})
-        drop(db.tt)
+        if not IS_GAE:
+            db.define_table('tt', Field('aa', 'json', default={}))
+            self.assertEqual(isinstance(db.tt.insert(aa={}), long), True)
+            self.assertEqual(db().select(db.tt.aa)[0].aa, {})
+            drop(db.tt)
         db.define_table('tt', Field('aa', 'date',
                         default=datetime.date.today()))
         t0 = datetime.date.today()
@@ -311,7 +312,7 @@ class TestInsert(unittest.TestCase):
             drop(db.tt)
 
 
-@unittest.skipIf(IS_GAE or IS_MONGODB or IS_IMAP, 'TODO: Datastore throws "SyntaxError: Not supported (query using or)". MongoDB assertionerror 5L != 3')
+@unittest.skipIf(IS_MONGODB or IS_IMAP, 'TODO: Datastore throws "SyntaxError: Not supported (query using or)". MongoDB assertionerror 5L != 3')
 class TestSelect(unittest.TestCase):
 
     def testRun(self):
@@ -339,7 +340,8 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db((db.tt.aa > '1') & (db.tt.aa < '3')).count(), 1)
         self.assertEqual(db((db.tt.aa > '1') | (db.tt.aa < '3')).count(), 3)
         self.assertEqual(db((db.tt.aa > '1') & ~(db.tt.aa > '2')).count(), 1)
-        self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
+        if not IS_GAE:
+            self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
         drop(db.tt)
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
@@ -383,7 +385,7 @@ class TestBelongs(unittest.TestCase):
         drop(db.tt)
 
 
-@unittest.skipIf(IS_GAE or IS_IMAP, "Contains not supported on GAE Datastore. TODO: IMAP tests")
+@unittest.skipIf(IS_IMAP, "Contains not supported on GAE Datastore. TODO: IMAP tests")
 class TestContains(unittest.TestCase):
     @unittest.skipIf(IS_MONGODB, "TODO: MongoDB Contains error")
     def testRun(self):
