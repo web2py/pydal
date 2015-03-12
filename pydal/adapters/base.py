@@ -1725,11 +1725,6 @@ class NoSQLAdapter(BaseAdapter):
             obj = obj()
         if isinstance(fieldtype, SQLCustomType):
             return fieldtype.encoder(obj)
-        if isinstance(obj, (Expression, Field)):
-            raise SyntaxError("non supported on GAE")
-        if self.dbengine == 'google:datastore':
-            if isinstance(fieldtype, gae.Property):
-                return obj
         is_string = isinstance(fieldtype,str)
         is_list = is_string and field_is_type('list:')
         if is_list:

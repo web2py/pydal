@@ -152,15 +152,16 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 return self.db.serialize('json', obj)
             else:
                 return json.dumps(obj)
-        elif isinstance(obj, (list,tuple)):
-            if fieldtype=='list:integer':
-                return map(int,obj)
-            elif fieldtype=='list:string':
-                return map(str,obj)
-            else:
-                raise RuntimError("Passing a list to a non-list field value")
+        elif isinstance(obj, (Expression, Field)):
+            raise SyntaxError("non supported on GAE")
+        elif isinstance(fieldtype, gae.Property):
+            return obj
+        elif fieldtype.startswith('list:') and not isinstance(obj, list):
+            if fieldtype=='list:string': return str(obj)
+            else: return long(obj)
         else:
-            return NoSQLAdapter.represent(self, obj, fieldtype)
+            obj = NoSQLAdapter.represent(self, obj, fieldtype)
+            return obj
 
     def create_table(self,table,migrate=True,fake_migrate=False, polymodel=None):
         myfields = {}
@@ -300,7 +301,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         return self.gaef(first,'in',second)
 
     def CONTAINS(self,first,second,case_sensitive=False):
-        # silently ignoring: GAE can only do case sensitive matches!
+        # silently ignoring: GAE can only do case sensitive matches!        
         if not first.type.startswith('list:'):
             raise SyntaxError("Not supported")
         return self.gaef(first,'=',second)
