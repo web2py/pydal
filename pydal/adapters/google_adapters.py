@@ -154,7 +154,11 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 return json.dumps(obj)
         elif isinstance(obj, (list,tuple)):
             if fieldtype=='list:integer':
-                obj = map(int,obj)
+                return map(int,obj)
+            elif fieldtype=='list:string':
+                return map(str,obj)
+            else:
+                raise RuntimError("Passing a list to a non-list field value")
         else:
             return NoSQLAdapter.represent(self, obj, fieldtype)
 

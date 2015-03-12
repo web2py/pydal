@@ -725,11 +725,10 @@ class Table(object):
 
     def _defaults(self, fields):
         "If there are no fields/values specified, return table defaults"
-        if not fields:
-            fields = {}
-            for field in self:
-                if field.type != "id":
-                    fields[field.name] = field.default
+        fields = copy.copy(fields)
+        for field in self:
+             if not field.name in fields and field.type != "id":
+                 fields[field.name] = field.default
         return fields
 
     def _insert(self, **fields):
