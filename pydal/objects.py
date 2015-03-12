@@ -727,7 +727,10 @@ class Table(object):
         "If there are no fields/values specified, return table defaults"
         fields = copy.copy(fields)
         for field in self:
-             if not field.name in fields and field.type != "id":
+             if (not field.name in fields and
+                 field.type != "id" and 
+                 not field.compute and 
+                 field.default!=None):
                  fields[field.name] = field.default
         return fields
 
