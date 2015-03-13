@@ -525,5 +525,4 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         for item in items:
             dfields=dict((f.name,self.represent(v,f.type)) for f,v in item)
             parsed_items.append(table._tableobj(**dfields))
-        ndb.put_multi(parsed_items)
-        return True
+        return ndb.put_multi(parsed_items)
