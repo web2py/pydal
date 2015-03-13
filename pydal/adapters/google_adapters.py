@@ -146,6 +146,8 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         if isinstance(obj, ndb.Key):
             return obj        
         elif fieldtype == 'id' and tablename:
+            if isinstance(obj, list):
+                return [self.represent(item,fieldtype,tablename) for item in obj]
             return ndb.Key(tablename, long(obj))
         elif fieldtype == "json":
             if self.db.has_serializer('json'):
