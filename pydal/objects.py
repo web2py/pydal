@@ -729,8 +729,8 @@ class Table(object):
         for field in self:
              if (not field.name in fields and
                  field.type != "id" and 
-                 not field.compute and 
-                 field.default!=None):
+                 field.compute is not None and 
+                 field.default is not None):
                  fields[field.name] = field.default
         return fields
 
