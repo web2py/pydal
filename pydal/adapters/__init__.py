@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+from .._gae import gae
 from .sqlite import SQLiteAdapter, SpatiaLiteAdapter, JDBCSQLiteAdapter
 from .mysql import MySQLAdapter
-from .postgres import PostgreSQLAdapter, NewPostgreSQLAdapter, JDBCPostgreSQLAdapter
+from .postgres import PostgreSQLAdapter, NewPostgreSQLAdapter, \
+    JDBCPostgreSQLAdapter
 from .oracle import OracleAdapter
 from .mssql import MSSQLAdapter, MSSQL2Adapter, MSSQL3Adapter, MSSQL4Adapter, \
     VerticaAdapter, SybaseAdapter
@@ -32,7 +34,7 @@ ADAPTERS = {
     'mssql': MSSQLAdapter,
     'mssql2': MSSQL2Adapter,
     'mssql3': MSSQL3Adapter,
-    'mssql4' : MSSQL4Adapter,
+    'mssql4': MSSQL4Adapter,
     'vertica': VerticaAdapter,
     'sybase': SybaseAdapter,
     'db2:ibm_db_dbi': DB2Adapter,
@@ -54,12 +56,8 @@ ADAPTERS = {
     'imap': IMAPAdapter
 }
 
-try:
-    from google.appengine.ext import ndb
-except ImportError:
-    # don't bother, we're not on Google AppEngine
-    GoogleDatastoreAdapter = None
-else:
+#: load google adapters if needed
+if gae is not None:
     from .google_adapters import GoogleDatastoreAdapter, GoogleSQLAdapter
     # discouraged, for backward compatibility
     ADAPTERS['gae'] = GoogleDatastoreAdapter
