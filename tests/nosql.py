@@ -1355,26 +1355,67 @@ class TestQuotesByDefault(unittest.TestCase):
     def testme(self):
         return
 
-@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
+@unittest.skip("TODO: test enable_record_versioning with nosql db")
 class TestRecordVersioning(unittest.TestCase):
 
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('t0', Field('name'),
+        tt = db.define_table('tt', Field('name'),
                         Field('is_active', 'boolean', default=True))
-        db.t0._enable_record_versioning(archive_name='t0_archive')
-        self.assertTrue('t0_archive' in db)
-        i_id = db.t0.insert(name='web2py1')
-        db.t0.insert(name='web2py2')
-        db(db.t0.name == 'web2py2').delete()
-        self.assertEqual(len(db(db.t0).select()), 1)
-        self.assertEquals(db(db.t0).count(), 1)
-        db(db.t0.id == i_id).update(name='web2py3')
+        db.tt._enable_record_versioning(archive_name='tt_archive')
+        self.assertTrue('tt_archive' in db)
+        i_id = db.tt.insert(name='web2py1')
+        db.tt.insert(name='web2py2')
+        db(db.tt.name == 'web2py2').delete()
+        self.assertEqual(len(db(db.tt).select()), 1)
+        self.assertEquals(db(db.tt).count(), 1)
+        db(db.tt.id == i_id).update(name='web2py3')
+        self.assertEqual(len(db(db.tt).select()), 1)
+        self.assertEqual(db(db.tt).count(), 1)
+        self.assertEqual(len(db(db.tt_archive).select()), 2)
+        self.assertEqual(db(db.tt_archive).count(), 2)
+        drop(tt)
+        drop(db.tt_archive)
+        return
+
+
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
+class TestUpdateInsert(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t0 = db.define_table('t0', Field('name'))
+        i_id = db.t0.update_or_insert((db.t0.id == 1), name='web2py')
+        u_id = db.t0.update_or_insert((db.t0.id == i_id), name='web2py2')
+        self.assertTrue(i_id != None)
+        self.assertTrue(u_id == None)
         self.assertEqual(len(db(db.t0).select()), 1)
         self.assertEqual(db(db.t0).count(), 1)
-        self.assertEqual(len(db(db.t0_archive).select()), 2)
-        self.assertEqual(db(db.t0_archive).count(), 2)
-        drop(db.t0)
+        self.assertEqual(db(db.t0.name == 'web2py').count(), 0)
+        self.assertEqual(db(db.t0.name == 'web2py2').count(), 1)
+        drop(t0)
+
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
+class TestBulkInsert(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t0 = db.define_table('t0', Field('name'))
+        global ctr
+        ctr = 0
+        def test_after_insert(i, r):
+            global ctr
+            ctr += 1
+            return True
+        t0._after_insert.append(test_after_insert)
+        items = [{'name':'web2py_%s' % pos} for pos in range(0, 10, 1)]
+        t0.bulk_insert(items)
+        self.assertTrue(db(t0).count() == len(items))
+        for pos in range(0, 10, 1):
+            self.assertEqual(len(db(t0.name == 'web2py_%s' % pos).select()), 1)
+            self.assertEqual(db(t0.name == 'web2py_%s' % pos).count(), 1)
+        self.assertTrue(ctr == len(items))
+        drop(t0)
         return
 
 

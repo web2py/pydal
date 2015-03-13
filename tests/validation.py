@@ -61,7 +61,7 @@ class TestValidateAndInsert(unittest.TestCase):
         #cleanup table
         drop(db.val_and_insert)
 
-
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestValidateUpdateInsert(unittest.TestCase):
 
     def testRun(self):
@@ -73,9 +73,10 @@ class TestValidateUpdateInsert(unittest.TestCase):
         self.assertTrue(i_response.id != None)
         self.assertTrue(u_response.id != None)
         self.assertTrue(e_response.id == None and len(e_response.errors.keys()) != 0)
-        self.assertTrue(db(t1).count() == 1)
-        self.assertTrue(db(t1.int_level == 1).count() == 0)
-        self.assertTrue(db(t1.int_level == 6).count() == 0)
-        self.assertTrue(db(t1.int_level == 2).count() == 1)
-        db.t1.drop()
-	return
+        self.assertEqual(len(db(t1).select()), 1)
+        self.assertEqual(db(t1).count(), 1)
+        self.assertEqual(db(t1.int_level == 1).count(), 0)
+        self.assertEqual(db(t1.int_level == 6).count(), 0)
+        self.assertEqual(db(t1.int_level == 2).count(), 1)
+        drop(db.t1)
+        return

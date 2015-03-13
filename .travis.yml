@@ -19,7 +19,6 @@ env:
     - PIP_DOWNLOAD_CACHE=$HOME/.pip-cache
   matrix:
     - ADAPTER=sqlite
-    - ADAPTER=sqliteFS
     - ADAPTER=mysql
     - ADAPTER=postgres
     - ADAPTER=postgresPG8000
@@ -38,7 +37,7 @@ matrix:
       env: ADAPTER=google
     - python: '2.6'
       env: ADAPTER=google
-    
+
 before_script:
   - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install --download-cache $HOME/.pip-cache python-coveralls; fi
   - if [[ $ADAPTER == mongo ]]; then sleep 15; fi;
@@ -63,7 +62,7 @@ after_success:
 notifications:
   email: true
 
-services: 
+services:
   - mongodb
   - memcached
 
