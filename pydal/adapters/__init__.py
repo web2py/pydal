@@ -65,3 +65,6 @@ if gae is not None:
     ADAPTERS['google:datastore'] = GoogleDatastoreAdapter
     ADAPTERS['google:datastore+ndb'] = GoogleDatastoreAdapter
     ADAPTERS['google:sql'] = GoogleSQLAdapter
+else:
+    #: make the import available for BaseAdapter
+    GoogleDatastoreAdapter = None
