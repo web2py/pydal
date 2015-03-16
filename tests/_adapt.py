@@ -3,7 +3,8 @@ import os
 DEFAULT_URI = os.getenv('DB', 'sqlite:memory')
 NOSQL = any([name in DEFAULT_URI for name in ("datastore", "mongodb", "imap")])
 IS_IMAP = "imap" in DEFAULT_URI
-
+IS_GAE = "datastore" in DEFAULT_URI
+IS_MONGODB = "mongodb" in DEFAULT_URI
 
 def drop(table, cascade=None):
     # mongodb implements drop()

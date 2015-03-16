@@ -1355,6 +1355,7 @@ class TestQuotesByDefault(unittest.TestCase):
     def testme(self):
         return
 
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestRecordVersioning(unittest.TestCase):
 
     def testRun(self):
