@@ -1355,7 +1355,6 @@ class TestQuotesByDefault(unittest.TestCase):
     def testme(self):
         return
 
-@unittest.skip("TODO: test enable_record_versioning with nosql db")
 class TestRecordVersioning(unittest.TestCase):
 
     def testRun(self):
@@ -1374,10 +1373,29 @@ class TestRecordVersioning(unittest.TestCase):
         self.assertEqual(db(db.tt).count(), 1)
         self.assertEqual(len(db(db.tt_archive).select()), 2)
         self.assertEqual(db(db.tt_archive).count(), 2)
-        drop(tt)
         drop(db.tt_archive)
+        # it allows tt to be dropped
+        db.tt._before_delete = []
+        drop(tt)
         return
 
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
+class TestBasicOps(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        tt = db.define_table('tt', Field('name'),
+                        Field('is_active', 'boolean', default=True))
+        i_id = db.tt.insert(name='web2py1')
+        db.tt.insert(name='web2py2')
+        db(db.tt.name == 'web2py2').delete()
+        self.assertEqual(len(db(db.tt).select()), 1)
+        self.assertEquals(db(db.tt).count(), 1)
+        db(db.tt.id == i_id).update(name='web2py3')
+        self.assertEqual(len(db(db.tt).select()), 1)
+        self.assertEqual(db(db.tt).count(), 1)
+        drop(tt)
+        return
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestUpdateInsert(unittest.TestCase):
