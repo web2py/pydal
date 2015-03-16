@@ -5,5 +5,5 @@ if NOSQL:
 else:
     from sql import *
 
-from validation import TestValidateAndInsert
+from validation import *
 from caching import TestCache

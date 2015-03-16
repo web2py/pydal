@@ -1,7 +1,8 @@
 import re
 from pydal import DAL, Field
 from ._compat import unittest
-from ._adapt import DEFAULT_URI, NOSQL, IS_IMAP, drop
+from ._adapt import DEFAULT_URI, NOSQL, IS_IMAP, drop, IS_GAE
+
 
 regex_isint = re.compile('^[+-]?\d+$')
 
@@ -61,12 +62,12 @@ class TestValidateAndInsert(unittest.TestCase):
         #cleanup table
         drop(db.val_and_insert)
 
-@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
+@unittest.skipIf(IS_IMAP or IS_GAE, "TODO: IMAP test")
 class TestValidateUpdateInsert(unittest.TestCase):
 
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        t1 = db.define_table('t1', Field('int_level', requires=IS_INT_IN_RANGE(1, 5)))
+        t1 = db.define_table('t1', Field('int_level', 'integer', requires=IS_INT_IN_RANGE(1, 5)))
         i_response = t1.validate_and_update_or_insert((t1.int_level == 1), int_level=1)
         u_response = t1.validate_and_update_or_insert((t1.int_level == 1), int_level=2)
         e_response = t1.validate_and_update_or_insert((t1.int_level == 1), int_level=6)
