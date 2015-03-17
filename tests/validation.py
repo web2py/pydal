@@ -62,7 +62,7 @@ class TestValidateAndInsert(unittest.TestCase):
         #cleanup table
         drop(db.val_and_insert)
 
-@unittest.skipIf(IS_IMAP or IS_GAE, "TODO: IMAP test")
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestValidateUpdateInsert(unittest.TestCase):
 
     def testRun(self):
