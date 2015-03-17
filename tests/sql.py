@@ -10,16 +10,13 @@ from pydal import DAL, Field
 from pydal.helpers.classes import SQLALL
 from pydal.objects import Table
 from ._compat import unittest
-
+from ._adapt import DEFAULT_URI, IS_POSTGRESQL
 
 try:
     import cStringIO as StringIO
 except:
     from io import StringIO
 
-
-#for travis-ci
-DEFAULT_URI = os.getenv('DB', 'sqlite:memory')
 
 print 'Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
                                           DEFAULT_URI)
@@ -41,7 +38,7 @@ ALLOWED_DATATYPES = [
     'bigint'
     ]
 
-IS_POSTGRESQL = 'postgres' in DEFAULT_URI
+
 
 
 

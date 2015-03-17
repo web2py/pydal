@@ -14,49 +14,25 @@ except:
 from ._compat import unittest
 
 
-#for travis-ci
-DEFAULT_URI = os.environ.get('DB', 'sqlite:memory')
-print 'Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
-                                          DEFAULT_URI)
-
-IS_GAE = "datastore" in DEFAULT_URI
-IS_MONGODB = "mongodb" in DEFAULT_URI
-IS_IMAP = "imap" in DEFAULT_URI
+from pydal import DAL, Field
+from pydal.objects import Table
+from pydal.helpers.classes import SQLALL
+from ._adapt import DEFAULT_URI, IS_IMAP, drop, IS_GAE, IS_MONGODB
 
 if IS_IMAP:
     from pydal.adapters import IMAPAdapter
     from pydal.contrib import mockimaplib
     IMAPAdapter.driver = mockimaplib
-
-from pydal import DAL, Field
-from pydal.objects import Table
-from pydal.helpers.classes import SQLALL
-
-
-def drop(table, cascade=None):
-    # mongodb implements drop()
-    # although it seems it does not work properly
-    if (IS_GAE or IS_MONGODB or IS_IMAP):
-        # GAE drop/cleanup is not implemented
-        db = table._db
-        db(table).delete()
-        del db[table._tablename]
-        del db.tables[db.tables.index(table._tablename)]
-        db._remove_references_to(table)
-    else:
-        if cascade:
-            table.drop(cascade)
-        else:
-            table.drop()
-
-
-# setup GAE dummy database
-if IS_GAE:
+elif IS_GAE:
+    # setup GAE dummy database
     from google.appengine.ext import testbed
     gaetestbed = testbed.Testbed()
     gaetestbed.activate()
     gaetestbed.init_datastore_v3_stub()
     gaetestbed.init_memcache_stub()
+
+print 'Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
+                                          DEFAULT_URI)
 
 
 ALLOWED_DATATYPES = [
