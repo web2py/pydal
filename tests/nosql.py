@@ -654,30 +654,36 @@ class TestComputedFields(unittest.TestCase):
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestCommonFilters(unittest.TestCase):
 
-    @unittest.skipIf(IS_MONGODB, "TODO: MongoDB Assertion error")
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('t1', Field('aa'))
-        # db.define_table('t2', Field('aa'), Field('b', db.t1))
-        i1 = db.t1.insert(aa='1')
-        i2 = db.t1.insert(aa='2')
-        i3 = db.t1.insert(aa='3')
-        # db.t2.insert(aa='4', b=i1)
-        # db.t2.insert(aa='5', b=i2)
-        # db.t2.insert(aa='6', b=i2)
-        db.t1._common_filter = lambda q: db.t1.aa>'1'
+        db.define_table('t1', Field('aa', 'integer'))
+        db.define_table('t2', Field('aa', 'integer'), Field('b', db.t1))
+        i1 = db.t1.insert(aa=1)
+        i2 = db.t1.insert(aa=2)
+        i3 = db.t1.insert(aa=3)
+        db.t2.insert(aa=4, b=i1)
+        db.t2.insert(aa=5, b=i2)
+        db.t2.insert(aa=6, b=i2)
+        db.t1._common_filter = lambda q: db.t1.aa>1
         self.assertEqual(db(db.t1).count(),2)
-        # self.assertEqual(db(db.t1).count(),2)
-        # q = db.t2.b==db.t1.id
-        # q = db.t1.aa != None
-        # self.assertEqual(db(q).count(),2)
-        # self.assertEqual(db(q).count(),2)
-        # self.assertEqual(len(db(db.t1).select(left=db.t2.on(q))),3)
-        # db.t2._common_filter = lambda q: db.t2.aa<6
-        # self.assertEqual(db(q).count(),1)
-        # self.assertEqual(db(q).count(),1)
-        # self.assertEqual(len(db(db.t1).select(left=db.t2.on(q))),2)
-        # drop(db.t2)
+        self.assertEqual(db(db.t1).count(),2)
+        db.t2._common_filter = lambda q: db.t2.aa<6
+        # test delete
+        self.assertEqual(db(db.t2).count(),2)
+        db(db.t2).delete()
+        self.assertEqual(db(db.t2).count(),0)
+        db.t2._common_filter = None
+        self.assertEqual(db(db.t2).count(),1)
+        # test update
+        db.t2.insert(aa=4, b=i1)
+        db.t2.insert(aa=5, b=i2)
+        db.t2._common_filter = lambda q: db.t2.aa<6
+        self.assertEqual(db(db.t2).count(),2)
+        db(db.t2).update(aa=6)
+        self.assertEqual(db(db.t2).count(),0)
+        db.t2._common_filter = None
+        self.assertEqual(db(db.t2).count(),3)
+        drop(db.t2)
         drop(db.t1)
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP test")
