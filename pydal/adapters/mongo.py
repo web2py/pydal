@@ -375,6 +375,11 @@ class MongoDBAdapter(NoSQLAdapter):
         amount = self.count(query, False)
         if not isinstance(query, Query):
             raise SyntaxError("Not Supported")
+
+        if query:
+            if use_common_filters(query):
+                query = self.common_filter(query,[tablename])
+
         filter = None
         if query:
             filter = self.expand(query)
@@ -404,6 +409,9 @@ class MongoDBAdapter(NoSQLAdapter):
         if not isinstance(query, Query):
             raise RuntimeError("query type %s is not supported" % \
                                type(query))
+        if query:
+            if use_common_filters(query):
+                query = self.common_filter(query,[tablename])
         filter = self.expand(query)
         self.connection[tablename].remove(filter, safe=safe)
         return amount
