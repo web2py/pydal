@@ -5,13 +5,12 @@ import re
 from .._compat import pjoin
 from .._globals import IDENTITY, THREAD_LOCAL
 from .._load import json
-from .._gae import classobj, gae, ndb, namespace_manager, Key, NDBPolyModel, \
-    PolyModel, rdbms
+from .._gae import classobj, gae, ndb, namespace_manager, NDBPolyModel, rdbms
 from ..objects import Table, Field, Expression, Query
 from ..helpers.classes import SQLCustomType, SQLALL, \
     Reference, UseDatabaseStoredFile
 from ..helpers.methods import use_common_filters, xorify
-from ..helpers.gae import NDBDecimalProperty, GAEDecimalProperty
+from ..helpers.gae import NDBDecimalProperty
 from .base import NoSQLAdapter
 from .mysql import MySQLAdapter
 
