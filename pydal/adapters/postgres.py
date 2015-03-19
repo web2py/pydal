@@ -185,8 +185,10 @@ class PostgreSQLAdapter(BaseAdapter):
             supports_json = None
         if supports_json:
             self.types["json"] = "JSON"
-            if (self.driver_name == "psycopg2" and
-                self.driver.__version__ >= '2.5.0'):
+            if ((self.driver_name == "psycopg2" and
+                 self.driver.__version__ >= '2.5.0') or
+                 (self.driver_name == "pg8000" and
+                 self.driver.__version__ >= '1.10.2')):
                 self.driver_auto_json = ['loads']
         else:
             self.db.logger.debug("Your database version does not support the JSON"
