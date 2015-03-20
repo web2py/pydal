@@ -65,6 +65,7 @@ class MongoDBAdapter(NoSQLAdapter):
         self.db_codec = 'UTF-8'
         self._after_connection = after_connection
         self.pool_size = pool_size
+        self.find_or_make_work_folder()
         #this is the minimum amount of replicates that it should wait
         # for on insert/update
         self.minimumreplication = adapter_args.get('minimumreplication', 0)
