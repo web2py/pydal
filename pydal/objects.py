@@ -2071,7 +2071,7 @@ class Set(object):
                 if not key:
                     key = db._uri + '/' + sql
                     key = hashlib_md5(key).hexdigest()
-            elif 
+            else:
                 cache_model, time_expire = cache
                 key = db._uri + '/' + sql
                 key = hashlib_md5(key).hexdigest()
