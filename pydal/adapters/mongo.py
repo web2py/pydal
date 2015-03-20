@@ -258,7 +258,6 @@ class MongoDBAdapter(NoSQLAdapter):
     def select(self, query, fields, attributes, count=False,
                snapshot=False):
         mongofields_dict = self.SON()
-        mongoqry_dict = {}
         new_fields, mongosort_list = [], []
         # try an orderby attribute
         orderby = attributes.get('orderby', False)
@@ -272,7 +271,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 self.db.logger.warn(
                     'select attribute not implemented: %s' % key)
         if limitby:
-            limitby_skip, limitby_limit = limitby[0], int(limitby[1])
+            limitby_skip, limitby_limit = limitby[0], int(limitby[1]) - 1
         else:
             limitby_skip = limitby_limit = 0
         if orderby:
