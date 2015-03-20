@@ -287,7 +287,7 @@ class TestInsert(unittest.TestCase):
             drop(db.tt)
 
 
-@unittest.skipIf(IS_GAE or IS_MONGODB or IS_IMAP, 'TODO: Datastore throws "SyntaxError: Not supported (query using or)". MongoDB assertionerror 5L != 3')
+@unittest.skipIf(IS_GAE or IS_IMAP, 'TODO: Datastore throws "SyntaxError: Not supported (query using or)"')
 class TestSelect(unittest.TestCase):
 
     def testRun(self):
@@ -314,8 +314,10 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db(db.tt.aa > '1')(db.tt.aa < '3').count(), 1)
         self.assertEqual(db((db.tt.aa > '1') & (db.tt.aa < '3')).count(), 1)
         self.assertEqual(db((db.tt.aa > '1') | (db.tt.aa < '3')).count(), 3)
-        self.assertEqual(db((db.tt.aa > '1') & ~(db.tt.aa > '2')).count(), 1)
-        self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
+        if not (IS_MONGODB):
+            # Mongo raises "cmd failed: unknown top level operator: $not"
+            self.assertEqual(db((db.tt.aa > '1') & ~(db.tt.aa > '2')).count(), 1)
+            self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
         drop(db.tt)
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
