@@ -20,6 +20,13 @@ class GoogleSQLAdapter(UseDatabaseStoredFile, MySQLAdapter):
 
     REGEX_URI = re.compile('^(?P<instance>.*)/(?P<db>.*)$')
 
+    def clear_cache(self):
+        ndb.get_context().clear_cache()
+
+    def ignore_cache_for(self, entities = None):
+        entities = entities or []
+        ndb.get_context().set_cache_policy(lambda key: return key.kind() not in entities)
+
     def __init__(self, db, uri='google:sql://realm:domain/database',
                  pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
