@@ -728,8 +728,8 @@ class Table(object):
         fields = copy.copy(fields)
         for field in self:
              if (not field.name in fields and
-                 field.type != "id" and 
-                 field.compute is not None and 
+                 field.type != "id" and
+                 field.compute is not None and
                  field.default is not None):
                  fields[field.name] = field.default
         return fields
@@ -1498,8 +1498,8 @@ class Field(Expression):
         self.update = update
         self.authorize = authorize
         self.autodelete = autodelete
-        self.represent = (list_represent if represent is None and
-                          type in ('list:integer', 'list:string') else represent)
+        self.represent = list_represent if represent is None and \
+            type in ('list:integer', 'list:string') else represent
         self.compute = compute
         self.isattachment = True
         self.custom_store = custom_store
