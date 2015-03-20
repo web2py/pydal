@@ -44,8 +44,8 @@ def cleanup(text):
     return text
 
 
-def list_represent(x,r=None):
-    return ', '.join(str(y) for y in x or [])
+def list_represent(values, row=None):
+    return ', '.join(str(v) for v in (values or []))
 
 
 def xorify(orderby):
@@ -238,7 +238,60 @@ def auto_validators(field):
     return field_validators
 
 
-def varquote_aux(name,quotestr='%s'):
+def _fieldformat(r, id):
+    row = r(id)
+    if not row:
+        return str(id)
+    elif hasattr(r, '_format') and isinstance(r._format, str):
+        return r._format % row
+    elif hasattr(r, '_format') and callable(r._format):
+        return r._format(row)
+    else:
+        return str(id)
+
+
+class _repr_ref(object):
+    def __init__(self, ref=None):
+        self.ref = ref
+
+    def __call__(self, value, row=None):
+        return _fieldformat(self.row, value)
+
+
+class _repr_ref_list(_repr_ref):
+    def __call__(self, value, row=None):
+        if not value:
+            return None
+        from ..adapters import GoogleDatastoreAdapter
+        refs = None
+        db, id = self.ref._db, self.ref._id
+        if isinstance(db._adapter, GoogleDatastoreAdapter):
+            def count(values):
+                return db(id.belongs(values)).select(id)
+            rx = range(0, len(value), 30)
+            refs = reduce(lambda a, b: a & b, [count(value[i:i+30])
+                          for i in rx])
+        else:
+            refs = db(id.belongs(value)).select(id)
+        return refs and ', '.join(
+            _fieldformat(self.ref, x.id) for x in value) or ''
+
+
+def auto_represent(field):
+    if field.represent:
+        return field.represent
+    if field.db and field.type.startswith('reference') and \
+            field.type.find('.') < 0 and field.type[10:] in field.db.tables:
+        referenced = field.db[field.type[10:]]
+        return _repr_ref(referenced)
+    elif field.db and field.type.startswith('list:reference') and \
+            field.type.find('.') < 0 and field.type[15:] in field.db.tables:
+        referenced = field.db[field.type[15:]]
+        return _repr_ref_list(referenced)
+    return field.represent
+
+
+def varquote_aux(name, quotestr='%s'):
     return name if REGEX_W.match(name) else quotestr % name
 
 
