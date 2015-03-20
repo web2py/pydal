@@ -2063,10 +2063,18 @@ class Set(object):
     def count(self,distinct=None, cache=None):
         db = self.db
         if cache:
-            cache_model, time_expire = cache
             sql = self._count(distinct=distinct)
-            key = db._uri + '/' + sql
-            key = hashlib_md5(key).hexdigest()
+            if isinstance(cache,dict):
+                cache_model = cache['model']
+                time_expire = cache['expiration']
+                key = cache.get('key')
+                if not key:
+                    key = db._uri + '/' + sql
+                    key = hashlib_md5(key).hexdigest()
+            elif 
+                cache_model, time_expire = cache
+                key = db._uri + '/' + sql
+                key = hashlib_md5(key).hexdigest()
             return cache_model(
                 key,
                 (lambda self=self,distinct=distinct: \
