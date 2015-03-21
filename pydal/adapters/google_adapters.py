@@ -301,7 +301,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         return '-%s' % first.name
 
     def COMMA(self,first,second):
-        return '%s, %s' % (first.name,second.name)
+        return '%s, %s' % (first,second)
 
     def BELONGS(self,first,second=None):
         if not isinstance(second,(list, tuple, set)):
@@ -411,11 +411,11 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 orders = orderby.split(', ')
                 for order in orders:
                     #TODO There must be a better way
-                    def make_order(o):
-                        s = str(o)
-                        desc = s[0] == '-'
-                        s = (desc and s[1:]) or s
-                        return  (desc and  -getattr(tableobj, s)) or getattr(tableobj, s)
+                    order = str(order)
+                    def make_order(order):
+                        desc = order[0] == '-'
+                        return (-getattr(tableobj, order[1:]) if desc 
+                                 else getattr(tableobj, order))
                     orders = {'-id':-tableobj._key,'id':tableobj._key}
                     _order = orders.get(order, make_order(order))
                     items = items.order(_order)
