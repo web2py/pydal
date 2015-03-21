@@ -409,16 +409,17 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 if isinstance(orderby,Expression):
                     orderby = self.expand(orderby)
                 orders = orderby.split(', ')
+                tbl = tableobj
                 for order in orders:
                     #TODO There must be a better way
                     order = str(order)
-                    def make_order(order):
-                        desc = order[0] == '-'
-                        return (-getattr(tableobj, order[1:]) if desc 
-                                 else getattr(tableobj, order))
-                    orders = {'-id':-tableobj._key,'id':tableobj._key}
-                    _order = orders.get(order, make_order(order))
-                    items = items.order(_order)
+                    desc = order[:1] == '-'
+                    name = order[1 if desc else 0:].split('.')[-1]
+                    if name == 'id':
+                        o = -tbl._key if desc else tbl._key
+                    else:
+                        o = -getattr(tbl, name) if desc else getattr(tbl, name)
+                    items = items.order(o)
 
             if args_get('limitby', None):
                 (lmin, lmax) = attributes['limitby']
