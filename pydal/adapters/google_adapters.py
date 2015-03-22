@@ -154,7 +154,10 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         elif fieldtype == 'id' and tablename:
             if isinstance(obj, list):
                 return [self.represent(item,fieldtype,tablename) for item in obj]
-            return ndb.Key(tablename, long(obj))
+            elif obj is None:
+                return None
+            else:
+                return ndb.Key(tablename, long(obj))
         elif fieldtype == "json":
             if self.db.has_serializer('json'):
                 return self.db.serialize('json', obj)
@@ -272,7 +275,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
 
     def gaef(self,first, op, second):
         name = first.name if first.name != 'id' else 'key'
-        if name == 'key' and op in ('>','!=') and second in (0,'0'):
+        if name == 'key' and op in ('>','!=') and second in (0,'0', None):
             return  None
         field = getattr(first.table._tableobj, name)
         value = self.represent(second,first.type,first._tablename)

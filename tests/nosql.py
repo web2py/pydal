@@ -297,8 +297,10 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(isinstance(db.tt.insert(aa='2'), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='3'), long), True)
         self.assertEqual(db(db.tt.id > 0).count(), 3)
-        # TODO the following doesn't work on gae
-        # see issue https://github.com/web2py/pydal/issues/95
+        self.assertEqual(db(db.tt.aa).count(), 3)
+        self.assertEqual(db(db.tt.id).count(), 3)
+        self.assertEqual(db(db.tt.id!=None).count(), 3)
+
         self.assertEqual(db(db.tt.id > 0).select(orderby=~db.tt.aa | db.tt.id)[0].aa, '3')
         self.assertEqual(db(db.tt.id > 0).select(orderby=~db.tt.aa)[0].aa, '3')
         self.assertEqual(len(db(db.tt.id > 0).select(limitby=(1, 2))), 1)
