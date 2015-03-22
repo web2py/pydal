@@ -244,7 +244,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         elif isinstance(expression,(list,tuple)):
             return ','.join([self.represent(item,field_type) for item in expression])
         else:
-            raise NotImplemtedError
+            raise NotImplementedError
 
     def AND(self,first,second):
         first = self.expand(first)
@@ -403,7 +403,6 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 raise SyntaxError('Set: no groupby in appengine')
             orderby = args_get('orderby', False)
             if orderby:
-                ### THIS REALLY NEEDS IMPROVEMENT !!!
                 if isinstance(orderby, (list, tuple)):
                     orderby = xorify(orderby)
                 if isinstance(orderby,Expression):
@@ -411,7 +410,6 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 orders = orderby.split(', ')
                 tbl = tableobj
                 for order in orders:
-                    #TODO There must be a better way
                     order = str(order)
                     desc = order[:1] == '-'
                     name = order[1 if desc else 0:].split('.')[-1]

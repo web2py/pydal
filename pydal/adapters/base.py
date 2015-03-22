@@ -677,8 +677,20 @@ class BaseAdapter(ConnectionPool):
     def PRIMARY_KEY(self, key):
         return 'PRIMARY KEY(%s)' % key
 
+    # SQL statement for dropping table
     def _drop(self, table, mode):
         return ['DROP TABLE %s;' % table.sqlsafe]
+
+    # PYDAL cleanup
+    def _drop_cleanup(self, table):
+        db = table._db
+        del db[table._tablename]
+        del db.tables[db.tables.index(table._tablename)]
+        db._remove_references_to(table)
+        if table._dbt:
+            self.file_delete(table._dbt)
+            self.log('success!\n', table)
+        return
 
     def drop(self, table, mode=''):
         db = table._db
@@ -688,12 +700,8 @@ class BaseAdapter(ConnectionPool):
                 self.log(query + '\n', table)
             self.execute(query)
         db.commit()
-        del db[table._tablename]
-        del db.tables[db.tables.index(table._tablename)]
-        db._remove_references_to(table)
-        if table._dbt:
-            self.file_delete(table._dbt)
-            self.log('success!\n', table)
+        self._drop_cleanup(table)
+        return
 
     def _insert(self, table, fields):
         table_rname = table.sqlsafe
