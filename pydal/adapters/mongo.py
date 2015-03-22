@@ -188,6 +188,7 @@ class MongoDBAdapter(NoSQLAdapter):
                      polymodel=None, isCapped=False):
         if isCapped:
             raise RuntimeError("Not implemented")
+        table._dbt = None
 
     def count(self, query, distinct=None, snapshot=True):
         if distinct:
@@ -248,6 +249,8 @@ class MongoDBAdapter(NoSQLAdapter):
     def drop(self, table, mode=''):
         ctable = self.connection[table._tablename]
         ctable.drop()
+        self._drop_cleanup(table)
+        return
 
     def truncate(self, table, mode, safe=None):
         if safe == None:

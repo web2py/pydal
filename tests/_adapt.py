@@ -8,9 +8,7 @@ IS_MONGODB = "mongodb" in DEFAULT_URI
 IS_POSTGRESQL = 'postgres' in DEFAULT_URI
 
 def drop(table, cascade=None):
-    # mongodb implements drop()
-    # although it seems it does not work properly
-    if NOSQL:
+    if NOSQL and not (IS_MONGODB):
         # GAE drop/cleanup is not implemented
         db = table._db
         db[table]._common_filter = None
