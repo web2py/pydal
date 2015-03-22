@@ -271,12 +271,12 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         }
 
     def gaef(self,first, op, second):
-        value = self.represent(second,first.type,first._tablename)
         name = first.name if first.name != 'id' else 'key'
         if name == 'key' and op in ('>','!=') and second in (0,'0'):
             return  None
-        gfield = getattr(first.table._tableobj, name)
-        token = self.GAE_FILTER_OPTIONS[op](gfield,value)
+        field = getattr(first.table._tableobj, name)
+        value = self.represent(second,first.type,first._tablename)
+        token = self.GAE_FILTER_OPTIONS[op](field,value)
         return token
 
     def EQ(self,first,second=None):
