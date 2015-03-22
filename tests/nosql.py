@@ -343,12 +343,15 @@ class TestBelongs(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'))
-
-        self.assertEqual(isinstance(db.tt.insert(aa='1'), long), True)
+        i_id = db.tt.insert(aa='1')
+        self.assertEqual(isinstance(i_id, long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='2'), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='3'), long), True)
-        self.assertEqual(db(db.tt.aa.belongs(('1', '3'))).count(),
-                         2)
+        self.assertEqual(db(db.tt.aa.belongs(('1', '3'))).count(), 2)
+        self.assertEqual(db(db.tt.aa.belongs(['1', '3'])).count(), 2)
+        self.assertEqual(db(db.tt.aa.belongs(['1', '3'])).count(), 2)
+        self.assertEqual(db(db.tt.id.belongs([i_id])).count(), 1)
+
         if not (IS_GAE or IS_MONGODB):
             self.assertEqual(db(db.tt.aa.belongs(db(db.tt.id > 2)._select(db.tt.aa))).count(), 1)
 
