@@ -73,7 +73,7 @@ class MongoDBAdapter(NoSQLAdapter):
         # but now the default is
         # synchronous, except when overruled by either this default or
         # function parameter
-        self.safe = adapter_args.get('safe', True)
+        self.safe = 1 if adapter_args.get('safe', True) else 0
 
         if isinstance(m, tuple):
             m = {"database": m[1]}
@@ -86,7 +86,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 Connection = self.driver.MongoClient
             else:
                 Connection = self.driver.Connection
-            return Connection(uri)[m.get('database')]
+            return Connection(uri, w=self.safe)[m.get('database')]
 
         self.reconnect(connector, cursor=False)
 
@@ -252,11 +252,14 @@ class MongoDBAdapter(NoSQLAdapter):
         self._drop_cleanup(table)
         return
 
+    def _get_safe(self, val=None):
+        if val is None:
+            return self.safe
+        return 1 if val else 0
+
     def truncate(self, table, mode, safe=None):
-        if safe == None:
-            safe = self.safe
         ctable = self.connection[table._tablename]
-        ctable.remove(None, safe=True)
+        ctable.remove(None, w=self._get_safe(safe))
 
     def select(self, query, fields, attributes, count=False,
                snapshot=False):
@@ -356,8 +359,6 @@ class MongoDBAdapter(NoSQLAdapter):
         For safety, we use by default synchronous requests"""
 
         values = dict()
-        if safe is None:
-            safe = self.safe
         ctable = self.connection[table._tablename]
         for k, v in fields:
             if not k.name in ["id", "safe"]:
@@ -365,12 +366,10 @@ class MongoDBAdapter(NoSQLAdapter):
                 fieldtype = table[k.name].type
                 values[fieldname] = self.represent(v, fieldtype)
 
-        ctable.insert(values, safe=safe)
+        ctable.insert(values, w=self._get_safe(safe))
         return long(str(values['_id']), 16)
 
     def update(self, tablename, query, fields, safe=None):
-        if safe == None:
-            safe = self.safe
         # return amount of adjusted rows or zero, but no exceptions
         # @ related not finding the result
         if not isinstance(query, Query):
@@ -391,7 +390,7 @@ class MongoDBAdapter(NoSQLAdapter):
                   k, v in fields if (not k.name in ("_id", "id")))}
         try:
             result = self.connection[tablename].update(filter,
-                       modify, multi=True, safe=safe)
+                       modify, multi=True, w=self._get_safe(safe))
             if safe:
                 try:
                     # if result count is available fetch it
@@ -405,8 +404,6 @@ class MongoDBAdapter(NoSQLAdapter):
             raise RuntimeError("uncaught exception when updating rows: %s" % e)
 
     def delete(self, tablename, query, safe=None):
-        if safe is None:
-            safe = self.safe
         amount = 0
         amount = self.count(query, False)
         if not isinstance(query, Query):
@@ -416,7 +413,7 @@ class MongoDBAdapter(NoSQLAdapter):
             if use_common_filters(query):
                 query = self.common_filter(query,[tablename])
         filter = self.expand(query)
-        self.connection[tablename].remove(filter, safe=safe)
+        self.connection[tablename].remove(filter, w=self._get_safe(safe))
         return amount
 
     def bulk_insert(self, table, items):
