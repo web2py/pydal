@@ -72,7 +72,9 @@ class DB2Adapter(BaseAdapter):
         self.db_codec = db_codec
         self._after_connection = after_connection
         self.find_or_make_work_folder()
+        self.test_query = 'SELECT 1 FROM (VALUES ( 1 ));'
         ruri = uri.split('://', 1)[1]
+
         
         def connector(cnxn=ruri,driver_args=driver_args):
             if self.driver_name == 'ibm_db_dbi':

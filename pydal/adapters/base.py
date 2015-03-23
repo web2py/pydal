@@ -85,6 +85,7 @@ class BaseAdapter(ConnectionPool):
     FALSE = 'F'
     T_SEP = ' '
     QUOTE_TEMPLATE = '"%s"'
+    test_query = 'SELECT 1;'
 
 
     types = {

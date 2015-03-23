@@ -86,6 +86,7 @@ class InformixAdapter(BaseAdapter):
         self.db_codec = db_codec
         self._after_connection = after_connection
         self.find_or_make_work_folder()
+        self.test_query = 'SELECT COUNT(*) FROM systables;'
         ruri = uri.split('://',1)[1]
         m = self.REGEX_URI.match(ruri)
         if not m:
