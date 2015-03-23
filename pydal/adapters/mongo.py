@@ -427,9 +427,19 @@ class MongoDBAdapter(NoSQLAdapter):
         #print "in invert first=%s" % first
         return '-%s' % self.expand(first)
 
-    # TODO This will probably not work:(
     def NOT(self, first):
-        return {'$not': self.expand(first)}
+        op = self.expand(first)
+        op_k = op.keys()[0]
+        op_body = op[op_k]
+        if type(op_body) is list:
+            # apply De Morgan law for and/or
+            # not(A and B) -> not(A) or not(B)
+            # not(A or B)  -> not(A) and not(B)
+            not_op = '$and' if op_k == '$or' else '$or'
+            r = {not_op: [self.NOT(first.first), self.NOT(first.second)]}
+        else:
+            r = {op_k: {'$not': op_body}}
+        return r
 
     def AND(self,first,second):
         # pymongo expects: .find({'$and': [{'x':'1'}, {'y':'2'}]})
