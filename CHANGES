@@ -1,16 +1,20 @@
 pydal changelog
 ===============
 
-Next (version to be selected)
------------------------------
+Version 15.03
+-------------
 
-(Release date to be announced)
+Released on March 23rd 2015
 
 - Fixed `redefine` with lazy tables
 - Added tests for `update_or_insert`, `bulk_insert`,
   `validate_and_update_or_insert`
-- Fixed common filter in `MongoDBAdapter`
 - Enhanced connections open/close flow
+- Enhanced logging flow
+- Refactored google adapters: `ndb` is now used by default
+- Added default representation for `reference` fields
+- Fixed some caching issues when using `pickle`
+- Several improvements and fixes in `MongoDBAdapter`
 
 
 Version 15.02.27
