@@ -108,6 +108,7 @@ class OracleAdapter(BaseAdapter):
         self.db_codec = db_codec
         self._after_connection = after_connection
         self.find_or_make_work_folder()
+        self.test_query = 'SELECT 1 FROM DUAL;'
         ruri = uri.split('://',1)[1]
         if not 'threaded' in driver_args:
             driver_args['threaded']=True

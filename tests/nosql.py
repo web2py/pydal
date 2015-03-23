@@ -236,7 +236,6 @@ class TestTable(unittest.TestCase):
         self.assert_('persons.firstname, persons.lastname'
                       in str(persons.ALL))
 
-    @unittest.skipIf(IS_GAE or IS_MONGODB, "No table alias for this backend")
     def testTableAlias(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         persons = Table(db, 'persons', Field('firstname',
@@ -318,11 +317,11 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db(db.tt.aa > '1')(db.tt.aa < '3').count(), 1)
         self.assertEqual(db((db.tt.aa > '1') & (db.tt.aa < '3')).count(), 1)
         self.assertEqual(db((db.tt.aa > '1') | (db.tt.aa < '3')).count(), 3)
-        if not (IS_GAE):
-            self.assertEqual(db((db.tt.aa > '1') & ~(db.tt.aa > '2')).count(), 1)
-            self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
-            self.assertEqual(db(~((db.tt.aa < '1') | (db.tt.aa > '2'))).count(), 2)
-            self.assertEqual(db(~((db.tt.aa >= '1') & (db.tt.aa <= '2'))).count(), 1)
+        # Test not operator
+        self.assertEqual(db((db.tt.aa > '1') & ~(db.tt.aa > '2')).count(), 1)
+        self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
+        self.assertEqual(db(~((db.tt.aa < '1') | (db.tt.aa > '2'))).count(), 2)
+        self.assertEqual(db(~((db.tt.aa >= '1') & (db.tt.aa <= '2'))).count(), 1)
         drop(db.tt)
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")

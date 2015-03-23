@@ -85,6 +85,7 @@ class BaseAdapter(ConnectionPool):
     FALSE = 'F'
     T_SEP = ' '
     QUOTE_TEMPLATE = '"%s"'
+    test_query = 'SELECT 1;'
 
 
     types = {
@@ -1853,7 +1854,6 @@ class NoSQLAdapter(BaseAdapter):
     def PRIMARY_KEY(self,key):  raise SyntaxError("Not supported")
     def ILIKE(self,first,second): raise SyntaxError("Not supported")
     def drop(self,table,mode):  raise SyntaxError("Not supported")
-    def alias(self,table,alias): raise SyntaxError("Not supported")
     def migrate_table(self,*a,**b): raise SyntaxError("Not supported")
     def distributed_transaction_begin(self,key): raise SyntaxError("Not supported")
     def prepare(self,key): raise SyntaxError("Not supported")

@@ -112,7 +112,7 @@ class ConnectionPool(object):
                     self.cursor = cursor and self.connection.cursor()
                     try:
                         if self.cursor and self.check_active_connection:
-                            self.execute('SELECT 1;')
+			    self.execute(self.test_query)
                         break
                     except:
                         pass
