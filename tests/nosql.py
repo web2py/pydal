@@ -236,7 +236,6 @@ class TestTable(unittest.TestCase):
         self.assert_('persons.firstname, persons.lastname'
                       in str(persons.ALL))
 
-    @unittest.skipIf(IS_GAE or IS_MONGODB, "No table alias for this backend")
     def testTableAlias(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         persons = Table(db, 'persons', Field('firstname',
