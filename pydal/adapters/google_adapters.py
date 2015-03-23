@@ -246,6 +246,9 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 return self.represent(expression,field_type)
         elif isinstance(expression,(list,tuple)):
             return ','.join([self.represent(item,field_type) for item in expression])
+        elif hasattr(expression, "_FilterNode__name"):
+            # check for _FilterNode__name to avoid explicit import of FilterNode
+            return expression
         else:
             raise NotImplementedError
 
@@ -319,8 +322,28 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
             raise SyntaxError("Not supported")
         return self.gaef(first,'=',second)
 
-    def NOT(self,first):
-        raise NotImplementedError
+    def NOT(self, first):
+        op, f, s = first.op, first.first, first.second
+        if op in [self.OR, self.AND]:
+            not_op = self.AND if op == self.OR else self.OR
+            r = not_op(self.NOT(f), self.NOT(s))
+        elif op == self.EQ:
+            r = self.gaef(f, '!=', s)
+        elif op == self.NE:
+            r = self.gaef(f, '==', s)
+        elif op == self.LT:
+            r = self.gaef(f, '>=', s)
+        elif op == self.LE:
+            r = self.gaef(f, '>', s)
+        elif op == self.GT:
+            r = self.gaef(f, '<=', s)
+        elif op == self.GE:
+            r = self.gaef(f, '<', s)
+        else:
+            # TODO the IN operator must be split into a sequence of
+            # (field!=value) AND (field!=value) AND ...
+            raise NotImplementedError
+        return r
 
     def truncate(self,table,mode):
         self.db(self.db._adapter.id_query(table)).delete()
