@@ -5,8 +5,8 @@ from ._compat import exists
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL
 from .helpers.classes import UseDatabaseStoredFile
 
-class ConnectionPool(object):
 
+class ConnectionPool(object):
     POOLS = {}
     check_active_connection = True
 
@@ -14,9 +14,9 @@ class ConnectionPool(object):
     def set_folder(folder):
         THREAD_LOCAL.folder = folder
 
-    # ## this allows gluon to commit/rollback all dbs in this thread
-
-    def close(self, action='commit', really=False):
+    def close(self, action='commit', really=True):
+        #: if we have an action (commit, rollback), try to execute it
+        succeeded = True
         if action:
             try:
                 if callable(action):
@@ -24,45 +24,50 @@ class ConnectionPool(object):
                 else:
                     getattr(self, action)()
             except:
-                really = True
-
-        # If you want pools, recycle this connection
-        if self.pool_size and really == False:
+                #: connection had some problems, we want to drop it
+                succeeded = False
+        #: if we have pools, we should recycle the connection (but only when
+        #  we succeded in `action`, if any and `len(pool)` is good)
+        if self.pool_size and succeeded:
             GLOBAL_LOCKER.acquire()
             pool = ConnectionPool.POOLS[self.uri]
             if len(pool) < self.pool_size:
                 pool.append(self.connection)
-            else:
-                really = True
+                really = False
             GLOBAL_LOCKER.release()
+        #: closing the connection when we `really` want to, in particular:
+        #    - when we had an exception running `action`
+        #    - when we don't have pools
+        #    - when we have pools but they're full
         if really:
             try:
                 self.close_connection()
             except:
                 pass
+        #: always unset `connection` attribute
         self.connection = None
 
     @staticmethod
     def close_all_instances(action):
         """ to close cleanly databases in a multithreaded environment """
-        dbs = getattr(THREAD_LOCAL,'db_instances',{}).items()
+        dbs = getattr(THREAD_LOCAL, 'db_instances', {}).items()
         for db_uid, db_group in dbs:
             for db in db_group:
-                if hasattr(db,'_adapter'):
+                if hasattr(db, '_adapter'):
                     db._adapter.close(action)
-        getattr(THREAD_LOCAL,'db_instances',{}).clear()
-        getattr(THREAD_LOCAL,'db_instances_zombie',{}).clear()
+        getattr(THREAD_LOCAL, 'db_instances', {}).clear()
+        getattr(THREAD_LOCAL, 'db_instances_zombie', {}).clear()
         if callable(action):
             action(None)
         return
 
     def find_or_make_work_folder(self):
         #this actually does not make the folder. it has to be there
-        self.folder = getattr(THREAD_LOCAL,'folder','')
+        self.folder = getattr(THREAD_LOCAL, 'folder', '')
 
-        if (os.path.isabs(self.folder) and
-            isinstance(self, UseDatabaseStoredFile) and
-            self.folder.startswith(os.getcwd())):
+        if os.path.isabs(self.folder) and \
+                isinstance(self, UseDatabaseStoredFile) and \
+                self.folder.startswith(os.getcwd()):
             self.folder = os.path.relpath(self.folder, os.getcwd())
 
         # Creating the folder if it does not exist
@@ -87,7 +92,7 @@ class ConnectionPool(object):
         if the connection is not active (closed by db server) it will loop
         if not `self.pool_size` or no active connections in pool makes a new one
         """
-        if getattr(self,'connection', None) is not None:
+        if getattr(self, 'connection', None) is not None:
             return
         if f is None:
             f = self.connector
@@ -104,7 +109,7 @@ class ConnectionPool(object):
             POOLS = ConnectionPool.POOLS
             while True:
                 GLOBAL_LOCKER.acquire()
-                if not uri in POOLS:
+                if uri not in POOLS:
                     POOLS[uri] = []
                 if POOLS[uri]:
                     self.connection = POOLS[uri].pop()
@@ -112,7 +117,7 @@ class ConnectionPool(object):
                     self.cursor = cursor and self.connection.cursor()
                     try:
                         if self.cursor and self.check_active_connection:
-			    self.execute(self.test_query)
+                            self.execute(self.test_query)
                         break
                     except:
                         pass
