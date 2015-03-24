@@ -40,9 +40,6 @@ ALLOWED_DATATYPES = [
     ]
 
 
-
-
-
 def setUpModule():
     pass
 
@@ -188,6 +185,7 @@ class TestFields(unittest.TestCase):
         self.assertEqual(db.tt.insert(aa=t0), 1)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
         db.tt.drop()
+        db.close()
 
 
 class TestTables(unittest.TestCase):
@@ -251,6 +249,7 @@ class TestTable(unittest.TestCase):
 
         self.assert_(persons is not aliens)
         self.assert_(set(persons.fields) == set(aliens.fields))
+        db.close()
 
     def testTableInheritance(self):
         persons = Table(None, 'persons', Field('firstname',
@@ -278,6 +277,7 @@ class TestInsert(unittest.TestCase):
         self.assertEqual(db(db.tt.aa == '2').delete(), 3)
         self.assertEqual(db(db.tt.aa == '2').isempty(), True)
         db.tt.drop()
+        db.close()
 
 
 class TestSelect(unittest.TestCase):
@@ -311,6 +311,8 @@ class TestSelect(unittest.TestCase):
         # Test for REGEX_TABLE_DOT_FIELD
         self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa], '1')
         db.tt.drop()
+        db.close()
+
 
 class TestAddMethod(unittest.TestCase):
 
@@ -325,6 +327,7 @@ class TestAddMethod(unittest.TestCase):
         self.assertEqual(db.tt.insert(aa='3'), 3)
         self.assertEqual(len(db.tt.all()), 3)
         db.tt.drop()
+        db.close()
 
 
 class TestBelongs(unittest.TestCase):
@@ -346,6 +349,7 @@ class TestBelongs(unittest.TestCase):
                          db.tt.aa))).count(),
                          2)
         db.tt.drop()
+        db.close()
 
 
 class TestContains(unittest.TestCase):
@@ -374,6 +378,7 @@ class TestContains(unittest.TestCase):
             self.assertEqual(db(db.tt.bb.contains('A', case_sensitive=False)).count(), 3)
 
         db.tt.drop()
+        db.close()
 
 
 class TestLike(unittest.TestCase):
@@ -428,6 +433,7 @@ class TestLike(unittest.TestCase):
         self.assertEqual(db(db.tt.aa.like('1%')).count(), 1)
         self.assertEqual(db(db.tt.aa.like('2%')).count(), 0)
         db.tt.drop()
+        db.close()
 
 
 class TestDatetime(unittest.TestCase):
@@ -451,6 +457,7 @@ class TestDatetime(unittest.TestCase):
         self.assertEqual(db(db.tt.aa.seconds() == 0).count(), 3)
         self.assertEqual(db(db.tt.aa.epoch()<365*24*3600).count(),1)
         db.tt.drop()
+        db.close()
 
 
 class TestExpressions(unittest.TestCase):
@@ -470,6 +477,7 @@ class TestExpressions(unittest.TestCase):
         # Test basic expressions evaluated at python level
         self.assertEqual(db((1==1) & (db.tt.id>0)).count(), 3)
         db.tt.drop()
+        db.close()
 
     def testSubstring(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
@@ -488,7 +496,7 @@ class TestExpressions(unittest.TestCase):
         self.assertEqual(out[exp_slice_neg_max], input_name[2:-2])
         self.assertEqual(out[exp_slice_neg_start], input_name[-2:])
         t0.drop()
-        return
+        db.close()
 
     def testOps(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
@@ -511,7 +519,8 @@ class TestExpressions(unittest.TestCase):
         op = sum/count
         #self.assertEqual(db(t0).select(op).first()[op], 2)
         t0.drop()
-        return
+        db.close()
+
 
 class TestJoin(unittest.TestCase):
 
@@ -580,6 +589,8 @@ class TestJoin(unittest.TestCase):
         db.dog.drop()
         self.assertEqual(len(db.person._referenced_by),0)
         db.person.drop()
+        db.close()
+
 
 class TestMinMaxSumAvg(unittest.TestCase):
 
@@ -602,6 +613,7 @@ class TestMinMaxSumAvg(unittest.TestCase):
         s = db.tt.aa.avg()
         self.assertEqual(db().select(s).first()[s], 2)
         db.tt.drop()
+        db.close()
 
 
 class TestMigrations(unittest.TestCase):
@@ -633,6 +645,7 @@ class TestMigrations(unittest.TestCase):
         if os.path.exists('.storage.table'):
             os.unlink('.storage.table')
 
+
 class TestReference(unittest.TestCase):
 
     def testRun(self):
@@ -658,6 +671,8 @@ class TestReference(unittest.TestCase):
             assert z.aa == y.id
             db.tt.drop()
             db.commit()
+            db.close()
+
 
 class TestClientLevelOps(unittest.TestCase):
 
@@ -680,6 +695,7 @@ class TestClientLevelOps(unittest.TestCase):
         assert len(rows7) == 1
         db.tt.drop()
         db.commit()
+        db.close()
 
 
 class TestVirtualFields(unittest.TestCase):
@@ -695,6 +711,8 @@ class TestVirtualFields(unittest.TestCase):
         assert db(db.tt.id>0).select().first().a_upper == 'TEST'
         db.tt.drop()
         db.commit()
+        db.close()
+
 
 class TestComputedFields(unittest.TestCase):
 
@@ -721,6 +739,7 @@ class TestComputedFields(unittest.TestCase):
         self.assertEqual(db.tt[id].dd,'xzx')
         db.tt.drop()
         db.commit()
+        db.close()
 
 
 class TestCommonFilters(unittest.TestCase):
@@ -763,6 +782,8 @@ class TestCommonFilters(unittest.TestCase):
         self.assertEqual(db(db.t2).count(),3)
         db.t2.drop()
         db.t1.drop()
+        db.close()
+
 
 class TestImportExportFields(unittest.TestCase):
 
@@ -787,6 +808,8 @@ class TestImportExportFields(unittest.TestCase):
         db.pet.drop()
         db.person.drop()
         db.commit()
+        db.close()
+
 
 class TestImportExportUuidFields(unittest.TestCase):
 
@@ -810,6 +833,7 @@ class TestImportExportUuidFields(unittest.TestCase):
         db.pet.drop()
         db.person.drop()
         db.commit()
+        db.close()
 
 
 class TestDALDictImportExport(unittest.TestCase):
@@ -851,6 +875,7 @@ class TestDALDictImportExport(unittest.TestCase):
             db3.person.uuid.type == db.person.uuid.type
             db3.person.drop()
             db3.commit()
+            db3.close()
         except ImportError:
             pass
 
@@ -907,6 +932,12 @@ class TestDALDictImportExport(unittest.TestCase):
         db6.tvshow.drop()
         db6.commit()
 
+        db.close()
+        db2.close()
+        db4.close()
+        db5.close()
+        db6.close()
+
 
 class TestSelectAsDict(unittest.TestCase):
 
@@ -924,6 +955,7 @@ class TestSelectAsDict(unittest.TestCase):
         self.assertEqual(rtn[0]['b_field'], 'bb1')
         self.assertEqual(rtn[0].keys(), ['id', 'b_field', 'a_field'])
         db.a_table.drop()
+        db.close()
 
 
 class TestRNameTable(unittest.TestCase):
@@ -1080,6 +1112,7 @@ class TestRNameTable(unittest.TestCase):
         db.pet.drop()
         db.person.drop()
         db.easy_name.drop()
+        db.close()
 
     def testJoin(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
@@ -1148,6 +1181,7 @@ class TestRNameTable(unittest.TestCase):
         db.dog.drop()
         self.assertEqual(len(db.person._referenced_by),0)
         db.person.drop()
+        db.close()
 
 
 class TestRNameFields(unittest.TestCase):
@@ -1306,6 +1340,7 @@ class TestRNameFields(unittest.TestCase):
         db.pet.drop()
         db.person.drop()
         db.easy_name.drop()
+        db.close()
 
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
@@ -1376,6 +1411,7 @@ class TestRNameFields(unittest.TestCase):
         self.assertEqual(db.tt.insert(aa=t0), 1)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
         db.tt.drop()
+        db.close()
 
     def testInsert(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
@@ -1392,6 +1428,7 @@ class TestRNameFields(unittest.TestCase):
         self.assertEqual(db(db.tt.aa == '2').delete(), 3)
         self.assertEqual(db(db.tt.aa == '2').isempty(), True)
         db.tt.drop()
+        db.close()
 
     def testJoin(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
@@ -1460,6 +1497,8 @@ class TestRNameFields(unittest.TestCase):
         db.dog.drop()
         self.assertEqual(len(db.person._referenced_by),0)
         db.person.drop()
+        db.close()
+
 
 class TestQuoting(unittest.TestCase):
 
@@ -1508,6 +1547,7 @@ class TestQuoting(unittest.TestCase):
         self.assertEqual(t0[1].a_A, 'a_A')
 
         t0.drop()
+        db.close()
 
     def testPKFK(self):
 
@@ -1544,6 +1584,7 @@ class TestQuoting(unittest.TestCase):
             t2.drop()
             t3.drop()
             t4.drop()
+        db.close()
 
 
 class TestTableAndFieldCase(unittest.TestCase):
@@ -1596,7 +1637,7 @@ class TestGis(unittest.TestCase):
         t0.drop()
         t1.drop()
         t2.drop()
-        return
+        db.close()
 
     def testGeometryCase(self):
         from pydal import geoPoint, geoLine, geoPolygon
@@ -1606,6 +1647,7 @@ class TestGis(unittest.TestCase):
         t0.insert(point=geoPoint(1,1))
         t0.insert(Point=geoPoint(2,2))
         t0.drop()
+        db.close()
 
     def testGisMigration(self):
         if not IS_POSTGRESQL: return
@@ -1619,7 +1661,7 @@ class TestGis(unittest.TestCase):
             t0.drop()
             db.commit()
             db.close()
-        return
+
 
 class TestSQLCustomType(unittest.TestCase):
 
@@ -1655,6 +1697,8 @@ class TestSQLCustomType(unittest.TestCase):
         #row=db(t1.id == r_id).select(t1.ALL).first()
         #self.assertEqual(row['cdata'], "'car'")
         t1.drop()
+        db.close()
+
 
 class TestLazy(unittest.TestCase):
 
@@ -1665,7 +1709,8 @@ class TestLazy(unittest.TestCase):
         db.t0.insert(name='1')
         self.assertFalse(('t0' in db._LAZY_TABLES.keys()))
         db.t0.drop()
-        return
+        db.close()
+
 
 class TestRedefine(unittest.TestCase):
 
@@ -1679,7 +1724,8 @@ class TestRedefine(unittest.TestCase):
         self.assertFalse('code' in db['t_a'])
         self.assertTrue('code_a' in db.t_a)
         self.assertTrue('code_a' in db['t_a'])
-        return
+        db.close()
+
 
 class TestUpdateInsert(unittest.TestCase):
 
@@ -1694,7 +1740,7 @@ class TestUpdateInsert(unittest.TestCase):
         self.assertTrue(db(t0.name == 'web2py').count() == 0)
         self.assertTrue(db(t0.name == 'web2py2').count() == 1)
         db.t0.drop()
-        return
+        db.close()
 
 
 class TestBulkInsert(unittest.TestCase):
@@ -1716,7 +1762,7 @@ class TestBulkInsert(unittest.TestCase):
             self.assertTrue(db(t0.name == 'web2py_%s' % pos).count() == 1)
         self.assertTrue(ctr == len(items))
         db.t0.drop()
-        return
+        db.close()
 
 
 class TestRecordVersioning(unittest.TestCase):
@@ -1738,7 +1784,8 @@ class TestRecordVersioning(unittest.TestCase):
         self.assertEqual(db(db.t0_archive).count(), 2)
         db.t0_archive.drop()
         db.t0.drop()
-        return
+        db.close()
+
 
 @unittest.skipIf(IS_SQLITE, "Skip sqlite")
 class TestConnection(unittest.TestCase):
@@ -1778,7 +1825,6 @@ class TestConnection(unittest.TestCase):
             db4._adapter.connection.close()
             db4.close()
         self.assertEqual(len(db4._adapter.POOLS[DEFAULT_URI]), 0)
-
 
 
 if __name__ == '__main__':
