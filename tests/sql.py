@@ -6,11 +6,13 @@ import sys
 import os
 import glob
 import datetime
+
 from pydal import DAL, Field
 from pydal.helpers.classes import SQLALL
 from pydal.objects import Table
 from ._compat import unittest
-from ._adapt import DEFAULT_URI, IS_POSTGRESQL
+from ._adapt import DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE
+
 
 try:
     import cStringIO as StringIO
@@ -1737,6 +1739,47 @@ class TestRecordVersioning(unittest.TestCase):
         db.t0_archive.drop()
         db.t0.drop()
         return
+
+@unittest.skipIf(IS_SQLITE, "Skip sqlite")
+class TestConnection(unittest.TestCase):
+
+    def testRun(self):
+        # check connection is no longer active after close
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        connection = db._adapter.connection
+        db.close()
+        self.assertRaises(Exception, connection.commit)
+
+        # check connection are reused with pool_size
+        connections = set()
+        for a in range(10):
+            db2 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+            c = db2._adapter.connection
+            connections.add(c)
+            db2.close()
+        self.assertEqual(len(connections), 1)
+        c = connections.pop()
+        c.commit()
+        c.close()
+        # check correct use of pool_size
+        dbs = []
+        for a in range(10):
+            db3 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+            dbs.append(db3)
+        for db in dbs:
+            db.close()
+        self.assertEqual(len(db3._adapter.POOLS[DEFAULT_URI]), 5)
+        for c in db3._adapter.POOLS[DEFAULT_URI]:
+            c.close()
+        db3._adapter.POOLS[DEFAULT_URI] = []
+        # Clean close if a connection is broken (closed explicity)
+        for a in range(10):
+            db4 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+            db4._adapter.connection.close()
+            db4.close()
+        self.assertEqual(len(db4._adapter.POOLS[DEFAULT_URI]), 0)
+
+
 
 if __name__ == '__main__':
     unittest.main()
