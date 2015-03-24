@@ -6,6 +6,7 @@ IS_IMAP = "imap" in DEFAULT_URI
 IS_GAE = "datastore" in DEFAULT_URI
 IS_MONGODB = "mongodb" in DEFAULT_URI
 IS_POSTGRESQL = 'postgres' in DEFAULT_URI
+IS_SQLITE = 'sqlite' in DEFAULT_URI
 
 def drop(table, cascade=None):
     if NOSQL and not (IS_MONGODB):
