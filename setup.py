@@ -20,7 +20,7 @@ Links
 from setuptools import setup
 setup(
     name='pyDAL',
-    version='15.03',
+    version='15.04-dev',
     url='https://github.com/web2py/pydal',
     license='BSD',
     author='Massimo Di Pierro',
