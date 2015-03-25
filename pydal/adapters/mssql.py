@@ -94,6 +94,8 @@ class MSSQLAdapter(BaseAdapter):
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}, do_connect=True, srid=4326,
                  after_connection=None):
+        self.TRUE_exp = '1=1'
+        self.FALSE_exp = '1=0'
         self.db = db
         self.dbengine = "mssql"
         self.uri = uri
@@ -355,11 +357,13 @@ class MSSQL2Adapter(MSSQLAdapter):
         'list:integer': 'NTEXT',
         'list:string': 'NTEXT',
         'list:reference': 'NTEXT',
+        'geometry': 'geometry',
+        'geography': 'geography',
         'big-id': 'BIGINT IDENTITY PRIMARY KEY',
         'big-reference': 'BIGINT, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'reference FK': ', CONSTRAINT FK_%(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'reference TFK': ' CONSTRAINT FK_%(foreign_table)s_PK FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_table)s (%(foreign_key)s) ON DELETE %(on_delete_action)s',
-        }
+    }
 
     def represent(self, obj, fieldtype):
         value = BaseAdapter.represent(self, obj, fieldtype)
