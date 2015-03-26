@@ -2092,6 +2092,16 @@ class Set(object):
         fields = adapter.expand_all(fields, tablenames)
         return adapter.select(self.query,fields,attributes)
 
+    def iterselect(self, *fields, **attributes):
+        adapter = self.db._adapter
+        tablenames = adapter.tables(self.query,
+                                    attributes.get('join',None),
+                                    attributes.get('left',None),
+                                    attributes.get('orderby',None),
+                                    attributes.get('groupby',None))
+        fields = adapter.expand_all(fields, tablenames)
+        return adapter.iterselect(self.query,fields,attributes)
+
     def nested_select(self,*fields,**attributes):
         return Expression(self.db,self._select(*fields,**attributes))
 
