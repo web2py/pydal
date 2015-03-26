@@ -1827,6 +1827,27 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(len(db4._adapter.POOLS[DEFAULT_URI]), 0)
 
 
+class TestIterator(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t0 = db.define_table('t0', Field('name'))
+        names = ['web2py', 'pydal', 'Massimo']
+        for n in names:
+            t0.insert(name=n)
+        db(db.t0).select()
+        rows = db(db.t0).select()
+        for pos, r in enumerate(rows):
+            self.assertEqual(r.name, names[pos])
+
+        rows = db(db.t0).iterselect()
+        for pos, r in enumerate(rows):
+            self.assertEqual(r.name, names[pos])
+
+        t0.drop()
+        db.close()
+        return
+
 if __name__ == '__main__':
     unittest.main()
     tearDownModule()
