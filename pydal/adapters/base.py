@@ -1197,7 +1197,10 @@ class BaseAdapter(ConnectionPool):
     def _fetchall(self):
         return self.cursor.fetchall()
 
-    def _select_aux(self, sql, fields, attributes, iterator=False):
+    def _fetchone(self):
+        return self.cursor.fetchone()
+
+    def _select_aux(self, sql, fields, attributes):
         args_get = attributes.get
         cache = args_get('cache',None)
         if not cache:
@@ -1215,10 +1218,7 @@ class BaseAdapter(ConnectionPool):
             rows = list(rows)
         limitby = args_get('limitby', None) or (0,)
         rows = self.rowslice(rows,limitby[0],None)
-        if iterator:
-            processor = args_get('processor', self.iterparse)
-        else:
-            processor = args_get('processor', self.parse)
+        processor = args_get('processor', self.parse)
         cacheable = args_get('cacheable',False)
         return processor(rows,fields,self._colnames,cacheable=cacheable)
 
@@ -1243,7 +1243,8 @@ class BaseAdapter(ConnectionPool):
 
     def iterselect(self, query, fields, attributes):
         sql = self._select(query, fields, attributes)
-        return self._select_aux(sql, fields, attributes, iterator=True)
+        cacheable = attributes.get('cacheable', False)
+        return self.iterparse(sql, fields, self._colnames, cacheable=cacheable)
 
     def _count(self, query, distinct=None):
         tablenames = self.tables(query)
@@ -1632,17 +1633,18 @@ class BaseAdapter(ConnectionPool):
                 if not new_column_name is None:
                     column_name = new_column_name.groups(0)
                     setattr(new_row,column_name[0],value)
-            if tablename in fields_virtual:
-                for f,v in fields_virtual[tablename]:
-                    try:
-                        new_row[f] = v.f(new_row)
-                    except AttributeError:
-                        pass # not enough fields to define virtual field
-                for f,v in fields_lazy[tablename]:
-                    try:
-                        new_row[f] = (v.handler or VirtualCommand)(v.f, new_row)
-                    except AttributeError:
-                        pass # not enough fields to define virtual field
+
+        if tablename in fields_virtual:
+            for f,v in fields_virtual[tablename]:
+                try:
+                    new_row[f] = v.f(new_row)
+                except AttributeError:
+                    pass # not enough fields to define virtual field
+            for f,v in fields_lazy[tablename]:
+                try:
+                    new_row[f] = (v.handler or VirtualCommand)(v.f, new_row)
+                except AttributeError:
+                    pass # not enough fields to define virtual field
         return new_row
 
     def _parse_expand_colnames(self, colnames):
@@ -1694,17 +1696,21 @@ class BaseAdapter(ConnectionPool):
                     pass
         return rowsobj
 
-    def iterparse(self, rows, fields, colnames, blob_decode=True,
-                  cacheable = False):
+    def iterparse(self, sql, fields, colnames, blob_decode=True,
+                  cacheable=False):
         """
         Iterator to parse one row at a time.
         It doen't support the old style virtual fields
         """
         (fields_virtual, fields_lazy, tmps) = self._parse_expand_colnames(colnames)
-        for row in rows:
-            row = self._parse(row, tmps, fields,
-                                  colnames, blob_decode, cacheable,
-                                  fields_virtual, fields_lazy)
+        self.execute(sql)
+        db_row = self._fetchone()
+        while db_row is not None:
+        # _fetchone can be accomplished by iterating over the cursor too
+        # for db_row in self.cursor:
+            row = self._parse(db_row, tmps, fields,
+                              colnames, blob_decode, cacheable,
+                              fields_virtual, fields_lazy)
             # The following is to translate
             # <Row {'t0': {'id': 1L, 'name': 'web2py'}}>
             # in
@@ -1714,6 +1720,7 @@ class BaseAdapter(ConnectionPool):
             if len(keys) == 1 and keys[0] != '_extra':
                 row = row[row.keys()[0]]
             yield row
+            db_row = self._fetchone()
         return
 
     def common_filter(self, query, tablenames):
