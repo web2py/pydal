@@ -2726,13 +2726,13 @@ class Rows(object):
         mode='object' is not implemented (should return a nested
         object structure)
         """
-
+        has_serializer = self.db.has_serializer('json')
         items = [record.as_json(mode=mode, default=default,
                                 serialize=False,
-                                colnames=self.colnames) for
+                                colnames=self.colnames, datetime_to_str=not(has_serializer)) for
                  record in self]
 
-        if self.db.has_serializer('json'):
+        if has_serializer:
             custom_json = self.db.serializers.custom_json if \
                 self.db.has_serializer('custom_json') else None
             return self.db.serialize('json', items,

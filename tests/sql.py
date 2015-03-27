@@ -1826,6 +1826,19 @@ class TestConnection(unittest.TestCase):
             db4.close()
         self.assertEqual(len(db4._adapter.POOLS[DEFAULT_URI]), 0)
 
+class TestSerializers(unittest.TestCase):
+
+    def testAsJson(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('date_field', 'datetime'))
+        db.tt.insert(date_field=datetime.datetime.now())
+        rows = db().select(db.tt.ALL)
+        j=rows.as_json()
+        import json #standard library
+        json.loads(j)
+        db.tt.drop()
+        db.close()
+
 
 if __name__ == '__main__':
     unittest.main()
