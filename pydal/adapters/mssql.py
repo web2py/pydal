@@ -337,7 +337,7 @@ class MSSQL2Adapter(MSSQLAdapter):
     drivers = ('pyodbc',)
 
     types = {
-        'boolean': 'CHAR(1)',
+        'boolean': 'BIT',
         'string': 'NVARCHAR(%(length)s)',
         'text': 'NTEXT',
         'json': 'NTEXT',
