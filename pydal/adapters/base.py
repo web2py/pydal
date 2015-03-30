@@ -1516,18 +1516,15 @@ class BaseAdapter(ConnectionPool):
         return value
 
     def parse_list_integers(self, value, field_type):
-        if not isinstance(self, NoSQLAdapter):
-            value = bar_decode_integer(value)
+        value = bar_decode_integer(value)
         return value
 
     def parse_list_references(self, value, field_type):
-        if not isinstance(self, NoSQLAdapter):
-            value = bar_decode_integer(value)
+        value = bar_decode_integer(value)
         return [self.parse_reference(r, field_type[5:]) for r in value]
 
     def parse_list_strings(self, value, field_type):
-        if not isinstance(self, NoSQLAdapter):
-            value = bar_decode_string(value)
+        value = bar_decode_string(value)
         return value
 
     def parse_id(self, value, field_type):
@@ -1831,6 +1828,14 @@ class NoSQLAdapter(BaseAdapter):
         """
         pass
 
+    def parse_list_integers(self, value, field_type):
+        return value
+
+    def parse_list_references(self, value, field_type):
+        return [self.parse_reference(r, field_type[5:]) for r in value]
+
+    def parse_list_strings(self, value, field_type):
+        return value
 
     # these functions should never be called!
     def OR(self,first,second): raise SyntaxError("Not supported")
