@@ -313,6 +313,44 @@ class TestSelect(unittest.TestCase):
         db.tt.drop()
         db.close()
 
+    def testTestQuery(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.executesql(db._adapter.test_query)
+        db.close()
+
+    def testListInteger(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', 
+                        Field('aa', 'list:integer'))
+        l=[1,2,3,4,5]
+        db.tt.insert(aa=l)
+        self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa],l)
+        db.tt.drop()
+        db.close()
+
+    def testListString(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', 
+                        Field('aa', 'list:string'))
+        l=['a', 'b', 'c']
+        db.tt.insert(aa=l)
+        self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa],l)
+        db.tt.drop()
+        db.close()
+
+    def testListReference(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('t0', 
+                        Field('aa', 'string'))
+        db.define_table('tt', 
+                        Field('t0_id', 'list:reference t0'))
+        id_a=db.t0.insert(aa='test')
+        l=[id_a]
+        db.tt.insert(t0_id=l)
+        self.assertEqual(db(db.tt).select(db.tt.t0_id).first()[db.tt.t0_id],l)
+        db.tt.drop()
+        db.t0.drop()
+        db.close()
 
 class TestAddMethod(unittest.TestCase):
 
