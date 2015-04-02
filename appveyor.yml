@@ -1,0 +1,31 @@
+build: false
+
+services:
+  - mssql2014
+
+environment:
+  CODECOV_TOKEN:
+      secure: hN47o5oiF+R26daJex7XzQnfdE/gd+vtZ376+jXrIsEx+I8yG7yuUT5IwBodq1KF
+  matrix:
+    - PYTHON: "C:/Python27"
+
+clone_depth: 50
+
+init:
+  - "ECHO %PYTHON%"
+  - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+
+install:
+  - ps: Start-FileDownload https://bootstrap.pypa.io/get-pip.py
+  - python get-pip.py
+  - pip install tox>=1.8
+  - pip install codecov
+
+before_test:
+  - sqlcmd -S "(local)\SQL2014" -U "sa" -P "Password12!" -Q "CREATE DATABASE pydal COLLATE Latin1_General_CS_AS;" -d "master"
+  
+test_script:
+  - tox -e coverage-mssql
+
+after_test:
+  - codecov
