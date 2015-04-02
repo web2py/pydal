@@ -2,9 +2,7 @@ language: python
 
 sudo: false
 
-cache:
-  directories:
-    - $HOME/.pip-cache/
+cache: pip
 
 python:
   - '2.6'
@@ -12,7 +10,7 @@ python:
   - 'pypy'
 
 install:
-  - pip install --download-cache $HOME/.pip-cache tox>=1.8
+  - pip install tox>=1.8
 
 env:
   global:
@@ -39,7 +37,7 @@ matrix:
       env: ADAPTER=google
 
 before_script:
-  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install --download-cache $HOME/.pip-cache python-coveralls; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install codecov; fi
   - if [[ $ADAPTER == mongo ]]; then sleep 15; fi;
   - if [[ $ADAPTER == mysql ]]; then mysql -e 'create database pydal;'; fi
   - if [[ $ADAPTER == postgres* ]]; then psql -c 'create database pydal;' -U postgres; fi
@@ -57,7 +55,7 @@ script:
   - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then tox -e coverage-$ADAPTER; fi
 
 after_success:
-  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then coveralls; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then codecov; fi
 
 notifications:
   email: true
