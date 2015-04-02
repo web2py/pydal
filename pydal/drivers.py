@@ -67,7 +67,11 @@ else:
         #DRIVERS.append('Teradata(pyodbc)')
         #DRIVERS.append('Ingres(pyodbc)')
     except ImportError:
-        pyodbc = None
+        try:
+            import pypyodbc as pyodbc
+            DRIVERS['pyodbc'] = pyodbc
+        except ImportError:
+            pyodbc = None
 
     try:
         import ibm_db_dbi
