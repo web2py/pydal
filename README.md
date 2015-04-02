@@ -8,7 +8,7 @@ pyDAL comes from the original web2py's DAL, with the aim of being wide-compatibl
 
 [![pip version](https://img.shields.io/pypi/v/pydal.svg?style=flat-square)](https://pypi.python.org/pypi/pydal) 
 [![Build Status](https://img.shields.io/travis/web2py/pydal/master.svg?style=flat-square)](https://travis-ci.org/web2py/pydal)
-[![MS Build Status](https://ci.appveyor.com/api/projects/status/qs4aex0ki8v8ruhp/branch/master?svg=true)](https://ci.appveyor.com/project/niphlod/pydal-7r7t6)
+[![MS Build Status](https://ci.appveyor.com/api/projects/status/64qf0itmbvb1o7k5?svg=true)](https://ci.appveyor.com/project/niphlod/pydal)
 [![Coverage Status](https://img.shields.io/codecov/c/github/web2py/pydal.svg?style=flat-square)](https://codecov.io/github/web2py/pydal)
 [![API Docs Status](https://readthedocs.org/projects/pydal/badge/?version=latest&style=flat-square)](http://pydal.rtfd.org/)
 
