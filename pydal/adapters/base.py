@@ -1342,7 +1342,7 @@ class BaseAdapter(ConnectionPool):
             elif not isinstance(obj, (list, tuple)):
                 obj = [obj]
             if field_is_type('list:string'):
-                obj = map(str,obj)
+                obj = map(lambda x:unicode(x).encode(self.db_codec),obj)
             else:
                 obj = map(int,[o for o in obj if o != ''])
         # we don't want to bar_encode json objects
