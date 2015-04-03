@@ -14,50 +14,50 @@ else:
     try:
         from pysqlite2 import dbapi2 as sqlite2
         DRIVERS['sqlite2'] = sqlite2
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         from sqlite3 import dbapi2 as sqlite3
         DRIVERS['sqlite3'] = sqlite3
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import pymysql
         DRIVERS['pymysql'] = pymysql
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import MySQLdb
         DRIVERS['MySQLdb'] = MySQLdb
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import mysql.connector as mysqlconnector
         DRIVERS["mysqlconnector"] = mysqlconnector
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import psycopg2
         from psycopg2.extensions import adapt as psycopg2_adapt
         DRIVERS['psycopg2'] = psycopg2
-    except ImportError:
+    except (ImportError, AttributeError):
         psycopg2_adapt = None
 
     try:
         import pg8000
         DRIVERS['pg8000'] = pg8000
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import cx_Oracle
         DRIVERS['cx_Oracle'] = cx_Oracle
-    except ImportError:
+    except (ImportError, AttributeError):
         cx_Oracle = None
 
     try:
@@ -66,63 +66,63 @@ else:
         #DRIVERS.append('DB2(pyodbc)')
         #DRIVERS.append('Teradata(pyodbc)')
         #DRIVERS.append('Ingres(pyodbc)')
-    except ImportError:
+    except (ImportError, AttributeError):
         try:
             import pypyodbc as pyodbc
             DRIVERS['pyodbc'] = pyodbc
-        except ImportError:
+        except (ImportError, AttributeError):
             pyodbc = None
 
     try:
         import ibm_db_dbi
         DRIVERS['ibm_db_dbi'] = ibm_db_dbi
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import Sybase
         DRIVERS['Sybase'] = Sybase
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import kinterbasdb
         DRIVERS['kinterbasdb'] = kinterbasdb
         #DRIVERS.append('Firebird(kinterbasdb)')
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import fdb
         DRIVERS['fdb'] = fdb
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import firebirdsql
         DRIVERS['firebirdsql'] = firebirdsql
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import informixdb
         #LOGGER.warning('Informix support is experimental')
         DRIVERS['informixdb'] = informixdb
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import sapdb
         DRIVERS['sapdb'] = sapdb
         #LOGGER.warning('SAPDB support is experimental')
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
         import cubriddb
         DRIVERS['cubriddb'] = cubriddb
         #LOGGER.warning('Cubrid support is experimental')
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
@@ -135,13 +135,13 @@ else:
         #DRIVERS.append('SQLite(zxJDBC)')
         #LOGGER.warning('zxJDBC support is experimental')
         is_jdbc = True
-    except ImportError:
+    except (ImportError, AttributeError):
         is_jdbc = False
 
     try:
         import couchdb
         DRIVERS['couchdb'] = couchdb
-    except ImportError:
+    except (ImportError, AttributeError):
         couchdb = None
 
     try:
