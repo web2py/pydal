@@ -1835,12 +1835,12 @@ class TestIterator(unittest.TestCase):
         names = ['web2py', 'pydal', 'Massimo']
         for n in names:
             t0.insert(name=n)
-        db(db.t0).select()
-        rows = db(db.t0).select()
+        
+        rows = db(db.t0).select(orderby=db.t0.id)
         for pos, r in enumerate(rows):
             self.assertEqual(r.name, names[pos])
 
-        rows = db(db.t0).iterselect()
+        rows = db(db.t0).iterselect(orderby=db.t0.id)
         for pos, r in enumerate(rows):
             self.assertEqual(r.name, names[pos])
 
