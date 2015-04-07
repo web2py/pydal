@@ -134,21 +134,23 @@ import logging
 from uuid import uuid4
 
 from ._compat import pickle, hashlib_md5, pjoin, ogetattr, osetattr, copyreg
-from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT, GLOBALS
+from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT
 from ._load import OrderedDict
 from .helpers.classes import SQLCallableList
 from .helpers.methods import hide_password, smart_query, auto_validators, \
     auto_represent
-from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME, REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
+from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME, \
+    REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
+from .helpers.serializers import serializers
 from .objects import Table, Field, Row, Set
 from .adapters import ADAPTERS
 from .adapters.base import BaseAdapter
 
 
 TABLE_ARGS = set(
-    ('migrate','primarykey','fake_migrate','format','redefine',
-     'singular','plural','trigger_name','sequence_name','fields',
-     'common_filter','polymodel','table_class','on_define','rname'))
+    ('migrate', 'primarykey', 'fake_migrate', 'format', 'redefine',
+     'singular', 'plural', 'trigger_name', 'sequence_name', 'fields',
+     'common_filter', 'polymodel', 'table_class', 'on_define', 'rname'))
 
 
 class MetaDAL(type):
@@ -470,7 +472,9 @@ class DAL(object):
         self._fake_migrate = fake_migrate
         self._migrate_enabled = migrate_enabled
         self._fake_migrate_all = fake_migrate_all
-        GLOBALS['serializers'] = self.serializers
+        if self.serializers is not None:
+            for k, v in serializers.items():
+                serializers._custom_[k] = v
         if auto_import or tables:
             self.import_table_definitions(adapter.folder,
                                           tables=tables)
@@ -877,30 +881,14 @@ class DAL(object):
                                         sanitize=sanitize))
         return db_as_dict
 
-    def has_serializer(self, name):
-        return hasattr(self.serializers, name) and \
-            callable(getattr(self.serializers, 'loads_json'))
-
-    def serialize(self, name, *args, **kwargs):
-        return getattr(self.serializers, name)(*args, **kwargs)
-
     def as_xml(self, sanitize=True):
-        if not self.has_serializer('xml'):
-            raise ImportError("No xml serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self.serialize('xml', d)
+        return serializers.xml(self.as_dict(flat=True, sanitize=sanitize))
 
     def as_json(self, sanitize=True):
-        if not self.has_serializer('json'):
-            raise ImportError("No json serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self.serialize('json', d)
+        return serializers.json(self.as_dict(flat=True, sanitize=sanitize))
 
     def as_yaml(self, sanitize=True):
-        if not self.has_serializer('yaml'):
-            raise ImportError("No YAML serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self.serialize('yaml', d)
+        return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
 
     def __contains__(self, tablename):
         try:

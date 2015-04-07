@@ -4,13 +4,13 @@ import re
 
 from .._compat import pjoin
 from .._globals import IDENTITY, THREAD_LOCAL
-from .._load import json
 from .._gae import classobj, gae, ndb, namespace_manager, NDBPolyModel, rdbms
 from ..objects import Table, Field, Expression, Query
 from ..helpers.classes import SQLCustomType, SQLALL, \
     Reference, UseDatabaseStoredFile
 from ..helpers.methods import use_common_filters, xorify
 from ..helpers.gae import NDBDecimalProperty
+from ..helpers.serializers import serializers
 from .base import NoSQLAdapter
 from .mysql import MySQLAdapter
 
@@ -159,10 +159,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
             else:
                 return ndb.Key(tablename, long(obj))
         elif fieldtype == "json":
-            if self.db.has_serializer('json'):
-                return self.db.serialize('json', obj)
-            else:
-                return json.dumps(obj)
+            return serializers.json(obj)
         elif isinstance(obj, (Expression, Field)):
             raise SyntaxError("non supported on GAE")
         elif isinstance(fieldtype, gae.Property):

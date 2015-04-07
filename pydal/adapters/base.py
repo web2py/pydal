@@ -13,7 +13,6 @@ import types
 from .._compat import pjoin, exists, pickle, hashlib_md5, iterkeys
 from .._globals import IDENTITY
 from .._load import portalocker, json
-from .._gae import gae
 from ..connection import ConnectionPool
 from ..objects import Expression, Field, Query, Table, Row, FieldVirtual, \
     FieldMethod, LazyReferenceGetter, LazySet, VirtualCommand, Rows
@@ -23,6 +22,7 @@ from ..helpers.methods import xorify, use_common_filters, bar_encode, \
     bar_decode_integer, bar_decode_string
 from ..helpers.classes import SQLCustomType, SQLALL, Reference, \
     RecordUpdater, RecordDeleter
+from ..helpers.serializers import serializers
 
 
 TIMINGSSIZE = 100
@@ -1405,10 +1405,7 @@ class BaseAdapter(ConnectionPool):
         elif fieldtype == 'json':
             if not 'dumps' in self.driver_auto_json:
                 # always pass a string JSON string
-                if self.db.has_serializer('json'):
-                    obj = self.db.serialize('json', obj)
-                else:
-                    obj = json.dumps(obj)
+                obj = serializers.json(obj)
         if not isinstance(obj, bytes):
             obj = bytes(obj)
         try:
@@ -1545,10 +1542,7 @@ class BaseAdapter(ConnectionPool):
                 raise RuntimeError('json data not a string')
             if isinstance(value, unicode):
                 value = value.encode('utf-8')
-            if self.db.has_serializer('loads_json'):
-                value = self.db.serialize('loads_json', value)
-            else:
-                value = json.loads(value)
+            value = json.loads(value)
         return value
 
     def build_parsemap(self):
@@ -1785,10 +1779,7 @@ class NoSQLAdapter(BaseAdapter):
             elif fieldtype == 'json':
                 if isinstance(obj, basestring):
                     obj = self.to_unicode(obj)
-                    if self.db.has_serializer('loads_json'):
-                        obj = self.db.serialize('loads_json', obj)
-                    else:
-                        obj = json.loads(obj)
+                    obj = json.loads(obj)
             elif is_string and field_is_type('list:string'):
                 return map(self.to_unicode,obj)
             elif is_list:

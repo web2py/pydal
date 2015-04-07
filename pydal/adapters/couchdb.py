@@ -7,6 +7,7 @@ from ..drivers import couchdb
 from ..objects import Field, Query
 from ..helpers.classes import SQLALL
 from ..helpers.methods import uuid2int
+from ..helpers.serializers import serializers
 from .base import BaseAdapter, NoSQLAdapter, SELECT_ARGS
 
 
@@ -70,12 +71,7 @@ class CouchDBAdapter(NoSQLAdapter):
         if fieldtype == 'id':
             return repr(str(long(value)))
         elif fieldtype in ('date', 'time', 'datetime', 'boolean'):
-            if self.db.has_serializer('json'):
-                return self.db.serialize('json', value)
-            else:
-                return json.dumps(value)
-            if not self._db.has_serializer('json'):
-                raise ImportError("No json serializers available")
+            return serializers.json(value)
         return repr(not isinstance(value, unicode) and value
                     or value and value.encode('utf8'))
 
