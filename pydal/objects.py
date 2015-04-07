@@ -18,17 +18,15 @@ from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
     REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
     REGEX_CLEANUP_FN
-from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL
+from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL, \
+    Serializable
 from .helpers.methods import list_represent, bar_decode_integer, \
     bar_decode_string, bar_encode, archive_record, cleanup, \
     use_common_filters, pluralize
 from .helpers.serializers import serializers
 
-DEFAULTLENGTH = {'string':512,
-                 'password':512,
-                 'upload':512,
-                 'text':2**15,
-                 'blob':2**31}
+DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
+                 'blob': 2**31}
 
 
 class Row(object):
@@ -78,7 +76,7 @@ class Row(object):
             return ogetattr(self, key)
         except (KeyError, AttributeError, TypeError), ae:
             try:
-                self[key] = ogetattr(self,'__get_lazy_reference__')(key)
+                self[key] = ogetattr(self, '__get_lazy_reference__')(key)
                 return self[key]
             except:
                 raise ae
@@ -209,7 +207,7 @@ class Row(object):
             return item
 
 
-class Table(object):
+class Table(Serializable):
 
     """
     Represents a database table
@@ -1015,15 +1013,6 @@ class Table(object):
                     flat=flat, sanitize=sanitize))
         return table_as_dict
 
-    def as_xml(self, sanitize=True):
-        return serializers.xml(self.as_dict(flat=True, sanitize=sanitize))
-
-    def as_json(self, sanitize=True):
-        return serializers.json(self.as_dict(flat=True, sanitize=sanitize))
-
-    def as_yaml(self, sanitize=True):
-        return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
-
     def with_alias(self, alias):
         return self._db._adapter.alias(self, alias)
 
@@ -1376,7 +1365,7 @@ class FieldMethod(object):
         self.handler = handler
 
 
-class Field(Expression):
+class Field(Expression, Serializable):
 
     Virtual = FieldVirtual
     Method = FieldMethod
@@ -1701,15 +1690,6 @@ class Field(Expression):
             d["fieldname"] = d.pop("name")
         return d
 
-    def as_xml(self, sanitize=True):
-        return serializers.xml(self.as_dict(flat=True, sanitize=sanitize))
-
-    def as_json(self, sanitize=True):
-        return serializers.json(self.as_dict(flat=True, sanitize=sanitize))
-
-    def as_yaml(self, sanitize=True):
-        return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
-
     def __nonzero__(self):
         return True
 
@@ -1731,7 +1711,7 @@ class Field(Expression):
         return self._rname or self._db._adapter.sqlsafe_field(self.name)
 
 
-class Query(object):
+class Query(Serializable):
 
     """
     Necessary to define a set.
@@ -1854,14 +1834,8 @@ class Query(object):
         else:
             return self.__dict__
 
-    def as_xml(self, sanitize=True):
-        return serializers.xml(self.as_dict(flat=True, sanitize=sanitize))
 
-    def as_json(self, sanitize=True):
-        return serializers.json(self.as_dict(flat=True, sanitize=sanitize))
-
-
-class Set(object):
+class Set(Serializable):
 
     """
     Represents a set of records in the database.
@@ -1954,13 +1928,8 @@ class Set(object):
             d["db"] = {"uid": uid, "codec": codec,
                        "name": dbname, "uri": uri}
             return d
-        else: return self.__dict__
-
-    def as_xml(self, sanitize=True):
-        return serializers.xml(self.as_dict(flat=True, sanitize=sanitize))
-
-    def as_json(self, sanitize=True):
-        return serializers.json(self.as_dict(flat=True, sanitize=sanitize))
+        else:
+            return self.__dict__
 
     def parse(self, dquery):
         "Experimental: Turn a dictionary into a Query object"

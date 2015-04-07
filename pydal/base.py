@@ -473,7 +473,7 @@ class DAL(object):
         self._migrate_enabled = migrate_enabled
         self._fake_migrate_all = fake_migrate_all
         if self.serializers is not None:
-            for k, v in serializers.items():
+            for k, v in self.serializers.items():
                 serializers._custom_[k] = v
         if auto_import or tables:
             self.import_table_definitions(adapter.folder,
