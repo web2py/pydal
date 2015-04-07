@@ -136,7 +136,7 @@ from uuid import uuid4
 from ._compat import pickle, hashlib_md5, pjoin, ogetattr, osetattr, copyreg
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT
 from ._load import OrderedDict
-from .helpers.classes import SQLCallableList
+from .helpers.classes import Serializable, SQLCallableList
 from .helpers.methods import hide_password, smart_query, auto_validators, \
     auto_represent
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME, \
@@ -172,8 +172,7 @@ class MetaDAL(type):
         return obj
 
 
-class DAL(object):
-
+class DAL(Serializable):
     """
     An instance of this class represents a database connection
 
@@ -880,15 +879,6 @@ class DAL(object):
             db_as_dict["tables"].append(table.as_dict(flat=flat,
                                         sanitize=sanitize))
         return db_as_dict
-
-    def as_xml(self, sanitize=True):
-        return serializers.xml(self.as_dict(flat=True, sanitize=sanitize))
-
-    def as_json(self, sanitize=True):
-        return serializers.json(self.as_dict(flat=True, sanitize=sanitize))
-
-    def as_yaml(self, sanitize=True):
-        return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
 
     def __contains__(self, tablename):
         try:
