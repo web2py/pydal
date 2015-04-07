@@ -5,6 +5,7 @@ import struct
 import traceback
 
 from .._compat import exists, copyreg
+from .serializers import serializers
 
 
 class Reference(long):
@@ -22,7 +23,8 @@ class Reference(long):
         if key in self._table:
             self.__allocate()
         if self._record:
-            return self._record.get(key,None) # to deal with case self.update_record()
+            # to deal with case self.update_record()
+            return self._record.get(key, None)
         else:
             return None
 
@@ -34,7 +36,7 @@ class Reference(long):
             long.__setattr__(self, key, value)
             return
         self.__allocate()
-        self._record[key] =  value
+        self._record[key] = value
 
     def __getitem__(self, key):
         if key == 'id':
@@ -42,12 +44,14 @@ class Reference(long):
         self.__allocate()
         return self._record.get(key, None)
 
-    def __setitem__(self,key,value):
+    def __setitem__(self, key, value):
         self.__allocate()
         self._record[key] = value
 
+
 def Reference_unpickler(data):
     return marshal.loads(data)
+
 
 def Reference_pickler(data):
     try:
@@ -161,27 +165,32 @@ class RecordUpdater(object):
         table = db[tablename]
         newfields = fields or dict(colset)
         for fieldname in newfields.keys():
-            if not fieldname in table.fields or table[fieldname].type=='id':
+            if fieldname not in table.fields or table[fieldname].type == 'id':
                 del newfields[fieldname]
-        table._db(table._id==id,ignore_common_filters=True).update(**newfields)
+        table._db(table._id == id, ignore_common_filters=True).update(**newfields)
         colset.update(newfields)
         return colset
+
 
 class RecordDeleter(object):
     def __init__(self, table, id):
         self.db, self.tablename, self.id = table._db, table._tablename, id
+
     def __call__(self):
-        return self.db(self.db[self.tablename]._id==self.id).delete()
+        return self.db(self.db[self.tablename]._id == self.id).delete()
 
 
 class MethodAdder(object):
-    def __init__(self,table):
+    def __init__(self, table):
         self.table = table
+
     def __call__(self):
         return self.register()
-    def __getattr__(self,method_name):
+
+    def __getattr__(self, method_name):
         return self.register(method_name)
-    def register(self,method_name=None):
+
+    def register(self, method_name=None):
         def _decorated(f):
             instance = self.table
             import types
@@ -196,12 +205,12 @@ class DatabaseStoredFile:
 
     web2py_filesystems = set()
 
-    def escape(self,obj):
+    def escape(self, obj):
         return self.db._adapter.escape(obj)
 
     @staticmethod
     def try_create_web2py_filesystem(db):
-        if not db._uri in DatabaseStoredFile.web2py_filesystems:
+        if db._uri not in DatabaseStoredFile.web2py_filesystems:
             if db._adapter.dbengine == 'mysql':
                 sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content LONGTEXT, PRIMARY KEY(path) ) ENGINE=InnoDB;"
             elif db._adapter.dbengine in ('postgres', 'sqlite'):
@@ -209,16 +218,16 @@ class DatabaseStoredFile:
             db.executesql(sql)
             DatabaseStoredFile.web2py_filesystems.add(db._uri)
 
-    def __init__(self,db,filename,mode):
-        if not db._adapter.dbengine in ('mysql', 'postgres', 'sqlite'):
+    def __init__(self, db, filename, mode):
+        if db._adapter.dbengine not in ('mysql', 'postgres', 'sqlite'):
             raise RuntimeError("only MySQL/Postgres/SQLite can store metadata .table files in database for now")
         self.db = db
         self.filename = filename
         self.mode = mode
         DatabaseStoredFile.try_create_web2py_filesystem(db)
-        self.p=0
+        self.p = 0
         self.data = ''
-        if mode in ('r','rw','a'):
+        if mode in ('r', 'rw', 'a'):
             query = "SELECT content FROM web2py_filesystem WHERE path='%s'" \
                 % filename
             rows = self.db.executesql(query)
@@ -230,7 +239,7 @@ class DatabaseStoredFile:
                     self.data = datafile.read()
                 finally:
                     datafile.close()
-            elif mode in ('r','rw'):
+            elif mode in ('r', 'rw'):
                 raise RuntimeError("File %s does not exist" % filename)
 
     def read(self, bytes):
@@ -239,14 +248,14 @@ class DatabaseStoredFile:
         return data
 
     def readline(self):
-        i = self.data.find('\n',self.p)+1
-        if i>0:
+        i = self.data.find('\n', self.p)+1
+        if i > 0:
             data, self.p = self.data[self.p:i], i
         else:
             data, self.p = self.data[self.p:], len(self.data)
         return data
 
-    def write(self,data):
+    def write(self, data):
         self.data += data
 
     def close_connection(self):
@@ -286,16 +295,29 @@ class DatabaseStoredFile:
 class UseDatabaseStoredFile:
 
     def file_exists(self, filename):
-        return DatabaseStoredFile.exists(self.db,filename)
+        return DatabaseStoredFile.exists(self.db, filename)
 
     def file_open(self, filename, mode='rb', lock=True):
-        return DatabaseStoredFile(self.db,filename,mode)
+        return DatabaseStoredFile(self.db, filename, mode)
 
     def file_close(self, fileobj):
         fileobj.close_connection()
 
-    def file_delete(self,filename):
+    def file_delete(self, filename):
         query = "DELETE FROM web2py_filesystem WHERE path='%s'" % filename
         self.db.executesql(query)
         self.db.commit()
 
+
+class Serializable(object):
+    def as_dict(self, flat=False, sanitize=True):
+        return self.__dict__
+
+    def as_xml(self, sanitize=True):
+        return serializers.xml(self.as_dict(flat=True, sanitize=sanitize))
+
+    def as_json(self, sanitize=True):
+        return serializers.json(self.as_dict(flat=True, sanitize=sanitize))
+
+    def as_yaml(self, sanitize=True):
+        return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
