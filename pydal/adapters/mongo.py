@@ -312,16 +312,18 @@ class MongoDBAdapter(NoSQLAdapter):
         for field in fields:
             mongofields_dict[field.name] = 1
         ctable = self.connection[tablename]
+        modifiers={'snapshot':snapshot}
+
         if count:
             return {'count': ctable.find(
                     mongoqry_dict, mongofields_dict,
                     skip=limitby_skip, limit=limitby_limit,
-                    sort=mongosort_list, snapshot=snapshot).count()}
+                    sort=mongosort_list, modifiers=modifiers).count()}
         else:
             # pymongo cursor object
             mongo_list_dicts = ctable.find(
                 mongoqry_dict, mongofields_dict, skip=limitby_skip,
-                limit=limitby_limit, sort=mongosort_list, snapshot=snapshot)
+                limit=limitby_limit, sort=mongosort_list, modifiers=modifiers)
         rows = []
         # populate row in proper order
         # Here we replace ._id with .id to follow the standard naming
@@ -358,7 +360,7 @@ class MongoDBAdapter(NoSQLAdapter):
         synchronous action is done
         For safety, we use by default synchronous requests"""
 
-        values = dict()
+        values = {}
         ctable = self.connection[table._tablename]
         for k, v in fields:
             if not k.name in ["id", "safe"]:
