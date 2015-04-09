@@ -1345,7 +1345,7 @@ class BaseAdapter(ConnectionPool):
                 try:
                     obj = map(str,obj)
                 except UnicodeEncodeError:
-                    obj = map(lambbda x:unicode(x).encode(self.db_codec),obj)
+                    obj = map(lambda x:unicode(x).encode(self.db_codec),obj)
             else:
                 obj = map(int,[o for o in obj if o != ''])
         # we don't want to bar_encode json objects
