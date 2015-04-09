@@ -35,7 +35,7 @@ class MongoDBAdapter(NoSQLAdapter):
         'list:string': list,
         'list:integer': list,
         'list:reference': list,
-        }
+    }
 
     error_messages = {"javascript_needed": "This must yet be replaced" +
                       " with javascript in order to work."}
@@ -52,12 +52,14 @@ class MongoDBAdapter(NoSQLAdapter):
         from bson.objectid import ObjectId
         from bson.son import SON
         import pymongo.uri_parser
+        from pymongo.write_concern import WriteConcern
 
         m = pymongo.uri_parser.parse_uri(uri)
 
         self.SON = SON
         self.ObjectId = ObjectId
         self.random = random
+        self.WriteConcern = WriteConcern
 
         self.dbengine = 'mongodb'
         self.folder = folder
@@ -81,12 +83,7 @@ class MongoDBAdapter(NoSQLAdapter):
             raise SyntaxError("Database is required!")
 
         def connector(uri=self.uri, m=m):
-            # Connection() is deprecated
-            if hasattr(self.driver, "MongoClient"):
-                Connection = self.driver.MongoClient
-            else:
-                Connection = self.driver.Connection
-            return Connection(uri, w=self.safe)[m.get('database')]
+            return self.driver.MongoClient(uri, w=self.safe)[m.get('database')]
 
         self.reconnect(connector, cursor=False)
 
@@ -184,24 +181,37 @@ class MongoDBAdapter(NoSQLAdapter):
             value = self.object_id(value)
         return value
 
+    def _expand_query(self, query, tablename=None, safe=None):
+        """ Return a tuple containing query and ctable """
+        if not tablename:
+            tablename = self.get_table(query)
+        ctable = self._get_collection(tablename, safe)
+        _filter = None
+        if query:
+            if use_common_filters(query):
+                query = self.common_filter(query,[tablename])
+            _filter = self.expand(query)
+        return (ctable, _filter)
+
+    def _get_collection(self, tablename, safe=None):
+        ctable = self.connection[tablename]
+
+        if safe is not None and safe != self.safe:
+            wc = self.WriteConcern(w=self._get_safe(safe))
+            ctable = ctable.with_options(write_concern=wc)
+
+        return ctable
+
+    def _get_safe(self, val=None):
+        if val is None:
+            return self.safe
+        return 1 if val else 0
+
     def create_table(self, table, migrate=True, fake_migrate=False,
                      polymodel=None, isCapped=False):
         if isCapped:
             raise RuntimeError("Not implemented")
         table._dbt = None
-
-    def count(self, query, distinct=None, snapshot=True):
-        if distinct:
-            raise RuntimeError("COUNT DISTINCT not supported")
-        if not isinstance(query,Query):
-            raise SyntaxError("Not Supported")
-        tablename = self.get_table(query)
-        return long(self.select(query,[self.db[tablename]._id], {},
-                                count=True,snapshot=snapshot)['count'])
-        # Maybe it would be faster if we just implemented the pymongo
-        # .count() function which is probably quicker?
-        # therefor call __select() connection[table].find(query).count()
-        # Since this will probably reduce the return set?
 
     def expand(self, expression, field_type=None):
         if isinstance(expression, Query):
@@ -252,17 +262,21 @@ class MongoDBAdapter(NoSQLAdapter):
         self._drop_cleanup(table)
         return
 
-    def _get_safe(self, val=None):
-        if val is None:
-            return self.safe
-        return 1 if val else 0
-
     def truncate(self, table, mode, safe=None):
         ctable = self.connection[table._tablename]
         ctable.remove(None, w=self._get_safe(safe))
 
-    def select(self, query, fields, attributes, count=False,
-               snapshot=False):
+    def count(self, query, distinct=None, snapshot=True):
+        if distinct:
+            raise RuntimeError("COUNT DISTINCT not supported")
+        if not isinstance(query, Query):
+            raise SyntaxError("Not Supported")
+
+        (ctable, _filter) = self._expand_query(query)
+        result = ctable.count(filter=_filter)
+        return result
+
+    def select(self, query, fields, attributes, snapshot=False):
         mongofields_dict = self.SON()
         new_fields, mongosort_list = [], []
         # try an orderby attribute
@@ -303,27 +317,22 @@ class MongoDBAdapter(NoSQLAdapter):
             raise SyntaxError("The table name could not be found in " +
                               "the query nor from the select statement.")
 
+
         if query:
             if use_common_filters(query):
                 query = self.common_filter(query,[tablename])
 
         mongoqry_dict = self.expand(query)
+
         fields = fields or self.db[tablename]
         for field in fields:
             mongofields_dict[field.name] = 1
         ctable = self.connection[tablename]
         modifiers={'snapshot':snapshot}
 
-        if count:
-            return {'count': ctable.find(
-                    mongoqry_dict, mongofields_dict,
-                    skip=limitby_skip, limit=limitby_limit,
-                    sort=mongosort_list, modifiers=modifiers).count()}
-        else:
-            # pymongo cursor object
-            mongo_list_dicts = ctable.find(
-                mongoqry_dict, mongofields_dict, skip=limitby_skip,
-                limit=limitby_limit, sort=mongosort_list, modifiers=modifiers)
+        mongo_list_dicts = ctable.find(
+            mongoqry_dict, mongofields_dict, skip=limitby_skip,
+            limit=limitby_limit, sort=mongosort_list, modifiers=modifiers)
         rows = []
         # populate row in proper order
         # Here we replace ._id with .id to follow the standard naming
@@ -361,15 +370,21 @@ class MongoDBAdapter(NoSQLAdapter):
         For safety, we use by default synchronous requests"""
 
         values = {}
-        ctable = self.connection[table._tablename]
+        ctable = self._get_collection(table._tablename, safe)
+
         for k, v in fields:
             if not k.name in ["id", "safe"]:
                 fieldname = k.name
                 fieldtype = table[k.name].type
                 values[fieldname] = self.represent(v, fieldtype)
 
-        ctable.insert(values, w=self._get_safe(safe))
-        return long(str(values['_id']), 16)
+        result = ctable.insert_one(values)
+
+        if result.acknowledged:
+            Oid = result.inserted_id
+            return long(str(Oid), 16)
+        else:
+            return None
 
     def update(self, tablename, query, fields, safe=None):
         # return amount of adjusted rows or zero, but no exceptions
@@ -380,42 +395,36 @@ class MongoDBAdapter(NoSQLAdapter):
         if not isinstance(query, Query):
             raise SyntaxError("Not Supported")
 
-        if query:
-            if use_common_filters(query):
-                query = self.common_filter(query,[tablename])
+        (ctable, _filter) = self._expand_query(query, tablename, safe)
 
-        filter = None
-        if query:
-            filter = self.expand(query)
         # do not try to update id fields to avoid backend errors
         modify = {'$set': dict((k.name, self.represent(v, k.type)) for
                   k, v in fields if (not k.name in ("_id", "id")))}
         try:
-            result = self.connection[tablename].update(filter,
-                       modify, multi=True, w=self._get_safe(safe))
-            if safe:
-                try:
-                    # if result count is available fetch it
-                    return result["n"]
-                except (KeyError, AttributeError, TypeError):
-                    return amount
-            else:
-                return amount
+            result = ctable.update_many(filter=_filter,
+                       update=modify)
+            if result.acknowledged:
+                amount = result.matched_count
+
+            return amount
         except Exception, e:
             # TODO Reverse update query to verifiy that the query succeded
             raise RuntimeError("uncaught exception when updating rows: %s" % e)
 
     def delete(self, tablename, query, safe=None):
-        amount = 0
         amount = self.count(query, False)
         if not isinstance(query, Query):
             raise RuntimeError("query type %s is not supported" % \
                                type(query))
-        if query:
-            if use_common_filters(query):
-                query = self.common_filter(query,[tablename])
-        filter = self.expand(query)
-        self.connection[tablename].remove(filter, w=self._get_safe(safe))
+
+        (ctable, _filter) = self._expand_query(query, safe)
+
+        result = ctable.delete_many(_filter)
+        if result.acknowledged:
+            return result.deleted_count
+        else:
+            return amount
+
         return amount
 
     def bulk_insert(self, table, items):
