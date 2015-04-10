@@ -42,7 +42,7 @@ class Serializers(object):
             return self._custom_.get('yaml')(value)
         try:
             from yaml import dump
-        except:
+        except ImportError:
             raise NotImplementedError("No yaml serializer available.")
         return dump(value)
 
