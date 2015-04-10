@@ -2753,3 +2753,35 @@ class Rows(object):
     # for consistent naming yet backwards compatible
     as_csv = __str__
     json = as_json
+
+
+class IterRows(object):
+
+    def __init__(self, db, sql, fields, colnames, blob_decode, cacheable):
+        self.db = db
+        self.fields = fields
+        self.colnames = colnames
+        self.blob_decode = blob_decode
+        self.cacheable = cacheable
+        (self.fields_virtual, self.fields_lazy, self.tmps) = self.db._adapter._parse_expand_colnames(colnames)
+        self.db._adapter.cursor.execute(sql)
+
+    def __iter__(self):
+        for db_row in self.db._adapter.cursor:
+            row = self.db._adapter._parse(db_row, self.tmps, self.fields,
+                                          self.colnames, self.blob_decode,
+                                          self.cacheable, self.fields_virtual,
+                                          self.fields_lazy)
+            # The following is to translate
+            # <Row {'t0': {'id': 1L, 'name': 'web2py'}}>
+            # in
+            # <Row {'id': 1L, 'name': 'web2py'}>
+            # normally accomplished by Rows.__get_item__
+            keys = row.keys()
+            if len(keys) == 1 and keys[0] != '_extra':
+                row = row[row.keys()[0]]
+            yield row
+
+#    # rowcount it doesn't seem to be reliable on all drivers
+#    def __len__(self):
+#        return self.db._adapter.cursor.rowcount
