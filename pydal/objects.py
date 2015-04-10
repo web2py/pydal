@@ -2765,13 +2765,20 @@ class IterRows(object):
         self.cacheable = cacheable
         (self.fields_virtual, self.fields_lazy, self.tmps) = self.db._adapter._parse_expand_colnames(colnames)
         self.db._adapter.cursor.execute(sql)
+        self._head = None
+        self.last_item = None
+        self.last_item_id = None
+        self.compact = True
 
-    def __iter__(self):
-        for db_row in self.db._adapter.cursor:
-            row = self.db._adapter._parse(db_row, self.tmps, self.fields,
-                                          self.colnames, self.blob_decode,
-                                          self.cacheable, self.fields_virtual,
-                                          self.fields_lazy)
+    def next(self):
+        db_row = self.db._adapter.cursor.fetchone()
+        if db_row is None:
+            raise StopIteration
+        row = self.db._adapter._parse(db_row, self.tmps, self.fields,
+                                      self.colnames, self.blob_decode,
+                                      self.cacheable, self.fields_virtual,
+                                      self.fields_lazy)
+        if self.compact:
             # The following is to translate
             # <Row {'t0': {'id': 1L, 'name': 'web2py'}}>
             # in
@@ -2780,7 +2787,53 @@ class IterRows(object):
             keys = row.keys()
             if len(keys) == 1 and keys[0] != '_extra':
                 row = row[row.keys()[0]]
+        return row
+
+    def __iter__(self):
+        if self._head:
+            yield self._head
+        row = self.next()
+        while row is not None:
             yield row
+            row = self.next()
+        return
+
+    def first(self):
+        if self._head is None:
+            try:
+                self._head = self.next()
+            except StopIteration:
+                # TODO should I raise something?
+                return None
+        return self._head
+
+    def __nonzero__(self):
+        return True if self.first() is not None else False
+
+    def __getitem__(self, key):
+        if not isinstance( key, ( int, long ) ):
+            raise TypeError
+
+        if key == self.last_item_id:
+            return self.last_item
+
+        n_to_drop = key
+        if self.last_item_id is not None:
+            if self.last_item_id < key:
+                n_to_drop -= (self.last_item_id + 1)
+            else:
+                raise IndexError
+
+        # fetch and drop the first key - 1 elements
+        for i in xrange(n_to_drop):
+            self.db._adapter.cursor.fetchone()
+        row = self.next()
+        if row is None:
+            raise IndexError
+        else:
+            self.last_item_id = key
+            self.last_item = row
+            return row
 
 #    # rowcount it doesn't seem to be reliable on all drivers
 #    def __len__(self):
