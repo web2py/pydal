@@ -836,7 +836,7 @@ class DAL(object):
         for field in table:
             if field.requires == DEFAULT:
                 field.requires = auto_validators(field)
-            if field.represent == DEFAULT:
+            if field.represent is None:
                 field.represent = auto_represent(field)
 
         migrate = self._migrate_enabled and args_get('migrate',self._migrate)
