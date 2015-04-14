@@ -255,7 +255,7 @@ class _repr_ref(object):
         self.ref = ref
 
     def __call__(self, value, row=None):
-        return _fieldformat(self.row, value)
+        return _fieldformat(self.ref, value)
 
 
 class _repr_ref_list(_repr_ref):
