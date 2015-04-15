@@ -15,7 +15,7 @@ from .._globals import IDENTITY
 from .._load import portalocker, json
 from ..connection import ConnectionPool
 from ..objects import Expression, Field, Query, Table, Row, FieldVirtual, \
-    FieldMethod, LazyReferenceGetter, LazySet, VirtualCommand, Rows
+    FieldMethod, LazyReferenceGetter, LazySet, VirtualCommand, Rows, IterRows
 from ..helpers.regex import REGEX_NO_GREEDY_ENTITY_NAME, REGEX_TYPE, \
     REGEX_SELECT_AS_PARSER
 from ..helpers.methods import xorify, use_common_filters, bar_encode, \
@@ -1652,6 +1652,7 @@ class BaseAdapter(ConnectionPool):
         tmps = []
         for colname in colnames:
             col_m = self.REGEX_TABLE_DOT_FIELD.match(colname)
+
             if not col_m:
                 tmps.append(None)
             else:
@@ -1696,26 +1697,9 @@ class BaseAdapter(ConnectionPool):
         Iterator to parse one row at a time.
         It doen't support the old style virtual fields
         """
-        (fields_virtual, fields_lazy, tmps) = self._parse_expand_colnames(colnames)
-        self.execute(sql)
-        db_row = self._fetchone()
-        while db_row is not None:
-        # _fetchone can be accomplished by iterating over the cursor too
-        # for db_row in self.cursor:
-            row = self._parse(db_row, tmps, fields,
-                              colnames, blob_decode, cacheable,
-                              fields_virtual, fields_lazy)
-            # The following is to translate
-            # <Row {'t0': {'id': 1L, 'name': 'web2py'}}>
-            # in
-            # <Row {'id': 1L, 'name': 'web2py'}>
-            # normally accomplished by Rows.__get_item__
-            keys = row.keys()
-            if len(keys) == 1 and keys[0] != '_extra':
-                row = row[row.keys()[0]]
-            yield row
-            db_row = self._fetchone()
-        return
+        return IterRows(self.db, sql, fields,
+                        colnames, blob_decode, cacheable)
+
 
     def common_filter(self, query, tablenames):
         tenant_fieldname = self.db._request_tenant
