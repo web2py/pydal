@@ -2319,6 +2319,9 @@ class Rows(object):
         self.export_to_csv_file(s)
         return s.getvalue()
 
+    def __eq__(self, other):
+        return (self.records == other.records)
+
     def column(self, column=None):
         return [r[str(column) if column else self.colnames[0]] for r in self]
 

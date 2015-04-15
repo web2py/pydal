@@ -719,18 +719,53 @@ class TestClientLevelOps(unittest.TestCase):
         db.define_table('tt', Field('aa'))
         db.commit()
         db.tt.insert(aa="test")
+        rows1 = db(db.tt.id<0).select()
+        rows2 = db(db.tt.id>0).select()
+        self.assertNotEqual(rows1, rows2)
         rows1 = db(db.tt.id>0).select()
         rows2 = db(db.tt.id>0).select()
+        self.assertEqual(rows1, rows2)
         rows3 = rows1 & rows2
-        assert len(rows3) == 2
+        self.assertEqual(len(rows3), 2)
         rows4 = rows1 | rows2
-        assert len(rows4) == 1
+        self.assertEqual(len(rows4), 1)
         rows5 = rows1.find(lambda row: row.aa=="test")
-        assert len(rows5) == 1
+        self.assertEqual(len(rows5), 1)
         rows6 = rows2.exclude(lambda row: row.aa=="test")
-        assert len(rows6) == 1
+        self.assertEqual(len(rows6), 1)
         rows7 = rows5.sort(lambda row: row.aa)
-        assert len(rows7) == 1
+        self.assertEqual(len(rows7), 1)
+        def represent(f, v, r):
+            return str(v)
+
+        db.representers = {
+            'rows_render': represent,
+        }
+        rows = db(db.tt.id>0).select()
+        rows.render(i=0)
+        rows = db(db.tt.id>0).select()
+        rows.compact=False
+        row = rows[0]
+        self.assertIn('tt', row)
+        self.assertIn('id', row.tt)
+        self.assertNotIn('id', row)
+        rows.compact=True
+        row = rows[0]
+        self.assertNotIn('tt', row)
+        self.assertIn('id', row)
+
+        rows = db(db.tt.id>0).select(db.tt.id.max())
+        rows.compact=False
+        row = rows[0]
+        self.assertNotIn('tt', row)
+        self.assertIn('_extra', row)
+
+        rows = db(db.tt.id>0).select(db.tt.id.max())
+        rows.compact=True
+        row = rows[0]
+        self.assertNotIn('tt', row)
+        self.assertIn('_extra', row)
+
         db.tt.drop()
         db.commit()
         db.close()
