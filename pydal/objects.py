@@ -12,23 +12,21 @@ import sys
 import types
 
 from ._compat import StringIO, ogetattr, osetattr, pjoin, exists, hashlib_md5
-from ._globals import GLOBALS, DEFAULT, IDENTITY, AND, OR
-from ._load import json
+from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
     REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
     REGEX_CLEANUP_FN
-from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL
+from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL, \
+    Serializable
 from .helpers.methods import list_represent, bar_decode_integer, \
     bar_decode_string, bar_encode, archive_record, cleanup, \
     use_common_filters, pluralize
+from .helpers.serializers import serializers
 
-DEFAULTLENGTH = {'string':512,
-                 'password':512,
-                 'upload':512,
-                 'text':2**15,
-                 'blob':2**31}
+DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
+                 'blob': 2**31}
 
 
 class Row(object):
@@ -78,7 +76,7 @@ class Row(object):
             return ogetattr(self, key)
         except (KeyError, AttributeError, TypeError), ae:
             try:
-                self[key] = ogetattr(self,'__get_lazy_reference__')(key)
+                self[key] = ogetattr(self, '__get_lazy_reference__')(key)
                 return self[key]
             except:
                 raise ae
@@ -204,18 +202,12 @@ class Row(object):
 
         item = self.as_dict(**kwargs)
         if serialize:
-            if hasattr(GLOBALS.get('serializers'), 'json'):
-                custom_json = GLOBALS['serializers']['custom_json'] if \
-                    hasattr(GLOBALS['serializers'], 'custom_json') else None
-                return GLOBALS['serializers']['json'](
-                    item, default=default or custom_json)
-            else:
-                return json.dumps(item)
+            return serializers.json(item)
         else:
             return item
 
 
-class Table(object):
+class Table(Serializable):
 
     """
     Represents a database table
@@ -1021,24 +1013,6 @@ class Table(object):
                     flat=flat, sanitize=sanitize))
         return table_as_dict
 
-    def as_xml(self, sanitize=True):
-        if not self._db.has_serializer('xml'):
-            raise ImportError("No xml serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('xml', d)
-
-    def as_json(self, sanitize=True):
-        if not self._db.has_serializer('json'):
-            raise ImportError("No json serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('json', d)
-
-    def as_yaml(self, sanitize=True):
-        if not self._db.has_serializer('yaml'):
-            raise ImportError("No YAML serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('yaml', d)
-
     def with_alias(self, alias):
         return self._db._adapter.alias(self, alias)
 
@@ -1391,7 +1365,7 @@ class FieldMethod(object):
         self.handler = handler
 
 
-class Field(Expression):
+class Field(Expression, Serializable):
 
     Virtual = FieldVirtual
     Method = FieldMethod
@@ -1716,24 +1690,6 @@ class Field(Expression):
             d["fieldname"] = d.pop("name")
         return d
 
-    def as_xml(self, sanitize=True):
-        if not self._db.has_serializer('xml'):
-            raise ImportError("No xml serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('xml', d)
-
-    def as_json(self, sanitize=True):
-        if not self._db.has_serializer('json'):
-            raise ImportError("No json serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('json', d)
-
-    def as_yaml(self, sanitize=True):
-        if not self._db.has_serializer('yaml'):
-            raise ImportError("No YAML serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('yaml', d)
-
     def __nonzero__(self):
         return True
 
@@ -1755,7 +1711,7 @@ class Field(Expression):
         return self._rname or self._db._adapter.sqlsafe_field(self.name)
 
 
-class Query(object):
+class Query(Serializable):
 
     """
     Necessary to define a set.
@@ -1878,20 +1834,8 @@ class Query(object):
         else:
             return self.__dict__
 
-    def as_xml(self, sanitize=True):
-        if not self._db.has_serializer('xml'):
-            raise ImportError("No xml serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('xml', d)
 
-    def as_json(self, sanitize=True):
-        if not self._db.has_serializer('json'):
-            raise ImportError("No json serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('json', d)
-
-
-class Set(object):
+class Set(Serializable):
 
     """
     Represents a set of records in the database.
@@ -1984,19 +1928,8 @@ class Set(object):
             d["db"] = {"uid": uid, "codec": codec,
                        "name": dbname, "uri": uri}
             return d
-        else: return self.__dict__
-
-    def as_xml(self, sanitize=True):
-        if not self._db.has_serializer('xml'):
-            raise ImportError("No xml serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('xml', d)
-
-    def as_json(self, sanitize=True):
-        if not self._db.has_serializer('json'):
-            raise ImportError("No json serializers available")
-        d = self.as_dict(flat=True, sanitize=sanitize)
-        return self._db.serialize('json', d)
+        else:
+            return self.__dict__
 
     def parse(self, dquery):
         "Experimental: Turn a dictionary into a Query object"
@@ -2727,7 +2660,7 @@ class Rows(object):
             return rv.xml()
         return rv
 
-    def as_xml(self,row_name='row',rows_name='rows'):
+    def as_xml(self, row_name='row', rows_name='rows'):
         return self.xml(strict=True, row_name=row_name, rows_name=rows_name)
 
     def as_json(self, mode='object', default=None):
@@ -2736,19 +2669,12 @@ class Rows(object):
         mode='object' is not implemented (should return a nested
         object structure)
         """
-        has_serializer = self.db.has_serializer('json')
-        items = [record.as_json(mode=mode, default=default,
-                                serialize=False,
-                                colnames=self.colnames, datetime_to_str=not(has_serializer)) for
-                 record in self]
+        items = [record.as_json(
+                    mode=mode, default=default, serialize=False,
+                    colnames=self.colnames
+                ) for record in self]
 
-        if has_serializer:
-            custom_json = self.db.serializers.custom_json if \
-                self.db.has_serializer('custom_json') else None
-            return self.db.serialize('json', items,
-                                     default=default or custom_json)
-        else:
-            return json.dumps(items)
+        return serializers.json(items)
 
     # for consistent naming yet backwards compatible
     as_csv = __str__
