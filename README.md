@@ -66,5 +66,5 @@ pyDAL actually support these databases:
 
 ## License
 
-pyDAL is released under the BSDv3 License.   
+pyDAL is released under the BSD-3c License.   
 For further details, please check the `LICENSE` file.
