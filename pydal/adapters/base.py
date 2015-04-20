@@ -1207,9 +1207,17 @@ class BaseAdapter(ConnectionPool):
             self.execute(sql)
             rows = self._fetchall()
         else:
-            (cache_model, time_expire) = cache
-            key = self.uri + '/' + sql + '/rows'
-            key = hashlib_md5(key).hexdigest()
+            if isinstance(cache, dict):
+                cache_model = cache['model']
+                time_expire = cache['expiration']
+                key = cache.get('key')
+                if not key:
+                    key = self.uri + '/' + sql
+                    key = hashlib_md5(key).hexdigest()
+            else:
+                (cache_model, time_expire) = cache
+                key = self.uri + '/' + sql + '/rows'
+                key = hashlib_md5(key).hexdigest()
             def _select_aux2():
                 self.execute(sql)
                 return self._fetchall()
