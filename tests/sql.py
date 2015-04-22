@@ -1488,6 +1488,10 @@ class TestRNameFields(unittest.TestCase):
         self.assertEqual(row['aa'],t0)
         self.assertEqual(row['tt.aa'],t0)
         self.assertEqual(row('tt.aa'),t0)
+        self.assertTrue('aa' in row)
+        self.assertTrue('pydal' not in row)
+        self.assertTrue(hasattr(row, 'aa'))
+        self.assertFalse(hasattr(row, 'pydal'))
 
         ## Lazy and Virtual fields
         db.tt.b = Field.Virtual(lambda row: row.tt.aa)

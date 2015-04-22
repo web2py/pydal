@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 import types
+import copy_reg
 
 from ._compat import StringIO, ogetattr, osetattr, pjoin, exists, hashlib_md5
 from ._globals import DEFAULT, IDENTITY, AND, OR
@@ -19,7 +20,7 @@ from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
     REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
     REGEX_CLEANUP_FN
 from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL, \
-    Serializable
+    Serializable, BasicStorage2
 from .helpers.methods import list_represent, bar_decode_integer, \
     bar_decode_string, bar_encode, archive_record, cleanup, \
     use_common_filters, pluralize
@@ -29,117 +30,60 @@ DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
                  'blob': 2**31}
 
 
-class Row(object):
+class Row(BasicStorage2):
 
     """
     A dictionary that lets you do d['a'] as well as d.a
     this is only used to store a `Row`
     """
 
-    __init__ = lambda self, *args, **kwargs: self.__dict__.update(
-        *args, **kwargs)
-
     def __getitem__(self, k):
-        if isinstance(k, Table):
-            try:
-                return ogetattr(self, k._tablename)
-            except (KeyError, AttributeError, TypeError):
-                pass
-        elif isinstance(k, Field):
-            try:
-                return ogetattr(self, k.name)
-            except (KeyError, AttributeError, TypeError):
-                pass
-            try:
-                return ogetattr(ogetattr(self, k.tablename), k.name)
-            except (KeyError, AttributeError, TypeError):
-                pass
-
         key = str(k)
-        _extra = ogetattr(self, '__dict__').get('_extra', None)
+        _extra = self.get('_extra', None)
         if _extra is not None:
             v = _extra.get(key, DEFAULT)
             if v != DEFAULT:
                 return v
-        try:
-            return ogetattr(self, key)
-        except (KeyError, AttributeError, TypeError):
-            pass
+
+        e = self.get(key)
+        if e is not None:
+            return e
 
         m = REGEX_TABLE_DOT_FIELD.match(key)
         if m:
-            try:
-                return ogetattr(self, m.group(1))[m.group(2)]
-            except (KeyError, AttributeError, TypeError):
-                key = m.group(2)
+            e = self.get(m.group(1))
+            if e is not None and m.group(2) in e:
+                return e[m.group(2)]
+            key = m.group(2)
+            e = self.get(key)
+            if e is not None:
+                return e
+
         try:
-            return ogetattr(self, key)
-        except (KeyError, AttributeError, TypeError), ae:
-            try:
-                self[key] = ogetattr(self, '__get_lazy_reference__')(key)
+            e = self.get('__get_lazy_reference__')
+            if e is not None and callable(e):
+                self[key] = e(key)
                 return self[key]
-            except:
-                raise ae
+        except Exception, e:
+            raise e
+        return None
 
-    __setitem__ = lambda self, key, value: setattr(self, str(key), value)
+    __str__ = __repr__ = lambda self: '<Row %s>' % super(Row, self).__repr__()
 
-    __delitem__ = object.__delattr__
+    __int__ = lambda self: self.get('id')
 
-    __copy__ = lambda self: Row(self)
+    __long__ = lambda self: long(self.get('id'))
 
     __call__ = __getitem__
 
+    def __copy__(self):
+        return Row(self)
 
-    def get(self, key, default=None):
-        try:
-            return self.__getitem__(key)
-        except(KeyError, AttributeError, TypeError):
-            return self.__dict__.get(key,default)
-
-    has_key = __contains__ = lambda self, key: key in self.__dict__
-
-    __nonzero__ = lambda self: len(self.__dict__)>0
-
-    update = lambda self, *args, **kwargs:  self.__dict__.update(*args, **kwargs)
-
-    keys = lambda self: self.__dict__.keys()
-
-    items = lambda self: self.__dict__.items()
-
-    values = lambda self: self.__dict__.values()
-
-    __iter__ = lambda self: self.__dict__.__iter__()
-
-    iteritems = lambda self: self.__dict__.iteritems()
-
-    __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict()
-
-    __int__ = lambda self: object.__getattribute__(self,'id')
-
-    __long__ = lambda self: long(object.__getattribute__(self,'id'))
-
-    __getattr__ = __getitem__
-
-    # def __getattribute__(self, key):
-    #     try:
-    #         return object.__getattribute__(self, key)
-    #     except AttributeError, ae:
-    #         try:
-    #             return self.__get_lazy_reference__(key)
-    #         except:
-    #             raise ae
-
-    def __eq__(self,other):
+    def __eq__(self, other):
         try:
             return self.as_dict() == other.as_dict()
         except AttributeError:
             return False
-
-    def __ne__(self,other):
-        return not (self == other)
-
-    def __copy__(self):
-        return Row(dict(self))
 
     def as_dict(self, datetime_to_str=False, custom_types=None):
         SERIALIZABLE_TYPES = [str, unicode, int, long, float, bool, list, dict]
@@ -206,8 +150,12 @@ class Row(object):
         else:
             return item
 
+def pickle_row(s):
+    return Row, (dict(s),)
 
-class Table(Serializable):
+copy_reg.pickle(Row, pickle_row)
+
+class Table(Serializable, BasicStorage2):
 
     """
     Represents a database table
@@ -243,6 +191,7 @@ class Table(Serializable):
         """
         # import DAL here to avoid circular imports
         from .base import DAL
+        super(Table, self).__init__()
         self._actual = False  # set to True by define_table()
         self._db = db
         self._tablename = tablename
@@ -309,14 +258,14 @@ class Table(Serializable):
                 if field.db is not None:
                     field = copy.copy(field)
                 include_new(field)
-            elif isinstance(field, dict) and not field['fieldname'] in fieldnames:
-                include_new(Field(**field))
             elif isinstance(field, Table):
                 table = field
                 for field in table:
                     if not field.name in fieldnames and not field.type == 'id':
                         t2 = not table._actual and self._tablename
                         include_new(field.clone(point_self_references_to=t2))
+            elif isinstance(field, dict) and not field['fieldname'] in fieldnames:
+                include_new(Field(**field))
             elif not isinstance(field, (Field, Table)):
                 raise SyntaxError(
                     'define_table argument is not a Field or Table: %s' % field)
@@ -518,7 +467,7 @@ class Table(Serializable):
                     orderby_on_limitby=False
                 ).first()
             else:
-                return ogetattr(self, str(key))
+                return super(Table, self).__getitem__(key)
 
     def __call__(self, key=DEFAULT, **kwargs):
         for_update = kwargs.get('_for_update', False)
@@ -579,14 +528,12 @@ class Table(Serializable):
             if isinstance(key, dict):
                 raise SyntaxError(
                     'value must be a dictionary: %s' % value)
-            osetattr(self, str(key), value)
-
-    __getattr__ = __getitem__
+            super(Table, self).__setitem__(str(key), value)
 
     def __setattr__(self, key, value):
         if key[:1]!='_' and key in self:
             raise SyntaxError('Object exists and cannot be redefined: %s' % key)
-        osetattr(self,key,value)
+        super(Table, self).__setattr__(key, value)
 
     def __delitem__(self, key):
         if isinstance(key, dict):
@@ -597,20 +544,9 @@ class Table(Serializable):
                 not self._db(self._id == key).delete():
             raise SyntaxError('No such record: %s' % key)
 
-    def __contains__(self,key):
-        return hasattr(self, key)
-
-    has_key = __contains__
-
-    def items(self):
-        return self.__dict__.items()
-
     def __iter__(self):
         for fieldname in self.fields:
             yield self[fieldname]
-
-    def iteritems(self):
-        return self.__dict__.iteritems()
 
     def __repr__(self):
         return '<Table %s (%s)>' % (self._tablename, ','.join(self.fields()))
