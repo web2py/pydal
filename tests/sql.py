@@ -765,6 +765,24 @@ class TestClientLevelOps(unittest.TestCase):
         row = rows[0]
         self.assertNotIn('tt', row)
         self.assertIn('_extra', row)
+        db.tt.drop()
+
+        db.define_table('tt', Field('aa'), Field.Virtual('bb', lambda row: ':p'))
+        db.tt.insert(aa="test")
+        rows = db(db.tt.id>0).select()
+        row = rows.first()
+        self.assertNotIn('tt', row)
+        self.assertIn('id', row)
+        self.assertIn('bb', row)
+
+        rows.compact = False
+        row = rows.first()
+        self.assertIn('tt', row)
+        self.assertEqual(len(row.keys()), 1)
+        self.assertIn('id', row.tt)
+        self.assertIn('bb', row.tt)
+        self.assertNotIn('id', row)
+        self.assertNotIn('bb', row)
 
         db.tt.drop()
         db.commit()
