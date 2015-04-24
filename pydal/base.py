@@ -1104,6 +1104,9 @@ class DAL(Serializable):
                 else:
                     raise RuntimeError("Unable to import table that does not exist.\nTry db.import_from_csv_file(..., map_tablenames={'table':'othertable'},ignore_missing_tables=True)")
 
+    def can_join(self):
+        return self._adapter.can_join()
+
 
 def DAL_unpickler(db_uid):
     return DAL('<zombie>', db_uid=db_uid)

@@ -1017,7 +1017,7 @@ class BaseAdapter(ConnectionPool):
         elif len(tablenames)<1:
             raise RuntimeError("No table selected")
         else:
-            raise RuntimeError("Too many tables selected")
+            raise RuntimeError("Too many tables selected (%s)" % str(tablenames))
 
     def expand_all(self, fields, tablenames):
         db = self.db
@@ -1739,6 +1739,9 @@ class BaseAdapter(ConnectionPool):
     def sqlsafe_field(self, fieldname):
         return self.QUOTE_TEMPLATE % fieldname
 
+    def can_join(self):
+        return True
+
 
 class NoSQLAdapter(BaseAdapter):
     can_select_for_update = False
@@ -1903,3 +1906,6 @@ class NoSQLAdapter(BaseAdapter):
     def represent_exceptions(self, obj, fieldtype): raise SyntaxError("Not supported")
     def lastrowid(self,table): raise SyntaxError("Not supported")
     def rowslice(self,rows,minimum=0,maximum=None): raise SyntaxError("Not supported")
+
+    def can_join(self):
+        return False
