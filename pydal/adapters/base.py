@@ -1631,12 +1631,12 @@ class BaseAdapter(ConnectionPool):
         if tablename in fields_virtual:
             for f,v in fields_virtual[tablename]:
                 try:
-                    new_row[f] = v.f(new_row)
+                    new_row[tablename][f] = v.f(new_row)
                 except AttributeError:
                     pass # not enough fields to define virtual field
             for f,v in fields_lazy[tablename]:
                 try:
-                    new_row[f] = (v.handler or VirtualCommand)(v.f, new_row)
+                    new_row[tablename][f] = (v.handler or VirtualCommand)(v.f, new_row)
                 except AttributeError:
                     pass # not enough fields to define virtual field
         return new_row
