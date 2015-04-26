@@ -9,10 +9,13 @@ import copy
 import time
 import base64
 import types
+import json
 
-from .._compat import pjoin, exists, pickle, hashlib_md5, iterkeys
+from .._compat import PY2, pjoin, exists, pickle, hashlib_md5, iterkeys, \
+    iteritems, with_metaclass, to_unicode, integer_types, basestring, \
+    string_types
 from .._globals import IDENTITY
-from .._load import portalocker, json
+from .._load import portalocker
 from ..connection import ConnectionPool
 from ..objects import Expression, Field, Query, Table, Row, FieldVirtual, \
     FieldMethod, LazyReferenceGetter, LazySet, VirtualCommand, Rows, IterRows
@@ -24,6 +27,7 @@ from ..helpers.classes import SQLCustomType, SQLALL, Reference, \
     RecordUpdater, RecordDeleter
 from ..helpers.serializers import serializers
 
+long = integer_types[-1]
 
 TIMINGSSIZE = 100
 CALLABLETYPES = (types.LambdaType, types.FunctionType,
@@ -63,10 +67,7 @@ class AdapterMeta(type):
         return obj
 
 
-class BaseAdapter(ConnectionPool):
-
-    __metaclass__ = AdapterMeta
-
+class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     driver_auto_json = []
     driver = None
     driver_name = None
@@ -204,7 +205,7 @@ class BaseAdapter(ConnectionPool):
                 table._loggername = logfilename
             else:
                 table._loggername = pjoin(self.folder, logfilename)
-            logfile = self.file_open(table._loggername, 'a')
+            logfile = self.file_open(table._loggername, 'ab')
             logfile.write(message)
             self.file_close(logfile)
 
@@ -271,13 +272,13 @@ class BaseAdapter(ConnectionPool):
                     rfield = rtable._id
                     rfieldname = rfield.name
                     rtablename = referenced
-                except (KeyError, ValueError, AttributeError), e:
+                except (KeyError, ValueError, AttributeError) as e:
                     self.db.logger.debug('Error: %s' % e)
                     try:
                         rtablename,rfieldname = referenced.split('.')
                         rtable = db[rtablename]
                         rfield = rtable[rfieldname]
-                    except Exception, e:
+                    except Exception as e:
                         self.db.logger.debug('Error: %s' %e)
                         raise KeyError('Cannot resolve reference %s in %s definition' % (referenced, table._tablename))
 
@@ -436,10 +437,13 @@ class BaseAdapter(ConnectionPool):
 
         if self.uri.startswith('sqlite:///') \
                 or self.uri.startswith('spatialite:///'):
-            path_encoding = sys.getfilesystemencoding() \
-                or locale.getdefaultlocale()[1] or 'utf8'
-            dbpath = self.uri[9:self.uri.rfind('/')]\
-                .decode('utf8').encode(path_encoding)
+            if PY2:
+                path_encoding = sys.getfilesystemencoding() \
+                    or locale.getdefaultlocale()[1] or 'utf8'
+                dbpath = self.uri[9:self.uri.rfind('/')].decode(
+                    'utf8').encode(path_encoding)
+            else:
+                dbpath = self.uri[9:self.uri.rfind('/')]
         else:
             dbpath = self.folder
 
@@ -448,7 +452,7 @@ class BaseAdapter(ConnectionPool):
         elif self.uri.startswith('sqlite:memory')\
                 or self.uri.startswith('spatialite:memory'):
             table._dbt = None
-        elif isinstance(migrate, str):
+        elif isinstance(migrate, string_types):
             table._dbt = pjoin(dbpath, migrate)
         else:
             table._dbt = pjoin(
@@ -468,7 +472,7 @@ class BaseAdapter(ConnectionPool):
                     self.execute(query)
                     table._db.commit()
             if table._dbt:
-                tfile = self.file_open(table._dbt, 'w')
+                tfile = self.file_open(table._dbt, 'wb')
                 pickle.dump(sql_fields, tfile)
                 self.file_close(tfile)
                 if fake_migrate:
@@ -476,7 +480,7 @@ class BaseAdapter(ConnectionPool):
                 else:
                     self.log('success!\n', table)
         else:
-            tfile = self.file_open(table._dbt, 'r')
+            tfile = self.file_open(table._dbt, 'rb')
             try:
                 sql_fields_old = pickle.load(tfile)
             except EOFError:
@@ -514,13 +518,13 @@ class BaseAdapter(ConnectionPool):
             return k.lower(),v
         # make sure all field names are lower case to avoid
         # migrations because of case cahnge
-        sql_fields = dict(map(fix,sql_fields.iteritems()))
-        sql_fields_old = dict(map(fix,sql_fields_old.iteritems()))
-        sql_fields_aux = dict(map(fix,sql_fields_aux.iteritems()))
+        sql_fields = dict(map(fix, iteritems(sql_fields)))
+        sql_fields_old = dict(map(fix, iteritems(sql_fields_old)))
+        sql_fields_aux = dict(map(fix, iteritems(sql_fields_aux)))
         if db._debug:
             db.logger.debug('migrating %s to %s' % (sql_fields_old,sql_fields))
 
-        keys = sql_fields.keys()
+        keys = list(sql_fields.keys())
         for key in sql_fields_old:
             if not key in keys:
                 keys.append(key)
@@ -621,7 +625,7 @@ class BaseAdapter(ConnectionPool):
             self.log('success!\n', table)
 
     def save_dbt(self,table, sql_fields_current):
-        tfile = self.file_open(table._dbt, 'w')
+        tfile = self.file_open(table._dbt, 'wb')
         pickle.dump(sql_fields_current, tfile)
         self.file_close(tfile)
 
@@ -839,7 +843,8 @@ class BaseAdapter(ConnectionPool):
         return ftype in ('integer','boolean','double','bigint') or \
             ftype.startswith('decimal')
 
-    def REPLACE(self, first, (second, third)):
+    def REPLACE(self, first, tup):
+        second, third = tup
         return 'REPLACE(%s,%s,%s)' % (self.expand(first,'string'),
                                       self.expand(second,'string'),
                                       self.expand(third,'string'))
@@ -892,39 +897,42 @@ class BaseAdapter(ConnectionPool):
         if isinstance(expression, Field):
             et = expression.table
             if not colnames:
-                table_rname = et._ot and self.QUOTE_TEMPLATE % et._tablename or et._rname or self.QUOTE_TEMPLATE % et._tablename
-                out = '%s.%s' % (table_rname, expression._rname or (self.QUOTE_TEMPLATE % (expression.name)))
+                table_rname = et._ot and self.QUOTE_TEMPLATE % et._tablename \
+                    or et._rname or self.QUOTE_TEMPLATE % et._tablename
+                rv = '%s.%s' % (table_rname, expression._rname or
+                                (self.QUOTE_TEMPLATE % (expression.name)))
             else:
-                out = '%s.%s' % (self.QUOTE_TEMPLATE % et._tablename, self.QUOTE_TEMPLATE % expression.name)
-            if field_type == 'string' and not expression.type in (
-                'string','text','json','password'):
-                out = self.CAST(out, self.types['text'])
-            return out
+                rv = '%s.%s' % (self.QUOTE_TEMPLATE % et._tablename,
+                                self.QUOTE_TEMPLATE % expression.name)
+            if field_type == 'string' and expression.type not in (
+                    'string', 'text', 'json', 'password'):
+                rv = self.CAST(rv, self.types['text'])
         elif isinstance(expression, (Expression, Query)):
             first = expression.first
             second = expression.second
             op = expression.op
             optional_args = expression.optional_args or {}
-            if not second is None:
-                out = op(first, second, **optional_args)
-            elif not first is None:
-                out = op(first,**optional_args)
+            if second is not None:
+                rv = op(first, second, **optional_args)
+            elif first is not None:
+                rv = op(first, **optional_args)
             elif isinstance(op, str):
                 if op.endswith(';'):
-                    op=op[:-1]
-                out = '(%s)' % op
+                    op = op[:-1]
+                rv = '(%s)' % op
             else:
-                out = op()
-            return out
+                rv = op()
         elif field_type:
-            return str(self.represent(expression,field_type))
-        elif isinstance(expression,(list,tuple)):
-            return ','.join(self.represent(item,field_type) \
-                                for item in expression)
+            rv = self.represent(expression, field_type)
+        elif isinstance(expression, (list, tuple)):
+            rv = ','.join(self.represent(item, field_type)
+                          for item in expression)
         elif isinstance(expression, bool):
-            return self.db._adapter.TRUE_exp if expression else self.db._adapter.FALSE_exp
+            rv = self.db._adapter.TRUE_exp if expression else \
+                self.db._adapter.FALSE_exp
         else:
-            return str(expression)
+            rv = expression
+        return str(rv)
 
     def table_alias(self, tbl):
         if not isinstance(tbl, Table):
@@ -1058,7 +1066,7 @@ class BaseAdapter(ConnectionPool):
             raise SyntaxError('Set: no tables selected')
         def colexpand(field):
             return self.expand(field, colnames=True)
-        self._colnames = map(colexpand, fields)
+        self._colnames = list(map(colexpand, fields))
         def geoexpand(field):
             if isinstance(field.type,str) and field.type.startswith('geo') and isinstance(field, Field):
                 field = field.st_astext()
@@ -1094,7 +1102,7 @@ class BaseAdapter(ConnectionPool):
             ijoinont = [t.first._tablename for t in ijoinon]
             [itables_to_merge.pop(t) for t in ijoinont
              if t in itables_to_merge] #issue 490
-            iimportant_tablenames = ijoint + ijoinont + itables_to_merge.keys()
+            iimportant_tablenames = ijoint + ijoinont + list(itables_to_merge.keys())
             iexcluded = [t for t in tablenames
                          if not t in iimportant_tablenames]
         if left:
@@ -1113,7 +1121,7 @@ class BaseAdapter(ConnectionPool):
             [tables_to_merge.pop(t) for t in joinont if t in tables_to_merge]
             tablenames_for_common_filters = [t for t in tablenames
                         if not t in joinont ]
-            important_tablenames = joint + joinont + tables_to_merge.keys()
+            important_tablenames = joint + joinont + list(tables_to_merge.keys())
             excluded = [t for t in tablenames
                         if not t in important_tablenames ]
         else:
@@ -1132,12 +1140,12 @@ class BaseAdapter(ConnectionPool):
             # sql_t = '(%s)' % sql_t
             # or approach 2: Use 'JOIN' instead comma:
             sql_t = JOIN.join([self.table_alias(t)
-                               for t in iexcluded + itables_to_merge.keys()])
+                               for t in iexcluded + list(itables_to_merge.keys())])
             for t in ijoinon:
                 sql_t += ' %s %s' % (icommand, t)
         elif not inner_join and left:
             sql_t = JOIN.join([self.table_alias(t) for t in excluded + \
-                                   tables_to_merge.keys()])
+                                   list(tables_to_merge.keys())])
             if joint:
                 sql_t += ' %s %s' % (command,
                                      ','.join([t for t in joint]))
@@ -1347,7 +1355,7 @@ class BaseAdapter(ConnectionPool):
             obj = obj()
         if isinstance(fieldtype, SQLCustomType):
             value = fieldtype.encoder(obj)
-            if value and fieldtype.type in ('string','text', 'json'):
+            if value and fieldtype.type in ('string', 'text', 'json'):
                 return self.adapt(value)
             return value or 'NULL'
         if isinstance(obj, (Expression, Field)):
@@ -1358,12 +1366,15 @@ class BaseAdapter(ConnectionPool):
             elif not isinstance(obj, (list, tuple)):
                 obj = [obj]
             if field_is_type('list:string'):
-                try:
-                    obj = map(str,obj)
-                except UnicodeEncodeError:
-                    obj = map(lambda x:unicode(x).encode(self.db_codec),obj)
+                if PY2:
+                    try:
+                        obj = map(str, obj)
+                    except:
+                        obj = map(lambda x: unicode(x).encode(self.db_codec), obj)
+                else:
+                    obj = list(map(str,obj))
             else:
-                obj = map(int,[o for o in obj if o != ''])
+                obj = list(map(int,[o for o in obj if o != '']))
         # we don't want to bar_encode json objects
         if isinstance(obj, (list, tuple)) and (not fieldtype == "json"):
             obj = bar_encode(obj)
@@ -1372,7 +1383,7 @@ class BaseAdapter(ConnectionPool):
         if obj == '' and not fieldtype[:2] in ['st', 'te', 'js', 'pa', 'up']:
             return 'NULL'
         r = self.represent_exceptions(obj, fieldtype)
-        if not r is None:
+        if r is not None:
             return r
         if fieldtype == 'boolean':
             if obj and not str(obj)[:1].upper() in '0F':
@@ -1400,10 +1411,13 @@ class BaseAdapter(ConnectionPool):
             return str(long(obj))
         elif fieldtype == 'double':
             return repr(float(obj))
-        if isinstance(obj, unicode):
+        if PY2 and isinstance(obj, unicode):
             obj = obj.encode(self.db_codec)
         if fieldtype == 'blob':
-            obj = base64.b64encode(str(obj))
+            if PY2:
+                obj = base64.b64encode(str(obj))
+            else:
+                obj = base64.b64encode(obj.encode('utf-8'))
         elif fieldtype == 'date':
             if isinstance(obj, (datetime.date, datetime.datetime)):
                 obj = obj.isoformat()[:10]
@@ -1425,12 +1439,15 @@ class BaseAdapter(ConnectionPool):
             if not 'dumps' in self.driver_auto_json:
                 # always pass a string JSON string
                 obj = serializers.json(obj)
-        if not isinstance(obj, bytes):
-            obj = bytes(obj)
-        try:
-            obj.decode(self.db_codec)
-        except:
-            obj = obj.decode('latin1').encode(self.db_codec)
+        if PY2:
+            if not isinstance(obj, bytes):
+                obj = bytes(obj)
+            try:
+                obj.decode(self.db_codec)
+            except:
+                obj = obj.decode('latin1').encode(self.db_codec)
+        else:
+            obj = to_unicode(obj)
         return self.adapt(obj)
 
     def represent_exceptions(self, obj, fieldtype):
@@ -1452,7 +1469,7 @@ class BaseAdapter(ConnectionPool):
                 value = value.decode(self.db._db_codec)
             except Exception:
                 pass
-        if isinstance(value, unicode):
+        if PY2 and isinstance(value, unicode):
             value = value.encode('utf-8')
         if isinstance(field_type, SQLCustomType):
             value = field_type.decoder(value)
@@ -1488,7 +1505,7 @@ class BaseAdapter(ConnectionPool):
 
     def parse_time(self, value, field_type):
         if not isinstance(value, datetime.time):
-            time_items = map(int,str(value)[:8].strip().split(':')[:3])
+            time_items = list(map(int,str(value)[:8].strip().split(':')[:3]))
             if len(time_items) == 3:
                 (h, mi, s) = time_items
             else:
@@ -1521,7 +1538,15 @@ class BaseAdapter(ConnectionPool):
         return value
 
     def parse_blob(self, value, field_type):
-        return base64.b64decode(str(value))
+        if PY2:
+            return base64.b64decode(str(value))
+        else:
+            # TODO
+            # better implement the check, this is for py3.3.x and psycopg2
+            # (why is not bytes/str) ?
+            if not isinstance(value, (bytes, str)):
+                value = bytes(value)
+            return base64.b64decode(value).decode('utf-8')
 
     def parse_decimal(self, value, field_type):
         decimals = int(field_type[8:-1].split(',')[-1])
@@ -1556,7 +1581,7 @@ class BaseAdapter(ConnectionPool):
         if not 'loads' in self.driver_auto_json:
             if not isinstance(value, basestring):
                 raise RuntimeError('json data not a string')
-            if isinstance(value, unicode):
+            if PY2 and isinstance(value, unicode):
                 value = value.encode('utf-8')
             value = json.loads(value)
         return value
@@ -1755,14 +1780,6 @@ class NoSQLAdapter(BaseAdapter):
     can_select_for_update = False
     QUOTE_TEMPLATE = '%s'
 
-    @staticmethod
-    def to_unicode(obj):
-        if isinstance(obj, str):
-            return obj.decode('utf8')
-        elif not isinstance(obj, unicode):
-            return unicode(obj)
-        return obj
-
     def id_query(self, table):
         return table._id > 0
 
@@ -1808,7 +1825,7 @@ class NoSQLAdapter(BaseAdapter):
                     obj = datetime.date(y, m, d)
             elif fieldtype == 'time':
                 if not isinstance(obj, datetime.time):
-                    time_items = map(int,str(obj).strip().split(':')[:3])
+                    time_items = list(map(int,str(obj).strip().split(':')[:3]))
                     if len(time_items) == 3:
                         (h, mi, s) = time_items
                     else:
@@ -1817,7 +1834,7 @@ class NoSQLAdapter(BaseAdapter):
             elif fieldtype == 'datetime':
                 if not isinstance(obj, datetime.datetime):
                     (y, m, d) = map(int,str(obj)[:10].strip().split('-'))
-                    time_items = map(int,str(obj)[11:].strip().split(':')[:3])
+                    time_items = list(map(int,str(obj)[11:].strip().split(':')[:3]))
                     while len(time_items)<3:
                         time_items.append(0)
                     (h, mi, s) = time_items
@@ -1826,14 +1843,14 @@ class NoSQLAdapter(BaseAdapter):
                 pass
             elif fieldtype == 'json':
                 if isinstance(obj, basestring):
-                    obj = self.to_unicode(obj)
+                    obj = to_unicode(obj)
                     obj = json.loads(obj)
             elif is_string and field_is_type('list:string'):
-                return map(self.to_unicode,obj)
+                return list(map(to_unicode,obj))
             elif is_list:
-                return map(int,obj)
+                return list(map(int,obj))
             else:
-                obj = self.to_unicode(obj)
+                obj = to_unicode(obj)
         return obj
 
     def _insert(self,table,fields):

@@ -11,7 +11,9 @@ import shutil
 import sys
 import types
 
-from ._compat import StringIO, ogetattr, osetattr, pjoin, exists, hashlib_md5
+from ._compat import PY2, StringIO, ogetattr, osetattr, pjoin, exists, \
+    hashlib_md5, integer_types, basestring, iteritems, xrange, \
+    implements_iterator, implements_bool
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
@@ -25,10 +27,15 @@ from .helpers.methods import list_represent, bar_decode_integer, \
     use_common_filters, pluralize
 from .helpers.serializers import serializers
 
+long = integer_types[-1]
+if not PY2:
+    from functools import reduce
+
 DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
                  'blob': 2**31}
 
 
+@implements_bool
 class Row(object):
 
     """
@@ -74,7 +81,7 @@ class Row(object):
                 key = m.group(2)
         try:
             return ogetattr(self, key)
-        except (KeyError, AttributeError, TypeError), ae:
+        except (KeyError, AttributeError, TypeError) as ae:
             try:
                 self[key] = ogetattr(self, '__get_lazy_reference__')(key)
                 return self[key]
@@ -98,11 +105,11 @@ class Row(object):
 
     has_key = __contains__ = lambda self, key: key in self.__dict__
 
-    __nonzero__ = lambda self: len(self.__dict__)>0
+    __bool__ = lambda self: len(self.__dict__)>0
 
     update = lambda self, *args, **kwargs:  self.__dict__.update(*args, **kwargs)
 
-    keys = lambda self: self.__dict__.keys()
+    keys = lambda self: list(self.__dict__)
 
     items = lambda self: self.__dict__.items()
 
@@ -110,7 +117,7 @@ class Row(object):
 
     __iter__ = lambda self: self.__dict__.__iter__()
 
-    iteritems = lambda self: self.__dict__.iteritems()
+    iteritems = lambda self: iteritems(self.__dict__)
 
     __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict()
 
@@ -142,13 +149,15 @@ class Row(object):
         return Row(dict(self))
 
     def as_dict(self, datetime_to_str=False, custom_types=None):
-        SERIALIZABLE_TYPES = [str, unicode, int, long, float, bool, list, dict]
+        SERIALIZABLE_TYPES = [str, int, float, bool, list, dict]
+        if PY2:
+            SERIALIZABLE_TYPES += [unicode, long]
         if isinstance(custom_types,(list,tuple,set)):
             SERIALIZABLE_TYPES += custom_types
         elif custom_types:
             SERIALIZABLE_TYPES.append(custom_types)
         d = dict(self)
-        for k in copy.copy(d.keys()):
+        for k in list(d.keys()):
             v=d[k]
             if d[k] is None:
                 continue
@@ -428,7 +437,7 @@ class Table(Serializable):
 
     def _validate(self, **vars):
         errors = Row()
-        for key, value in vars.iteritems():
+        for key, value in iteritems(vars):
             value, error = self[key].validate(value)
             if error:
                 errors[key] = error
@@ -477,13 +486,13 @@ class Table(Serializable):
                 self._referenced_by.append(referee)
 
     def _filter_fields(self, record, id=False):
-        return dict([(k, v) for (k, v) in record.iteritems() if k
+        return dict([(k, v) for (k, v) in iteritems(record) if k
                      in self.fields and (self[k].type!='id' or id)])
 
     def _build_query(self,key):
         """ for keyed table only """
         query = None
-        for k,v in key.iteritems():
+        for k,v in iteritems(key):
             if k in self._primarykey:
                 if query:
                     query = query & (self[k] == v)
@@ -545,11 +554,11 @@ class Table(Serializable):
                     orderby=orderby,
                     orderby_on_limitby=False).first()
             if record:
-                for k,v in kwargs.iteritems():
+                for k,v in iteritems(kwargs):
                     if record[k]!=v: return None
             return record
         elif kwargs:
-            query = reduce(lambda a,b:a&b,[self[k]==v for k,v in kwargs.iteritems()])
+            query = reduce(lambda a,b:a&b,[self[k]==v for k,v in iteritems(kwargs)])
             return self._db(query).select(limitby=(0,1),for_update=for_update, orderby=orderby, orderby_on_limitby=False).first()
         else:
             return None
@@ -610,7 +619,7 @@ class Table(Serializable):
             yield self[fieldname]
 
     def iteritems(self):
-        return self.__dict__.iteritems()
+        return iteritems(self.__dict__)
 
     def __repr__(self):
         return '<Table %s (%s)>' % (self._tablename, ','.join(self.fields()))
@@ -644,7 +653,7 @@ class Table(Serializable):
     def drop(self, mode=''):
         return self._db._adapter.drop(self,mode)
 
-    def _listify(self,fields,update=False):
+    def _listify(self, fields, update=False):
         new_fields = {}  # format: new_fields[name] = (field,value)
 
         # store all fields passed as input in new_fields
@@ -694,7 +703,7 @@ class Table(Serializable):
                     # error silently unless field is required!
                     if ofield.required:
                         raise SyntaxError('unable to compute field: %s' % name)
-        return new_fields.values()
+        return list(new_fields.values())
 
     def _attempt_upload(self, fields):
         for field in self:
@@ -733,19 +742,20 @@ class Table(Serializable):
     def insert(self, **fields):
         fields = self._defaults(fields)
         self._attempt_upload(fields)
-        if any(f(fields) for f in self._before_insert): return 0
-        ret =  self._db._adapter.insert(self, self._listify(fields))
+        if any(f(fields) for f in self._before_insert):
+            return 0
+        ret = self._db._adapter.insert(self, self._listify(fields))
         if ret and self._after_insert:
             fields = Row(fields)
-            [f(fields,ret) for f in self._after_insert]
+            [f(fields, ret) for f in self._after_insert]
         return ret
 
     def validate_and_insert(self, **fields):
         response = Row()
         response.errors = Row()
         new_fields = copy.copy(fields)
-        for key,value in fields.iteritems():
-            value,error = self[key].validate(value)
+        for key, value in iteritems(fields):
+            value, error = self[key].validate(value)
             if error:
                 response.errors[key] = "%s" % error
             else:
@@ -761,7 +771,7 @@ class Table(Serializable):
         response.errors = Row()
         new_fields = copy.copy(fields)
 
-        for key, value in fields.iteritems():
+        for key, value in iteritems(fields):
             value, error = self[key].validate(value)
             if error:
                 response.errors[key] = "%s" % error
@@ -780,7 +790,7 @@ class Table(Serializable):
                 myset = self._db(self._id == record[self._id.name])
             else:
                 query = None
-                for key, value in _key.iteritems():
+                for key, value in iteritems(_key):
                     if query is None:
                         query = getattr(self, key) == value
                     else:
@@ -808,7 +818,7 @@ class Table(Serializable):
     def validate_and_update_or_insert(self, _key=DEFAULT, **fields):
         if _key is DEFAULT or _key == '':
             primary_keys = {}
-            for key, value in fields.iteritems():
+            for key, value in iteritems(fields):
                 if key in self._primarykey:
                     primary_keys[key] = value
             if primary_keys != {}:
@@ -816,7 +826,7 @@ class Table(Serializable):
                 _key = primary_keys
             else:
                 required_keys = {}
-                for key, value in fields.iteritems():
+                for key, value in iteritems(fields):
                     if getattr(self, key).required:
                         required_keys[key] = value
                 record = self(**required_keys)
@@ -1127,7 +1137,8 @@ class Expression(object):
             else:
                 pos0 = start + 1
 
-            if stop == None or stop == sys.maxint:
+            maxint = sys.maxint if PY2 else sys.maxsize
+            if stop == None or stop == maxint:
                 length = self.len()
             elif stop < 0:
                 length = '(%s - %d - %s)' % (self.len(), abs(stop) - 1, pos0)
@@ -1175,6 +1186,9 @@ class Expression(object):
     def __div__(self, other):
         db = self.db
         return Expression(db,db._adapter.DIV,self,other,self.type)
+
+    def __truediv__(self, other):
+        return self.__div__(other)
 
     def __mod__(self, other):
         db = self.db
@@ -1365,6 +1379,7 @@ class FieldMethod(object):
         self.handler = handler
 
 
+@implements_bool
 class Field(Expression, Serializable):
 
     Virtual = FieldVirtual
@@ -1438,7 +1453,7 @@ class Field(Expression, Serializable):
         self.op = None
         self.first = None
         self.second = None
-        if isinstance(fieldname, unicode):
+        if PY2 and isinstance(fieldname, unicode):
             try:
                 fieldname = str(fieldname)
             except UnicodeEncodeError:
@@ -1690,7 +1705,7 @@ class Field(Expression, Serializable):
             d["fieldname"] = d.pop("name")
         return d
 
-    def __nonzero__(self):
+    def __bool__(self):
         return True
 
     def __str__(self):
@@ -1814,7 +1829,7 @@ class Query(Serializable):
                     elif isinstance(v, (datetime.date,
                                         datetime.time,
                                         datetime.datetime)):
-                        newd[k] = unicode(v)
+                        newd[k] = unicode(v) if PY2 else str(v)
                 elif k == "op":
                     if callable(v):
                         newd[k] = v.__name__
@@ -2078,7 +2093,7 @@ class Set(Serializable):
         response = Row()
         response.errors = Row()
         new_fields = copy.copy(update_fields)
-        for key,value in update_fields.iteritems():
+        for key,value in iteritems(update_fields):
             value,error = self.db[tablename][key].validate(value)
             if error:
                 response.errors[key] = '%s' % error
@@ -2249,7 +2264,7 @@ class Rows(object):
         if not keyed_virtualfields:
             return self
         for row in self.records:
-            for (tablename,virtualfields) in keyed_virtualfields.iteritems():
+            for (tablename,virtualfields) in iteritems(keyed_virtualfields):
                 attributes = dir(virtualfields)
                 if not tablename in row:
                     box = row[tablename] = Row()
@@ -2297,9 +2312,9 @@ class Rows(object):
 
     def __getitem__(self, i):
         row = self.records[i]
-        keys = row.keys()
+        keys = list(row.keys())
         if self.compact and len(keys) == 1 and keys[0] != '_extra':
-            return row[row.keys()[0]]
+            return row[keys[0]]
         return row
 
     def __iter__(self):
@@ -2607,7 +2622,7 @@ class Rows(object):
             """
             if value is None:
                 return null
-            elif isinstance(value, unicode):
+            elif PY2 and isinstance(value, unicode):
                 return value.encode('utf8')
             elif isinstance(value,Reference):
                 return long(value)
@@ -2684,8 +2699,9 @@ class Rows(object):
     json = as_json
 
 
+@implements_bool
+@implements_iterator
 class IterRows(object):
-
     def __init__(self, db, sql, fields, colnames, blob_decode, cacheable):
         self.db = db
         self.fields = fields
@@ -2699,7 +2715,7 @@ class IterRows(object):
         self.last_item_id = None
         self.compact = True
 
-    def next(self):
+    def __next__(self):
         db_row = self.db._adapter.cursor.fetchone()
         if db_row is None:
             raise StopIteration
@@ -2721,26 +2737,26 @@ class IterRows(object):
     def __iter__(self):
         if self._head:
             yield self._head
-        row = self.next()
+        row = next(self)
         while row is not None:
             yield row
-            row = self.next()
+            row = next(self)
         return
 
     def first(self):
         if self._head is None:
             try:
-                self._head = self.next()
+                self._head = next(self)
             except StopIteration:
                 # TODO should I raise something?
                 return None
         return self._head
 
-    def __nonzero__(self):
+    def __bool__(self):
         return True if self.first() is not None else False
 
     def __getitem__(self, key):
-        if not isinstance( key, ( int, long ) ):
+        if not isinstance(key, (int, long)):
             raise TypeError
 
         if key == self.last_item_id:
@@ -2756,7 +2772,7 @@ class IterRows(object):
         # fetch and drop the first key - 1 elements
         for i in xrange(n_to_drop):
             self.db._adapter.cursor.fetchone()
-        row = self.next()
+        row = next(self)
         if row is None:
             raise IndexError
         else:

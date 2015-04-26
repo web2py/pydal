@@ -133,7 +133,8 @@ import glob
 import logging
 from uuid import uuid4
 
-from ._compat import pickle, hashlib_md5, pjoin, ogetattr, osetattr, copyreg
+from ._compat import PY2, pickle, hashlib_md5, pjoin, ogetattr, osetattr, \
+    copyreg, integer_types, with_metaclass
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT
 from ._load import OrderedDict
 from .helpers.classes import Serializable, SQLCallableList
@@ -145,6 +146,8 @@ from .helpers.serializers import serializers
 from .objects import Table, Field, Row, Set
 from .adapters import ADAPTERS
 from .adapters.base import BaseAdapter
+
+long = integer_types[-1]
 
 
 TABLE_ARGS = set(
@@ -172,7 +175,7 @@ class MetaDAL(type):
         return obj
 
 
-class DAL(Serializable):
+class DAL(with_metaclass(MetaDAL, Serializable)):
     """
     An instance of this class represents a database connection
 
@@ -246,8 +249,6 @@ class DAL(Serializable):
 
 
     """
-    __metaclass__ = MetaDAL
-
     serializers = None
     validators = None
     validators_method = None
@@ -866,15 +867,17 @@ class DAL(Serializable):
         db_uid = uri = None
         if not sanitize:
             uri, db_uid = (self._uri, self._db_uid)
-        db_as_dict = dict(tables=[], uri=uri, db_uid=db_uid,
-                          **dict([(k, getattr(self, "_" + k, None))
-                          for k in 'pool_size','folder','db_codec',
-                          'check_reserved','migrate','fake_migrate',
-                          'migrate_enabled','fake_migrate_all',
-                          'decode_credentials','driver_args',
-                          'adapter_args', 'attempts',
-                          'bigint_id','debug','lazy_tables',
-                          'do_connect']))
+        db_as_dict = dict(
+            tables=[],
+            uri=uri,
+            db_uid=db_uid,
+            **dict(
+                [(k, getattr(self, "_" + k, None)) for k in [
+                    'pool_size', 'folder', 'db_codec', 'check_reserved',
+                    'migrate', 'fake_migrate', 'migrate_enabled',
+                    'fake_migrate_all', 'decode_credentials', 'driver_args',
+                    'adapter_args', 'attempts', 'bigint_id', 'debug',
+                    'lazy_tables', 'do_connect']]))
         for table in self:
             db_as_dict["tables"].append(table.as_dict(flat=flat,
                                         sanitize=sanitize))
@@ -1015,6 +1018,11 @@ class DAL(Serializable):
             fields = colnames or [f[0] for f in columns]
             if len(fields) != len(set(fields)):
                 raise RuntimeError("Result set includes duplicate column names. Specify unique column names using the 'colnames' argument")
+            #: avoid bytes strings in columns names (py3)
+            if columns and not PY2:
+                for i in range(0, len(fields)):
+                    if isinstance(fields[i], bytes):
+                        fields[i] = fields[i].decode("utf8")
 
             # will hold our finished resultset in a list
             data = adapter._fetchall()

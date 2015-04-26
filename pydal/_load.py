@@ -5,10 +5,6 @@ try:
     from collections import OrderedDict
 except:
     from .contrib.ordereddict import OrderedDict
-try:
-    import json
-except:
-    from .contrib import simplejson as json
 
 from .contrib import portalocker
 # TODO: uncomment the lines below when contrib/portalocker will be

@@ -7,6 +7,7 @@ from ..helpers.methods import varquote_aux
 from .base import BaseAdapter
 from ..objects import Expression
 
+
 class PostgreSQLAdapter(BaseAdapter):
     drivers = ('psycopg2','pg8000')
 
@@ -42,18 +43,21 @@ class PostgreSQLAdapter(BaseAdapter):
         'reference TFK': ' CONSTRAINT  "FK_%(foreign_table)s_PK" FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_table)s (%(foreign_key)s) ON DELETE %(on_delete_action)s',
     }
 
-    def varquote(self,name):
-        return varquote_aux(name,'"%s"')
+    def varquote(self, name):
+        return varquote_aux(name, '"%s"')
 
-    def adapt(self,obj):
+    def adapt(self, obj):
         if self.driver_name == 'psycopg2':
-            return psycopg2_adapt(obj).getquoted()
+            rv = psycopg2_adapt(obj).getquoted()
+            if isinstance(rv, bytes):
+                return rv.decode("utf8")
+            return rv
         elif self.driver_name == 'pg8000':
-            return "'%s'" % str(obj).replace("%","%%").replace("'","''")
+            return "'%s'" % obj.replace("%", "%%").replace("'", "''")
         else:
-            return "'%s'" % str(obj).replace("'","''")
+            return "'%s'" % obj.replace("'", "''")
 
-    def sequence_name(self,table):
+    def sequence_name(self, table):
         return self.QUOTE_TEMPLATE % (table + '_id_seq')
 
     def RANDOM(self):
@@ -66,7 +70,7 @@ class PostgreSQLAdapter(BaseAdapter):
         else:
             return '(%s + %s)' % (self.expand(first), self.expand(second, t))
 
-    def distributed_transaction_begin(self,key):
+    def distributed_transaction_begin(self, key):
         return
 
     def prepare(self,key):
@@ -295,10 +299,11 @@ class PostgreSQLAdapter(BaseAdapter):
         """
         return 'ST_Within(%s,%s)' %(self.expand(first), self.expand(second, first.type))
 
-    def ST_DWITHIN(self, first, (second, third)):
+    def ST_DWITHIN(self, first, tup):
         """
         http://postgis.org/docs/ST_DWithin.html
         """
+        second, third = tup
         return 'ST_DWithin(%s,%s,%s)' %(self.expand(first),
                                         self.expand(second, first.type),
                                         self.expand(third, 'double'))
@@ -324,6 +329,7 @@ class PostgreSQLAdapter(BaseAdapter):
         if mode not in ['restrict', 'cascade', '']:
             raise ValueError('Invalid mode: %s' % mode)
         return ['DROP TABLE ' + table.sqlsafe + ' ' + str(mode) + ';']
+
 
 class NewPostgreSQLAdapter(PostgreSQLAdapter):
     drivers = ('psycopg2','pg8000')

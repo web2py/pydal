@@ -2,25 +2,26 @@
 """
     Basic unit tests
 """
+
+from __future__ import print_function
 import sys
 import os
 import glob
 import datetime
 
+from pydal._compat import PY2, basestring, StringIO, integer_types
 from pydal import DAL, Field
 from pydal.helpers.classes import SQLALL
 from pydal.objects import Table
 from ._compat import unittest
 from ._adapt import DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE
 
+if PY2:
+    StringIO = StringIO.StringIO
+long = integer_types[-1]
 
-try:
-    import cStringIO as StringIO
-except:
-    from io import StringIO
-
-print 'Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
-                                          DEFAULT_URI)
+print('Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
+                                          DEFAULT_URI))
 
 
 ALLOWED_DATATYPES = [
@@ -320,7 +321,7 @@ class TestSelect(unittest.TestCase):
 
     def testListInteger(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', 
+        db.define_table('tt',
                         Field('aa', 'list:integer'))
         l=[1,2,3,4,5]
         db.tt.insert(aa=l)
@@ -330,7 +331,7 @@ class TestSelect(unittest.TestCase):
 
     def testListString(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', 
+        db.define_table('tt',
                         Field('aa', 'list:string'))
         l=['a', 'b', 'c']
         db.tt.insert(aa=l)
@@ -340,9 +341,9 @@ class TestSelect(unittest.TestCase):
 
     def testListReference(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('t0', 
+        db.define_table('t0',
                         Field('aa', 'string'))
-        db.define_table('tt', 
+        db.define_table('tt',
                         Field('t0_id', 'list:reference t0'))
         id_a=db.t0.insert(aa='test')
         l=[id_a]
@@ -889,11 +890,11 @@ class TestImportExportFields(unittest.TestCase):
                 id = db.person.insert(name=str(k))
                 db.pet.insert(friend=id,name=str(k))
         db.commit()
-        stream = StringIO.StringIO()
+        stream = StringIO()
         db.export_to_csv_file(stream)
         db(db.pet).delete()
         db(db.person).delete()
-        stream = StringIO.StringIO(stream.getvalue())
+        stream = StringIO(stream.getvalue())
         db.import_from_csv_file(stream)
         assert db(db.person.id==db.pet.friend)(db.person.name==db.pet.name).count()==10
         db.pet.drop()
@@ -915,9 +916,9 @@ class TestImportExportUuidFields(unittest.TestCase):
                 id = db.person.insert(name=str(k),uuid=str(k))
                 db.pet.insert(friend=id,name=str(k))
         db.commit()
-        stream = StringIO.StringIO()
+        stream = StringIO()
         db.export_to_csv_file(stream)
-        stream = StringIO.StringIO(stream.getvalue())
+        stream = StringIO(stream.getvalue())
         db.import_from_csv_file(stream)
         assert db(db.person).count()==10
         assert db(db.person.id==db.pet.friend)(db.person.name==db.pet.name).count()==20
@@ -1044,7 +1045,7 @@ class TestSelectAsDict(unittest.TestCase):
         self.assertEqual(rtn[0]['b_field'], 'bb1')
         rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_ordered_dict=True)
         self.assertEqual(rtn[0]['b_field'], 'bb1')
-        self.assertEqual(rtn[0].keys(), ['id', 'b_field', 'a_field'])
+        self.assertEqual(list(rtn[0].keys()), ['id', 'b_field', 'a_field'])
         db.a_table.drop()
         db.close()
 
@@ -1625,7 +1626,7 @@ class TestQuoting(unittest.TestCase):
             t0 = db.define_table('table_is_a_test',
                                  Field('a_a'),
                                  Field('a_A'))
-        except Exception, e:
+        except Exception as e:
             # some db does not support case sensitive field names mysql is one of them.
             if DEFAULT_URI.startswith('mysql:') or DEFAULT_URI.startswith('sqlite:'):
                 db.rollback()
@@ -1661,7 +1662,7 @@ class TestQuoting(unittest.TestCase):
 
         try:
             t5 = db.define_table('t5', Field('f', length=100), Field('t0', 'reference no_table_wrong_reference'), primarykey=['f'])
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(isinstance(e, KeyError))
 
         if DEFAULT_URI.startswith('mssql'):
@@ -1939,7 +1940,7 @@ class TestIterselect(unittest.TestCase):
         names = ['web2py', 'pydal', 'Massimo']
         for n in names:
             t0.insert(name=n)
-        
+
         rows = db(db.t0).select(orderby=db.t0.id)
         for pos, r in enumerate(rows):
             self.assertEqual(r.name, names[pos])

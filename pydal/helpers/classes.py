@@ -4,8 +4,11 @@ import marshal
 import struct
 import traceback
 
-from .._compat import exists, copyreg
+from .._compat import PY2, exists, copyreg, integer_types
 from .serializers import serializers
+
+
+long = integer_types[-1]
 
 
 class Reference(long):
@@ -164,7 +167,7 @@ class RecordUpdater(object):
         colset, db, tablename, id = self.colset, self.db, self.tablename, self.id
         table = db[tablename]
         newfields = fields or dict(colset)
-        for fieldname in newfields.keys():
+        for fieldname in list(newfields.keys()):
             if fieldname not in table.fields or table[fieldname].type == 'id':
                 del newfields[fieldname]
         table._db(table._id == id, ignore_common_filters=True).update(**newfields)
@@ -194,7 +197,10 @@ class MethodAdder(object):
         def _decorated(f):
             instance = self.table
             import types
-            method = types.MethodType(f, instance, instance.__class__)
+            if PY2:
+                method = types.MethodType(f, instance, instance.__class__)
+            else:
+                method = types.MethodType(f, instance)
             name = method_name or f.func_name
             setattr(instance, name, method)
             return f
@@ -282,7 +288,7 @@ class DatabaseStoredFile:
         try:
             if db.executesql(query):
                 return True
-        except Exception, e:
+        except Exception as e:
             if not (db._adapter.isOperationalError(e) or
                     db._adapter.isProgrammingError(e)):
                 raise

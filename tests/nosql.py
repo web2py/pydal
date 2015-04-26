@@ -3,16 +3,17 @@
     Unit tests for NoSQL adapters
 """
 
+from __future__ import print_function
 import sys
 import os
 import glob
 import datetime
-try:
-    import cStringIO as StringIO
-except:
-    from io import StringIO
 from ._compat import unittest
 
+from pydal._compat import PY2, basestring, StringIO, integer_types
+if PY2:
+    StringIO = StringIO.StringIO
+long = integer_types[-1]
 
 from pydal import DAL, Field
 from pydal.objects import Table
@@ -31,8 +32,8 @@ elif IS_GAE:
     gaetestbed.init_datastore_v3_stub()
     gaetestbed.init_memcache_stub()
 
-print 'Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
-                                          DEFAULT_URI)
+print('Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
+                                          DEFAULT_URI))
 
 
 ALLOWED_DATATYPES = [
@@ -372,7 +373,7 @@ class TestBelongs(unittest.TestCase):
                          db.tt.aa))).count(),
                          2)
         else:
-            print "Datastore/Mongodb belongs does not accept queries (skipping)"
+            print("Datastore/Mongodb belongs does not accept queries (skipping)")
         drop(db.tt)
         db.close()
 
@@ -733,11 +734,11 @@ class TestImportExportFields(unittest.TestCase):
                 id = db.person.insert(name=str(k))
                 db.pet.insert(friend=id,name=str(k))
         db.commit()
-        stream = StringIO.StringIO()
+        stream = StringIO()
         db.export_to_csv_file(stream)
         db(db.pet).delete()
         db(db.person).delete()
-        stream = StringIO.StringIO(stream.getvalue())
+        stream = StringIO(stream.getvalue())
         db.import_from_csv_file(stream)
         assert db(db.person).count()==10
         assert db(db.pet.name).count()==10
@@ -761,11 +762,11 @@ class TestImportExportUuidFields(unittest.TestCase):
                 id = db.person.insert(name=str(k),uuid=str(k))
                 db.pet.insert(friend=id,name=str(k))
         db.commit()
-        stream = StringIO.StringIO()
+        stream = StringIO()
         db.export_to_csv_file(stream)
         db(db.person).delete()
         db(db.pet).delete()
-        stream = StringIO.StringIO(stream.getvalue())
+        stream = StringIO(stream.getvalue())
         db.import_from_csv_file(stream)
         assert db(db.person).count()==10
         assert db(db.pet).count()==10
@@ -1290,7 +1291,7 @@ class TestQuoting(unittest.TestCase):
         # test table case
         t0 = db.define_table('B',
                         Field('f', 'string'))
-        
+
         t1 = db.define_table('b',
                              Field('B', t0),
                              Field('words', 'text'))
@@ -1336,7 +1337,7 @@ class TestQuoting(unittest.TestCase):
 
         try:
             t5 = db.define_table('t5', Field('f', length=100), Field('t0', 'reference no_table_wrong_reference'), primarykey=['f'])
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(isinstance(e, KeyError))
 
         drop(t0, 'cascade')

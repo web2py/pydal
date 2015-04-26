@@ -3,10 +3,13 @@ import datetime
 import re
 
 from .._globals import IDENTITY
+from .._compat import integer_types, basestring
 from ..objects import Table, Query, Field, Expression
 from ..helpers.classes import SQLALL
 from ..helpers.methods import use_common_filters, xorify
 from .base import NoSQLAdapter
+
+long = integer_types[-1]
 
 
 class MongoDBAdapter(NoSQLAdapter):
@@ -107,7 +110,7 @@ class MongoDBAdapter(NoSQLAdapter):
                     arg = "0x%s" % arg
                 try:
                     arg = int(arg, 0)
-                except ValueError, e:
+                except ValueError as e:
                     raise ValueError(
                             "invalid objectid argument string: %s" % e)
             else:
@@ -407,7 +410,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 amount = result.matched_count
 
             return amount
-        except Exception, e:
+        except Exception as e:
             # TODO Reverse update query to verifiy that the query succeded
             raise RuntimeError("uncaught exception when updating rows: %s" % e)
 
@@ -437,7 +440,7 @@ class MongoDBAdapter(NoSQLAdapter):
 
     def NOT(self, first):
         op = self.expand(first)
-        op_k = op.keys()[0]
+        op_k = list(op)[0]
         op_body = op[op_k]
         if type(op_body) is list:
             # apply De Morgan law for and/or

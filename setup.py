@@ -29,8 +29,7 @@ setup(
     maintainer_email='gi0baro@d4net.org',
     description='a pure Python Database Abstraction Layer',
     long_description=__doc__,
-    packages=['pydal', 'pydal.adapters', 'pydal.helpers', 'pydal.contrib',
-              'pydal.contrib.simplejson'],
+    packages=['pydal', 'pydal.adapters', 'pydal.helpers', 'pydal.contrib'],
     include_package_data=True,
     zip_safe=False,
     platforms='any',
@@ -42,6 +41,7 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 3',
         'Topic :: Database :: Front-Ends',
         'Topic :: Software Development :: Libraries :: Python Modules'
     ]

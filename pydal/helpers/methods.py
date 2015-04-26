@@ -2,6 +2,7 @@
 import uuid
 import re
 
+from .._compat import iteritems, integer_types
 from .regex import REGEX_NOPASSWD, REGEX_UNPACK, REGEX_CONST_STRING, REGEX_W
 from .classes import SQLCustomType
 #from ..objects import Field, Table
@@ -71,6 +72,7 @@ def bar_encode(items):
 
 
 def bar_decode_integer(value):
+    long = integer_types[-1]
     if not hasattr(value,'split') and hasattr(value,'read'):
         value = value.read()
     return [long(x) for x in value.split('|') if x.strip()]
@@ -87,7 +89,7 @@ def archive_record(qset, fs, archive_table, current_record):
         raise RuntimeError("cannot update join")
     for row in qset.select():
         fields = archive_table._filter_fields(row)
-        for k, v in fs.iteritems():
+        for k, v in iteritems(fs):
             if fields[k] != v:
                 fields[current_record] = row.id
                 archive_table.insert(**fields)

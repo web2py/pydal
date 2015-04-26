@@ -4,11 +4,14 @@ import re
 import sys
 
 from .._globals import IDENTITY, GLOBAL_LOCKER
+from .._compat import PY2, integer_types, basestring
 from ..connection import ConnectionPool
 from ..objects import Field, Query, Expression
 from ..helpers.classes import SQLALL
 from ..helpers.methods import use_common_filters
 from .base import NoSQLAdapter
+
+long = integer_types[-1]
 
 
 class IMAPAdapter(NoSQLAdapter):
@@ -342,10 +345,10 @@ class IMAPAdapter(NoSQLAdapter):
                 year = int(date_list[2])
                 month = months.index(date_list[1].upper())
                 day = int(date_list[0])
-                hms = map(int, date_list[3].split(":"))
+                hms = list(map(int, date_list[3].split(":")))
                 return datetime.datetime(year, month, day,
                     hms[0], hms[1], hms[2]) + add
-            except (ValueError, AttributeError, IndexError), e:
+            except (ValueError, AttributeError, IndexError) as e:
                 self.db.logger.error("Could not parse date text: %s. %s" %
                              (date, e))
                 return None
@@ -368,7 +371,7 @@ class IMAPAdapter(NoSQLAdapter):
         """ convert text for mail to unicode"""
         if text is None:
             text = ""
-        else:
+        if PY2:
             if isinstance(text, str):
                 if charset is None:
                     text = unicode(text, "utf-8", errors)
@@ -376,7 +379,11 @@ class IMAPAdapter(NoSQLAdapter):
                     text = unicode(text, charset, errors)
             else:
                 raise Exception("Unsupported mail text type %s" % type(text))
-        return text.encode("utf-8")
+            return text.encode("utf-8")
+        else:
+            if isinstance(text, bytes):
+                return text.decode("utf-8")
+            return text
 
     def get_charset(self, message):
         charset = message.get_content_charset()
@@ -560,7 +567,11 @@ class IMAPAdapter(NoSQLAdapter):
                                       "raw_message": data[0][1]}
                                 fr["multipart"] = fr["email"].is_multipart()
                                 # fetch flags for the message
-                                fr["flags"] = self.driver.ParseFlags(data[1])
+                                if PY2:
+                                    fr["flags"] = self.driver.ParseFlags(data[1])
+                                else:
+                                    fr["flags"] = self.driver.ParseFlags(
+                                        bytes(data[1], "utf-8"))
                                 fetch_results.append(fr)
                             else:
                                 # error retrieving the message body
