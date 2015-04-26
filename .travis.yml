@@ -8,6 +8,8 @@ python:
   - '2.6'
   - '2.7'
   - 'pypy'
+  - '3.3'
+  - '3.4'
 
 install:
   - pip install tox>=1.8
@@ -35,6 +37,14 @@ matrix:
       env: ADAPTER=google
     - python: '2.6'
       env: ADAPTER=google
+    - python: '3.3'
+      env: ADAPTER=google
+    - python: '3.3'
+      env: ADAPTER=imap
+    - python: '3.4'
+      env: ADAPTER=google
+    - python: '3.4'
+      env: ADAPTER=imap
 
 before_script:
   - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install codecov; fi
