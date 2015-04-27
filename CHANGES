@@ -1,6 +1,20 @@
 pydal changelog
 ===============
 
+Next
+----
+
+(Release date to be announced)
+
+- Fixed True/False expressions in MSSQL
+- Introduced `iterselect()` and `IterRows`
+- Extended `SQLCustomType` to support `widget` & `represent` attributes
+- Updated `MongoDBAdapter` to support pymongo 3.0
+- Implemented JSON serialization for objects
+- Refactored many internal objects to improve performance
+- Added python 3.x support (experimental)
+
+
 Version 15.03
 -------------
 
