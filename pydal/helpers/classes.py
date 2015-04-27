@@ -4,7 +4,8 @@ import marshal
 import struct
 import traceback
 
-from .._compat import PY2, exists, copyreg, integer_types
+from .._compat import PY2, exists, copyreg, integer_types, implements_bool, \
+    iteritems
 from .serializers import serializers
 
 
@@ -327,3 +328,52 @@ class Serializable(object):
 
     def as_yaml(self, sanitize=True):
         return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
+
+
+@implements_bool
+class BasicStorage(object):
+    def __init__(self, *args, **kwargs):
+        return self.__dict__.__init__(*args, **kwargs)
+
+    def __contains__(self, item):
+        return item in self.__dict__
+
+    def __getitem__(self, key):
+        return self.__dict__.__getitem__(str(key))
+
+    def __setitem__(self, key, value):
+        self.__dict__.__setitem__(key, value)
+
+    def __delitem__(self, key):
+        self.__dict__.__delitem__(key)
+
+    def __bool__(self):
+        return self.__dict__.__len__()
+
+    __iter__ = lambda self: self.__dict__.__iter__()
+
+    has_key = __contains__
+
+    def items(self):
+        return list(self.__dict__.items())
+
+    def iteritems(self):
+        return iteritems(self.__dict__)
+
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
+
+    def values(self):
+        return list(self.__dict__.values())
+
+    def keys(self):
+        return list(self.__dict__)
+
+    def update(self, *args, **kwargs):
+        return self.__dict__.update(*args, **kwargs)
+
+
+def pickle_basicstorage(s):
+    return BasicStorage, (dict(s),)
+
+copyreg.pickle(BasicStorage, pickle_basicstorage)

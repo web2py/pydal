@@ -78,5 +78,3 @@ def with_metaclass(meta, *bases):
 # shortcuts
 pjoin = os.path.join
 exists = os.path.exists
-ogetattr = object.__getattribute__
-osetattr = object.__setattr__

@@ -123,21 +123,21 @@ For more info::
 
 """
 
-import threading
-import socket
-import urllib
-import time
 import copy
-import traceback
 import glob
 import logging
+import socket
+import threading
+import time
+import traceback
+import urllib
 from uuid import uuid4
 
-from ._compat import PY2, pickle, hashlib_md5, pjoin, ogetattr, osetattr, \
-    copyreg, integer_types, with_metaclass
+from ._compat import PY2, pickle, hashlib_md5, pjoin, copyreg, integer_types, \
+    with_metaclass
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT
 from ._load import OrderedDict
-from .helpers.classes import Serializable, SQLCallableList
+from .helpers.classes import Serializable, SQLCallableList, BasicStorage
 from .helpers.methods import hide_password, smart_query, auto_validators, \
     auto_represent
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME, \
@@ -175,7 +175,7 @@ class MetaDAL(type):
         return obj
 
 
-class DAL(with_metaclass(MetaDAL, Serializable)):
+class DAL(with_metaclass(MetaDAL, (Serializable, BasicStorage))):
     """
     An instance of this class represents a database connection
 
@@ -373,6 +373,7 @@ class DAL(with_metaclass(MetaDAL, Serializable)):
 
         if uri == '<zombie>' and db_uid is not None:
             return
+        super(DAL, self).__init__()
 
         from .drivers import DRIVERS, is_jdbc
         self._drivers_available = DRIVERS
@@ -890,35 +891,22 @@ class DAL(with_metaclass(MetaDAL, Serializable)):
             # The instance has no .tables attribute yet
             return False
 
-    has_key = __contains__
-
-    def get(self, key, default=None):
-        return self.__dict__.get(key, default)
-
     def __iter__(self):
         for tablename in self.tables:
             yield self[tablename]
 
-    def __getitem__(self, key):
-        return self.__getattr__(str(key))
-
     def __getattr__(self, key):
-        if ogetattr(self,'_lazy_tables') and \
-                key in ogetattr(self,'_LAZY_TABLES'):
+        if getattr(self, '_lazy_tables') and \
+                key in object.__getattribute__(self, '_LAZY_TABLES'):
             tablename, fields, args = self._LAZY_TABLES.pop(key)
-            return self.lazy_define_table(tablename,*fields,**args)
-        return ogetattr(self, key)
-
-    def __setitem__(self, key, value):
-        osetattr(self, str(key), value)
+            return self.lazy_define_table(tablename, *fields, **args)
+        return super(DAL, self).__getattr__(key)
 
     def __setattr__(self, key, value):
         if key[:1]!='_' and key in self:
             raise SyntaxError(
                 'Object %s exists and cannot be redefined' % key)
-        osetattr(self,key,value)
-
-    __delitem__ = object.__delattr__
+        return super(DAL, self).__setattr__(key, value)
 
     def __repr__(self):
         if hasattr(self,'_uri'):

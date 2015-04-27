@@ -1220,7 +1220,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 time_expire = cache['expiration']
                 key = cache.get('key')
                 if not key:
-                    key = self.uri + '/' + sql
+                    key = self.uri + '/' + sql + '/rows'
                     key = hashlib_md5(key).hexdigest()
             else:
                 (cache_model, time_expire) = cache
