@@ -348,7 +348,7 @@ class BasicStorage(object):
         self.__dict__.__delitem__(key)
 
     def __bool__(self):
-        return self.__dict__.__len__()
+        return len(self.__dict__) > 0
 
     __iter__ = lambda self: self.__dict__.__iter__()
 
