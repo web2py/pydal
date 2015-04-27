@@ -1822,6 +1822,18 @@ class TestLazy(unittest.TestCase):
         db.tt.drop()
         db.close()
 
+    def testRowNone(self):
+        db=DAL(DEFAULT_URI, lazy_tables=True)
+        tt = db.define_table('tt',  Field('value', 'integer'))
+        db.tt.insert(value=None)
+        row = db(db.tt).select(db.tt.ALL).first()
+        self.assertEqual(row.value, None)
+        self.assertEqual(row[db.tt.value], None)
+        self.assertEqual(row['tt.value'], None)
+        self.assertEqual(row['value'], None)
+        db.tt.drop()
+        db.close()
+
 
 class TestRedefine(unittest.TestCase):
 

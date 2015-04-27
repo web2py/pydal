@@ -57,14 +57,16 @@ class Row(BasicStorage):
 
         m = REGEX_TABLE_DOT_FIELD.match(key)
         if m:
-            e = self.get(m.group(1))
-            if e is not None and m.group(2) in e:
+            try:
+                e = super(Row, self).__getitem__(m.group(1))
                 return e[m.group(2)]
+            except KeyError:
+                pass
             key = m.group(2)
-            e = self.get(key)
-            if e is not None:
-                return e
-
+            try:
+                return super(Row, self).__getitem__(key)
+            except KeyError:
+                pass
         try:
             e = self.get('__get_lazy_reference__')
             if e is not None and callable(e):
