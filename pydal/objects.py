@@ -50,9 +50,10 @@ class Row(BasicStorage):
             if v != DEFAULT:
                 return v
 
-        e = self.get(key)
-        if e is not None:
-            return e
+        try:
+            return super(Row, self).__getitem__(k)
+        except KeyError:
+            pass
 
         m = REGEX_TABLE_DOT_FIELD.match(key)
         if m:

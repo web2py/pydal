@@ -341,7 +341,16 @@ class BasicStorage(object):
     def __getitem__(self, key):
         return self.__dict__.__getitem__(str(key))
 
+    def __getattr__(self, key):
+        try:
+            return self.__dict__.__getitem__(str(key))
+        except:
+            raise AttributeError
+
     def __setitem__(self, key, value):
+        self.__dict__.__setitem__(key, value)
+
+    def __setattr__(self, key, value):
         self.__dict__.__setitem__(key, value)
 
     def __delitem__(self, key):

@@ -895,6 +895,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         for tablename in self.tables:
             yield self[tablename]
 
+    def __getitem__(self, key):
+        return self.__getattr__(str(key))
+
     def __getattr__(self, key):
         if getattr(self, '_lazy_tables') and \
                 key in object.__getattribute__(self, '_LAZY_TABLES'):
