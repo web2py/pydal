@@ -1065,8 +1065,8 @@ class Expression(object):
 
     def __getitem__(self, i):
         if isinstance(i, slice):
-            start = i.start
-            stop   = i.stop
+            start = i.start or 0
+            stop  = i.stop
 
             db = self.db
             if start < 0:
@@ -1075,7 +1075,7 @@ class Expression(object):
                 pos0 = start + 1
 
             maxint = sys.maxint if PY2 else sys.maxsize
-            if stop == None or stop == maxint:
+            if stop is None or stop == maxint:
                 length = self.len()
             elif stop < 0:
                 length = '(%s - %d - %s)' % (self.len(), abs(stop) - 1, pos0)
