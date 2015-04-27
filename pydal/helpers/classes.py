@@ -3,8 +3,9 @@ import copy
 import marshal
 import struct
 import traceback
+import copy_reg
 
-from .._compat import exists, copyreg
+from .._compat import exists, copyreg, pickle
 from .serializers import serializers
 
 
@@ -321,3 +322,52 @@ class Serializable(object):
 
     def as_yaml(self, sanitize=True):
         return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
+
+
+class BasicStorage2(object):
+
+    def __init__(self, *args, **kwargs):
+        return self.__dict__.__init__(*args, **kwargs)
+
+    def __contains__(self, item):
+        return item in self.__dict__
+
+    def __getitem__(self, key):
+        return self.__dict__.__getitem__(str(key))
+
+    def __setitem__(self, key, value):
+        self.__dict__.__setitem__(key, value)
+
+    def __delitem__(self, key):
+        self.__dict__.__delitem__(key)
+
+    def __nonzero__(self):
+        return self.__dict__.__len__()
+
+    __iter__ = lambda self: self.__dict__.__iter__()
+
+    has_key = __contains__
+
+    def items(self):
+        return self.__dict__.items()
+
+    def iteritems(self):
+        return self.__dict__.iteritems()
+
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
+
+    def values(self):
+        return self.__dict__.values()
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def update(self, *args, **kwargs):
+        return self.__dict__.update(*args, **kwargs)
+
+    
+def pickle_storage2(s):
+    return BasicStorage2, (dict(s),)
+
+copy_reg.pickle(BasicStorage2, pickle_storage2)
