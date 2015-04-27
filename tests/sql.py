@@ -1807,6 +1807,21 @@ class TestLazy(unittest.TestCase):
         db.t0.drop()
         db.close()
 
+    def testLazyGetter(self):
+        db=DAL(DEFAULT_URI, lazy_tables=True)
+        db.define_table('tt',  Field('value', 'integer'))
+        db.define_table('ttt',
+            Field('value', 'integer'),
+            Field('tt_id', 'reference tt'),
+        )
+        # Force table definition
+        db.ttt.value.writable=False
+        idd=db.tt.insert(value=0)
+        db.ttt.insert(tt_id=idd)
+        db.ttt.drop()
+        db.tt.drop()
+        db.close()
+
 
 class TestRedefine(unittest.TestCase):
 
