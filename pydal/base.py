@@ -175,7 +175,7 @@ class MetaDAL(type):
         return obj
 
 
-class DAL(with_metaclass(MetaDAL, (Serializable, BasicStorage))):
+class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     """
     An instance of this class represents a database connection
 
