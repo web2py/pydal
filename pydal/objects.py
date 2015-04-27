@@ -2055,6 +2055,8 @@ class Set(Serializable):
         # ## mind uploadfield==True means file is not in DB
         if upload_fields:
             fields = upload_fields.keys()
+            # Explicity add compute upload fields (ex: thumbnail)
+            fields += [f for f in table.fields if table[f].compute is not None]
         else:
             fields = table.fields
         fields = [f for f in fields if table[f].type == 'upload'
@@ -2068,7 +2070,8 @@ class Set(Serializable):
                 oldname = record.get(fieldname, None)
                 if not oldname:
                     continue
-                if upload_fields and oldname == upload_fields[fieldname]:
+                if (upload_fields and fieldname in upload_fields and
+                    oldname == upload_fields[fieldname]):
                     continue
                 if field.custom_delete:
                     field.custom_delete(oldname)
