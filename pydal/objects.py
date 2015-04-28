@@ -2057,7 +2057,7 @@ class Set(Serializable):
         table = self.db[self.db._adapter.tables(self.query)[0]]
         # ## mind uploadfield==True means file is not in DB
         if upload_fields:
-            fields = upload_fields.keys()
+            fields = list(upload_fields)
             # Explicity add compute upload fields (ex: thumbnail)
             fields += [f for f in table.fields if table[f].compute is not None]
         else:
