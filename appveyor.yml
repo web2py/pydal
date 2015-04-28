@@ -8,6 +8,8 @@ environment:
       secure: hN47o5oiF+R26daJex7XzQnfdE/gd+vtZ376+jXrIsEx+I8yG7yuUT5IwBodq1KF
   matrix:
     - PYTHON: "C:/Python27"
+    - PYTHON: "C:/Python33"
+    - PYTHON: "C:/Python34"
 
 clone_depth: 50
 
