@@ -653,7 +653,7 @@ class Table(Serializable, BasicStorage):
                         new_name = field.store(value.file, filename=value.filename)
                     elif isinstance(value,dict):
                         if 'data' in value and 'filename' in value:
-                            stream = StringIO.StringIO(value['data'])
+                            stream = StringIO(value['data'])
                             new_name = field.store(stream, filename=value['filename'])
                         else:
                             new_name = None
@@ -1525,12 +1525,12 @@ class Field(Expression, Serializable):
         file_properties = self.retrieve_file_properties(name, path)
         filename = file_properties['filename']
         if isinstance(self_uploadfield, str):  # ## if file is in DB
-            stream = StringIO.StringIO(row[self_uploadfield] or '')
+            stream = StringIO(row[self_uploadfield] or '')
         elif isinstance(self_uploadfield, Field):
             blob_uploadfield_name = self_uploadfield.uploadfield
             query = self_uploadfield == name
             data = self_uploadfield.table(query)[blob_uploadfield_name]
-            stream = StringIO.StringIO(data)
+            stream = StringIO(data)
         elif self.uploadfs:
             # ## if file is on pyfilesystem
             stream = self.uploadfs.open(name, 'rb')
@@ -2156,7 +2156,234 @@ class VirtualCommand(object):
         return self.method(self.row,*args,**kwargs)
 
 
-class Rows(object):
+class BasicRows(object):
+    """
+    Abstract class for Rows and IterRows
+    """
+    def __nonzero__(self):
+        return True if self.first() is not None else False
+
+    def __str__(self):
+        """
+        Serializes the table into a csv file
+        """
+
+        s = StringIO()
+        self.export_to_csv_file(s)
+        return s.getvalue()
+
+    def as_trees(self, parent_name='parent_id', children_name='children', render=False):
+        """
+        returns the data as list of trees.
+
+        :param parent_name: the name of the field holding the reference to the
+                            parent (default parent_id).
+        :param children_name: the name where the children of each row will be
+                              stored as a list (default children).
+        :param render: whether we will render the fields using their represent
+                       (default False) can be a list of fields to render or
+                       True to render all.
+        """
+        roots = []
+        drows = {}
+        rows = list(self.render(fields=None if render is True else render)) if render else self
+        for row in rows:
+            drows[row.id] = row
+            row[children_name] = []
+        for row in rows:
+            parent = row[parent_name]
+            if parent is None:
+                roots.append(row)
+            else:
+                drows[parent][children_name].append(row)
+        return roots
+
+    def as_list(self,
+                compact=True,
+                storage_to_dict=True,
+                datetime_to_str=False,
+                custom_types=None):
+        """
+        Returns the data as a list or dictionary.
+
+        Args:
+            storage_to_dict: when True returns a dict, otherwise a list
+            datetime_to_str: convert datetime fields as strings
+        """
+        (oc, self.compact) = (self.compact, compact)
+        if storage_to_dict:
+            items = [item.as_dict(datetime_to_str, custom_types) for item in self]
+        else:
+            items = [item for item in self]
+        self.compact = oc
+        return items
+
+    def as_dict(self,
+                key='id',
+                compact=True,
+                storage_to_dict=True,
+                datetime_to_str=False,
+                custom_types=None):
+        """
+        Returns the data as a dictionary of dictionaries (storage_to_dict=True)
+        or records (False)
+
+        Args:
+            key: the name of the field to be used as dict key, normally the id
+            compact: ? (default True)
+            storage_to_dict: when True returns a dict, otherwise a list(default True)
+            datetime_to_str: convert datetime fields as strings (default False)
+        """
+
+        # test for multiple rows
+        multi = False
+        f = self.first()
+        if f and isinstance(key, basestring):
+            multi = any([isinstance(v, f.__class__) for v in f.values()])
+            if (not "." in key) and multi:
+                # No key provided, default to int indices
+                def new_key():
+                    i = 0
+                    while True:
+                        yield i
+                        i += 1
+                key_generator = new_key()
+                key = lambda r: key_generator.next()
+
+        rows = self.as_list(compact, storage_to_dict, datetime_to_str, custom_types)
+        if isinstance(key,str) and key.count('.')==1:
+            (table, field) = key.split('.')
+            return dict([(r[table][field],r) for r in rows])
+        elif isinstance(key,str):
+            return dict([(r[key],r) for r in rows])
+        else:
+            return dict([(key(r),r) for r in rows])
+
+    def xml(self, strict=False, row_name='row', rows_name='rows'):
+        """
+        Serializes the table using sqlhtml.SQLTABLE (if present)
+        """
+        if not strict and not self.db.has_representer('rows_xml'):
+            strict = True
+
+        if strict:
+            return '<%s>\n%s\n</%s>' % (rows_name,
+                '\n'.join(row.as_xml(row_name=row_name,
+                                     colnames=self.colnames) for
+                          row in self), rows_name)
+
+        rv = self.db.represent('rows_xml', self)
+        if hasattr(rv, 'xml') and callable(getattr(rv, 'xml')):
+            return rv.xml()
+        return rv
+
+    def as_xml(self, row_name='row', rows_name='rows'):
+        return self.xml(strict=True, row_name=row_name, rows_name=rows_name)
+
+    def as_json(self, mode='object', default=None):
+        """
+        Serializes the rows to a JSON list or object with objects
+        mode='object' is not implemented (should return a nested
+        object structure)
+        """
+        items = [record.as_json(
+                    mode=mode, default=default, serialize=False,
+                    colnames=self.colnames
+                ) for record in self]
+
+        return serializers.json(items)
+
+    def export_to_csv_file(self, ofile, null='<NULL>', *args, **kwargs):
+        """
+        Exports data to csv, the first line contains the column names
+
+        Args:
+            ofile: where the csv must be exported to
+            null: how null values must be represented (default '<NULL>')
+            delimiter: delimiter to separate values (default ',')
+            quotechar: character to use to quote string values (default '"')
+            quoting: quote system, use csv.QUOTE_*** (default csv.QUOTE_MINIMAL)
+            represent: use the fields .represent value (default False)
+            colnames: list of column names to use (default self.colnames)
+
+        This will only work when exporting rows objects!!!!
+        DO NOT use this with db.export_to_csv()
+        """
+        delimiter = kwargs.get('delimiter', ',')
+        quotechar = kwargs.get('quotechar', '"')
+        quoting = kwargs.get('quoting', csv.QUOTE_MINIMAL)
+        represent = kwargs.get('represent', False)
+        writer = csv.writer(ofile, delimiter=delimiter,
+                            quotechar=quotechar, quoting=quoting)
+
+        def unquote_colnames(colnames):
+            unq_colnames = []
+            for col in colnames:
+                m = self.db._adapter.REGEX_TABLE_DOT_FIELD.match(col)
+                if not m:
+                    unq_colnames.append(col)
+                else:
+                    unq_colnames.append('.'.join(m.groups()))
+            return unq_colnames
+
+        colnames = kwargs.get('colnames', self.colnames)
+        write_colnames = kwargs.get('write_colnames',True)
+        # a proper csv starting with the column names
+        if write_colnames:
+            writer.writerow(unquote_colnames(colnames))
+
+        def none_exception(value):
+            """
+            Returns a cleaned up value that can be used for csv export:
+
+            - unicode text is encoded as such
+            - None values are replaced with the given representation (default <NULL>)
+            """
+            if value is None:
+                return null
+            elif PY2 and isinstance(value, unicode):
+                return value.encode('utf8')
+            elif isinstance(value,Reference):
+                return long(value)
+            elif hasattr(value, 'isoformat'):
+                return value.isoformat()[:19].replace('T', ' ')
+            elif isinstance(value, (list,tuple)): # for type='list:..'
+                return bar_encode(value)
+            return value
+
+        repr_cache = {}
+        for record in self:
+            row = []
+            for col in colnames:
+                m = self.db._adapter.REGEX_TABLE_DOT_FIELD.match(col)
+                if not m:
+                    row.append(record._extra[col])
+                else:
+                    (t, f) = m.groups()
+                    field = self.db[t][f]
+                    if isinstance(record.get(t, None), (Row,dict)):
+                        value = record[t][f]
+                    else:
+                        value = record[f]
+                    if field.type=='blob' and not value is None:
+                        value = base64.b64encode(value)
+                    elif represent and field.represent:
+                        if field.type.startswith('reference'):
+                            if field not in repr_cache:
+                                repr_cache[field] = {}
+                            if value not in repr_cache[field]:
+                                repr_cache[field][value] = field.represent(value, record)
+                            value = repr_cache[field][value]
+                        else:
+                            value = field.represent(value, record)
+                    row.append(none_exception(value))
+            writer.writerow(row)
+
+    # for consistent naming yet backwards compatible
+    as_csv = __str__
+    json = as_json
+
+class Rows(BasicRows):
 
     """
     A wrapper for the return value of a select. It basically represents a table.
@@ -2241,11 +2468,6 @@ class Rows(object):
         return Rows(self.db,records,self.colnames,
                     compact=self.compact or other.compact)
 
-    def __nonzero__(self):
-        if len(self.records):
-            return 1
-        return 0
-
     def __len__(self):
         return len(self.records)
 
@@ -2266,15 +2488,6 @@ class Rows(object):
 
         for i in xrange(len(self)):
             yield self[i]
-
-    def __str__(self):
-        """
-        Serializes the table into a csv file
-        """
-
-        s = StringIO.StringIO()
-        self.export_to_csv_file(s)
-        return s.getvalue()
 
     def __eq__(self, other):
         return (self.records == other.records)
@@ -2412,7 +2625,7 @@ class Rows(object):
             raise RuntimeError("Rows.render() needs a `rows_render` \
                                representer in DAL instance")
         row = copy.deepcopy(self.records[i])
-        keys = row.keys()
+        keys = list(row.keys())
         tables = [f.tablename for f in fields] if fields \
             else [k for k in keys if k != '_extra']
         for table in tables:
@@ -2425,225 +2638,15 @@ class Rows(object):
                 row[table][field] = self.db.represent(
                     'rows_render', self.db[table][field], row[table][field],
                     row[table])
+        
         if self.compact and len(keys) == 1 and keys[0] != '_extra':
             return row[keys[0]]
         return row
 
-    def as_list(self,
-                compact=True,
-                storage_to_dict=True,
-                datetime_to_str=False,
-                custom_types=None):
-        """
-        Returns the data as a list or dictionary.
-
-        Args:
-            storage_to_dict: when True returns a dict, otherwise a list
-            datetime_to_str: convert datetime fields as strings
-        """
-        (oc, self.compact) = (self.compact, compact)
-        if storage_to_dict:
-            items = [item.as_dict(datetime_to_str, custom_types) for item in self]
-        else:
-            items = [item for item in self]
-        self.compact = oc
-        return items
-
-    def as_dict(self,
-                key='id',
-                compact=True,
-                storage_to_dict=True,
-                datetime_to_str=False,
-                custom_types=None):
-        """
-        Returns the data as a dictionary of dictionaries (storage_to_dict=True)
-        or records (False)
-
-        Args:
-            key: the name of the field to be used as dict key, normally the id
-            compact: ? (default True)
-            storage_to_dict: when True returns a dict, otherwise a list(default True)
-            datetime_to_str: convert datetime fields as strings (default False)
-        """
-
-        # test for multiple rows
-        multi = False
-        f = self.first()
-        if f and isinstance(key, basestring):
-            multi = any([isinstance(v, f.__class__) for v in f.values()])
-            if (not "." in key) and multi:
-                # No key provided, default to int indices
-                def new_key():
-                    i = 0
-                    while True:
-                        yield i
-                        i += 1
-                key_generator = new_key()
-                key = lambda r: key_generator.next()
-
-        rows = self.as_list(compact, storage_to_dict, datetime_to_str, custom_types)
-        if isinstance(key,str) and key.count('.')==1:
-            (table, field) = key.split('.')
-            return dict([(r[table][field],r) for r in rows])
-        elif isinstance(key,str):
-            return dict([(r[key],r) for r in rows])
-        else:
-            return dict([(key(r),r) for r in rows])
-
-    def as_trees(self, parent_name='parent_id', children_name='children', render=False):
-        """
-        returns the data as list of trees.
-
-        :param parent_name: the name of the field holding the reference to the
-                            parent (default parent_id).
-        :param children_name: the name where the children of each row will be
-                              stored as a list (default children).
-        :param render: whether we will render the fields using their represent
-                       (default False) can be a list of fields to render or
-                       True to render all.
-        """
-        roots = []
-        drows = {}
-        rows = list(self.render(fields=None if render is True else render)) if render else self
-        for row in rows:
-            drows[row.id] = row
-            row[children_name] = []
-        for row in rows:
-            parent = row[parent_name]
-            if parent is None:
-                roots.append(row)
-            else:
-                drows[parent][children_name].append(row)
-        return roots
-
-    def export_to_csv_file(self, ofile, null='<NULL>', *args, **kwargs):
-        """
-        Exports data to csv, the first line contains the column names
-
-        Args:
-            ofile: where the csv must be exported to
-            null: how null values must be represented (default '<NULL>')
-            delimiter: delimiter to separate values (default ',')
-            quotechar: character to use to quote string values (default '"')
-            quoting: quote system, use csv.QUOTE_*** (default csv.QUOTE_MINIMAL)
-            represent: use the fields .represent value (default False)
-            colnames: list of column names to use (default self.colnames)
-
-        This will only work when exporting rows objects!!!!
-        DO NOT use this with db.export_to_csv()
-        """
-        delimiter = kwargs.get('delimiter', ',')
-        quotechar = kwargs.get('quotechar', '"')
-        quoting = kwargs.get('quoting', csv.QUOTE_MINIMAL)
-        represent = kwargs.get('represent', False)
-        writer = csv.writer(ofile, delimiter=delimiter,
-                            quotechar=quotechar, quoting=quoting)
-
-        def unquote_colnames(colnames):
-            unq_colnames = []
-            for col in colnames:
-                m = self.db._adapter.REGEX_TABLE_DOT_FIELD.match(col)
-                if not m:
-                    unq_colnames.append(col)
-                else:
-                    unq_colnames.append('.'.join(m.groups()))
-            return unq_colnames
-
-        colnames = kwargs.get('colnames', self.colnames)
-        write_colnames = kwargs.get('write_colnames',True)
-        # a proper csv starting with the column names
-        if write_colnames:
-            writer.writerow(unquote_colnames(colnames))
-
-        def none_exception(value):
-            """
-            Returns a cleaned up value that can be used for csv export:
-
-            - unicode text is encoded as such
-            - None values are replaced with the given representation (default <NULL>)
-            """
-            if value is None:
-                return null
-            elif PY2 and isinstance(value, unicode):
-                return value.encode('utf8')
-            elif isinstance(value,Reference):
-                return long(value)
-            elif hasattr(value, 'isoformat'):
-                return value.isoformat()[:19].replace('T', ' ')
-            elif isinstance(value, (list,tuple)): # for type='list:..'
-                return bar_encode(value)
-            return value
-
-        repr_cache = {}
-        for record in self:
-            row = []
-            for col in colnames:
-                m = self.db._adapter.REGEX_TABLE_DOT_FIELD.match(col)
-                if not m:
-                    row.append(record._extra[col])
-                else:
-                    (t, f) = m.groups()
-                    field = self.db[t][f]
-                    if isinstance(record.get(t, None), (Row,dict)):
-                        value = record[t][f]
-                    else:
-                        value = record[f]
-                    if field.type=='blob' and not value is None:
-                        value = base64.b64encode(value)
-                    elif represent and field.represent:
-                        if field.type.startswith('reference'):
-                            if field not in repr_cache:
-                                repr_cache[field] = {}
-                            if value not in repr_cache[field]:
-                                repr_cache[field][value] = field.represent(value, record)
-                            value = repr_cache[field][value]
-                        else:
-                            value = field.represent(value, record)
-                    row.append(none_exception(value))
-            writer.writerow(row)
-
-    def xml(self, strict=False, row_name='row', rows_name='rows'):
-        """
-        Serializes the table using sqlhtml.SQLTABLE (if present)
-        """
-        if not strict and not self.db.has_representer('rows_xml'):
-            strict = True
-
-        if strict:
-            return '<%s>\n%s\n</%s>' % (rows_name,
-                '\n'.join(row.as_xml(row_name=row_name,
-                                     colnames=self.colnames) for
-                          row in self), rows_name)
-
-        rv = self.db.represent('rows_xml', self)
-        if hasattr(rv, 'xml') and callable(getattr(rv, 'xml')):
-            return rv.xml()
-        return rv
-
-    def as_xml(self, row_name='row', rows_name='rows'):
-        return self.xml(strict=True, row_name=row_name, rows_name=rows_name)
-
-    def as_json(self, mode='object', default=None):
-        """
-        Serializes the rows to a JSON list or object with objects
-        mode='object' is not implemented (should return a nested
-        object structure)
-        """
-        items = [record.as_json(
-                    mode=mode, default=default, serialize=False,
-                    colnames=self.colnames
-                ) for record in self]
-
-        return serializers.json(items)
-
-    # for consistent naming yet backwards compatible
-    as_csv = __str__
-    json = as_json
-
 
 @implements_bool
 @implements_iterator
-class IterRows(object):
+class IterRows(BasicRows):
     def __init__(self, db, sql, fields, colnames, blob_decode, cacheable):
         self.db = db
         self.fields = fields
@@ -2671,7 +2674,7 @@ class IterRows(object):
             # in
             # <Row {'id': 1L, 'name': 'web2py'}>
             # normally accomplished by Rows.__get_item__
-            keys = row.keys()
+            keys = list(row.keys())
             if len(keys) == 1 and keys[0] != '_extra':
                 row = row[row.keys()[0]]
         return row

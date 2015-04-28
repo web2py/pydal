@@ -8,7 +8,7 @@ _identity = lambda x: x
 
 if PY2:
     import cPickle as pickle
-    import cStringIO as StringIO
+    from cStringIO import StringIO
     import copy_reg as copyreg
     hashlib_md5 = hashlib.md5
     iterkeys = lambda d: d.iterkeys()
