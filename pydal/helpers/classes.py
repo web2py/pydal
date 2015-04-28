@@ -5,7 +5,7 @@ import struct
 import traceback
 
 from .._compat import PY2, exists, copyreg, integer_types, implements_bool, \
-    iteritems
+    iterkeys, itervalues, iteritems
 from .serializers import serializers
 
 
@@ -363,23 +363,29 @@ class BasicStorage(object):
 
     has_key = __contains__
 
-    def items(self):
-        return list(self.__dict__.items())
-
-    def iteritems(self):
-        return iteritems(self.__dict__)
-
     def get(self, key, default=None):
         return self.__dict__.get(key, default)
 
-    def values(self):
-        return list(self.__dict__.values())
-
-    def keys(self):
-        return list(self.__dict__)
-
     def update(self, *args, **kwargs):
         return self.__dict__.update(*args, **kwargs)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def iterkeys(self):
+        return iterkeys(self.__dict__)
+
+    def values(self):
+        return self.__dict__.values()
+
+    def itervalues(self):
+        return itervalues(self.__dict__)
+
+    def items(self):
+        return self.__dict__.items()
+
+    def iteritems(self):
+        return iteritems(self.__dict__)
 
 
 def pickle_basicstorage(s):
