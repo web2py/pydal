@@ -24,8 +24,13 @@ install:
   - pip install codecov
 
 before_test:
-  - sqlcmd -S "(local)\SQL2014" -U "sa" -P "Password12!" -Q "CREATE DATABASE pydal COLLATE Latin1_General_CS_AS;" -d "master"
-  
+  - - ps: |
+  while($LASTEXITCODE -ne 0)
+  {
+    & sqlcmd -S "(local)\SQL2014" -b -U "sa" -P "Password12!" -Q "CREATE DATABASE pydal COLLATE Latin1_General_CS_AS;" -d "master"
+    sleep 10; $val++; Write-Host Waiting ... $val; if($val -ge 10) {break}
+  }
+
 test_script:
   - tox -e coverage-mssql
 
