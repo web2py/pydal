@@ -10,6 +10,7 @@ if PY2:
     import cPickle as pickle
     from cStringIO import StringIO
     import copy_reg as copyreg
+    reduce = reduce
     hashlib_md5 = hashlib.md5
     iterkeys = lambda d: d.iterkeys()
     itervalues = lambda d: d.itervalues()
@@ -39,6 +40,7 @@ else:
     import pickle
     from io import StringIO
     import copyreg
+    from functools import reduce
     hashlib_md5 = lambda s: hashlib.md5(bytes(s, 'utf8'))
     iterkeys = lambda d: iter(d.keys())
     itervalues = lambda d: iter(d.values())

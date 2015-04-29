@@ -13,7 +13,7 @@ import types
 
 from ._compat import PY2, StringIO, pjoin, exists, hashlib_md5, \
     integer_types, basestring, iteritems, xrange, implements_iterator, \
-    implements_bool, copyreg
+    implements_bool, copyreg, reduce
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
@@ -28,8 +28,6 @@ from .helpers.methods import list_represent, bar_decode_integer, \
 from .helpers.serializers import serializers
 
 long = integer_types[-1]
-if not PY2:
-    from functools import reduce
 
 DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
                  'blob': 2**31}
@@ -2156,11 +2154,12 @@ class VirtualCommand(object):
         return self.method(self.row,*args,**kwargs)
 
 
+@implements_bool
 class BasicRows(object):
     """
     Abstract class for Rows and IterRows
     """
-    def __nonzero__(self):
+    def __bool__(self):
         return True if self.first() is not None else False
 
     def __str__(self):
@@ -2172,7 +2171,8 @@ class BasicRows(object):
         self.export_to_csv_file(s)
         return s.getvalue()
 
-    def as_trees(self, parent_name='parent_id', children_name='children', render=False):
+    def as_trees(self, parent_name='parent_id', children_name='children',
+                 render=False):
         """
         returns the data as list of trees.
 
@@ -2186,7 +2186,8 @@ class BasicRows(object):
         """
         roots = []
         drows = {}
-        rows = list(self.render(fields=None if render is True else render)) if render else self
+        rows = list(self.render(fields=None if render is True else render)) \
+            if render else self
         for row in rows:
             drows[row.id] = row
             row[children_name] = []
@@ -2212,7 +2213,8 @@ class BasicRows(object):
         """
         (oc, self.compact) = (self.compact, compact)
         if storage_to_dict:
-            items = [item.as_dict(datetime_to_str, custom_types) for item in self]
+            items = [item.as_dict(datetime_to_str, custom_types)
+                     for item in self]
         else:
             items = [item for item in self]
         self.compact = oc
@@ -2240,7 +2242,7 @@ class BasicRows(object):
         f = self.first()
         if f and isinstance(key, basestring):
             multi = any([isinstance(v, f.__class__) for v in f.values()])
-            if (not "." in key) and multi:
+            if ("." not in key) and multi:
                 # No key provided, default to int indices
                 def new_key():
                     i = 0
@@ -2250,14 +2252,15 @@ class BasicRows(object):
                 key_generator = new_key()
                 key = lambda r: key_generator.next()
 
-        rows = self.as_list(compact, storage_to_dict, datetime_to_str, custom_types)
-        if isinstance(key,str) and key.count('.')==1:
+        rows = self.as_list(compact, storage_to_dict, datetime_to_str,
+                            custom_types)
+        if isinstance(key, str) and key.count('.') == 1:
             (table, field) = key.split('.')
-            return dict([(r[table][field],r) for r in rows])
-        elif isinstance(key,str):
-            return dict([(r[key],r) for r in rows])
+            return dict([(r[table][field], r) for r in rows])
+        elif isinstance(key, str):
+            return dict([(r[key], r) for r in rows])
         else:
-            return dict([(key(r),r) for r in rows])
+            return dict([(key(r), r) for r in rows])
 
     def xml(self, strict=False, row_name='row', rows_name='rows'):
         """
@@ -2267,10 +2270,15 @@ class BasicRows(object):
             strict = True
 
         if strict:
-            return '<%s>\n%s\n</%s>' % (rows_name,
-                '\n'.join(row.as_xml(row_name=row_name,
-                                     colnames=self.colnames) for
-                          row in self), rows_name)
+            return '<%s>\n%s\n</%s>' % (
+                rows_name,
+                '\n'.join(
+                    row.as_xml(
+                        row_name=row_name,
+                        colnames=self.colnames
+                    ) for row in self),
+                rows_name
+            )
 
         rv = self.db.represent('rows_xml', self)
         if hasattr(rv, 'xml') and callable(getattr(rv, 'xml')):
@@ -2327,7 +2335,7 @@ class BasicRows(object):
             return unq_colnames
 
         colnames = kwargs.get('colnames', self.colnames)
-        write_colnames = kwargs.get('write_colnames',True)
+        write_colnames = kwargs.get('write_colnames', True)
         # a proper csv starting with the column names
         if write_colnames:
             writer.writerow(unquote_colnames(colnames))
@@ -2343,11 +2351,11 @@ class BasicRows(object):
                 return null
             elif PY2 and isinstance(value, unicode):
                 return value.encode('utf8')
-            elif isinstance(value,Reference):
+            elif isinstance(value, Reference):
                 return long(value)
             elif hasattr(value, 'isoformat'):
                 return value.isoformat()[:19].replace('T', ' ')
-            elif isinstance(value, (list,tuple)): # for type='list:..'
+            elif isinstance(value, (list, tuple)):  # for type='list:..'
                 return bar_encode(value)
             return value
 
@@ -2361,18 +2369,20 @@ class BasicRows(object):
                 else:
                     (t, f) = m.groups()
                     field = self.db[t][f]
-                    if isinstance(record.get(t, None), (Row,dict)):
+                    if isinstance(record.get(t, None), (Row, dict)):
                         value = record[t][f]
                     else:
                         value = record[f]
-                    if field.type=='blob' and not value is None:
+                    if field.type == 'blob' and value is not None:
                         value = base64.b64encode(value)
                     elif represent and field.represent:
                         if field.type.startswith('reference'):
                             if field not in repr_cache:
                                 repr_cache[field] = {}
                             if value not in repr_cache[field]:
-                                repr_cache[field][value] = field.represent(value, record)
+                                repr_cache[field][value] = field.represent(
+                                    value, record
+                                )
                             value = repr_cache[field][value]
                         else:
                             value = field.represent(value, record)
@@ -2383,8 +2393,8 @@ class BasicRows(object):
     as_csv = __str__
     json = as_json
 
-class Rows(BasicRows):
 
+class Rows(BasicRows):
     """
     A wrapper for the return value of a select. It basically represents a table.
     It has an iterator and each row is represented as a `Row` dictionary.
@@ -2392,14 +2402,8 @@ class Rows(BasicRows):
 
     # ## TODO: this class still needs some work to care for ID/OID
 
-    def __init__(
-        self,
-        db=None,
-        records=[],
-        colnames=[],
-        compact=True,
-        rawrows=None
-        ):
+    def __init__(self, db=None, records=[], colnames=[], compact=True,
+                 rawrows=None):
         self.db = db
         self.records = records
         self.colnames = colnames
@@ -2409,7 +2413,7 @@ class Rows(BasicRows):
     def __repr__(self):
         return '<Rows (%s)>' % len(self.records)
 
-    def setvirtualfields(self,**keyed_virtualfields):
+    def setvirtualfields(self, **keyed_virtualfields):
         """
         For reference::
 
@@ -2433,46 +2437,47 @@ class Rows(BasicRows):
         if not keyed_virtualfields:
             return self
         for row in self.records:
-            for (tablename,virtualfields) in iteritems(keyed_virtualfields):
+            for (tablename, virtualfields) in iteritems(keyed_virtualfields):
                 attributes = dir(virtualfields)
-                if not tablename in row:
+                if tablename not in row:
                     box = row[tablename] = Row()
                 else:
                     box = row[tablename]
                 updated = False
                 for attribute in attributes:
                     if attribute[0] != '_':
-                        method = getattr(virtualfields,attribute)
-                        if hasattr(method,'__lazy__'):
-                            box[attribute]=VirtualCommand(method,row)
-                        elif type(method)==types.MethodType:
+                        method = getattr(virtualfields, attribute)
+                        if hasattr(method, '__lazy__'):
+                            box[attribute] = VirtualCommand(method, row)
+                        elif type(method) == types.MethodType:
                             if not updated:
                                 virtualfields.__dict__.update(row)
                                 updated = True
-                            box[attribute]=method()
+                            box[attribute] = method()
         return self
 
-    def __and__(self,other):
-        if self.colnames!=other.colnames:
+    def __and__(self, other):
+        if self.colnames != other.colnames:
             raise Exception('Cannot & incompatible Rows objects')
         records = self.records+other.records
-        return Rows(self.db,records,self.colnames,
+        return Rows(self.db, records, self.colnames,
                     compact=self.compact or other.compact)
 
-    def __or__(self,other):
-        if self.colnames!=other.colnames:
+    def __or__(self, other):
+        if self.colnames != other.colnames:
             raise Exception('Cannot | incompatible Rows objects')
         records = [record for record in other.records
-                   if not record in self.records]
+                   if record not in self.records]
         records = self.records + records
-        return Rows(self.db,records,self.colnames,
+        return Rows(self.db, records, self.colnames,
                     compact=self.compact or other.compact)
 
     def __len__(self):
         return len(self.records)
 
     def __getslice__(self, a, b):
-        return Rows(self.db,self.records[a:b],self.colnames,compact=self.compact)
+        return Rows(self.db, self.records[a:b], self.colnames,
+                    compact=self.compact)
 
     def __getitem__(self, i):
         row = self.records[i]
@@ -2505,7 +2510,7 @@ class Rows(BasicRows):
             return None
         return self[-1]
 
-    def find(self,f,limitby=None):
+    def find(self, f, limitby=None):
         """
         Returns a new Rows object, a subset of the original object,
         filtered by the function `f`
@@ -2514,15 +2519,17 @@ class Rows(BasicRows):
             return Rows(self.db, [], self.colnames, compact=self.compact)
         records = []
         if limitby:
-            a,b = limitby
+            a, b = limitby
         else:
-            a,b = 0,len(self)
+            a, b = 0, len(self)
         k = 0
         for i, row in enumerate(self):
             if f(row):
-                if a<=k: records.append(self.records[i])
+                if a <= k:
+                    records.append(self.records[i])
                 k += 1
-                if k==b: break
+                if k == b:
+                    break
         return Rows(self.db, records, self.colnames, compact=self.compact)
 
     def exclude(self, f):
@@ -2533,8 +2540,8 @@ class Rows(BasicRows):
         if not self.records:
             return Rows(self.db, [], self.colnames, compact=self.compact)
         removed = []
-        i=0
-        while i<len(self):
+        i = 0
+        while i < len(self):
             row = self[i]
             if f(row):
                 removed.append(self.records[i])
@@ -2579,7 +2586,7 @@ class Rows(BasicRows):
             if value not in groups:
                 groups[value] = build_fields_struct(row, fields, num+1, {})
             else:
-                struct = build_fields_struct(row, fields, num+1, groups[ value ])
+                struct = build_fields_struct(row, fields, num+1, groups[value])
 
                 # still have more grouping to do
                 if type(struct) == type(dict()):
@@ -2638,13 +2645,12 @@ class Rows(BasicRows):
                 row[table][field] = self.db.represent(
                     'rows_render', self.db[table][field], row[table][field],
                     row[table])
-        
+
         if self.compact and len(keys) == 1 and keys[0] != '_extra':
             return row[keys[0]]
         return row
 
 
-@implements_bool
 @implements_iterator
 class IterRows(BasicRows):
     def __init__(self, db, sql, fields, colnames, blob_decode, cacheable):
@@ -2653,7 +2659,8 @@ class IterRows(BasicRows):
         self.colnames = colnames
         self.blob_decode = blob_decode
         self.cacheable = cacheable
-        (self.fields_virtual, self.fields_lazy, self.tmps) = self.db._adapter._parse_expand_colnames(colnames)
+        (self.fields_virtual, self.fields_lazy, self.tmps) = \
+            self.db._adapter._parse_expand_colnames(colnames)
         self.db._adapter.cursor.execute(sql)
         self._head = None
         self.last_item = None
@@ -2696,9 +2703,6 @@ class IterRows(BasicRows):
                 # TODO should I raise something?
                 return None
         return self._head
-
-    def __bool__(self):
-        return True if self.first() is not None else False
 
     def __getitem__(self, key):
         if not isinstance(key, (int, long)):
