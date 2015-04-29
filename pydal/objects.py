@@ -2676,7 +2676,7 @@ class IterRows(BasicRows):
             # normally accomplished by Rows.__get_item__
             keys = list(row.keys())
             if len(keys) == 1 and keys[0] != '_extra':
-                row = row[row.keys()[0]]
+                row = row[keys[0]]
         return row
 
     def __iter__(self):
