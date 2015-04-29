@@ -16,8 +16,6 @@ from pydal.objects import Table
 from ._compat import unittest
 from ._adapt import DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE
 
-if PY2:
-    StringIO = StringIO.StringIO
 long = integer_types[-1]
 
 print('Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
@@ -1959,6 +1957,20 @@ class TestSerializers(unittest.TestCase):
         j=rows.as_json()
         import json #standard library
         json.loads(j)
+        db.tt.drop()
+        db.close()
+
+    def testSelectIterselect(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('tt'))
+        db.tt.insert(tt='pydal')
+        methods = ['as_dict', 'as_csv', 'as_json', 'as_xml', 'as_list']
+        for method in methods:
+            rows = db(db.tt).select()
+            rowsI = db(db.tt).iterselect()
+            self.assertEqual(getattr(rows, method)(),
+                             getattr(rowsI, method)(),
+                             'failed %s' % method)
         db.tt.drop()
         db.close()
 
