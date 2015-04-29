@@ -3,6 +3,7 @@ import re
 import sys
 
 from .._globals import IDENTITY
+from .._compat import iteritems
 from ..helpers.methods import varquote_aux
 from .base import BaseAdapter
 
@@ -148,7 +149,7 @@ class MSSQLAdapter(BaseAdapter):
             urlargs = m.group('urlargs') or ''
             for argmatch in self.REGEX_ARGPATTERN.finditer(urlargs):
                 argsdict[str(argmatch.group('argkey')).upper()] = argmatch.group('argvalue')
-            urlargs = ';'.join(['%s=%s' % (ak, av) for (ak, av) in argsdict.iteritems()])
+            urlargs = ';'.join(['%s=%s' % (ak, av) for (ak, av) in iteritems(argsdict)])
             cnxn = 'SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;%s' \
                 % (host, port, db, user, password, urlargs)
         def connector(cnxn=cnxn,driver_args=driver_args):
