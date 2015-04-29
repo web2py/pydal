@@ -5,7 +5,7 @@ import re
 from .._compat import iteritems, integer_types
 from .regex import REGEX_NOPASSWD, REGEX_UNPACK, REGEX_CONST_STRING, REGEX_W
 from .classes import SQLCustomType
-#from ..objects import Field, Table
+# from ..objects import Field, Table
 
 
 PLURALIZE_RULES = [
@@ -24,24 +24,26 @@ PLURALIZE_RULES = [
     (re.compile('$'), re.compile('$'), 's'),
     ]
 
+
 def pluralize(singular, rules=PLURALIZE_RULES):
     for line in rules:
         re_search, re_sub, replace = line
         plural = re_search.search(singular) and re_sub.sub(replace, singular)
         if plural: return plural
 
+
 def hide_password(uri):
-    if isinstance(uri,(list,tuple)):
+    if isinstance(uri, (list, tuple)):
         return [hide_password(item) for item in uri]
-    return REGEX_NOPASSWD.sub('******',uri)
+    return REGEX_NOPASSWD.sub('******', uri)
 
 
 def cleanup(text):
     """
     Validates that the given text is clean: only contains [0-9a-zA-Z_]
     """
-    #if not REGEX_ALPHANUMERIC.match(text):
-    #    raise SyntaxError('invalid table or field name: %s' % text)
+    # if not REGEX_ALPHANUMERIC.match(text):
+    #     raise SyntaxError('invalid table or field name: %s' % text)
     return text
 
 
@@ -59,8 +61,8 @@ def xorify(orderby):
 
 
 def use_common_filters(query):
-    return (query and hasattr(query,'ignore_common_filters') and \
-                not query.ignore_common_filters)
+    return (query and hasattr(query, 'ignore_common_filters') and \
+            not query.ignore_common_filters)
 
 
 def bar_escape(item):
@@ -73,7 +75,7 @@ def bar_encode(items):
 
 def bar_decode_integer(value):
     long = integer_types[-1]
-    if not hasattr(value,'split') and hasattr(value,'read'):
+    if not hasattr(value, 'split') and hasattr(value, 'read'):
         value = value.read()
     return [long(x) for x in value.split('|') if x.strip()]
 
@@ -97,15 +99,15 @@ def archive_record(qset, fs, archive_table, current_record):
     return False
 
 
-def smart_query(fields,text):
+def smart_query(fields, text):
     from ..objects import Field, Table
-    if not isinstance(fields,(list,tuple)):
+    if not isinstance(fields, (list, tuple)):
         fields = [fields]
     new_fields = []
     for field in fields:
-        if isinstance(field,Field):
+        if isinstance(field, Field):
             new_fields.append(field)
-        elif isinstance(field,Table):
+        elif isinstance(field, Table):
             for ofield in field:
                 new_fields.append(ofield)
         else:
@@ -126,51 +128,51 @@ def smart_query(fields,text):
         if not m: break
         text = text[:m.start()]+('#%i' % i)+text[m.end():]
         constants[str(i)] = m.group()[1:-1]
-        i+=1
-    text = re.sub('\s+',' ',text).lower()
-    for a,b in [('&','and'),
-                ('|','or'),
-                ('~','not'),
-                ('==','='),
-                ('<','<'),
-                ('>','>'),
-                ('<=','<='),
-                ('>=','>='),
-                ('<>','!='),
-                ('=<','<='),
-                ('=>','>='),
-                ('=','='),
-                (' less or equal than ','<='),
-                (' greater or equal than ','>='),
-                (' equal or less than ','<='),
-                (' equal or greater than ','>='),
-                (' less or equal ','<='),
-                (' greater or equal ','>='),
-                (' equal or less ','<='),
-                (' equal or greater ','>='),
-                (' not equal to ','!='),
-                (' not equal ','!='),
-                (' equal to ','='),
-                (' equal ','='),
-                (' equals ','='),
-                (' less than ','<'),
-                (' greater than ','>'),
-                (' starts with ','startswith'),
-                (' ends with ','endswith'),
-                (' not in ' , 'notbelongs'),
-                (' in ' , 'belongs'),
-                (' is ','=')]:
-        if a[0]==' ':
-            text = text.replace(' is'+a,' %s ' % b)
-        text = text.replace(a,' %s ' % b)
-    text = re.sub('\s+',' ',text).lower()
-    text = re.sub('(?P<a>[\<\>\!\=])\s+(?P<b>[\<\>\!\=])','\g<a>\g<b>',text)
+        i += 1
+    text = re.sub('\s+', ' ', text).lower()
+    for a, b in [('&', 'and'),
+                 ('|', 'or'),
+                 ('~', 'not'),
+                 ('==', '='),
+                 ('<', '<'),
+                 ('>', '>'),
+                 ('<=', '<='),
+                 ('>=', '>='),
+                 ('<>', '!='),
+                 ('=<', '<='),
+                 ('=>', '>='),
+                 ('=', '='),
+                 (' less or equal than ', '<='),
+                 (' greater or equal than ', '>='),
+                 (' equal or less than ', '<='),
+                 (' equal or greater than ', '>='),
+                 (' less or equal ', '<='),
+                 (' greater or equal ', '>='),
+                 (' equal or less ', '<='),
+                 (' equal or greater ', '>='),
+                 (' not equal to ', '!='),
+                 (' not equal ', '!='),
+                 (' equal to ', '='),
+                 (' equal ', '='),
+                 (' equals ', '='),
+                 (' less than ', '<'),
+                 (' greater than ', '>'),
+                 (' starts with ', 'startswith'),
+                 (' ends with ', 'endswith'),
+                 (' not in ', 'notbelongs'),
+                 (' in ', 'belongs'),
+                 (' is ', '=')]:
+        if a[0] == ' ':
+            text = text.replace(' is'+a, ' %s ' % b)
+        text = text.replace(a, ' %s ' % b)
+    text = re.sub('\s+', ' ', text).lower()
+    text = re.sub('(?P<a>[\<\>\!\=])\s+(?P<b>[\<\>\!\=])', '\g<a>\g<b>', text)
     query = field = neg = op = logic = None
     for item in text.split():
         if field is None:
             if item == 'not':
                 neg = True
-            elif not neg and not logic and item in ('and','or'):
+            elif not neg and not logic and item in ('and', 'or'):
                 logic = item
             elif item in field_map:
                 field = field_map[item]
@@ -187,12 +189,12 @@ def smart_query(fields,text):
                 value = item
                 if field.type in ('text', 'string', 'json'):
                     if op == '=': op = 'like'
-            if op == '=': new_query = field==value
-            elif op == '<': new_query = field<value
-            elif op == '>': new_query = field>value
-            elif op == '<=': new_query = field<=value
-            elif op == '>=': new_query = field>=value
-            elif op == '!=': new_query = field!=value
+            if op == '=': new_query = field == value
+            elif op == '<': new_query = field < value
+            elif op == '>': new_query = field > value
+            elif op == '<=': new_query = field <= value
+            elif op == '>=': new_query = field >= value
+            elif op == '!=': new_query = field != value
             elif op == 'belongs': new_query = field.belongs(value.split(','))
             elif op == 'notbelongs': new_query = ~field.belongs(value.split(','))
             elif field.type in ('text', 'string', 'json'):
