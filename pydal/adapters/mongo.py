@@ -470,38 +470,38 @@ class MongoDBAdapter(NoSQLAdapter):
 
     def EQ(self,first,second=None):
         result = {}
-        result[self.expand(first)] = self.expand(second)
+        result[self.expand(first)] = self.expand(second, first.type)
         return result
 
     def NE(self, first, second=None):
         result = {}
-        result[self.expand(first)] = {'$ne': self.expand(second)}
+        result[self.expand(first)] = {'$ne': self.expand(second, first.type)}
         return result
 
     def LT(self,first,second=None):
         if second is None:
             raise RuntimeError("Cannot compare %s < None" % first)
         result = {}
-        result[self.expand(first)] = {'$lt': self.expand(second)}
+        result[self.expand(first)] = {'$lt': self.expand(second, first.type)}
         return result
 
     def LE(self,first,second=None):
         if second is None:
             raise RuntimeError("Cannot compare %s <= None" % first)
         result = {}
-        result[self.expand(first)] = {'$lte': self.expand(second)}
+        result[self.expand(first)] = {'$lte': self.expand(second, first.type)}
         return result
 
     def GT(self,first,second):
         result = {}
-        result[self.expand(first)] = {'$gt': self.expand(second)}
+        result[self.expand(first)] = {'$gt': self.expand(second, first.type)}
         return result
 
     def GE(self,first,second=None):
         if second is None:
             raise RuntimeError("Cannot compare %s >= None" % first)
         result = {}
-        result[self.expand(first)] = {'$gte': self.expand(second)}
+        result[self.expand(first)] = {'$gte': self.expand(second, first.type)}
         return result
 
     def ADD(self, first, second):
