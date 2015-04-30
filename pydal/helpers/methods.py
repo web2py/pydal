@@ -130,38 +130,48 @@ def smart_query(fields, text):
         constants[str(i)] = m.group()[1:-1]
         i += 1
     text = re.sub('\s+', ' ', text).lower()
-    for a, b in [('&', 'and'),
+    for a, b in [
+                 # binary operator
+                 ('&', 'and'),
                  ('|', 'or'),
                  ('~', 'not'),
-                 ('==', '='),
-                 ('<', '<'),
-                 ('>', '>'),
-                 ('<=', '<='),
-                 ('>=', '>='),
-                 ('<>', '!='),
-                 ('=<', '<='),
-                 ('=>', '>='),
+                 # equal
                  ('=', '='),
-                 (' less or equal than ', '<='),
-                 (' greater or equal than ', '>='),
-                 (' equal or less than ', '<='),
-                 (' equal or greater than ', '>='),
-                 (' less or equal ', '<='),
-                 (' greater or equal ', '>='),
-                 (' equal or less ', '<='),
-                 (' equal or greater ', '>='),
-                 (' not equal to ', '!='),
-                 (' not equal ', '!='),
-                 (' equal to ', '='),
+                 ('==', '='),
+                 (' is ', '='),
                  (' equal ', '='),
                  (' equals ', '='),
+                 (' equal to ', '='),
+                 # not equal
+                 ('<>', '!='),
+                 (' not equal ', '!='),
+                 (' not equal to ', '!='),
+                 # less than
+                 ('<', '<'),
                  (' less than ', '<'),
+                 # less or equal
+                 ('<=', '<='),
+                 ('=<', '<='),  # Trow invalid query from SQLFORM.grid search tool
+                 (' less or equal ', '<='),
+                 (' less or equal than ', '<='),
+                 (' equal or less ', '<='),
+                 (' equal or less than ', '<='),
+                 # greater than
+                 ('>', '>'),
                  (' greater than ', '>'),
+                 # greater or equal
+                 ('>=', '>='),
+                 ('=>', '>='),  # Trow invalid query from SQLFORM.grid search tool
+                 (' greater or equal ', '>='),
+                 (' greater or equal than ', '>='),
+                 (' equal or greater ', '>='),
+                 (' equal or greater than ', '>='),
+                 # other
+                 (' in ', 'belongs'),
+                 (' not in ', 'notbelongs'),
                  (' starts with ', 'startswith'),
                  (' ends with ', 'endswith'),
-                 (' not in ', 'notbelongs'),
-                 (' in ', 'belongs'),
-                 (' is ', '=')]:
+                 ]:
         if a[0] == ' ':
             text = text.replace(' is'+a, ' %s ' % b)
         text = text.replace(a, ' %s ' % b)
