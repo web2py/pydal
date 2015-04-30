@@ -5,6 +5,7 @@ from pydal import DAL, Field
 from pydal.helpers.methods import smart_query
 
 
+@unittest.skipIf(NOSQL, "Skip nosql")
 class TestSmartQuery(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
