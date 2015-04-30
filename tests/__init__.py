@@ -7,3 +7,4 @@ else:
 
 from .validation import *
 from .caching import TestCache
+from .test_smart_query import *
