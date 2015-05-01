@@ -361,6 +361,10 @@ class BasicStorage(object):
 
     __iter__ = lambda self: self.__dict__.__iter__()
 
+    __str__ = lambda self: self.__dict__.__str__()
+
+    __repr__ = lambda self: self.__dict__.__repr__()
+
     has_key = __contains__
 
     def items(self):

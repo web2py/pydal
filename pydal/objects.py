@@ -76,7 +76,7 @@ class Row(BasicStorage):
             raise e
         return None
 
-    __str__ = __repr__ = lambda self: '<Row %s>' % super(Row, self).__repr__()
+    __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict()
 
     __int__ = lambda self: self.get('id')
 
