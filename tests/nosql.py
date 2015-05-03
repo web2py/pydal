@@ -441,6 +441,16 @@ class TestDatetime(unittest.TestCase):
                          21, 11, 30)).count(), 1)
         self.assertEqual(db(db.tt.aa >= datetime.datetime(1971, 1, 1)).count(), 2)
         drop(db.tt)
+        db.define_table('tt', Field('aa', 'time'))
+        t0 = datetime.time(10, 30, 55)
+        db.tt.insert(aa=t0)
+        self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
+        drop(db.tt)
+        db.define_table('tt', Field('aa', 'date'))
+        t0 = datetime.date.today()
+        db.tt.insert(aa=t0)
+        self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
+        drop(db.tt)
         db.close()
 
 

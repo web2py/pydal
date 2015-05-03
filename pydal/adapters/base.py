@@ -1497,6 +1497,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
     def parse_date(self, value, field_type):
         if isinstance(value, datetime.datetime):
+        # Extract the date portion from the datetime
             return value.date()
         if not isinstance(value, (datetime.date,datetime.datetime)):
             (y, m, d) = map(int, str(value)[:10].strip().split('-'))
@@ -1504,6 +1505,9 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return value
 
     def parse_time(self, value, field_type):
+        if isinstance(value, datetime.datetime):
+        # Extract the time portion from the datetime
+            return value.time()
         if not isinstance(value, datetime.time):
             time_items = list(map(int,str(value)[:8].strip().split(':')[:3]))
             if len(time_items) == 3:
