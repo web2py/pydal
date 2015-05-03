@@ -3,9 +3,11 @@ import re
 import sys
 
 from .._globals import IDENTITY
-from .._compat import iteritems
+from .._compat import iteritems, integer_types
 from ..helpers.methods import varquote_aux
 from .base import BaseAdapter
+
+long = integer_types[-1]
 
 
 class MSSQLAdapter(BaseAdapter):
