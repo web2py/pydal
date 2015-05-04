@@ -1,11 +1,11 @@
 from ._compat import unittest
-from ._adapt import DEFAULT_URI, NOSQL, IS_IMAP, drop
+from ._adapt import DEFAULT_URI, IS_GAE, IS_IMAP, drop
 from pydal._compat import integer_types
 from pydal import DAL, Field
 from pydal.helpers.methods import smart_query
 
 
-@unittest.skipIf(NOSQL, "Skip nosql")
+@unittest.skipIf(IS_IMAP, "Skip nosql")
 class TestSmartQuery(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
@@ -34,7 +34,8 @@ class TestSmartQuery(unittest.TestCase):
                         # Field('list_reference_field', 'list:reference referred_table')
                         )
 
-        fields = [db.a_table.string_field,
+        fields = [db.a_table.id,
+                  db.a_table.string_field,
                   db.a_table.text_field,
                   db.a_table.boolean_field,
                   db.a_table.integer_field,
@@ -64,26 +65,27 @@ class TestSmartQuery(unittest.TestCase):
         keywords = 'a_table.boolean_field = True'
         q = (db.a_table.boolean_field == True)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
-        # Test string field query
-        # starts with
-        keywords = 'a_table.string_field starts with "pydal"'
-        q = (db.a_table.string_field.startswith('pydal'))
-        smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        if not IS_GAE:
+            # Test string field query
+            # starts with
+            keywords = 'a_table.string_field starts with "pydal"'
+            q = (db.a_table.string_field.startswith('pydal'))
+            smart_q = smart_query(fields, keywords)
+            self.assertEqual(smart_q, q)
 
-        # ends with
-        keywords = 'a_table.string_field ends with "Rocks!!"'
-        q = (db.a_table.string_field.endswith('Rocks!!'))
-        smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+            # ends with
+            keywords = 'a_table.string_field ends with "Rocks!!"'
+            q = (db.a_table.string_field.endswith('Rocks!!'))
+            smart_q = smart_query(fields, keywords)
+            self.assertEqual(smart_q, q)
 
-        # contains
-        keywords = 'a_table.string_field contains "Rocks"'
-        q = (db.a_table.string_field.contains('Rocks'))
-        smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+            # contains
+            keywords = 'a_table.string_field contains "Rocks"'
+            q = (db.a_table.string_field.contains('Rocks'))
+            smart_q = smart_query(fields, keywords)
+            self.assertEqual(smart_q, q)
 
         # Don't work for some reason
         # # like
@@ -138,37 +140,37 @@ class TestSmartQuery(unittest.TestCase):
         keywords = 'a_table.integer_field = 1'
         q = (db.a_table.integer_field == 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # ('==', '=')
         keywords = 'a_table.integer_field == 1'
         q = (db.a_table.integer_field == 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' is ','=')
         keywords = 'a_table.integer_field is 1'
         q = (db.a_table.integer_field == 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' equal ', '=')
         keywords = 'a_table.integer_field  equal  1'
         q = (db.a_table.integer_field == 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' equals ', '=')
         keywords = 'a_table.integer_field  equals  1'
         q = (db.a_table.integer_field == 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' equal to ', '=')
         keywords = 'a_table.integer_field  equal to  1'
         q = (db.a_table.integer_field == 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # This one not allow over integer it seems
         # # ('<>', '!=')
@@ -181,31 +183,31 @@ class TestSmartQuery(unittest.TestCase):
         keywords = 'a_table.integer_field  not equal  1'
         q = (db.a_table.integer_field != 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' not equal to ', '!=')
         keywords = 'a_table.integer_field  not equal to  1'
         q = (db.a_table.integer_field != 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # ('<', '<')
         keywords = 'a_table.integer_field < 1'
         q = (db.a_table.integer_field < 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' less than ', '<')
         keywords = 'a_table.integer_field  less than  1'
         q = (db.a_table.integer_field < 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # ('<=', '<=')
         keywords = 'a_table.integer_field <= 1'
         q = (db.a_table.integer_field <= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # This one is invalid, maybe we should remove it from smart_query
         # # ('=<', '<=')
@@ -218,37 +220,37 @@ class TestSmartQuery(unittest.TestCase):
         keywords = 'a_table.integer_field  less or equal  1'
         q = (db.a_table.integer_field <= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' less or equal than ', '<=')
         keywords = 'a_table.integer_field  less or equal than  1'
         q = (db.a_table.integer_field <= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' equal or less ', '<=')
         keywords = 'a_table.integer_field  equal or less  1'
         q = (db.a_table.integer_field <= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' equal or less than ', '<=')
         keywords = 'a_table.integer_field  equal or less than  1'
         q = (db.a_table.integer_field <= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # ('>', '>')
         keywords = 'a_table.integer_field > 1'
         q = (db.a_table.integer_field > 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' greater than ', '>')
         keywords = 'a_table.integer_field  greater than  1'
         q = (db.a_table.integer_field > 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # This one is invalid, maybe we should remove it from smart_query
         # # ('=>', '>=')
@@ -261,31 +263,31 @@ class TestSmartQuery(unittest.TestCase):
         keywords = 'a_table.integer_field >= 1'
         q = (db.a_table.integer_field >= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' greater or equal ', '>=')
         keywords = 'a_table.integer_field  greater or equal  1'
         q = (db.a_table.integer_field >= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' greater or equal than ', '>=')
         keywords = 'a_table.integer_field  greater or equal than  1'
         q = (db.a_table.integer_field >= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' equal or greater ', '>=')
         keywords = 'a_table.integer_field  equal or greater  1'
         q = (db.a_table.integer_field >= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
 
         # (' equal or greater than ', '>=')
         keywords = 'a_table.integer_field  equal or greater than  1'
         q = (db.a_table.integer_field >= 1)
         smart_q = smart_query(fields, keywords)
-        self.assertTrue(smart_q == q)
+        self.assertEqual(smart_q, q)
         # -----------------------------------------------------------------------------
 
         # -----------------------------------------------------------------------------
@@ -294,11 +296,16 @@ class TestSmartQuery(unittest.TestCase):
         # NOTE : The below tests don't works
         # Issue : https://github.com/web2py/pydal/issues/161
 
-        # # (' in ', 'belongs') -> field.belongs(1, 2, 3)
+        # (' in ', 'belongs') -> field.belongs(1, 2, 3)
         # keywords = 'a_table.integer_field in "1, 2, 3"'
+        # q = (db.a_table.integer_field.belongs([1, 2, 3]))
+        # smart_q = smart_query(fields, keywords)
+        # self.assertEqual(smart_q, q)
+
+        # keywords = 'a_table.id in "1, 2, 3"'
         # q = (db.a_table.id.belongs([1, 2, 3]))
         # smart_q = smart_query(fields, keywords)
-        # self.assertTrue(smart_q == q)
+        # self.assertEqual(smart_q, q)
         #
         # # (' not in ' , 'notbelongs'),
         # keywords = 'a_table.integer_field not in "1, 2, 3"'
