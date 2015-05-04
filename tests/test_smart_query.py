@@ -34,7 +34,8 @@ class TestSmartQuery(unittest.TestCase):
                         # Field('list_reference_field', 'list:reference referred_table')
                         )
 
-        fields = [db.a_table.string_field,
+        fields = [db.a_table.id,
+                  db.a_table.string_field,
                   db.a_table.text_field,
                   db.a_table.boolean_field,
                   db.a_table.integer_field,
@@ -290,21 +291,22 @@ class TestSmartQuery(unittest.TestCase):
 
         # -----------------------------------------------------------------------------
         # Belongs and not belongs
-
-        # NOTE : The below tests don't works
-        # Issue : https://github.com/web2py/pydal/issues/161
-
-        # # (' in ', 'belongs') -> field.belongs(1, 2, 3)
-        # keywords = 'a_table.integer_field in "1, 2, 3"'
-        # q = (db.a_table.id.belongs([1, 2, 3]))
-        # smart_q = smart_query(fields, keywords)
-        # self.assertTrue(smart_q == q)
-        #
-        # # (' not in ' , 'notbelongs'),
-        # keywords = 'a_table.integer_field not in "1, 2, 3"'
-        # q = (~db.a_table.id.belongs([1, 2, 3]))
-        # smart_q = smart_query(fields, keywords)
-        # self.assertTrue(smart_q == q)
+        # (' in ', 'belongs') -> field.belongs(1, 2, 3)
+        keywords = 'a_table.integer_field in "1, 2, 3"'
+        q = (db.a_table.integer_field.belongs([1, 2, 3]))
+        smart_q = smart_query(fields, keywords)
+        self.assertTrue(smart_q == q)
+        
+        keywords = 'a_table.id in "1, 2, 3"'
+        q = (db.a_table.id.belongs([1, 2, 3]))
+        smart_q = smart_query(fields, keywords)
+        self.assertTrue(smart_q == q)
+        
+        # (' not in ' , 'notbelongs'),
+        keywords = 'a_table.integer_field not in "1, 2, 3"'
+        q = (~db.a_table.integer_field.belongs([1, 2, 3]))
+        smart_q = smart_query(fields, keywords)
+        self.assertTrue(smart_q == q)
 
         # -----------------------------------------------------------------------------
         # cleanup table
