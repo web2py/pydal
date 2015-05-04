@@ -269,7 +269,7 @@ class _repr_ref_list(_repr_ref):
         from ..adapters import GoogleDatastoreAdapter
         refs = None
         db, id = self.ref._db, self.ref._id
-        if isinstance(db._adapter, GoogleDatastoreAdapter):
+        if GoogleDatastoreAdapter and isinstance(db._adapter, GoogleDatastoreAdapter):
             def count(values):
                 return db(id.belongs(values)).select(id)
             rx = range(0, len(value), 30)
