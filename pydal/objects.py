@@ -58,7 +58,7 @@ class Row(BasicStorage):
             try:
                 e = super(Row, self).__getitem__(m.group(1))
                 return e[m.group(2)]
-            except KeyError:
+            except (KeyError, TypeError):
                 pass
             key = m.group(2)
             try:
@@ -74,7 +74,7 @@ class Row(BasicStorage):
             raise e
         return None
 
-    __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict()
+    __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict(custom_types=[LazySet])
 
     __int__ = lambda self: self.get('id')
 

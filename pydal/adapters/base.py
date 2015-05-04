@@ -1651,7 +1651,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                         referee_link = self.db._referee_name and \
                             self.db._referee_name % dict(
                             table=rfield.tablename,field=rfield.name)
-                        if referee_link and not referee_link in colset:
+                        if (referee_link and not referee_link in colset and
+                            referee_link != tablename):
                             colset[referee_link] = LazySet(rfield,id)
             else:
                 if not '_extra' in new_row:
