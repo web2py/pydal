@@ -266,10 +266,9 @@ class _repr_ref_list(_repr_ref):
     def __call__(self, value, row=None):
         if not value:
             return None
-        from ..adapters import GoogleDatastoreAdapter
         refs = None
         db, id = self.ref._db, self.ref._id
-        if isinstance(db._adapter, GoogleDatastoreAdapter):
+        if db._adapter.dbengine == 'google:datastore':
             def count(values):
                 return db(id.belongs(values)).select(id)
             rx = range(0, len(value), 30)
