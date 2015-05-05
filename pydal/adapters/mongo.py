@@ -5,7 +5,7 @@ import re
 from .._globals import IDENTITY
 from .._compat import integer_types, basestring
 from ..objects import Table, Query, Field, Expression
-from ..helpers.classes import SQLALL
+from ..helpers.classes import SQLALL, Reference
 from ..helpers.methods import use_common_filters, xorify
 from .base import NoSQLAdapter
 
@@ -170,17 +170,18 @@ class MongoDBAdapter(NoSQLAdapter):
                     return Binary(str(value))
                 return Binary(value)
             return value
-        elif (isinstance(fieldtype, basestring) and
-              fieldtype.startswith('list:')):
-            if fieldtype.startswith('list:reference'):
-                newval = []
-                for v in value:
-                    newval.append(self.object_id(v))
-                return newval
-            return value
-        elif ((isinstance(fieldtype, basestring) and
-               fieldtype.startswith("reference")) or
-               (isinstance(fieldtype, Table)) or fieldtype=="id"):
+        elif isinstance(fieldtype, basestring):
+            if fieldtype.startswith('list:'):
+                if fieldtype.startswith('list:reference'):
+                    newval = []
+                    for v in value:
+                        newval.append(self.object_id(v))
+                    value = newval
+            elif fieldtype.startswith("reference") or fieldtype=="id":
+                value = self.object_id(value)
+            elif fieldtype == "string":
+                value = str(value)
+        elif isinstance(fieldtype, Table):
             value = self.object_id(value)
         return value
 
@@ -234,7 +235,6 @@ class MongoDBAdapter(NoSQLAdapter):
                                          item in expression.second]
                 else:
                     expression.second = self.object_id(expression.second)
-                result = expression.op(expression.first, expression.second)
 
         if isinstance(expression, Field):
             if expression.type=='id':
@@ -242,14 +242,16 @@ class MongoDBAdapter(NoSQLAdapter):
             else:
                 result =  expression.name
         elif isinstance(expression, (Expression, Query)):
-            if not expression.second is None:
-                result = expression.op(expression.first, expression.second)
-            elif not expression.first is None:
-                result = expression.op(expression.first)
-            elif not isinstance(expression.op, str):
-                result = expression.op()
+            first = expression.first
+            second = expression.second
+            op = expression.op
+            optional_args = expression.optional_args or {}
+            if not second is None:
+                result = op(first, second, **optional_args)
+            elif not first is None:
+                result = op(first, **optional_args)
             else:
-                result = expression.op
+                result = op if isinstance(op, str) else op(**optional_args)
         elif field_type:
             result = self.represent(expression,field_type)
         elif isinstance(expression,(list,tuple)):
@@ -320,7 +322,6 @@ class MongoDBAdapter(NoSQLAdapter):
             raise SyntaxError("The table name could not be found in " +
                               "the query nor from the select statement.")
 
-
         if query:
             if use_common_filters(query):
                 query = self.common_filter(query,[tablename])
@@ -385,7 +386,9 @@ class MongoDBAdapter(NoSQLAdapter):
 
         if result.acknowledged:
             Oid = result.inserted_id
-            return long(str(Oid), 16)
+            rid = Reference(long(str(Oid), 16))
+            (rid._table, rid._record) = (table, None)
+            return rid
         else:
             return None
 
