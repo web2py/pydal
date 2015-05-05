@@ -166,7 +166,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 return value
             from bson import Binary
             if not isinstance(value, Binary):
-                return Binary(str.encode(value,'utf-8'))
+                return Binary(value)
             return value
         elif isinstance(fieldtype, basestring):
             if fieldtype.startswith('list:'):
@@ -287,11 +287,11 @@ class MongoDBAdapter(NoSQLAdapter):
         limitby = attributes.get('limitby', False)
         # distinct = attributes.get('distinct', False)
         if 'for_update' in attributes:
-            self.db.logger.warn('mongodb does not support for_update')
+            self.db.logger.warning('mongodb does not support for_update')
         for key in set(attributes.keys())-set(('limitby', 'orderby',
                                                'for_update')):
             if attributes[key] is not None:
-                self.db.logger.warn(
+                self.db.logger.warning(
                     'select attribute not implemented: %s' % key)
         if limitby:
             limitby_skip, limitby_limit = limitby[0], int(limitby[1]) - 1
