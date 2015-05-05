@@ -544,70 +544,74 @@ class MongoDBAdapter(NoSQLAdapter):
                                   " but can be simulated with a wrapper.")
         return '%s ON %s' % (self.expand(first), self.expand(second))
 
-    # BLOW ARE TWO IMPLEMENTATIONS OF THE SAME FUNCITONS
-    # WHICH ONE IS BEST?
-
     def COMMA(self, first, second):
         return '%s, %s' % (self.expand(first), self.expand(second))
 
-    def LIKE(self, first, second):
-        #escaping regex operators?
-        return {self.expand(first): ('%s' % \
-                self.expand(second, 'string').replace('%','/'))}
+    #TODO verify full compatibilty with official SQL Like operator
+    def _build_like_regex(self, arg,
+                          case_sensitive=True,
+                          ends_with=False,
+                          starts_with=False,
+                          whole_string=True):
+        import re
+        base = self.expand(arg,'string')
+        need_regex = (whole_string or not case_sensitive
+                      or starts_with or ends_with
+                      or '_' in base or '%' in base)
+        if not need_regex:
+            return base
+        else:
+            expr = re.escape(base).replace('%','.*').replace('_','.')
+            if starts_with:
+                pattern = '^%s'
+            elif ends_with:
+                pattern = '%s$'
+            elif whole_string:
+                pattern = '^%s$'
+            else:
+                pattern = '%s'
+
+            regex = { '$regex': pattern % expr }
+            if not case_sensitive:
+                regex['$options'] = 'i'
+            return regex
+
+    def LIKE(self, first, second, case_sensitive=True):
+        regex = self._build_like_regex(second, case_sensitive=case_sensitive)
+        return { self.expand(first): regex }
 
     def ILIKE(self, first, second):
-        val = second if isinstance(second,self.ObjectId) else {
-            '$regex': second.replace('%', ''), '$options': 'i'}
-        return {self.expand(first): val}
+        return self.LIKE(first, second, case_sensitive=False)
 
     def STARTSWITH(self, first, second):
-        #escaping regex operators?
-        return {self.expand(first): ('/^%s/' % \
-        self.expand(second, 'string'))}
+        regex = self._build_like_regex(second, starts_with=True)
+        return { self.expand(first): regex }
 
     def ENDSWITH(self, first, second):
-        #escaping regex operators?
-        return {self.expand(first): ('/%s^/' % \
-        self.expand(second, 'string'))}
-
-    def CONTAINS(self, first, second, case_sensitive=False):
-        # silently ignore, only case sensitive
-        # There is a technical difference, but mongodb doesn't support
-        # that, but the result will be the same
-        val = second if isinstance(second,self.ObjectId) else \
-            {'$regex':".*" + re.escape(self.expand(second, 'string')) + ".*"}
-        return {self.expand(first) : val}
-
-    def LIKE(self, first, second):
-        import re
-        return {self.expand(first): {'$regex': \
-                re.escape(self.expand(second,
-                                      'string')).replace('%','.*')}}
-
-    #TODO verify full compatibilty with official SQL Like operator
-    def STARTSWITH(self, first, second):
-        #TODO  Solve almost the same problem as with endswith
-        import re
-        return {self.expand(first): {'$regex' : '^' +
-                                     re.escape(self.expand(second,
-                                                           'string'))}}
-
-    #TODO verify full compatibilty with official SQL Like operator
-    def ENDSWITH(self, first, second):
-        #escaping regex operators?
-        #TODO if searched for a name like zsa_corbitt and the function
-        # is endswith('a') then this is also returned.
-        # Aldo it end with a t
-        import re
-        return {self.expand(first): {'$regex': \
-        re.escape(self.expand(second, 'string')) + '$'}}
+        regex = self._build_like_regex(second, ends_with=True)
+        return { self.expand(first): regex }
 
     #TODO verify full compatibilty with official oracle contains operator
-    def CONTAINS(self, first, second, case_sensitive=False):
-        # silently ignore, only case sensitive
-        #There is a technical difference, but mongodb doesn't support
-        # that, but the result will be the same
-        #TODO contains operators need to be transformed to Regex
-        return {self.expand(first) : {'$regex': \
-        ".*" + re.escape(self.expand(second, 'string')) + ".*"}}
+    def CONTAINS(self, first, second, case_sensitive=True):
+        ret = None
+        if isinstance(second, self.ObjectId):
+            val = second
+
+        elif isinstance(first, Field) and first.type == 'list:string':
+            if isinstance(second, Field) and second.type == 'string':
+                ret = {
+                    '$where' :
+                    "this.%s.indexOf(this.%s) > -1" % (first.name, second.name)
+                }
+            else:
+                val = self._build_like_regex(
+                    second, case_sensitive=case_sensitive, whole_string=True)
+        else:
+            val = self._build_like_regex(
+                second, case_sensitive=case_sensitive, whole_string=False)
+
+        if not ret:
+            ret = {self.expand(first): val}
+
+        return ret
 
