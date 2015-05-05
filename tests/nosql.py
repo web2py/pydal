@@ -330,6 +330,7 @@ class TestSelect(unittest.TestCase):
         drop(db.tt)
         db.close()
 
+    @unittest.skipIf(IS_GAE, "Datastore list:integer not supported")
     def testListInteger(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', 
