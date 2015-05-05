@@ -139,7 +139,7 @@ class MongoDBAdapter(NoSQLAdapter):
                      self).parse_id(value, field_type)
 
     def represent(self, obj, fieldtype):
-        # the base adatpter does not support MongoDB ObjectId
+        # the base adapter does not support MongoDB ObjectId
         if isinstance(obj, self.ObjectId):
             value = obj
         else:
@@ -162,13 +162,11 @@ class MongoDBAdapter(NoSQLAdapter):
             # string or integer
             return datetime.datetime.combine(d, value)
         elif fieldtype == "blob":
-            if value is None:
+            if value is None or isinstance(value, basestring):
                 return value
             from bson import Binary
             if not isinstance(value, Binary):
-                if not isinstance(value, basestring):
-                    return Binary(str(value))
-                return Binary(value)
+                return Binary(str.encode(value,'utf-8'))
             return value
         elif isinstance(fieldtype, basestring):
             if fieldtype.startswith('list:'):
