@@ -341,6 +341,7 @@ class TestSelect(unittest.TestCase):
         db.tt.drop()
         db.close()
 
+    @unittest.skipIf(IS_GAE, "Datastore list:string not supported")
     def testListString(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', 
@@ -351,6 +352,7 @@ class TestSelect(unittest.TestCase):
         db.tt.drop()
         db.close()
 
+    @unittest.skipIf(IS_GAE, "Datastore list:reference not supported")
     def testListReference(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('t0', 
