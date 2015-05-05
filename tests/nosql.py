@@ -119,7 +119,7 @@ class TestFields(unittest.TestCase):
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
             db.define_table('tt', Field('aa', ft, default=''))
             self.assertEqual(isinstance(db.tt.insert(aa='x'), long), True)
-            self.assertEqual(str(db().select(db.tt.aa)[0].aa), 'x')
+            self.assertEqual(db().select(db.tt.aa)[0].aa, 'x')
             drop(db.tt)
         db.define_table('tt', Field('aa', 'integer', default=1))
         self.assertEqual(isinstance(db.tt.insert(aa=3), long), True)
@@ -1183,7 +1183,7 @@ class TestRNameFields(unittest.TestCase):
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
             db.define_table('tt', Field('aa', ft, default='', rname=rname))
             self.assertEqual(isinstance(db.tt.insert(aa='x'), long), True)
-            self.assertEqual(str(db().select(db.tt.aa)[0].aa), 'x')
+            self.assertEqual(db().select(db.tt.aa)[0].aa, 'x')
             drop(db.tt)
         db.define_table('tt', Field('aa', 'integer', default=1, rname=rname))
         self.assertEqual(isinstance(db.tt.insert(aa=3), long), True)
