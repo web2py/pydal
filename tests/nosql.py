@@ -76,31 +76,31 @@ class TestFields(unittest.TestCase):
             self.assertRaises(SyntaxError, Field, x, 'string')
 
         # Check that Fields allows underscores in the body of a field name.
-        self.assert_(Field('a_bc', 'string'),
+        self.assertTrue(Field('a_bc', 'string'),
             "Field isn't allowing underscores in fieldnames.  It should.")
 
     def testFieldTypes(self):
 
         # Check that string, and password default length is 512
         for typ in ['string', 'password']:
-            self.assert_(Field('abc', typ).length == 512,
+            self.assertTrue(Field('abc', typ).length == 512,
                          "Default length for type '%s' is not 512 or 255" % typ)
 
         # Check that upload default length is 512
-        self.assert_(Field('abc', 'upload').length == 512,
+        self.assertTrue(Field('abc', 'upload').length == 512,
                      "Default length for type 'upload' is not 512")
 
         # Check that Tables passed in the type creates a reference
-        self.assert_(Field('abc', Table(None, 'temp')).type
+        self.assertTrue(Field('abc', Table(None, 'temp')).type
                       == 'reference temp',
                      'Passing a Table does not result in a reference type.')
 
     def testFieldLabels(self):
 
         # Check that a label is successfully built from the supplied fieldname
-        self.assert_(Field('abc', 'string').label == 'Abc',
+        self.assertTrue(Field('abc', 'string').label == 'Abc',
                      'Label built is incorrect')
-        self.assert_(Field('abc_def', 'string').label == 'Abc Def',
+        self.assertTrue(Field('abc_def', 'string').label == 'Abc Def',
                      'Label built is incorrect')
 
     def testFieldFormatters(self):  # Formatter should be called Validator
@@ -121,6 +121,10 @@ class TestFields(unittest.TestCase):
             self.assertEqual(isinstance(db.tt.insert(aa='x'), long), True)
             self.assertEqual(db().select(db.tt.aa)[0].aa, 'x')
             drop(db.tt)
+        db.define_table('tt', Field('aa', 'blob', default=''))
+        self.assertEqual(isinstance(db.tt.insert(aa=b'xyzzy'), long), True)
+        self.assertEqual(db().select(db.tt.aa)[0].aa, b'xyzzy')
+        drop(db.tt)
         db.define_table('tt', Field('aa', 'integer', default=1))
         self.assertEqual(isinstance(db.tt.insert(aa=3), long), True)
         self.assertEqual(db().select(db.tt.aa)[0].aa, 3)
@@ -202,7 +206,7 @@ class TestTables(unittest.TestCase):
             self.assertRaises(SyntaxError, Table, None, x)
 
         # Check that Table allows underscores in the body of a field name.
-        self.assert_(Table(None, 'a_bc'),
+        self.assertTrue(Table(None, 'a_bc'),
             "Table isn't allowing underscores in tablename.  It should.")
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
@@ -230,12 +234,12 @@ class TestTable(unittest.TestCase):
 
         # Does it have the correct fields?
 
-        self.assert_(set(persons.fields).issuperset(set(['firstname',
+        self.assertTrue(set(persons.fields).issuperset(set(['firstname',
                                                          'lastname'])))
 
         # ALL is set correctly
 
-        self.assert_('persons.firstname, persons.lastname'
+        self.assertTrue('persons.firstname, persons.lastname'
                       in str(persons.ALL))
 
     def testTableAlias(self):
@@ -246,8 +250,8 @@ class TestTable(unittest.TestCase):
 
         # Are the different table instances with the same fields
 
-        self.assert_(persons is not aliens)
-        self.assert_(set(persons.fields) == set(aliens.fields))
+        self.assertTrue(persons is not aliens)
+        self.assertTrue(set(persons.fields) == set(aliens.fields))
         db.close()
 
     def testTableInheritance(self):
@@ -256,7 +260,7 @@ class TestTable(unittest.TestCase):
         customers = Table(None, 'customers',
                              Field('items_purchased', 'integer'),
                              persons)
-        self.assert_(set(customers.fields).issuperset(set(
+        self.assertTrue(set(customers.fields).issuperset(set(
             ['items_purchased', 'firstname', 'lastname'])))
 
 
@@ -1435,7 +1439,7 @@ class TestRecordVersioning(unittest.TestCase):
         db.tt.insert(name='web2py2')
         db(db.tt.name == 'web2py2').delete()
         self.assertEqual(len(db(db.tt).select()), 1)
-        self.assertEquals(db(db.tt).count(), 1)
+        self.assertEqual(db(db.tt).count(), 1)
         db(db.tt.id == i_id).update(name='web2py3')
         self.assertEqual(len(db(db.tt).select()), 1)
         self.assertEqual(db(db.tt).count(), 1)
@@ -1459,7 +1463,7 @@ class TestBasicOps(unittest.TestCase):
         db.tt.insert(name='web2py2')
         db(db.tt.name == 'web2py2').delete()
         self.assertEqual(len(db(db.tt).select()), 1)
-        self.assertEquals(db(db.tt).count(), 1)
+        self.assertEqual(db(db.tt).count(), 1)
         db(db.tt.id == i_id).update(name='web2py3')
         self.assertEqual(len(db(db.tt).select()), 1)
         self.assertEqual(db(db.tt).count(), 1)
