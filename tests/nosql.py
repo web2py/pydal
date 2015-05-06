@@ -76,31 +76,31 @@ class TestFields(unittest.TestCase):
             self.assertRaises(SyntaxError, Field, x, 'string')
 
         # Check that Fields allows underscores in the body of a field name.
-        self.assert_(Field('a_bc', 'string'),
+        self.assertTrue(Field('a_bc', 'string'),
             "Field isn't allowing underscores in fieldnames.  It should.")
 
     def testFieldTypes(self):
 
         # Check that string, and password default length is 512
         for typ in ['string', 'password']:
-            self.assert_(Field('abc', typ).length == 512,
+            self.assertTrue(Field('abc', typ).length == 512,
                          "Default length for type '%s' is not 512 or 255" % typ)
 
         # Check that upload default length is 512
-        self.assert_(Field('abc', 'upload').length == 512,
+        self.assertTrue(Field('abc', 'upload').length == 512,
                      "Default length for type 'upload' is not 512")
 
         # Check that Tables passed in the type creates a reference
-        self.assert_(Field('abc', Table(None, 'temp')).type
+        self.assertTrue(Field('abc', Table(None, 'temp')).type
                       == 'reference temp',
-                     'Passing an Table does not result in a reference type.')
+                     'Passing a Table does not result in a reference type.')
 
     def testFieldLabels(self):
 
         # Check that a label is successfully built from the supplied fieldname
-        self.assert_(Field('abc', 'string').label == 'Abc',
+        self.assertTrue(Field('abc', 'string').label == 'Abc',
                      'Label built is incorrect')
-        self.assert_(Field('abc_def', 'string').label == 'Abc Def',
+        self.assertTrue(Field('abc_def', 'string').label == 'Abc Def',
                      'Label built is incorrect')
 
     def testFieldFormatters(self):  # Formatter should be called Validator
@@ -113,7 +113,7 @@ class TestFields(unittest.TestCase):
             else:
                 isinstance(f.formatter(datetime.datetime.now()), str)
 
-    @unittest.skipIf(IS_GAE or IS_MONGODB, 'TODO: Datastore does accept dict objects as json field input. MongoDB assertion error Binary("x", 0) != "x"')
+    @unittest.skipIf(IS_GAE, 'TODO: Datastore does accept dict objects as json field input.')
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
@@ -121,6 +121,10 @@ class TestFields(unittest.TestCase):
             self.assertEqual(isinstance(db.tt.insert(aa='x'), long), True)
             self.assertEqual(db().select(db.tt.aa)[0].aa, 'x')
             drop(db.tt)
+        db.define_table('tt', Field('aa', 'blob', default=''))
+        self.assertEqual(isinstance(db.tt.insert(aa=b'xyzzy'), long), True)
+        self.assertEqual(db().select(db.tt.aa)[0].aa, b'xyzzy')
+        drop(db.tt)
         db.define_table('tt', Field('aa', 'integer', default=1))
         self.assertEqual(isinstance(db.tt.insert(aa=3), long), True)
         self.assertEqual(db().select(db.tt.aa)[0].aa, 3)
@@ -154,16 +158,17 @@ class TestFields(unittest.TestCase):
             55,
             0,
             )
-        self.assertEqual(isinstance(db.tt.insert(aa=t0), long), True)
+        id = db.tt.insert(aa=t0)
+        self.assertEqual(isinstance(id, long), True)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
 
         ## Row APIs
         row = db().select(db.tt.aa)[0]
-        self.assertEqual(db.tt[1].aa,t0)
+        self.assertEqual(db.tt[id].aa,t0)
         self.assertEqual(db.tt['aa'],db.tt.aa)
-        self.assertEqual(db.tt(1).aa,t0)
-        self.assertTrue(db.tt(1,aa=None)==None)
-        self.assertFalse(db.tt(1,aa=t0)==None)
+        self.assertEqual(db.tt(id).aa,t0)
+        self.assertTrue(db.tt(id,aa=None)==None)
+        self.assertFalse(db.tt(id,aa=t0)==None)
         self.assertEqual(row.aa,t0)
         self.assertEqual(row['aa'],t0)
         self.assertEqual(row['tt.aa'],t0)
@@ -201,7 +206,7 @@ class TestTables(unittest.TestCase):
             self.assertRaises(SyntaxError, Table, None, x)
 
         # Check that Table allows underscores in the body of a field name.
-        self.assert_(Table(None, 'a_bc'),
+        self.assertTrue(Table(None, 'a_bc'),
             "Table isn't allowing underscores in tablename.  It should.")
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
@@ -229,12 +234,12 @@ class TestTable(unittest.TestCase):
 
         # Does it have the correct fields?
 
-        self.assert_(set(persons.fields).issuperset(set(['firstname',
+        self.assertTrue(set(persons.fields).issuperset(set(['firstname',
                                                          'lastname'])))
 
         # ALL is set correctly
 
-        self.assert_('persons.firstname, persons.lastname'
+        self.assertTrue('persons.firstname, persons.lastname'
                       in str(persons.ALL))
 
     def testTableAlias(self):
@@ -245,8 +250,8 @@ class TestTable(unittest.TestCase):
 
         # Are the different table instances with the same fields
 
-        self.assert_(persons is not aliens)
-        self.assert_(set(persons.fields) == set(aliens.fields))
+        self.assertTrue(persons is not aliens)
+        self.assertTrue(set(persons.fields) == set(aliens.fields))
         db.close()
 
     def testTableInheritance(self):
@@ -255,7 +260,7 @@ class TestTable(unittest.TestCase):
         customers = Table(None, 'customers',
                              Field('items_purchased', 'integer'),
                              persons)
-        self.assert_(set(customers.fields).issuperset(set(
+        self.assertTrue(set(customers.fields).issuperset(set(
             ['items_purchased', 'firstname', 'lastname'])))
 
 
@@ -329,6 +334,42 @@ class TestSelect(unittest.TestCase):
         drop(db.tt)
         db.close()
 
+    @unittest.skipIf(IS_GAE, "Datastore list:integer not supported")
+    def testListInteger(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', 
+                        Field('aa', 'list:integer'))
+        l=[1,2,3,4,5]
+        db.tt.insert(aa=l)
+        self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa],l)
+        db.tt.drop()
+        db.close()
+
+    @unittest.skipIf(IS_GAE, "Datastore list:string not supported")
+    def testListString(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', 
+                        Field('aa', 'list:string'))
+        l=['a', 'b', 'c']
+        db.tt.insert(aa=l)
+        self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa],l)
+        db.tt.drop()
+        db.close()
+
+    @unittest.skipIf(IS_GAE, "Datastore list:reference not supported")
+    def testListReference(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('t0', 
+                        Field('aa', 'string'))
+        db.define_table('tt', 
+                        Field('t0_id', 'list:reference t0'))
+        id_a=db.t0.insert(aa='test')
+        l=[id_a]
+        db.tt.insert(t0_id=l)
+        self.assertEqual(db(db.tt).select(db.tt.t0_id).first()[db.tt.t0_id],l)
+        db.tt.drop()
+        db.t0.drop()
+        db.close()
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestAddMethod(unittest.TestCase):
@@ -350,31 +391,43 @@ class TestAddMethod(unittest.TestCase):
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestBelongs(unittest.TestCase):
 
-    def testRun(self):
+    def __init__(self, *args, **vars):
+        unittest.TestCase.__init__(self, *args, **vars)
+        self.db = None
+
+    def setUp(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'))
-        i_id = db.tt.insert(aa='1')
-        self.assertEqual(isinstance(i_id, long), True)
+        self.i_id = db.tt.insert(aa='1')
+        self.assertEqual(isinstance(self.i_id, long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='2'), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='3'), long), True)
+        self.db = db
+
+    def testRun(self):
+        db = self.db
         self.assertEqual(db(db.tt.aa.belongs(('1', '3'))).count(), 2)
         self.assertEqual(db(db.tt.aa.belongs(['1', '3'])).count(), 2)
         self.assertEqual(db(db.tt.aa.belongs(['1', '3'])).count(), 2)
-        self.assertEqual(db(db.tt.id.belongs([i_id])).count(), 1)
+        self.assertEqual(db(db.tt.id.belongs([self.i_id])).count(), 1)
 
-        if not (IS_GAE or IS_MONGODB):
-            self.assertEqual(db(db.tt.aa.belongs(db(db.tt.id > 2)._select(db.tt.aa))).count(), 1)
+    @unittest.skipIf(IS_GAE or IS_MONGODB, "Datastore/Mongodb belongs() does not accept nested queries")
+    def testNested(self):
+        db = self.db
+        self.assertEqual(db(db.tt.aa.belongs(db(db.tt.id > 2)._select(db.tt.aa))).count(), 1)
 
-            self.assertEqual(db(db.tt.aa.belongs(db(db.tt.aa.belongs(('1',
-                         '3')))._select(db.tt.aa))).count(), 2)
-            self.assertEqual(db(db.tt.aa.belongs(db(db.tt.aa.belongs(db
-                         (db.tt.aa.belongs(('1', '3')))._select(db.tt.aa)))._select(
-                         db.tt.aa))).count(),
-                         2)
-        else:
-            print("Datastore/Mongodb belongs does not accept queries (skipping)")
+        self.assertEqual(db(db.tt.aa.belongs(db(db.tt.aa.belongs(('1',
+                     '3')))._select(db.tt.aa))).count(), 2)
+        self.assertEqual(db(db.tt.aa.belongs(db(db.tt.aa.belongs(db
+                     (db.tt.aa.belongs(('1', '3')))._select(db.tt.aa)))._select(
+                     db.tt.aa))).count(),
+                     2)
+
+    def tearDown(self):
+        db = self.db
         drop(db.tt)
         db.close()
+        self.db = None
 
 
 @unittest.skipIf(IS_GAE or IS_IMAP, "Contains not supported on GAE Datastore. TODO: IMAP tests")
@@ -544,8 +597,8 @@ class TestJoin(unittest.TestCase):
         db.close()
 
 
+@unittest.skipIf(IS_GAE or IS_MONGODB or IS_IMAP, 'TODO: Datastore throws "AttributeError: Row object has no attribute _extra"')
 class TestMinMaxSumAvg(unittest.TestCase):
-    @unittest.skipIf(IS_GAE or IS_MONGODB or IS_IMAP, 'TODO: Datastore throws "AttributeError: Row object has no attribute _extra"')
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa', 'integer'))
@@ -599,8 +652,8 @@ class TestMigrations(unittest.TestCase):
             os.unlink('.storage.table')
 
 
+@unittest.skipIf(IS_IMAP, "Skip IMAP")
 class TestReference(unittest.TestCase):
-    @unittest.skipIf(IS_MONGODB or IS_IMAP, "TODO: MongoDB assertion error (long object has no attribute id)")
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('name'), Field('aa','reference tt'))
@@ -911,7 +964,6 @@ class TestSelectAsDict(unittest.TestCase):
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestRNameTable(unittest.TestCase):
     #tests for highly experimental rname attribute
-    @unittest.skipIf(IS_MONGODB, "TODO: MongoDB assertion error (long object has no attribute id)")
     def testSelect(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         rname = db._adapter.QUOTE_TEMPLATE % 'a very complicated tablename'
@@ -1010,7 +1062,7 @@ class TestRNameTable(unittest.TestCase):
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestRNameFields(unittest.TestCase):
     # tests for highly experimental rname attribute
-    @unittest.skipIf(IS_GAE or IS_MONGODB, 'TODO: Datastore throws unsupported error for AGGREGATE. MongoDB assertion error (long object has no attribute id)')
+    @unittest.skipIf(IS_GAE or IS_MONGODB, 'TODO: Datastore/MongoDB AGGREGATE Not Supported')
     def testSelect(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         rname = db._adapter.QUOTE_TEMPLATE % 'a very complicated fieldname'
@@ -1128,7 +1180,7 @@ class TestRNameFields(unittest.TestCase):
         db.close()
 
 
-    @unittest.skipIf(IS_GAE or IS_MONGODB, 'TODO: Datastore does not accept dict objects as json field input. MongoDB assertionerror Binary("x", 0) != "x"')
+    @unittest.skipIf(IS_GAE, 'TODO: Datastore does not accept dict objects as json field input.')
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         rname = db._adapter.QUOTE_TEMPLATE % 'a very complicated fieldname'
@@ -1170,16 +1222,16 @@ class TestRNameFields(unittest.TestCase):
             55,
             0,
             )
-        self.assertEqual(db.tt.insert(aa=t0), 1)
+        id = db.tt.insert(aa=t0)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
 
         ## Row APIs
         row = db().select(db.tt.aa)[0]
-        self.assertEqual(db.tt[1].aa,t0)
+        self.assertEqual(db.tt[id].aa,t0)
         self.assertEqual(db.tt['aa'],db.tt.aa)
-        self.assertEqual(db.tt(1).aa,t0)
-        self.assertTrue(db.tt(1,aa=None)==None)
-        self.assertFalse(db.tt(1,aa=t0)==None)
+        self.assertEqual(db.tt(id).aa,t0)
+        self.assertTrue(db.tt(id,aa=None)==None)
+        self.assertFalse(db.tt(id,aa=t0)==None)
         self.assertEqual(row.aa,t0)
         self.assertEqual(row['aa'],t0)
         self.assertEqual(row['tt.aa'],t0)
@@ -1387,7 +1439,7 @@ class TestRecordVersioning(unittest.TestCase):
         db.tt.insert(name='web2py2')
         db(db.tt.name == 'web2py2').delete()
         self.assertEqual(len(db(db.tt).select()), 1)
-        self.assertEquals(db(db.tt).count(), 1)
+        self.assertEqual(db(db.tt).count(), 1)
         db(db.tt.id == i_id).update(name='web2py3')
         self.assertEqual(len(db(db.tt).select()), 1)
         self.assertEqual(db(db.tt).count(), 1)
@@ -1411,7 +1463,7 @@ class TestBasicOps(unittest.TestCase):
         db.tt.insert(name='web2py2')
         db(db.tt.name == 'web2py2').delete()
         self.assertEqual(len(db(db.tt).select()), 1)
-        self.assertEquals(db(db.tt).count(), 1)
+        self.assertEqual(db(db.tt).count(), 1)
         db(db.tt.id == i_id).update(name='web2py3')
         self.assertEqual(len(db(db.tt).select()), 1)
         self.assertEqual(db(db.tt).count(), 1)
