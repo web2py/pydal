@@ -432,7 +432,6 @@ class TestBelongs(unittest.TestCase):
 
 @unittest.skipIf(IS_GAE or IS_IMAP, "Contains not supported on GAE Datastore. TODO: IMAP tests")
 class TestContains(unittest.TestCase):
-    @unittest.skipIf(IS_MONGODB, "TODO: MongoDB Contains error")
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa', 'list:string'), Field('bb','string'))
@@ -446,6 +445,18 @@ class TestContains(unittest.TestCase):
         self.assertEqual(db(db.tt.bb.contains('b')).count(), 1)
         self.assertEqual(db(db.tt.bb.contains('d')).count(), 0)
         self.assertEqual(db(db.tt.aa.contains(db.tt.bb)).count(), 1)
+
+        #case-sensitivity tests, if 1 it isn't
+        is_case_insensitive = db(db.tt.bb.contains('AAA', case_sensitive=True)).count()
+        if is_case_insensitive:
+            self.assertEqual(db(db.tt.aa.contains('AAA')).count(), 2)
+            self.assertEqual(db(db.tt.bb.contains('A')).count(), 3)
+        else:
+            self.assertEqual(db(db.tt.aa.contains('AAA', case_sensitive=True)).count(), 0)
+            self.assertEqual(db(db.tt.bb.contains('A', case_sensitive=True)).count(), 0)
+            self.assertEqual(db(db.tt.aa.contains('AAA', case_sensitive=False)).count(), 2)
+            self.assertEqual(db(db.tt.bb.contains('A', case_sensitive=False)).count(), 3)
+
         drop(db.tt)
         db.close()
 

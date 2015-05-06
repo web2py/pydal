@@ -1210,7 +1210,7 @@ class Expression(object):
 
     def contains(self, value, all=False, case_sensitive=False):
         """
-        For MongoDB and GAE contains is always case sensitive
+        For GAE contains() is always case sensitive
         """
         db = self.db
         if isinstance(value,(list, tuple)):
