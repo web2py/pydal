@@ -461,32 +461,74 @@ class TestContains(unittest.TestCase):
         db.close()
 
 
-@unittest.skipIf(IS_GAE or IS_MONGODB or IS_IMAP, "Like not supported on GAE Datastore. TODO: IMAP test")
+@unittest.skipIf(IS_GAE, "Like not supported on GAE Datastore.")
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestLike(unittest.TestCase):
 
-    def testRun(self):
+    def setUp(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'))
         self.assertEqual(isinstance(db.tt.insert(aa='abc'), long), True)
+        self.db = db
+
+    def tearDown(self):
+        db = self.db
+        drop(db.tt)
+        db.close()
+        self.db = None
+
+    def testRun(self):
+        db = self.db
         self.assertEqual(db(db.tt.aa.like('a%')).count(), 1)
         self.assertEqual(db(db.tt.aa.like('%b%')).count(), 1)
         self.assertEqual(db(db.tt.aa.like('%c')).count(), 1)
         self.assertEqual(db(db.tt.aa.like('%d%')).count(), 0)
-        self.assertEqual(db(db.tt.aa.lower().like('A%')).count(), 1)
-        self.assertEqual(db(db.tt.aa.lower().like('%B%')).count(),
-                         1)
-        self.assertEqual(db(db.tt.aa.lower().like('%C')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('ab_')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('a_c')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('_bc')).count(), 1)
+
+        self.assertEqual(db(db.tt.aa.like('A%', case_sensitive=False)).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('%B%', case_sensitive=False)).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('%C', case_sensitive=False)).count(), 1)
+        self.assertEqual(db(db.tt.aa.ilike('A%')).count(), 1)
+        self.assertEqual(db(db.tt.aa.ilike('%B%')).count(), 1)
+        self.assertEqual(db(db.tt.aa.ilike('%C')).count(), 1)
+
+        #DAL maps like() (and contains(), startswith(), endswith())
+        #to the LIKE operator, that in ANSI-SQL is case-sensitive
+        #There are backends supporting case-sensitivity by default
+        #and backends that needs additional care to turn
+        #case-sensitivity on. To discern among those, let's run
+        #this query comparing previously inserted 'abc' with 'ABC':
+        #if the result is 0, then the backend recognizes
+        #case-sensitivity, if 1 it isn't
+        is_case_insensitive = db(db.tt.aa.like('ABC')).count()
+        self.assertEqual(db(db.tt.aa.like('A%')).count(), is_case_insensitive)
+        self.assertEqual(db(db.tt.aa.like('%B%')).count(), is_case_insensitive)
+        self.assertEqual(db(db.tt.aa.like('%C')).count(), is_case_insensitive)
+
+    @unittest.skipIf(IS_MONGODB, "Mongodb: Upper/Lower not implemented")
+    def testUpperLower(self):
+        db = self.db
         self.assertEqual(db(db.tt.aa.upper().like('A%')).count(), 1)
-        self.assertEqual(db(db.tt.aa.upper().like('%B%')).count(),
-                         1)
+        self.assertEqual(db(db.tt.aa.upper().like('%B%')).count(),1)
         self.assertEqual(db(db.tt.aa.upper().like('%C')).count(), 1)
-        drop(db.tt)
+
+    def testStartsEndsWith(self):
+        db = self.db
+        self.assertEqual(db(db.tt.aa.startswith('a')).count(), 1)
+        self.assertEqual(db(db.tt.aa.endswith('c')).count(), 1)
+        self.assertEqual(db(db.tt.aa.startswith('c')).count(), 0)
+        self.assertEqual(db(db.tt.aa.endswith('a')).count(), 0)
+
+    @unittest.skipIf(IS_MONGODB, "Mongodb: Like integer not implemeneted")
+    def testLikeInteger(self):
+        db = self.db
+        db.tt.drop()
         db.define_table('tt', Field('aa', 'integer'))
         self.assertEqual(isinstance(db.tt.insert(aa=1111111111), long), True)
         self.assertEqual(db(db.tt.aa.like('1%')).count(), 1)
         self.assertEqual(db(db.tt.aa.like('2%')).count(), 0)
-        drop(db.tt)
-        db.close()
 
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
