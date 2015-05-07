@@ -336,7 +336,7 @@ class BasicStorage(object):
         return self.__dict__.__init__(*args, **kwargs)
 
     def __contains__(self, item):
-        return item in self.__dict__
+        return self.__dict__.__contains__(item)
 
     def __getitem__(self, key):
         return self.__dict__.__getitem__(str(key))
@@ -390,6 +390,12 @@ class BasicStorage(object):
 
     def iteritems(self):
         return iteritems(self.__dict__)
+
+    pop = lambda self, *args, **kwargs: self.__dict__.pop(*args, **kwargs)
+
+    clear = lambda self, *args, **kwargs: self.__dict__.clear(*args, **kwargs)
+
+    copy = lambda self, *args, **kwargs: self.__dict__.copy(*args, **kwargs)
 
 
 def pickle_basicstorage(s):
