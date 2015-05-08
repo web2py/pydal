@@ -550,16 +550,20 @@ class MongoDBAdapter(NoSQLAdapter):
                           case_sensitive=True,
                           ends_with=False,
                           starts_with=False,
-                          whole_string=True):
+                          whole_string=True,
+                          like_wildcards=False):
         import re
         base = self.expand(arg,'string')
         need_regex = (whole_string or not case_sensitive
                       or starts_with or ends_with
-                      or '_' in base or '%' in base)
+                      or like_wildcards and ('_' in base or '%' in base))
         if not need_regex:
             return base
         else:
-            expr = re.escape(base).replace('%','.*').replace('_','.')
+            expr = re.escape(base)
+            if like_wildcards:
+                expr = expr.replace('\\%','.*')
+                expr = expr.replace('\\_','.').replace('_','.')
             if starts_with:
                 pattern = '^%s'
             elif ends_with:
@@ -575,7 +579,8 @@ class MongoDBAdapter(NoSQLAdapter):
             return regex
 
     def LIKE(self, first, second, case_sensitive=True):
-        regex = self._build_like_regex(second, case_sensitive=case_sensitive)
+        regex = self._build_like_regex(
+            second, case_sensitive=case_sensitive, like_wildcards=True)
         return { self.expand(first): regex }
 
     def ILIKE(self, first, second):
@@ -612,4 +617,3 @@ class MongoDBAdapter(NoSQLAdapter):
             ret = {self.expand(first): val}
 
         return ret
-
