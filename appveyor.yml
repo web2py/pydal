@@ -1,3 +1,5 @@
+os: Previous Windows Server 2012 R2
+
 build: false
 
 services:
