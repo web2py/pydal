@@ -16,6 +16,7 @@ clone_depth: 50
 init:
   - "ECHO %PYTHON%"
   - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - dir c:\windows\system32\sql*
 
 install:
   - ps: Start-FileDownload https://bootstrap.pypa.io/get-pip.py
