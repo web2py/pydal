@@ -787,15 +787,15 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     def CONTAINS(self, first, second, case_sensitive=True):
         if first.type in ('string','text', 'json'):
             if isinstance(second,Expression):
-                second = Expression(None,self.CONCAT('%',Expression(
-                            None,self.REPLACE(second,('%','%%'))),'%'))
+                second = Expression(second.db, self.CONCAT('%',Expression(
+                            second.db, self.REPLACE(second,('%','%%'))),'%'))
             else:
                 second = '%'+str(second).replace('%','%%')+'%'
         elif first.type.startswith('list:'):
             if isinstance(second,Expression):
-                second = Expression(None,self.CONCAT(
-                        '%|',Expression(None,self.REPLACE(
-                                Expression(None,self.REPLACE(
+                second = Expression(second.db, self.CONCAT(
+                        '%|',Expression(second.db, self.REPLACE(
+                                Expression(second.db, self.REPLACE(
                                         second,('%','%%'))),('|','||'))),'|%'))
             else:
                 second = '%|'+str(second).replace('%','%%')\
