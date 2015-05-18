@@ -1,12 +1,11 @@
 build: false
 
-CODECOV_TOKEN:
-      secure: hN47o5oiF+R26daJex7XzQnfdE/gd+vtZ376+jXrIsEx+I8yG7yuUT5IwBodq1KF
-
 services:
   - mssql2014
 
 environment:
+  CODECOV_TOKEN:
+    secure: hN47o5oiF+R26daJex7XzQnfdE/gd+vtZ376+jXrIsEx+I8yG7yuUT5IwBodq1KF
   matrix:
     - PYTHON: "C:/Python27"
       adapter: "mssql"
