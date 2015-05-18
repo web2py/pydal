@@ -43,5 +43,5 @@ before_test:
 test_script:
   - tox -e coverage-%adapter%
 
-after_test:
-  - codecov
+#after_test:
+#  - codecov
