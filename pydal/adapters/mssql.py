@@ -3,7 +3,8 @@ import re
 import sys
 
 from .._globals import IDENTITY
-from .._compat import iteritems, integer_types
+from .._compat import PY2, to_unicode, iteritems, integer_types
+from ..objects import Expression
 from ..helpers.methods import varquote_aux
 from .base import BaseAdapter
 
@@ -109,7 +110,6 @@ class MSSQLAdapter(BaseAdapter):
         self._after_connection = after_connection
         self.srid = srid
         self.find_or_make_work_folder()
-        # ## read: http://bytes.com/groups/python/460325-cx_oracle-utf8
         ruri = uri.split('://', 1)[1]
         if '@' not in ruri:
             try:
@@ -276,6 +276,7 @@ class MSSQL3Adapter(MSSQLAdapter):
             sql_f_oproxy = ', '.join(sql_f_outer)
             return 'SELECT %s %s FROM (SELECT %s ROW_NUMBER() OVER (ORDER BY %s) AS w_row, %s FROM %s%s%s) TMP WHERE w_row BETWEEN %i AND %s;' % (sql_s,sql_f_oproxy,sql_s,sql_f,sql_f_iproxy,sql_t,sql_w,sql_g_inner,lmin,lmax)
         return 'SELECT %s %s FROM %s%s%s;' % (sql_s,sql_f,sql_t,sql_w,sql_o)
+    
     def rowslice(self,rows,minimum=0,maximum=None):
         return rows
 
@@ -374,8 +375,201 @@ class MSSQL2Adapter(MSSQLAdapter):
             value = 'N' + value
         return value
 
-    def execute(self, a):
-        return self.log_execute(a.decode('utf8'))
+    def execute(self, *a, **b):
+        if PY2:
+            newa = list(a)
+            newa[0] = to_unicode(newa[0])
+            a = tuple(newa)
+        return self.log_execute(*a, **b)
+        #return self.log_execute(a.decode('utf8'))
+
+    def ILIKE(self, first, second):
+        second = self.expand(second, 'string').lower()
+        if second.startswith("n'"):
+            second = "N'" + second[2:]
+        return '(LOWER(%s) LIKE %s)' % (self.expand(first), second)
+
+
+class MSSQLNAdapter(MSSQLAdapter):
+    drivers = ('pyodbc',)
+
+    """Experimental: base class for handling
+    unicode in MSSQL by default. Needs lots of testing.
+    Try this on a fresh (or on a legacy) database.
+    Using this in a database handled previously with non-unicode aware
+    adapter is NOT supported
+    """
+
+    types = {
+        'boolean': 'BIT',
+        'string': 'NVARCHAR(%(length)s)',
+        'text': 'NTEXT',
+        'json': 'NTEXT',
+        'password': 'NVARCHAR(%(length)s)',
+        'blob': 'IMAGE',
+        'upload': 'NVARCHAR(%(length)s)',
+        'integer': 'INT',
+        'bigint': 'BIGINT',
+        'float': 'FLOAT',
+        'double': 'FLOAT',
+        'decimal': 'NUMERIC(%(precision)s,%(scale)s)',
+        'date': 'DATETIME',
+        'time': 'CHAR(8)',
+        'datetime': 'DATETIME',
+        'id': 'INT IDENTITY PRIMARY KEY',
+        'reference': 'INT, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'list:integer': 'NTEXT',
+        'list:string': 'NTEXT',
+        'list:reference': 'NTEXT',
+        'geometry': 'geometry',
+        'geography': 'geography',
+        'big-id': 'BIGINT IDENTITY PRIMARY KEY',
+        'big-reference': 'BIGINT, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference FK': ', CONSTRAINT FK_%(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference TFK': ' CONSTRAINT FK_%(foreign_table)s_PK FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_table)s (%(foreign_key)s) ON DELETE %(on_delete_action)s',
+    }
+
+    def represent(self, obj, fieldtype):
+        value = BaseAdapter.represent(self, obj, fieldtype)
+        if fieldtype in ('string', 'text', 'json') and value[:1] == "'":
+            value = 'N' + value
+        return value
+
+    def execute(self, *a, **b):
+        if PY2:
+            newa = list(a)
+            newa[0] = to_unicode(newa[0])
+            a = tuple(newa)
+        return self.log_execute(*a, **b)
+
+    def ILIKE(self, first, second):
+        if isinstance(second, Expression):
+            second = self.expand(second, 'string')
+        else:
+            second = self.expand(second, 'string').lower()
+            if second.startswith("n'"):
+                second = "N'" + second[2:]
+        return '(LOWER(%s) LIKE %s)' % (self.expand(first), second)
+
+
+class MSSQL3NAdapter(MSSQLNAdapter):
+    drivers = ('pyodbc',)
+
+    """Experimental support for pagination in MSSQL
+    Experimental: see MSSQLNAdapter docstring for warnings
+
+    Requires MSSQL >= 2005, uses `ROW_NUMBER()`
+    """
+
+    types = {
+        'boolean': 'BIT',
+        'string': 'NVARCHAR(%(length)s)',
+        'text': 'NVARCHAR(MAX)',
+        'json': 'NVARCHAR(MAX)',
+        'password': 'NVARCHAR(%(length)s)',
+        'blob': 'IMAGE',
+        'upload': 'NVARCHAR(%(length)s)',
+        'integer': 'INT',
+        'bigint': 'BIGINT',
+        'float': 'FLOAT',
+        'double': 'FLOAT',
+        'decimal': 'NUMERIC(%(precision)s,%(scale)s)',
+        'date': 'DATETIME',
+        'time': 'TIME(7)',
+        'datetime': 'DATETIME',
+        'id': 'INT IDENTITY PRIMARY KEY',
+        'reference': 'INT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'list:integer': 'NVARCHAR(MAX)',
+        'list:string': 'NVARCHAR(MAX)',
+        'list:reference': 'NVARCHAR(MAX)',
+        'geometry': 'geometry',
+        'geography': 'geography',
+        'big-id': 'BIGINT IDENTITY PRIMARY KEY',
+        'big-reference': 'BIGINT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference FK': ', CONSTRAINT FK_%(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference TFK': ' CONSTRAINT FK_%(foreign_table)s_PK FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_table)s (%(foreign_key)s) ON DELETE %(on_delete_action)s',
+    }
+
+    def select_limitby(self, sql_s, sql_f, sql_t, sql_w, sql_o, limitby):
+        if limitby:
+            (lmin, lmax) = limitby
+            if lmin == 0:
+                sql_s += ' TOP %i' % lmax
+                return 'SELECT %s %s FROM %s%s%s;' % (sql_s, sql_f, sql_t, sql_w, sql_o)
+            lmin += 1
+            sql_o_inner = sql_o[sql_o.find('ORDER BY ')+9:]
+            sql_g_inner = sql_o[:sql_o.find('ORDER BY ')]
+            sql_f_outer = ['f_%s' % f for f in range(len(sql_f.split(',')))]
+            sql_f_inner = [f for f in sql_f.split(',')]
+            sql_f_iproxy = ['%s AS %s' % (o, n) for (o, n) in zip(sql_f_inner, sql_f_outer)]
+            sql_f_iproxy = ', '.join(sql_f_iproxy)
+            sql_f_oproxy = ', '.join(sql_f_outer)
+            return 'SELECT %s %s FROM (SELECT %s ROW_NUMBER() OVER (ORDER BY %s) AS w_row, %s FROM %s%s%s) TMP WHERE w_row BETWEEN %i AND %s;' % (sql_s,sql_f_oproxy,sql_s,sql_f,sql_f_iproxy,sql_t,sql_w,sql_g_inner,lmin,lmax)
+        return 'SELECT %s %s FROM %s%s%s;' % (sql_s,sql_f,sql_t,sql_w,sql_o)
+
+    def rowslice(self,rows,minimum=0,maximum=None):
+        return rows
+
+
+class MSSQL4NAdapter(MSSQLNAdapter):
+    """Experimental: see MSSQLNAdapter docstring for warnings
+    Support for "native" pagination
+
+    Unicode-compatible version
+    Requires MSSQL >= 2012, uses `OFFSET ... ROWS ... FETCH NEXT ... ROWS ONLY`
+    After careful testing, this should be the de-facto adapter for recent
+    MSSQL backends
+    """
+
+    types = {
+        'boolean': 'BIT',
+        'string': 'NVARCHAR(%(length)s)',
+        'text': 'NVARCHAR(MAX)',
+        'json': 'NVARCHAR(MAX)',
+        'password': 'NVARCHAR(%(length)s)',
+        'blob': 'IMAGE',
+        'upload': 'NVARCHAR(%(length)s)',
+        'integer': 'INT',
+        'bigint': 'BIGINT',
+        'float': 'FLOAT',
+        'double': 'FLOAT',
+        'decimal': 'NUMERIC(%(precision)s,%(scale)s)',
+        'date': 'DATE',
+        'time': 'TIME(7)',
+        'datetime': 'DATETIME',
+        'id': 'INT IDENTITY PRIMARY KEY',
+        'reference': 'INT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'list:integer': 'NVARCHAR(MAX)',
+        'list:string': 'NVARCHAR(MAX)',
+        'list:reference': 'NVARCHAR(MAX)',
+        'geometry': 'geometry',
+        'geography': 'geography',
+        'big-id': 'BIGINT IDENTITY PRIMARY KEY',
+        'big-reference': 'BIGINT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference FK': ', CONSTRAINT FK_%(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference TFK': ' CONSTRAINT FK_%(foreign_table)s_PK FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_table)s (%(foreign_key)s) ON DELETE %(on_delete_action)s',
+    }
+
+    def select_limitby(self, sql_s, sql_f, sql_t, sql_w, sql_o, limitby):
+        if limitby:
+            (lmin, lmax) = limitby
+            if lmin == 0:
+                #top is still slightly faster, especially because
+                #web2py's default to fetch references is to not specify
+                #an orderby clause
+                sql_s += ' TOP %i' % lmax
+            else:
+                if not sql_o:
+                    #if there is no orderby, we can't use the brand new statements
+                    #that being said, developer chose its own poison, so be it random
+                    sql_o += ' ORDER BY %s' % self.RANDOM()
+                sql_o += ' OFFSET %i ROWS FETCH NEXT %i ROWS ONLY' % (lmin, lmax - lmin)
+        return 'SELECT %s %s FROM %s%s%s;' % \
+                (sql_s, sql_f, sql_t, sql_w, sql_o)
+
+    def rowslice(self, rows, minimum=0, maximum=None):
+        return rows
+
 
 
 class VerticaAdapter(MSSQLAdapter):

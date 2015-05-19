@@ -6,7 +6,7 @@ from .postgres import PostgreSQLAdapter, NewPostgreSQLAdapter, \
     JDBCPostgreSQLAdapter
 from .oracle import OracleAdapter
 from .mssql import MSSQLAdapter, MSSQL2Adapter, MSSQL3Adapter, MSSQL4Adapter, \
-    VerticaAdapter, SybaseAdapter
+    MSSQLNAdapter, MSSQL3NAdapter, MSSQL4NAdapter, VerticaAdapter, SybaseAdapter
 from .firebird import FireBirdAdapter
 from .informix import InformixAdapter, InformixSEAdapter
 from .db2 import DB2Adapter
@@ -35,6 +35,9 @@ ADAPTERS = {
     'mssql2': MSSQL2Adapter,
     'mssql3': MSSQL3Adapter,
     'mssql4': MSSQL4Adapter,
+    'mssqln' : MSSQLNAdapter,
+    'mssql3n' : MSSQL3NAdapter,
+    'mssql4n' : MSSQL4NAdapter,
     'vertica': VerticaAdapter,
     'sybase': SybaseAdapter,
     'db2:ibm_db_dbi': DB2Adapter,
