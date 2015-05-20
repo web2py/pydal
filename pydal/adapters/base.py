@@ -1454,7 +1454,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return None
 
     def lastrowid(self, table):
-        return None
+        return self.cursor.lastrowid
 
     def rowslice(self, rows, minimum=0, maximum=None):
         """
