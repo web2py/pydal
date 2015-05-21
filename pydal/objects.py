@@ -19,7 +19,7 @@ from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
     REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
-    REGEX_CLEANUP_FN
+    REGEX_CLEANUP_FN, REGEX_VALID_TB_FLD
 from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL, \
     Serializable, BasicStorage
 from .helpers.methods import list_represent, bar_decode_integer, \
@@ -205,8 +205,8 @@ class Table(Serializable, BasicStorage):
         self._actual = False  # set to True by define_table()
         self._db = db
         self._tablename = tablename
-        if (not isinstance(tablename, str) or tablename[0] == '_'
-            or hasattr(DAL, tablename) or '.' in tablename
+        if (not isinstance(tablename, str) or hasattr(DAL, tablename)
+            or not REGEX_VALID_TB_FLD.match(tablename)
             or REGEX_PYTHON_KEYWORDS.match(tablename)
             ):
             raise SyntaxError('Field: invalid table name: %s, '
@@ -1396,9 +1396,10 @@ class Field(Expression, Serializable):
             except UnicodeEncodeError:
                 raise SyntaxError('Field: invalid unicode field name')
         self.name = fieldname = cleanup(fieldname)
-        if not isinstance(fieldname, str) or hasattr(Table, fieldname) or \
-                fieldname[0] == '_' or '.' in fieldname or \
-                REGEX_PYTHON_KEYWORDS.match(fieldname):
+        if (not isinstance(fieldname, str) or hasattr(Table, fieldname)
+            or not REGEX_VALID_TB_FLD.match(fieldname)
+            or REGEX_PYTHON_KEYWORDS.match(fieldname)
+            ):
             raise SyntaxError('Field: invalid field name: %s, '
                               'use rname for "funny" names' % fieldname)
 
