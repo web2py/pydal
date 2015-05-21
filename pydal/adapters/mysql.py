@@ -134,7 +134,3 @@ class MySQLAdapter(BaseAdapter):
     def after_connection(self):
         self.execute('SET FOREIGN_KEY_CHECKS=1;')
         self.execute("SET sql_mode='NO_BACKSLASH_ESCAPES';")
-
-    def lastrowid(self,table):
-        self.execute('select last_insert_id();')
-        return int(self.cursor.fetchone()[0])

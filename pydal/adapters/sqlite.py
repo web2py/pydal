@@ -91,9 +91,6 @@ class SQLiteAdapter(BaseAdapter):
         return ['DELETE FROM %s;' % tablename,
                 "DELETE FROM sqlite_sequence WHERE name='%s';" % tablename]
 
-    def lastrowid(self, table):
-        return self.cursor.lastrowid
-
     def REGEXP(self,first,second):
         return '(%s REGEXP %s)' % (self.expand(first),
                                    self.expand(second,'string'))
