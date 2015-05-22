@@ -8,8 +8,13 @@ from ..objects import Table, Query, Field, Expression
 from ..helpers.classes import SQLALL, Reference
 from ..helpers.methods import use_common_filters, xorify
 from .base import NoSQLAdapter
-from bson import Binary
-from bson.binary import USER_DEFINED_SUBTYPE
+try:
+    from bson import Binary
+    from bson.binary import USER_DEFINED_SUBTYPE
+except:
+    class Binary(object):
+        pass
+    USER_DEFINED_SUBTYPE = 0
 
 long = integer_types[-1]
 
@@ -645,9 +650,6 @@ class MongoBlob(Binary):
 
     def __repr__(self):
         return repr(MongoBlob.decode(self))
-
-    def __str__(self):
-        return str(MongoBlob.decode(self))
 
     @staticmethod
     def decode(value):
