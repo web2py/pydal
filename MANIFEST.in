@@ -2,4 +2,6 @@ include LICENSE
 include AUTHORS
 include CHANGES
 recursive-include tests *
+recursive-exclude tests .DS_Store
 recursive-include docs *
+recursive-exclude docs .DS_Store
