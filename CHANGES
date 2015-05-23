@@ -1,10 +1,10 @@
 pydal changelog
 ===============
 
-Next
-----
+Version 15.05
+-------------
 
-(Release date to be announced)
+Released on May 23rd 2015
 
 - Fixed True/False expressions in MSSQL
 - Introduced `iterselect()` and `IterRows`
@@ -13,16 +13,17 @@ Next
 - Implemented JSON serialization for objects
 - Refactored many internal objects to improve performance
 - Added python 3.x support (experimental)
-- New (and, as such, experimental) unicode handling in MSSQL
-  Use mssql4n:// or mssqn3n:// uris. NB: These adapters will probably 
-  become the de-facto standard for MSSQL handling. 
-  Any other adapter will continue to be supported just for legacy
-  databases
-- Restricted table and field names to a "dotted-notation-friendly" syntax,
-  meaning basically anything:
-   - alphanumeric
-   - not starting with underscore or an integer
-  you need to use the "rname" attribute for anything funnier than that
+- Several fixes and improvements to `MongoDBAdapter`
+- Implemented unicode handling in MSSQL (experimental) via mssql4n and mssql3n
+  adapters
+    Notes: These adapters will probably become the de-facto standard for MSSQL handling; any other adapter will continue to be supported just for legacy
+    databases
+- Restricted table and field names to "valid" ones
+    Notes: the "dotted-notation-friendly" syntax for names means anything:
+      - alphanumeric
+      - not starting with underscore or an integer
+    `rname` attribute is intended to be used for anything else
+
 
 Version 15.03
 -------------
