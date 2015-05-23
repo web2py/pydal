@@ -8,6 +8,13 @@ from ..objects import Table, Query, Field, Expression
 from ..helpers.classes import SQLALL, Reference
 from ..helpers.methods import use_common_filters, xorify
 from .base import NoSQLAdapter
+try:
+    from bson import Binary
+    from bson.binary import USER_DEFINED_SUBTYPE
+except:
+    class Binary(object):
+        pass
+    USER_DEFINED_SUBTYPE = 0
 
 long = integer_types[-1]
 
@@ -162,12 +169,7 @@ class MongoDBAdapter(NoSQLAdapter):
             # string or integer
             return datetime.datetime.combine(d, value)
         elif fieldtype == "blob":
-            if value is None or isinstance(value, basestring):
-                return value
-            from bson import Binary
-            if not isinstance(value, Binary):
-                return Binary(value)
-            return value
+            return MongoBlob(value)
         elif isinstance(fieldtype, basestring):
             if fieldtype.startswith('list:'):
                 if fieldtype.startswith('list:reference'):
@@ -182,6 +184,9 @@ class MongoDBAdapter(NoSQLAdapter):
         elif isinstance(fieldtype, Table):
             value = self.object_id(value)
         return value
+
+    def parse_blob(self, value, field_type):
+        return MongoBlob.decode(value)
 
     def _expand_query(self, query, tablename=None, safe=None):
         """ Return a tuple containing query and ctable """
@@ -363,7 +368,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 row.append(value)
             rows.append(row)
         processor = attributes.get('processor', self.parse)
-        result = processor(rows, fields, newnames, False)
+        result = processor(rows, fields, newnames, blob_decode=True)
         return result
 
     def insert(self, table, fields, safe=None):
@@ -617,3 +622,40 @@ class MongoDBAdapter(NoSQLAdapter):
             ret = {self.expand(first): val}
 
         return ret
+
+class MongoBlob(Binary):
+    MONGO_BLOB_BYTES        = USER_DEFINED_SUBTYPE
+    MONGO_BLOB_NON_UTF8_STR = USER_DEFINED_SUBTYPE + 1
+
+    def __new__(cls, value):
+        # return None and Binary() unmolested
+        if value is None or isinstance(value, Binary):
+            return value
+
+        # bytearray is marked as MONGO_BLOB_BYTES
+        if isinstance(value, bytearray):
+            return Binary.__new__(cls, bytes(value), MongoBlob.MONGO_BLOB_BYTES)
+
+        # return non-strings as Binary(), eg: PY3 bytes()
+        if not isinstance(value, basestring):
+            return Binary(value)
+
+        # if string is encodable as UTF-8, then return as string
+        try:
+            value.encode('utf-8')
+            return value
+        except:
+            # string which can not be UTF-8 encoded, eg: pickle strings
+            return Binary.__new__(cls, value, MongoBlob.MONGO_BLOB_NON_UTF8_STR)
+
+    def __repr__(self):
+        return repr(MongoBlob.decode(self))
+
+    @staticmethod
+    def decode(value):
+        if isinstance(value, Binary):
+            if value.subtype == MongoBlob.MONGO_BLOB_BYTES:
+                return bytearray(value)
+            if value.subtype == MongoBlob.MONGO_BLOB_NON_UTF8_STR:
+                return str(value)
+        return value
