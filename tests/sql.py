@@ -1885,7 +1885,9 @@ class TestLazy(unittest.TestCase):
         self.assertEqual(row.value, None)
         self.assertEqual(row[db.tt.value], None)
         self.assertEqual(row['tt.value'], None)
+        self.assertEqual(row.get('tt.value'), None)
         self.assertEqual(row['value'], None)
+        self.assertEqual(row.get('value'), None)
         db.tt.drop()
         db.close()
 

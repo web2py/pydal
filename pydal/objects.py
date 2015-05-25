@@ -42,7 +42,7 @@ class Row(BasicStorage):
 
     def __getitem__(self, k):
         key = str(k)
-        _extra = self.get('_extra', None)
+        _extra = super(Row, self).get('_extra', None)
         if _extra is not None:
             v = _extra.get(key, DEFAULT)
             if v != DEFAULT:
@@ -66,13 +66,14 @@ class Row(BasicStorage):
             except KeyError:
                 pass
         try:
-            e = self.get('__get_lazy_reference__')
+            e = super(Row, self).get('__get_lazy_reference__')
             if e is not None and callable(e):
                 self[key] = e(key)
                 return self[key]
         except Exception as e:
             raise e
-        return None
+
+        raise KeyError
 
     __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict(custom_types=[LazySet])
 
@@ -90,6 +91,12 @@ class Row(BasicStorage):
             return self.as_dict() == other.as_dict()
         except AttributeError:
             return False
+
+    def get(self, key, default=None):
+        try:
+            return self.__getitem__(key)
+        except(KeyError, AttributeError, TypeError):
+            return default
 
     def as_dict(self, datetime_to_str=False, custom_types=None):
         SERIALIZABLE_TYPES = [str, int, float, bool, list, dict]
