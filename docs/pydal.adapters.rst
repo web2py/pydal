@@ -44,13 +44,10 @@ pydal.adapters.firebird module
     :undoc-members:
     :show-inheritance:
 
-pydal.adapters.google module
---------------------------------
+pydal.adapters.google_adapters module
+-----------------------------------------
 
-.. automodule:: pydal.adapters.google
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   Adapter for GAE
 
 pydal.adapters.imap module
 ------------------------------
