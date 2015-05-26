@@ -1,6 +1,15 @@
 pydal changelog
 ===============
 
+Version 15.05.26
+----------------
+
+Released on May 26th 2015
+
+- Fixed `DAL.__getattr__`
+- Fixed backward compatibility breaks introduced with 15.05
+
+
 Version 15.05
 -------------
 
