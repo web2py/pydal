@@ -339,6 +339,8 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db((db.tt.aa > '1') & (db.tt.aa < '3')).count(), 1)
         self.assertEqual(db((db.tt.aa > '1') | (db.tt.aa < '3')).count(), 3)
         # Test not operator
+        self.assertEqual(db(~(db.tt.aa != '1')).count(), 1)
+        self.assertEqual(db(~(db.tt.aa == '1')).count(), 2)
         self.assertEqual(db((db.tt.aa > '1') & ~(db.tt.aa > '2')).count(), 1)
         self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
         self.assertEqual(db(~((db.tt.aa < '1') | (db.tt.aa > '2'))).count(), 2)
@@ -422,6 +424,7 @@ class TestBelongs(unittest.TestCase):
         self.assertEqual(db(db.tt.aa.belongs(['1', '3'])).count(), 2)
         self.assertEqual(db(db.tt.aa.belongs(['1', '3'])).count(), 2)
         self.assertEqual(db(db.tt.id.belongs([self.i_id])).count(), 1)
+        self.assertEqual(db(db.tt.id.belongs([])).count(), 0)
 
     @unittest.skipIf(IS_GAE or IS_MONGODB, "Datastore/Mongodb belongs() does not accept nested queries")
     def testNested(self):

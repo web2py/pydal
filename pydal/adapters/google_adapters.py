@@ -311,6 +311,11 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
             raise SyntaxError("Not supported")
         if not isinstance(second, list):
             second = list(second)
+        if len(second) == 0:
+            # return a filter which will return a null set
+            f = self.EQ(first,0)
+            f.filter_all = True
+            return f
         return self.gaef(first,'in',second)
 
     def CONTAINS(self,first,second,case_sensitive=False):
@@ -327,7 +332,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         elif op == self.EQ:
             r = self.gaef(f, '!=', s)
         elif op == self.NE:
-            r = self.gaef(f, '==', s)
+            r = self.gaef(f, '=', s)
         elif op == self.LT:
             r = self.gaef(f, '>=', s)
         elif op == self.LE:
@@ -409,6 +414,8 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
 
         if filters == None:
             items = tableobj.query(default_options=qo)
+        elif hasattr(filters,'filter_all') and filters.filter_all:
+            items = []
         elif (hasattr(filters,'_FilterNode__name') and
             filters._FilterNode__name=='__key__' and
             filters._FilterNode__opsymbol=='='):

@@ -448,6 +448,7 @@ class MongoDBAdapter(NoSQLAdapter):
         op = self.expand(first)
         op_k = list(op)[0]
         op_body = op[op_k]
+        r = None
         if type(op_body) is list:
             # apply De Morgan law for and/or
             # not(A and B) -> not(A) or not(B)
@@ -455,7 +456,14 @@ class MongoDBAdapter(NoSQLAdapter):
             not_op = '$and' if op_k == '$or' else '$or'
             r = {not_op: [self.NOT(first.first), self.NOT(first.second)]}
         else:
-            r = {op_k: {'$not': op_body}}
+            try:
+                sub_ops = list(op_body.keys())
+                if len(sub_ops) == 1 and sub_ops[0] == '$ne':
+                    r = {op_k: op_body['$ne']}
+            except:
+                r = {op_k: {'$ne': op_body}}
+            if r == None:
+                r = {op_k: {'$not': op_body}}
         return r
 
     def AND(self,first,second):
@@ -468,9 +476,10 @@ class MongoDBAdapter(NoSQLAdapter):
 
     def BELONGS(self, first, second):
         if isinstance(second, str):
-            return {self.expand(first) : {"$in" : [ second[:-1]]} }
-        elif second==[] or second==() or second==set():
-            return {1:0}
+            # this is broken, the only way second is a string is if it has
+            # been converted to SQL.  This no worky.  This might be made to
+            # work if _select did not return SQL.
+            raise RuntimeError("nested queries not supported")
         items = [self.expand(item, first.type) for item in second]
         return {self.expand(first) : {"$in" : items} }
 
