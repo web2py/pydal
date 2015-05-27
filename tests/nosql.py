@@ -125,6 +125,18 @@ class TestFields(unittest.TestCase):
         self.assertEqual(isinstance(db.tt.insert(aa=b'xyzzy'), long), True)
         self.assertEqual(db().select(db.tt.aa)[0].aa, b'xyzzy')
         drop(db.tt)
+        # pickling a tuple will create a string which is not UTF-8 able.
+        import pickle
+        insert_val =  pickle.dumps((0,), pickle.HIGHEST_PROTOCOL)
+        db.define_table('tt', Field('aa', 'blob', default=''))
+        self.assertEqual(isinstance(db.tt.insert(aa=insert_val), long), True)
+        self.assertEqual(db().select(db.tt.aa)[0].aa, insert_val)
+        drop(db.tt)
+        insert_val = bytearray('a','utf-8')
+        db.define_table('tt', Field('aa', 'blob', default=''))
+        self.assertEqual(isinstance(db.tt.insert(aa=insert_val), long), True)
+        self.assertEqual(db().select(db.tt.aa)[0].aa, insert_val)
+        drop(db.tt)
         db.define_table('tt', Field('aa', 'integer', default=1))
         self.assertEqual(isinstance(db.tt.insert(aa=3), long), True)
         self.assertEqual(db().select(db.tt.aa)[0].aa, 3)

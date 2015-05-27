@@ -1,10 +1,19 @@
 pydal changelog
 ===============
 
-Next
-----
+Version 15.05.26
+----------------
 
-(Release date to be announced)
+Released on May 26th 2015
+
+- Fixed `DAL.__getattr__`
+- Fixed backward compatibility breaks introduced with 15.05
+
+
+Version 15.05
+-------------
+
+Released on May 23rd 2015
 
 - Fixed True/False expressions in MSSQL
 - Introduced `iterselect()` and `IterRows`
@@ -13,6 +22,16 @@ Next
 - Implemented JSON serialization for objects
 - Refactored many internal objects to improve performance
 - Added python 3.x support (experimental)
+- Several fixes and improvements to `MongoDBAdapter`
+- Implemented unicode handling in MSSQL (experimental) via mssql4n and mssql3n
+  adapters
+    Notes: These adapters will probably become the de-facto standard for MSSQL handling; any other adapter will continue to be supported just for legacy
+    databases
+- Restricted table and field names to "valid" ones
+    Notes: the "dotted-notation-friendly" syntax for names means anything:
+      - alphanumeric
+      - not starting with underscore or an integer
+    `rname` attribute is intended to be used for anything else
 
 
 Version 15.03

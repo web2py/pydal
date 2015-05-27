@@ -19,7 +19,7 @@ from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
     REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
-    REGEX_CLEANUP_FN
+    REGEX_CLEANUP_FN, REGEX_VALID_TB_FLD
 from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL, \
     Serializable, BasicStorage
 from .helpers.methods import list_represent, bar_decode_integer, \
@@ -42,7 +42,7 @@ class Row(BasicStorage):
 
     def __getitem__(self, k):
         key = str(k)
-        _extra = self.get('_extra', None)
+        _extra = super(Row, self).get('_extra', None)
         if _extra is not None:
             v = _extra.get(key, DEFAULT)
             if v != DEFAULT:
@@ -66,13 +66,14 @@ class Row(BasicStorage):
             except KeyError:
                 pass
         try:
-            e = self.get('__get_lazy_reference__')
+            e = super(Row, self).get('__get_lazy_reference__')
             if e is not None and callable(e):
                 self[key] = e(key)
                 return self[key]
         except Exception as e:
             raise e
-        return None
+
+        raise KeyError
 
     __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict(custom_types=[LazySet])
 
@@ -90,6 +91,12 @@ class Row(BasicStorage):
             return self.as_dict() == other.as_dict()
         except AttributeError:
             return False
+
+    def get(self, key, default=None):
+        try:
+            return self.__getitem__(key)
+        except(KeyError, AttributeError, TypeError):
+            return default
 
     def as_dict(self, datetime_to_str=False, custom_types=None):
         SERIALIZABLE_TYPES = [str, int, float, bool, list, dict]
@@ -205,8 +212,8 @@ class Table(Serializable, BasicStorage):
         self._actual = False  # set to True by define_table()
         self._db = db
         self._tablename = tablename
-        if (not isinstance(tablename, str) or tablename[0] == '_'
-            or hasattr(DAL, tablename) or '.' in tablename
+        if (not isinstance(tablename, str) or hasattr(DAL, tablename)
+            or not REGEX_VALID_TB_FLD.match(tablename)
             or REGEX_PYTHON_KEYWORDS.match(tablename)
             ):
             raise SyntaxError('Field: invalid table name: %s, '
@@ -1396,9 +1403,10 @@ class Field(Expression, Serializable):
             except UnicodeEncodeError:
                 raise SyntaxError('Field: invalid unicode field name')
         self.name = fieldname = cleanup(fieldname)
-        if not isinstance(fieldname, str) or hasattr(Table, fieldname) or \
-                fieldname[0] == '_' or '.' in fieldname or \
-                REGEX_PYTHON_KEYWORDS.match(fieldname):
+        if (not isinstance(fieldname, str) or hasattr(Table, fieldname)
+            or not REGEX_VALID_TB_FLD.match(fieldname)
+            or REGEX_PYTHON_KEYWORDS.match(fieldname)
+            ):
             raise SyntaxError('Field: invalid field name: %s, '
                               'use rname for "funny" names' % fieldname)
 

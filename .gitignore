@@ -18,4 +18,6 @@ build/*
 .project
 .pydevproject
 .settings
+.idea
+.vslick
 

@@ -899,31 +899,31 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return self.__getattr__(str(key))
 
     def __getattr__(self, key):
-        if getattr(self, '_lazy_tables') and \
+        if object.__getattribute__(self, '_lazy_tables') and \
                 key in object.__getattribute__(self, '_LAZY_TABLES'):
             tablename, fields, args = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename, *fields, **args)
         return super(DAL, self).__getattr__(key)
 
     def __setattr__(self, key, value):
-        if key[:1]!='_' and key in self:
+        if key[:1] != '_' and key in self:
             raise SyntaxError(
                 'Object %s exists and cannot be redefined' % key)
         return super(DAL, self).__setattr__(key, value)
 
     def __repr__(self):
-        if hasattr(self,'_uri'):
+        if hasattr(self, '_uri'):
             return '<DAL uri="%s">' % hide_password(self._adapter.uri)
         else:
             return '<DAL db_uid="%s">' % self._db_uid
 
-    def smart_query(self,fields,text):
-        return Set(self, smart_query(fields,text))
+    def smart_query(self, fields, text):
+        return Set(self, smart_query(fields, text))
 
     def __call__(self, query=None, ignore_common_filters=None):
-        if isinstance(query,Table):
+        if isinstance(query, Table):
             query = self._adapter.id_query(query)
-        elif isinstance(query,Field):
+        elif isinstance(query, Field):
             query = query!=None
         elif isinstance(query, dict):
             icf = query.get("ignore_common_filters")
