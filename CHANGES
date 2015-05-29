@@ -1,6 +1,14 @@
 pydal changelog
 ===============
 
+Version 15.05.29
+----------------
+
+Released on May 29th 2015
+
+- Fixed a unicode error with `PostgreSQLAdapter` introduced with 15.05
+
+
 Version 15.05.26
 ----------------
 
