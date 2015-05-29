@@ -3,6 +3,7 @@ import re
 
 from .._globals import IDENTITY
 from ..drivers import psycopg2_adapt
+from .._compat import PY2
 from ..helpers.methods import varquote_aux
 from .base import BaseAdapter
 from ..objects import Expression
@@ -49,8 +50,9 @@ class PostgreSQLAdapter(BaseAdapter):
     def adapt(self, obj):
         if self.driver_name == 'psycopg2':
             rv = psycopg2_adapt(obj).getquoted()
-            if isinstance(rv, bytes):
-                return rv.decode("utf8")
+            if not PY2:
+                if isinstance(rv, bytes):
+                    return rv.decode('utf-8')
             return rv
         elif self.driver_name == 'pg8000':
             return "'%s'" % obj.replace("%", "%%").replace("'", "''")
