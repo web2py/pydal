@@ -348,18 +348,16 @@ class TestSelect(unittest.TestCase):
         drop(db.tt)
         db.close()
 
-    @unittest.skipIf(IS_GAE, "Datastore list:integer not supported")
     def testListInteger(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', 
                         Field('aa', 'list:integer'))
-        l=[1,2,3,4,5]
+        l=[0,1,2,3,4,5]
         db.tt.insert(aa=l)
         self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa],l)
-        db.tt.drop()
+        drop(db.tt)
         db.close()
 
-    @unittest.skipIf(IS_GAE, "Datastore list:string not supported")
     def testListString(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', 
@@ -367,10 +365,9 @@ class TestSelect(unittest.TestCase):
         l=['a', 'b', 'c']
         db.tt.insert(aa=l)
         self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa],l)
-        db.tt.drop()
+        drop(db.tt)
         db.close()
 
-    @unittest.skipIf(IS_GAE, "Datastore list:reference not supported")
     def testListReference(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('t0', 
@@ -381,8 +378,8 @@ class TestSelect(unittest.TestCase):
         l=[id_a]
         db.tt.insert(t0_id=l)
         self.assertEqual(db(db.tt).select(db.tt.t0_id).first()[db.tt.t0_id],l)
-        db.tt.drop()
-        db.t0.drop()
+        drop(db.tt)
+        drop(db.t0)
         db.close()
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
