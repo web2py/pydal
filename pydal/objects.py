@@ -795,9 +795,9 @@ class Table(Serializable, BasicStorage):
         """
         here items is a list of dictionaries
         """
-        items = [self._listify(item) for item in items]
+        listify_items = [self._listify(item) for item in items]
         if any(f(item) for item in items for f in self._before_insert):return 0
-        ret = self._db._adapter.bulk_insert(self,items)
+        ret = self._db._adapter.bulk_insert(self, listify_items)
         ret and [[f(item,ret[k]) for k,item in enumerate(items)] for f in self._after_insert]
         return ret
 

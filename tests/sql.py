@@ -1931,6 +1931,7 @@ class TestBulkInsert(unittest.TestCase):
         global ctr
         ctr = 0
         def test_after_insert(i, r):
+            self.assertIsInstance(i, dict)
             global ctr
             ctr += 1
             return True
