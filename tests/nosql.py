@@ -113,68 +113,57 @@ class TestFields(unittest.TestCase):
             else:
                 isinstance(f.formatter(datetime.datetime.now()), str)
 
-    @unittest.skipIf(IS_GAE, 'TODO: Datastore does accept dict objects as json field input.')
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        for ft in ['string', 'text', 'password', 'upload', 'blob']:
-            db.define_table('tt', Field('aa', ft, default=''))
-            self.assertEqual(isinstance(db.tt.insert(aa='x'), long), True)
-            self.assertEqual(db().select(db.tt.aa)[0].aa, 'x')
-            drop(db.tt)
-        db.define_table('tt', Field('aa', 'blob', default=''))
-        self.assertEqual(isinstance(db.tt.insert(aa=b'xyzzy'), long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, b'xyzzy')
-        drop(db.tt)
-        # pickling a tuple will create a string which is not UTF-8 able.
         import pickle
-        insert_val =  pickle.dumps((0,), pickle.HIGHEST_PROTOCOL)
-        db.define_table('tt', Field('aa', 'blob', default=''))
-        self.assertEqual(isinstance(db.tt.insert(aa=insert_val), long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, insert_val)
-        drop(db.tt)
-        insert_val = bytearray('a','utf-8')
-        db.define_table('tt', Field('aa', 'blob', default=''))
-        self.assertEqual(isinstance(db.tt.insert(aa=insert_val), long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, insert_val)
-        drop(db.tt)
-        db.define_table('tt', Field('aa', 'integer', default=1))
-        self.assertEqual(isinstance(db.tt.insert(aa=3), long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, 3)
-        drop(db.tt)
-        db.define_table('tt', Field('aa', 'double', default=1))
-        self.assertEqual(isinstance(db.tt.insert(aa=3.1), long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, 3.1)
-        drop(db.tt)
-        db.define_table('tt', Field('aa', 'boolean', default=True))
-        self.assertEqual(isinstance(db.tt.insert(aa=True), long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, True)
-        drop(db.tt)
-        db.define_table('tt', Field('aa', 'json', default={}))
-        self.assertEqual(isinstance(db.tt.insert(aa={}), long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, {})
-        drop(db.tt)
-        db.define_table('tt', Field('aa', 'date',
-                        default=datetime.date.today()))
-        t0 = datetime.date.today()
-        self.assertEqual(isinstance(db.tt.insert(aa=t0), long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
-        drop(db.tt)
-        db.define_table('tt', Field('aa', 'datetime',
-                        default=datetime.datetime.today()))
-        t0 = datetime.datetime(
-            1971,
-            12,
-            21,
-            10,
-            30,
-            55,
-            0,
-            )
-        id = db.tt.insert(aa=t0)
-        self.assertEqual(isinstance(id, long), True)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
+
+        # some db's only support milliseconds
+        datetime_datetime_today = datetime.datetime.today()
+        datetime_datetime_today = datetime_datetime_today.replace(
+            microsecond = datetime_datetime_today.microsecond -
+                          datetime_datetime_today.microsecond % 1000)
+
+        insert_vals = [
+            ('string', 'x', ''),
+            ('text', 'x', ''),
+            ('password', 'x', ''),
+            ('upload', 'x', ''),
+            ('double', 3.1, 1),
+            ('integer', 3, 1),
+            ('boolean', True, True),
+            ('date', datetime.date.today(), datetime.date.today()),
+            ('datetime', datetime.datetime(1971, 12, 21, 10, 30, 55, 0),
+                datetime_datetime_today),
+            ('time', datetime_datetime_today.time(),
+                datetime_datetime_today.time()),
+            ('blob', 'x', ''),
+            ('blob', b'xyzzy', ''),
+            # pickling a tuple will create a string which is not UTF-8 able.
+            ('blob', pickle.dumps((0,), pickle.HIGHEST_PROTOCOL), ''),
+            ]
+
+        if not IS_GAE:
+            # these are unsupported by GAE
+            insert_vals.append(('blob', bytearray('a','utf-8'), ''))
+            insert_vals.append(('json', {'a': 'b', 'c': [1, 2]}, {}))
+
+        for iv in insert_vals:
+            db.define_table('tt', Field('aa', iv[0], default=iv[2]))
+            # empty string stored to blob returns None
+            default_return = None if iv[0] == 'blob' and iv[2] == '' else iv[2]
+            self.assertTrue(isinstance(db.tt.insert(), long))
+            self.assertTrue(isinstance(db.tt.insert(aa=iv[1]), long))
+            self.assertEqual(db().select(db.tt.aa)[0].aa, default_return)
+            self.assertEqual(db().select(db.tt.aa)[1].aa, iv[1])
+            drop(db.tt)
 
         ## Row APIs
+        db.define_table('tt', Field('aa', 'datetime',
+                        default=datetime.datetime.today()))
+        t0 = datetime.datetime(1971, 12, 21, 10, 30, 55, 0)
+        id = db.tt.insert(aa=t0)
+        self.assertEqual(isinstance(id, long), True)
+
         row = db().select(db.tt.aa)[0]
         self.assertEqual(db.tt[id].aa,t0)
         self.assertEqual(db.tt['aa'],db.tt.aa)
