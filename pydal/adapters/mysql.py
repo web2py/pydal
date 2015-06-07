@@ -28,7 +28,7 @@ class MySQLAdapter(BaseAdapter):
         'time': 'TIME',
         'datetime': 'DATETIME',
         'id': 'INT AUTO_INCREMENT NOT NULL',
-        'reference': 'INT, INDEX %(index_name)s (%(field_name)s), FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference': 'INT %(null)s %(unique)s, INDEX %(index_name)s (%(field_name)s), FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'list:integer': 'LONGTEXT',
         'list:string': 'LONGTEXT',
         'list:reference': 'LONGTEXT',

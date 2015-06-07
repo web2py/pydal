@@ -34,7 +34,7 @@ class MSSQLAdapter(BaseAdapter):
         'time': 'CHAR(8)',
         'datetime': 'DATETIME',
         'id': 'INT IDENTITY PRIMARY KEY',
-        'reference': 'INT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference': 'INT %(null)s %(unique)s, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'list:integer': 'TEXT',
         'list:string': 'TEXT',
         'list:reference': 'TEXT',
@@ -248,7 +248,7 @@ class MSSQL3Adapter(MSSQLAdapter):
         'time': 'TIME(7)',
         'datetime': 'DATETIME',
         'id': 'INT IDENTITY PRIMARY KEY',
-        'reference': 'INT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference': 'INT %(null)s %(unique)s, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'list:integer': 'VARCHAR(MAX)',
         'list:string': 'VARCHAR(MAX)',
         'list:reference': 'VARCHAR(MAX)',
@@ -304,7 +304,7 @@ class MSSQL4Adapter(MSSQLAdapter):
         'time': 'TIME(7)',
         'datetime': 'DATETIME',
         'id': 'INT IDENTITY PRIMARY KEY',
-        'reference': 'INT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference': 'INT %(null)s %(unique)s, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'list:integer': 'VARCHAR(MAX)',
         'list:string': 'VARCHAR(MAX)',
         'list:reference': 'VARCHAR(MAX)',
@@ -336,6 +336,8 @@ class MSSQL4Adapter(MSSQLAdapter):
     def rowslice(self, rows, minimum=0, maximum=None):
         return rows
 
+    def ALLOW_NULL(self):
+        return ' %s' % 'NULL'
 
 class MSSQL2Adapter(MSSQLAdapter):
     drivers = ('pyodbc',)
@@ -357,7 +359,7 @@ class MSSQL2Adapter(MSSQLAdapter):
         'time': 'CHAR(8)',
         'datetime': 'DATETIME',
         'id': 'INT IDENTITY PRIMARY KEY',
-        'reference': 'INT, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference': 'INT %(null)s %(unique)s, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'list:integer': 'NTEXT',
         'list:string': 'NTEXT',
         'list:reference': 'NTEXT',
@@ -417,7 +419,7 @@ class MSSQLNAdapter(MSSQLAdapter):
         'time': 'CHAR(8)',
         'datetime': 'DATETIME',
         'id': 'INT IDENTITY PRIMARY KEY',
-        'reference': 'INT, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference': 'INT %(null)s %(unique)s, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'list:integer': 'NTEXT',
         'list:string': 'NTEXT',
         'list:reference': 'NTEXT',
@@ -478,7 +480,7 @@ class MSSQL3NAdapter(MSSQLNAdapter):
         'time': 'TIME(7)',
         'datetime': 'DATETIME',
         'id': 'INT IDENTITY PRIMARY KEY',
-        'reference': 'INT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference': 'INT %(null)s %(unique)s, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'list:integer': 'NVARCHAR(MAX)',
         'list:string': 'NVARCHAR(MAX)',
         'list:reference': 'NVARCHAR(MAX)',
@@ -538,7 +540,7 @@ class MSSQL4NAdapter(MSSQLNAdapter):
         'time': 'TIME(7)',
         'datetime': 'DATETIME',
         'id': 'INT IDENTITY PRIMARY KEY',
-        'reference': 'INT NULL, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference': 'INT %(null)s %(unique)s, CONSTRAINT %(constraint_name)s FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'list:integer': 'NVARCHAR(MAX)',
         'list:string': 'NVARCHAR(MAX)',
         'list:reference': 'NVARCHAR(MAX)',

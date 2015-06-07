@@ -106,7 +106,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         'time': 'TIME',
         'datetime': 'TIMESTAMP',
         'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
-        'reference': 'INTEGER REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'reference': 'INTEGER REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s %(null)s %(unique)s',
         'list:integer': 'TEXT',
         'list:string': 'TEXT',
         'list:reference': 'TEXT',
@@ -322,12 +322,16 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                                            and db[referenced].sqlsafe
                                            or referenced)
                     rfield = db[referenced]._id
-                    ftype = types[field_type[:9]] % dict(
+                    ftype_info = dict(
                         index_name = self.QUOTE_TEMPLATE % (field_name+'__idx'),
                         field_name = field.sqlsafe_name,
                         constraint_name = self.QUOTE_TEMPLATE % constraint_name,
                         foreign_key = '%s (%s)' % (real_referenced, rfield.sqlsafe_name),
-                        on_delete_action=field.ondelete)
+                        on_delete_action=field.ondelete,
+                        )
+                    ftype_info['null'] = ' NOT NULL' if field.notnull else self.ALLOW_NULL()
+                    ftype_info['unique'] = ' UNIQUE' if field.unique else ''
+                    ftype = types[field_type[:9]] % ftype_info
             elif field_type.startswith('list:reference'):
                 ftype = types[field_type[:14]]
             elif field_type.startswith('decimal'):
