@@ -2669,14 +2669,14 @@ class IterRows(BasicRows):
         self.cacheable = cacheable
         (self.fields_virtual, self.fields_lazy, self.tmps) = \
             self.db._adapter._parse_expand_colnames(colnames)
-        self.db._adapter.cursor.execute(sql)
+        self.db._adapter.execute(sql)
         self._head = None
         self.last_item = None
         self.last_item_id = None
         self.compact = True
 
     def __next__(self):
-        db_row = self.db._adapter.cursor.fetchone()
+        db_row = self.db._adapter._fetchone()
         if db_row is None:
             raise StopIteration
         row = self.db._adapter._parse(db_row, self.tmps, self.fields,
@@ -2728,7 +2728,7 @@ class IterRows(BasicRows):
 
         # fetch and drop the first key - 1 elements
         for i in xrange(n_to_drop):
-            self.db._adapter.cursor.fetchone()
+            self.db._adapter._fetchone()
         row = next(self)
         if row is None:
             raise IndexError
