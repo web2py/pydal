@@ -197,6 +197,9 @@ def smart_query(fields, text):
             elif op == '!=': new_query = field != value
             elif op == 'belongs': new_query = field.belongs(value.split(','))
             elif op == 'notbelongs': new_query = ~field.belongs(value.split(','))
+            elif field.type == 'list:string':
+                if op == 'contains': new_query = field.contains(value)
+                else: raise RuntimeError("Invalid operation")
             elif field.type in ('text', 'string', 'json'):
                 if op == 'contains': new_query = field.contains(value)
                 elif op == 'like': new_query = field.ilike(value)
