@@ -2503,7 +2503,10 @@ class Rows(BasicRows):
             yield self[i]
 
     def __eq__(self, other):
-        return (self.records == other.records)
+        if isinstance(other, Rows):
+            return (self.records == other.records)
+        else:
+            return False
 
     def column(self, column=None):
         return [r[str(column) if column else self.colnames[0]] for r in self]
