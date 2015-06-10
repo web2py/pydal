@@ -1670,16 +1670,16 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     column_name = new_column_name.groups(0)
                     setattr(new_row,column_name[0],value)
 
-        if tablename in fields_virtual:
-            for f,v in fields_virtual[tablename]:
+        for tablename in fields_virtual.keys():
+            for f, v in fields_virtual[tablename]:
                 try:
                     new_row[tablename][f] = v.f(new_row)
-                except AttributeError:
+                except (AttributeError, KeyError):
                     pass # not enough fields to define virtual field
-            for f,v in fields_lazy[tablename]:
+            for f, v in fields_lazy[tablename]:
                 try:
                     new_row[tablename][f] = (v.handler or VirtualCommand)(v.f, new_row)
-                except AttributeError:
+                except (AttributeError, KeyError):
                     pass # not enough fields to define virtual field
         return new_row
 
