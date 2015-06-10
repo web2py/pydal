@@ -180,6 +180,8 @@ class MSSQLAdapter(BaseAdapter):
         return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first), second)
 
     def like_expander(self, term):
+        if isinstance(term, Expression):
+            return term
         if term.startswith('%') and term.endswith('%'):
             pre, term, post = '%', term[1:-1], '%'
         elif term.startswith('%'):
