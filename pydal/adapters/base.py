@@ -112,7 +112,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         'list:reference': 'TEXT',
         # the two below are only used when DAL(...bigint_id=True) and replace 'id','reference'
         'big-id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
-        'big-reference': 'INTEGER REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'big-reference': 'INTEGER REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s %(null)s %(unique)s',
         'reference FK': ', CONSTRAINT  "FK_%(constraint_name)s" FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         }
 
@@ -257,8 +257,14 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             field_type = field.type
             if isinstance(field_type,SQLCustomType):
                 ftype = field_type.native or field_type.type
-            elif field_type.startswith('reference'):
-                referenced = field_type[10:].strip()
+            elif field_type.startswith(('reference', 'big-reference')):
+                if field_type.startswith('reference'):
+                    referenced = field_type[10:].strip()
+                    type_name = 'reference'
+                else:
+                    referenced = field_type[14:].strip()
+                    type_name = 'big-reference'
+
                 if referenced == '.':
                     referenced = tablename
                 constraint_name = self.constraint_name(tablename, field_name)
@@ -331,7 +337,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                         )
                     ftype_info['null'] = ' NOT NULL' if field.notnull else self.ALLOW_NULL()
                     ftype_info['unique'] = ' UNIQUE' if field.unique else ''
-                    ftype = types[field_type[:9]] % ftype_info
+                    ftype = types[type_name] % ftype_info
             elif field_type.startswith('list:reference'):
                 ftype = types[field_type[:14]]
             elif field_type.startswith('decimal'):
@@ -373,7 +379,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 ftype = types[field_type]\
                      % dict(length=field.length)
             if not field_type.startswith('id') and \
-                    not field_type.startswith('reference'):
+                    not field_type.startswith(('reference', 'big-reference')):
                 if field.notnull:
                     ftype += ' NOT NULL'
                 else:
