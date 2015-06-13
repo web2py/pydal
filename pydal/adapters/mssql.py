@@ -10,7 +10,6 @@ from .base import BaseAdapter
 
 long = integer_types[-1]
 
-
 class MSSQLAdapter(BaseAdapter):
     drivers = ('pyodbc',)
     T_SEP = 'T'
@@ -62,7 +61,7 @@ class MSSQLAdapter(BaseAdapter):
         return 'NEWID()'
 
     def ALLOW_NULL(self):
-        return ' NULL'
+        return ' %s' % 'NULL'
 
     def CAST(self, first, second):
         return first # apparently no cast necessary in MSSQL
@@ -173,7 +172,63 @@ class MSSQLAdapter(BaseAdapter):
         return "DATEDIFF(second, '1970-01-01 00:00:00', %s)" % self.expand(first)
 
     def CONCAT(self, *items):
-        return '(%s)' % ' + '.join(self.expand(x,'string') for x in items)
+        return '(%s)' % ' + '.join(self.expand(x, 'string') for x in items)
+
+    def REGEXP(self,first,second):
+        second = self.expand(second,'string').replace('\\', '\\\\').replace('%', '\%')
+        second = second.replace('*', '%').replace('.', '_')
+        return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first), second)
+
+    def like_expander(self, term):
+        if isinstance(term, Expression):
+            return term
+        if term.startswith('%') and term.endswith('%'):
+            pre, term, post = '%', term[1:-1], '%'
+        elif term.startswith('%'):
+            pre, term, post = '%', term[1:], ''
+        elif term.endswith('%'):
+            pre, term, post = '', term[:-1], '%'
+        else:
+            return term
+        term = term.replace('\\', '\\\\').replace('[', '[[]')
+        term = term.replace('%', '[%]').replace('_', '[_]')
+        return ''.join([pre, term, post])
+
+    def LIKE(self, first, second):
+        """Case sensitive like operator"""
+        return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first),
+                self.expand(self.like_expander(second), 'string'))
+
+    def ILIKE(self, first, second):
+        """Case insensitive like operator"""
+        return "(LOWER(%s) LIKE %s ESCAPE '\\')" % (self.expand(first),
+                self.expand(self.like_expander(second), 'string').lower())
+
+    def STARTSWITH(self, first, second):
+        return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first),
+                self.expand(self.like_expander(second)+'%', 'string'))
+
+    def ENDSWITH(self, first, second):
+        return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first),
+                self.expand('%'+self.like_expander(second), 'string'))
+
+    def CONTAINS(self, first, second, case_sensitive=True):
+        if first.type in ('string','text', 'json'):
+            if isinstance(second,Expression):
+                second = Expression(second.db, self.CONCAT('%',Expression(
+                            second.db, self.REPLACE(second,('%','%%'))),'%'))
+            else:
+                second = '%'+str(second)+'%'
+        elif first.type.startswith('list:'):
+            if isinstance(second,Expression):
+                second = Expression(second.db, self.CONCAT(
+                        '%|',Expression(second.db, self.REPLACE(
+                                Expression(second.db, self.REPLACE(
+                                        second,('%','%%'))),('|','||'))),'|%'))
+            else:
+                second = '%|'+str(second).replace('|','||')+'|%'
+        op = case_sensitive and self.LIKE or self.ILIKE
+        return op(first,second)
 
     # GIS Spatial Extensions
 
@@ -276,7 +331,7 @@ class MSSQL3Adapter(MSSQLAdapter):
             sql_f_oproxy = ', '.join(sql_f_outer)
             return 'SELECT %s %s FROM (SELECT %s ROW_NUMBER() OVER (ORDER BY %s) AS w_row, %s FROM %s%s%s) TMP WHERE w_row BETWEEN %i AND %s;' % (sql_s,sql_f_oproxy,sql_s,sql_f,sql_f_iproxy,sql_t,sql_w,sql_g_inner,lmin,lmax)
         return 'SELECT %s %s FROM %s%s%s;' % (sql_s,sql_f,sql_t,sql_w,sql_o)
-    
+
     def rowslice(self,rows,minimum=0,maximum=None):
         return rows
 
@@ -336,8 +391,6 @@ class MSSQL4Adapter(MSSQLAdapter):
     def rowslice(self, rows, minimum=0, maximum=None):
         return rows
 
-    def ALLOW_NULL(self):
-        return ' %s' % 'NULL'
 
 class MSSQL2Adapter(MSSQLAdapter):
     drivers = ('pyodbc',)
@@ -388,8 +441,10 @@ class MSSQL2Adapter(MSSQLAdapter):
     def ILIKE(self, first, second):
         second = self.expand(second, 'string').lower()
         if second.startswith("n'"):
-            second = "N'" + second[2:]
-        return '(LOWER(%s) LIKE %s)' % (self.expand(first), second)
+            second = "N'" + self.like_expander(second[2:-1]) + "'"
+        else:
+            second = self.like_expander(second)
+        return "(LOWER(%s) LIKE %s ESCAPE '\\')" % (self.expand(first), second)
 
 
 class MSSQLNAdapter(MSSQLAdapter):
@@ -447,11 +502,14 @@ class MSSQLNAdapter(MSSQLAdapter):
     def ILIKE(self, first, second):
         if isinstance(second, Expression):
             second = self.expand(second, 'string')
+            second = self.like_expander(second)
         else:
             second = self.expand(second, 'string').lower()
             if second.startswith("n'"):
-                second = "N'" + second[2:]
-        return '(LOWER(%s) LIKE %s)' % (self.expand(first), second)
+                second = "N'" + self.like_expander(second[2:-1]) + "'"
+            else:
+                second = self.like_expander(second)
+        return "(LOWER(%s) LIKE %s ESCAPE '\\')" % (self.expand(first), second)
 
 
 class MSSQL3NAdapter(MSSQLNAdapter):
@@ -601,7 +659,6 @@ class VerticaAdapter(MSSQLAdapter):
         'list:reference': 'BYTEA',
         'big-reference': 'BIGINT REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         }
-
 
     def EXTRACT(self, first, what):
         return "DATE_PART('%s', TIMESTAMP %s)" % (what, self.expand(first))
