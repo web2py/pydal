@@ -179,8 +179,6 @@ class MongoDBAdapter(NoSQLAdapter):
                     value = newval
             elif fieldtype.startswith("reference") or fieldtype=="id":
                 value = self.object_id(value)
-            elif fieldtype == "string":
-                value = str(value)
         elif isinstance(fieldtype, Table):
             value = self.object_id(value)
         return value

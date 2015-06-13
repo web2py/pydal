@@ -125,6 +125,7 @@ class TestFields(unittest.TestCase):
 
         insert_vals = [
             ('string', 'x', ''),
+            ('string', 'A\xc3\xa9 A', ''),
             ('text', 'x', ''),
             ('password', 'x', ''),
             ('upload', 'x', ''),
