@@ -744,26 +744,43 @@ class TestMigrations(unittest.TestCase):
 class TestReference(unittest.TestCase):
 
     def testRun(self):
-        for b in [True, False]:
+        scenarios = (
+            (True,  'CASCADE'),
+            (False, 'CASCADE'),
+            (False, 'SET NULL'),
+        )
+        for (b, ondelete) in scenarios:
             db = DAL(DEFAULT_URI, check_reserved=['all'], bigint_id=b)
             if DEFAULT_URI.startswith('mssql'):
                 #multiple cascade gotcha
                 for key in ['reference','reference FK']:
                     db._adapter.types[key]=db._adapter.types[key].replace(
                     '%(on_delete_action)s','NO ACTION')
-            db.define_table('tt', Field('name'), Field('aa','reference tt'))
+            db.define_table('tt', Field('name'), 
+                            Field('aa','reference tt',ondelete=ondelete))
             db.commit()
-            x = db.tt.insert(name='max')
-            assert x.id == 1
-            assert x['id'] == 1
+            x = db.tt.insert(name='xxx')
+            self.assertEqual(x.id, 1)
+            self.assertEqual(x['id'], 1)
             x.aa = x
-            assert x.aa == 1
+            self.assertEqual(x.aa, 1)
             x.update_record()
-            y = db.tt[1]
-            assert y.aa == 1
-            assert y.aa.aa.aa.aa.aa.aa.name == 'max'
-            z=db.tt.insert(name='xxx', aa = y)
-            assert z.aa == y.id
+            x1 = db.tt[1]
+            self.assertEqual(x1.aa, 1)
+            self.assertEqual(x1.aa.aa.aa.aa.aa.aa.name, 'xxx')
+            y=db.tt.insert(name='yyy', aa = x1)
+            self.assertEqual(y.aa, x1.id)
+
+            self.assertEqual(db.tt.insert(name='zzz'), 3)
+            self.assertEqual(db(db.tt.name).count(), 3)
+            db(db.tt.id == x).delete()
+            expected_count = {
+                'SET NULL': 2,
+                'CASCADE': 1,
+            }
+            self.assertEqual(db(db.tt.name).count(), expected_count[ondelete])
+            if ondelete == 'SET NULL':
+                self.assertEqual(db(db.tt.name == 'yyy').select()[0].aa, None)
             db.tt.drop()
             db.commit()
             db.close()

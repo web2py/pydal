@@ -428,11 +428,29 @@ class MongoDBAdapter(NoSQLAdapter):
 
         (ctable, _filter) = self._expand_query(query, safe)
 
+        db = self.db
+        table = db[tablename]
+        cascade = []
+        set_null = []
+        for field in table._referenced_by:
+            if field.type == 'reference '+ tablename:
+                if field.ondelete == 'CASCADE':
+                    cascade.append(field)
+                if field.ondelete == 'SET NULL':
+                    set_null.append(field)
+        deleted = []
+        if cascade or set_null:
+            deleted = [x['_id'] for x in ctable.find(_filter)]
+
         result = ctable.delete_many(_filter)
         if result.acknowledged:
-            return result.deleted_count
-        else:
-            return amount
+            amount = result.deleted_count
+
+        if amount and deleted:
+            for field in cascade:
+                db(field.belongs(deleted)).delete()
+            for field in set_null:
+                db(field.belongs(deleted)).update(**{field.name:None})
 
         return amount
 

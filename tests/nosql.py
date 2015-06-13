@@ -709,23 +709,41 @@ class TestMigrations(unittest.TestCase):
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
 class TestReference(unittest.TestCase):
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', Field('name'), Field('aa','reference tt'))
-        db.commit()
-        x = db.tt.insert(name='max')
-        assert isinstance(x.id, long) == True
-        assert isinstance(x['id'], long) == True
-        x.aa = x
-        assert isinstance(x.aa, long) == True
-        x.update_record()
-        y = db.tt[x.id]
-        assert y.aa == x.aa
-        assert y.aa.aa.aa.aa.aa.aa.name == 'max'
-        z=db.tt.insert(name='xxx', aa = y)
-        assert z.aa == y.id
-        drop(db.tt)
-        db.commit()
-        db.close()
+        scenarios = (
+            (True,  'CASCADE'),
+            (False, 'CASCADE'),
+            (False, 'SET NULL'),
+        )
+        for (b, ondelete) in scenarios:
+            db = DAL(DEFAULT_URI, check_reserved=['all'], bigint_id=b)
+            db.define_table('tt', Field('name'),
+                            Field('aa','reference tt',ondelete=ondelete))
+            db.commit()
+            x = db.tt.insert(name='xxx')
+            self.assertTrue(isinstance(x, long))
+            self.assertEqual(x.id, x)
+            self.assertEqual(x['id'], x)
+            x.aa = x
+            x.update_record()
+            x1 = db.tt[x]
+            self.assertEqual(x1.aa, x)
+            self.assertEqual(x1.aa.aa.aa.aa.aa.aa.name, 'xxx')
+            y=db.tt.insert(name='yyy', aa = x1)
+            self.assertEqual(y.aa, x1.id)
+            self.assertTrue(isinstance(db.tt.insert(name='zzz'), long))
+            self.assertEqual(db(db.tt.name).count(), 3)
+            if IS_MONGODB:
+                db(db.tt.id == x).delete()
+                expected_count = {
+                    'SET NULL': 2,
+                    'CASCADE': 1,
+                }
+                self.assertEqual(db(db.tt.name).count(), expected_count[ondelete])
+                if ondelete == 'SET NULL':
+                    self.assertEqual(db(db.tt.name == 'yyy').select()[0].aa, 0)
+            drop(db.tt)
+            db.commit()
+            db.close()
 
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
