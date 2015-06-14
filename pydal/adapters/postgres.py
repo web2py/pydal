@@ -332,6 +332,12 @@ class PostgreSQLAdapter(BaseAdapter):
             raise ValueError('Invalid mode: %s' % mode)
         return ['DROP TABLE ' + table.sqlsafe + ' ' + str(mode) + ';']
 
+    def execute(self, *a, **b):
+        if PY2 and self.driver_name == "pg8000":
+            a = list(a)
+            a[0] = a[0].decode('utf8')
+        return BaseAdapter.execute(self, *a, **b)
+
 
 class NewPostgreSQLAdapter(PostgreSQLAdapter):
     drivers = ('psycopg2','pg8000')

@@ -1,15 +1,19 @@
+# -*- coding: utf-8 -*-
+
 from ._compat import unittest
 from ._adapt import DEFAULT_URI, drop
 from pydal import DAL, Field
 
+
 class TestReferenceNOTNULL(unittest.TestCase):
-#1:N not null
+    #1:N not null
 
     def testRun(self):
         for ref, bigint in [('reference', False), ('big-reference', True)]:
             db = DAL(DEFAULT_URI, check_reserved=['all'], bigint_id=bigint)
             db.define_table('tt', Field('vv'))
-            db.define_table('ttt', Field('vv'), Field('tt_id', '%s tt' % ref, notnull=True))
+            db.define_table('ttt', Field('vv'), Field('tt_id', '%s tt' % ref,
+                                                      notnull=True))
             self.assertRaises(Exception, db.ttt.insert, vv='pydal')
             # The following is mandatory for backends as PG to close the aborted transaction
             db.commit()
@@ -17,14 +21,16 @@ class TestReferenceNOTNULL(unittest.TestCase):
             drop(db.tt)
             db.close()
 
+
 class TestReferenceUNIQUE(unittest.TestCase):
-# 1:1 relation
+    # 1:1 relation
 
     def testRun(self):
         for ref, bigint in [('reference', False), ('big-reference', True)]:
             db = DAL(DEFAULT_URI, check_reserved=['all'], bigint_id=bigint)
             db.define_table('tt', Field('vv'))
-            db.define_table('ttt', Field('vv'), Field('tt_id', '%s tt' % ref, unique=True))
+            db.define_table('ttt', Field('vv'), Field('tt_id', '%s tt' % ref,
+                                                      unique=True))
             id_i = db.tt.insert(vv='pydal')
             # Null tt_id
             db.ttt.insert(vv='pydal')
@@ -37,14 +43,17 @@ class TestReferenceUNIQUE(unittest.TestCase):
             drop(db.tt)
             db.close()
 
+
 class TestReferenceUNIQUENotNull(unittest.TestCase):
-# 1:1 relation not null
+    # 1:1 relation not null
 
     def testRun(self):
         for ref, bigint in [('reference', False), ('big-reference', True)]:
             db = DAL(DEFAULT_URI, check_reserved=['all'], bigint_id=bigint)
             db.define_table('tt', Field('vv'))
-            db.define_table('ttt', Field('vv'), Field('tt_id', '%s tt' % ref, unique=True, notnull=True))
+            db.define_table('ttt', Field('vv'), Field('tt_id', '%s tt' % ref,
+                                                      unique=True,
+                                                      notnull=True))
             self.assertRaises(Exception, db.ttt.insert, vv='pydal')
             db.commit()
             id_i = db.tt.insert(vv='pydal')
@@ -56,3 +65,16 @@ class TestReferenceUNIQUENotNull(unittest.TestCase):
             drop(db.ttt)
             drop(db.tt)
             db.close()
+
+
+class TestUnicode(unittest.TestCase):
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('vv'))
+        vv = 'ἀγοραζε'
+        id_i = db.tt.insert(vv=vv)
+        row = db(db.tt.id == id_i).select().first()
+        self.assertEqual(row.vv, vv)
+        db.commit()
+        drop(db.tt)
+        db.close()
