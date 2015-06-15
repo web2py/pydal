@@ -52,13 +52,14 @@ ALLOWED_DATATYPES = [
 
 
 def setUpModule():
-    db = DAL(DEFAULT_URI, check_reserved=['all'])
-    def clean_table(db, tablename):
-        db.define_table(tablename)
-        drop(db[tablename])
-    for tablename in ['tt', 't0', 't1', 't2', 't3', 't4']:
-        clean_table(db, tablename)
-    db.close()
+    if not IS_IMAP:
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        def clean_table(db, tablename):
+            db.define_table(tablename)
+            drop(db[tablename])
+        for tablename in ['tt', 't0', 't1', 't2', 't3', 't4']:
+            clean_table(db, tablename)
+        db.close()
 
 def tearDownModule():
     if os.path.isfile('sql.log'):
