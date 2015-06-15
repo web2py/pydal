@@ -49,7 +49,9 @@ class PostgreSQLAdapter(BaseAdapter):
 
     def adapt(self, obj):
         if self.driver_name == 'psycopg2':
-            rv = psycopg2_adapt(obj).getquoted()
+            adapted = psycopg2_adapt(obj)
+            adapted.prepare(self.connection)
+            rv = adapted.getquoted()
             if not PY2:
                 if isinstance(rv, bytes):
                     return rv.decode('utf-8')
