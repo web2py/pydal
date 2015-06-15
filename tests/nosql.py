@@ -52,7 +52,13 @@ ALLOWED_DATATYPES = [
 
 
 def setUpModule():
-    pass
+    db = DAL(DEFAULT_URI, check_reserved=['all'])
+    def clean_table(db, tablename):
+        db.define_table(tablename)
+        drop(db[tablename])
+    for tablename in ['tt', 't0', 't1', 't2', 't3', 't4']:
+        clean_table(db, tablename)
+    db.close()
 
 def tearDownModule():
     if os.path.isfile('sql.log'):
@@ -359,16 +365,40 @@ class TestSelect(unittest.TestCase):
 
     def testListReference(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('t0', 
-                        Field('aa', 'string'))
-        db.define_table('tt', 
-                        Field('t0_id', 'list:reference t0'))
-        id_a=db.t0.insert(aa='test')
-        l=[id_a]
-        db.tt.insert(t0_id=l)
-        self.assertEqual(db(db.tt).select(db.tt.t0_id).first()[db.tt.t0_id],l)
-        drop(db.tt)
-        drop(db.t0)
+        on_deletes = (
+            'CASCADE',
+            'SET NULL',
+        )
+        for ondelete in on_deletes:
+            db.define_table('t0', Field('aa', 'string'))
+            db.define_table('tt', Field('t0_id', 'list:reference t0',
+                                        ondelete=ondelete))
+            id_a1=db.t0.insert(aa='test1')
+            id_a2=db.t0.insert(aa='test2')
+            ref1=[id_a1]
+            ref2=[id_a2]
+            ref3=[id_a1, id_a2]
+            db.tt.insert(t0_id=ref1)
+            self.assertEqual(
+                db(db.tt).select(db.tt.t0_id).last()[db.tt.t0_id], ref1)
+            db.tt.insert(t0_id=ref2)
+            self.assertEqual(
+                db(db.tt).select(db.tt.t0_id).last()[db.tt.t0_id], ref2)
+            db.tt.insert(t0_id=ref3)
+            self.assertEqual(
+                db(db.tt).select(db.tt.t0_id).last()[db.tt.t0_id], ref3)
+
+            if IS_MONGODB:
+                db(db.t0.aa == 'test1').delete()
+                if ondelete == 'SET NULL':
+                    self.assertEqual(db(db.tt).count(), 3)
+                    self.assertEqual(db(db.tt).select()[0].t0_id, [])
+                if ondelete == 'CASCADE':
+                    self.assertEqual(db(db.tt).count(), 2)
+                    self.assertEqual(db(db.tt).select()[0].t0_id, ref2)
+
+            drop(db.tt)
+            drop(db.t0)
         db.close()
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
@@ -1206,11 +1236,6 @@ class TestRNameFields(unittest.TestCase):
 
         #aliases
         rname = db._adapter.QUOTE_TEMPLATE % 'the cub name'
-        if DEFAULT_URI.startswith('mssql'):
-            #multiple cascade gotcha
-            for key in ['reference','reference FK']:
-                db._adapter.types[key]=db._adapter.types[key].replace(
-                '%(on_delete_action)s','NO ACTION')
         db.define_table('pet_farm',
             Field('name', rname=rname),
             Field('father','reference pet_farm'),

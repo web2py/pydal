@@ -771,16 +771,19 @@ class TestReference(unittest.TestCase):
             y=db.tt.insert(name='yyy', aa = x1)
             self.assertEqual(y.aa, x1.id)
 
-            self.assertEqual(db.tt.insert(name='zzz'), 3)
-            self.assertEqual(db(db.tt.name).count(), 3)
-            db(db.tt.id == x).delete()
-            expected_count = {
-                'SET NULL': 2,
-                'CASCADE': 1,
-            }
-            self.assertEqual(db(db.tt.name).count(), expected_count[ondelete])
-            if ondelete == 'SET NULL':
-                self.assertEqual(db(db.tt.name == 'yyy').select()[0].aa, None)
+            if not DEFAULT_URI.startswith('mssql'):
+                self.assertEqual(db.tt.insert(name='zzz'), 3)
+                self.assertEqual(db(db.tt.name).count(), 3)
+                db(db.tt.id == x).delete()
+                expected_count = {
+                    'SET NULL': 2,
+                    'NO ACTION': 2,
+                    'CASCADE': 1,
+                }
+                self.assertEqual(db(db.tt.name).count(), expected_count[ondelete])
+                if ondelete == 'SET NULL':
+                    self.assertEqual(db(db.tt.name == 'yyy').select()[0].aa, None)
+
             db.tt.drop()
             db.commit()
             db.close()
