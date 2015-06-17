@@ -49,7 +49,9 @@ class PostgreSQLAdapter(BaseAdapter):
 
     def adapt(self, obj):
         if self.driver_name == 'psycopg2':
-            rv = psycopg2_adapt(obj).getquoted()
+            adapted = psycopg2_adapt(obj)
+            adapted.prepare(self.connection)
+            rv = adapted.getquoted()
             if not PY2:
                 if isinstance(rv, bytes):
                     return rv.decode('utf-8')
@@ -331,6 +333,12 @@ class PostgreSQLAdapter(BaseAdapter):
         if mode not in ['restrict', 'cascade', '']:
             raise ValueError('Invalid mode: %s' % mode)
         return ['DROP TABLE ' + table.sqlsafe + ' ' + str(mode) + ';']
+
+    def execute(self, *a, **b):
+        if PY2 and self.driver_name == "pg8000":
+            a = list(a)
+            a[0] = a[0].decode('utf8')
+        return BaseAdapter.execute(self, *a, **b)
 
 
 class NewPostgreSQLAdapter(PostgreSQLAdapter):
