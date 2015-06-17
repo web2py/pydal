@@ -403,13 +403,22 @@ class Table(Serializable, BasicStorage):
     def _create_references(self):
         db = self._db
         pr = db._pending_references
+        self._referenced_by_list = []
         self._referenced_by = []
         self._references = []
         for field in self:
             #fieldname = field.name ##FIXME not used ?
             field_type = field.type
-            if isinstance(field_type, str) and field_type[:10] == 'reference ':
-                ref = field_type[10:].strip()
+            if isinstance(field_type, str) and (
+                    field_type.startswith('reference ') or 
+                    field_type.startswith('list:reference ')):
+
+                is_list = field_type[:15] == 'list:reference '
+                if is_list:
+                    ref = field_type[15:].strip()
+                else:
+                    ref = field_type[10:].strip()
+
                 if not ref:
                     SyntaxError('Table: reference to nothing: %s' % ref)
                 if '.' in ref:
@@ -432,7 +441,10 @@ class Table(Serializable, BasicStorage):
                     rfield = rtable[rfieldname]
                 else:
                     rfield = rtable._id
-                rtable._referenced_by.append(field)
+                if is_list:
+                    rtable._referenced_by_list.append(field)
+                else:
+                    rtable._referenced_by.append(field)
                 field.referent = rfield
                 self._references.append(field)
             else:
@@ -440,7 +452,10 @@ class Table(Serializable, BasicStorage):
         if self._tablename in pr:
             referees = pr.pop(self._tablename)
             for referee in referees:
-                self._referenced_by.append(referee)
+                if referee.type.startswith('list:reference '):
+                    self._referenced_by_list.append(referee)
+                else:
+                    self._referenced_by.append(referee)
 
     def _filter_fields(self, record, id=False):
         return dict([(k, v) for (k, v) in iteritems(record) if k

@@ -173,10 +173,7 @@ class MongoDBAdapter(NoSQLAdapter):
         elif isinstance(fieldtype, basestring):
             if fieldtype.startswith('list:'):
                 if fieldtype.startswith('list:reference'):
-                    newval = []
-                    for v in value:
-                        newval.append(self.object_id(v))
-                    value = newval
+                    value = [self.object_id(v) for v in value]
             elif fieldtype.startswith("reference") or fieldtype=="id":
                 value = self.object_id(value)
         elif isinstance(fieldtype, Table):
@@ -415,22 +412,66 @@ class MongoDBAdapter(NoSQLAdapter):
 
             return amount
         except Exception as e:
-            # TODO Reverse update query to verifiy that the query succeded
+            # TODO Reverse update query to verify that the query suceeded
             raise RuntimeError("uncaught exception when updating rows: %s" % e)
 
     def delete(self, tablename, query, safe=None):
-        amount = self.count(query, False)
         if not isinstance(query, Query):
-            raise RuntimeError("query type %s is not supported" % \
-                               type(query))
+            raise RuntimeError("query type %s is not supported" % type(query))
 
         (ctable, _filter) = self._expand_query(query, safe)
+        deleted = [x['_id'] for x in ctable.find(_filter)]
 
+        # find references to deleted items
+        db = self.db
+        table = db[tablename]
+        cascade = []
+        set_null = []
+        for field in table._referenced_by:
+            if field.type == 'reference '+ tablename:
+                if field.ondelete == 'CASCADE':
+                    cascade.append(field)
+                if field.ondelete == 'SET NULL':
+                    set_null.append(field)
+        cascade_list = []
+        set_null_list = []
+        for field in table._referenced_by_list:
+            if field.type == 'list:reference '+ tablename:
+                if field.ondelete == 'CASCADE':
+                    cascade_list.append(field)
+                if field.ondelete == 'SET NULL':
+                    set_null_list.append(field)
+
+        # perform delete
         result = ctable.delete_many(_filter)
         if result.acknowledged:
-            return result.deleted_count
+            amount = result.deleted_count
         else:
-            return amount
+            amount = len(deleted)
+
+        # clean up any references
+        if amount and deleted:
+            def remove_from_list(field, deleted, safe):
+                for delete in deleted:
+                    modify = {field.name: delete}
+                    dtable = self._get_collection(field.tablename, safe)
+                    result = dtable.update_many(
+                        filter=modify, update={'$pull': modify})
+
+            # for cascaded items, if the reference is the only item in the list,
+            # then remove the entire record, else delete reference from the list 
+            for field in cascade_list:
+                for delete in deleted:
+                    modify = {field.name: [delete]}
+                    dtable = self._get_collection(field.tablename, safe)
+                    result = dtable.delete_many(filter=modify)
+                remove_from_list(field, deleted, safe)
+            for field in set_null_list:
+                remove_from_list(field, deleted, safe)
+            for field in cascade:
+                db(field.belongs(deleted)).delete()
+            for field in set_null:
+                db(field.belongs(deleted)).update(**{field.name:None})
 
         return amount
 

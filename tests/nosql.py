@@ -52,7 +52,14 @@ ALLOWED_DATATYPES = [
 
 
 def setUpModule():
-    pass
+    if not IS_IMAP:
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        def clean_table(db, tablename):
+            db.define_table(tablename)
+            drop(db[tablename])
+        for tablename in ['tt', 't0', 't1', 't2', 't3', 't4']:
+            clean_table(db, tablename)
+        db.close()
 
 def tearDownModule():
     if os.path.isfile('sql.log'):
@@ -360,16 +367,40 @@ class TestSelect(unittest.TestCase):
 
     def testListReference(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('t0', 
-                        Field('aa', 'string'))
-        db.define_table('tt', 
-                        Field('t0_id', 'list:reference t0'))
-        id_a=db.t0.insert(aa='test')
-        l=[id_a]
-        db.tt.insert(t0_id=l)
-        self.assertEqual(db(db.tt).select(db.tt.t0_id).first()[db.tt.t0_id],l)
-        drop(db.tt)
-        drop(db.t0)
+        on_deletes = (
+            'CASCADE',
+            'SET NULL',
+        )
+        for ondelete in on_deletes:
+            db.define_table('t0', Field('aa', 'string'))
+            db.define_table('tt', Field('t0_id', 'list:reference t0',
+                                        ondelete=ondelete))
+            id_a1=db.t0.insert(aa='test1')
+            id_a2=db.t0.insert(aa='test2')
+            ref1=[id_a1]
+            ref2=[id_a2]
+            ref3=[id_a1, id_a2]
+            db.tt.insert(t0_id=ref1)
+            self.assertEqual(
+                db(db.tt).select(db.tt.t0_id).last()[db.tt.t0_id], ref1)
+            db.tt.insert(t0_id=ref2)
+            self.assertEqual(
+                db(db.tt).select(db.tt.t0_id).last()[db.tt.t0_id], ref2)
+            db.tt.insert(t0_id=ref3)
+            self.assertEqual(
+                db(db.tt).select(db.tt.t0_id).last()[db.tt.t0_id], ref3)
+
+            if IS_MONGODB:
+                db(db.t0.aa == 'test1').delete()
+                if ondelete == 'SET NULL':
+                    self.assertEqual(db(db.tt).count(), 3)
+                    self.assertEqual(db(db.tt).select()[0].t0_id, [])
+                if ondelete == 'CASCADE':
+                    self.assertEqual(db(db.tt).count(), 2)
+                    self.assertEqual(db(db.tt).select()[0].t0_id, ref2)
+
+            drop(db.tt)
+            drop(db.t0)
         db.close()
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
@@ -710,23 +741,41 @@ class TestMigrations(unittest.TestCase):
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
 class TestReference(unittest.TestCase):
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', Field('name'), Field('aa','reference tt'))
-        db.commit()
-        x = db.tt.insert(name='max')
-        assert isinstance(x.id, long) == True
-        assert isinstance(x['id'], long) == True
-        x.aa = x
-        assert isinstance(x.aa, long) == True
-        x.update_record()
-        y = db.tt[x.id]
-        assert y.aa == x.aa
-        assert y.aa.aa.aa.aa.aa.aa.name == 'max'
-        z=db.tt.insert(name='xxx', aa = y)
-        assert z.aa == y.id
-        drop(db.tt)
-        db.commit()
-        db.close()
+        scenarios = (
+            (True,  'CASCADE'),
+            (False, 'CASCADE'),
+            (False, 'SET NULL'),
+        )
+        for (b, ondelete) in scenarios:
+            db = DAL(DEFAULT_URI, check_reserved=['all'], bigint_id=b)
+            db.define_table('tt', Field('name'),
+                            Field('aa','reference tt',ondelete=ondelete))
+            db.commit()
+            x = db.tt.insert(name='xxx')
+            self.assertTrue(isinstance(x, long))
+            self.assertEqual(x.id, x)
+            self.assertEqual(x['id'], x)
+            x.aa = x
+            x.update_record()
+            x1 = db.tt[x]
+            self.assertEqual(x1.aa, x)
+            self.assertEqual(x1.aa.aa.aa.aa.aa.aa.name, 'xxx')
+            y=db.tt.insert(name='yyy', aa = x1)
+            self.assertEqual(y.aa, x1.id)
+            self.assertTrue(isinstance(db.tt.insert(name='zzz'), long))
+            self.assertEqual(db(db.tt.name).count(), 3)
+            if IS_MONGODB:
+                db(db.tt.id == x).delete()
+                expected_count = {
+                    'SET NULL': 2,
+                    'CASCADE': 1,
+                }
+                self.assertEqual(db(db.tt.name).count(), expected_count[ondelete])
+                if ondelete == 'SET NULL':
+                    self.assertEqual(db(db.tt.name == 'yyy').select()[0].aa, 0)
+            drop(db.tt)
+            db.commit()
+            db.close()
 
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
@@ -1189,11 +1238,6 @@ class TestRNameFields(unittest.TestCase):
 
         #aliases
         rname = db._adapter.QUOTE_TEMPLATE % 'the cub name'
-        if DEFAULT_URI.startswith('mssql'):
-            #multiple cascade gotcha
-            for key in ['reference','reference FK']:
-                db._adapter.types[key]=db._adapter.types[key].replace(
-                '%(on_delete_action)s','NO ACTION')
         db.define_table('pet_farm',
             Field('name', rname=rname),
             Field('father','reference pet_farm'),
