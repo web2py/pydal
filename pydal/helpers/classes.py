@@ -347,11 +347,7 @@ class BasicStorage(object):
         except:
             raise AttributeError
 
-    def __setitem__(self, key, value):
-        self.__dict__.__setitem__(key, value)
-
-    def __setattr__(self, key, value):
-        self.__dict__.__setitem__(key, value)
+    __setitem__ = object.__setattr__
 
     def __delitem__(self, key):
         self.__dict__.__delitem__(key)
