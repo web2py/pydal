@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from ._compat import unittest
-from ._adapt import DEFAULT_URI, drop
+from ._adapt import DEFAULT_URI, drop, IS_MSSQL
 from pydal import DAL, Field
+from pydal._compat import PY2
 
 
 class TestReferenceNOTNULL(unittest.TestCase):
@@ -67,6 +68,7 @@ class TestReferenceUNIQUENotNull(unittest.TestCase):
             db.close()
 
 
+@unittest.skipIf(IS_MSSQL and not PY2, "Skip unicode on py3 and MSSQL")
 class TestUnicode(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])

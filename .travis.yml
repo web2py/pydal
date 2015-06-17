@@ -47,7 +47,7 @@ matrix:
       env: ADAPTER=imap
 
 before_script:
-  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install codecov; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' || $TRAVIS_PYTHON_VERSION == "3.4" ]]; then pip install codecov; fi
   - if [[ $ADAPTER == mongo ]]; then sleep 15; fi;
   - if [[ $ADAPTER == mysql ]]; then mysql -e 'create database pydal;'; fi
   - if [[ $ADAPTER == postgres* ]]; then psql -c 'create database pydal;' -U postgres; fi
@@ -61,11 +61,11 @@ before_script:
 
 
 script:
-  - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then tox -e $(echo py$TRAVIS_PYTHON_VERSION | tr -d . | sed -e 's/pypypy/pypy/')-$ADAPTER; fi
-  - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then tox -e coverage-$ADAPTER; fi
+  - if [[ $TRAVIS_PYTHON_VERSION != "2.7" && $TRAVIS_PYTHON_VERSION != "3.4" ]]; then tox -e $(echo py$TRAVIS_PYTHON_VERSION | tr -d . | sed -e 's/pypypy/pypy/')-$ADAPTER; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == "2.7" || $TRAVIS_PYTHON_VERSION == "3.4" ]]; then tox -e coverage-$ADAPTER; fi
 
 after_success:
-  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then codecov; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' || $TRAVIS_PYTHON_VERSION == "3.4" ]]; then codecov; fi
 
 notifications:
   email: true
