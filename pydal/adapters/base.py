@@ -210,9 +210,9 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             self.file_close(logfile)
 
 
-    def __init__(self, db,uri,pool_size=0, folder=None, db_codec='UTF-8',
+    def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
-                 adapter_args={},do_connect=True, after_connection=None):
+                 adapter_args={}, do_connect=True, after_connection=None):
         self.db = db
         self.dbengine = "None"
         self.uri = uri
@@ -220,12 +220,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.folder = folder
         self.db_codec = db_codec
         self._after_connection = after_connection
-        class Dummy(object):
-            lastrowid = 1
-            def __getattr__(self, value):
-                return lambda *a, **b: []
-        self.connection = Dummy()
-        self.cursor = Dummy()
+        self.connection = None
+        self.cursor = None
 
 
     def sequence_name(self,tablename):
@@ -1359,6 +1355,9 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     def execute(self, *a, **b):
         return self.log_execute(*a, **b)
 
+    def execute_test_query(self):
+        return self.execute(self.test_query)
+
     def represent(self, obj, fieldtype):
         field_is_type = fieldtype.startswith
         if isinstance(obj, CALLABLETYPES):
@@ -1795,8 +1794,53 @@ class NoSQLAdapter(BaseAdapter):
     can_select_for_update = False
     QUOTE_TEMPLATE = '%s'
 
+    def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
+                 credential_decoder=IDENTITY, driver_args={},
+                 adapter_args={}, do_connect=True, after_connection=None):
+
+        super(NoSQLAdapter, self).__init__(
+            db=db,
+            uri=uri,
+            pool_size=pool_size,
+            folder=folder,
+            db_codec=db_codec,
+            credential_decoder=credential_decoder,
+            driver_args=driver_args,
+            adapter_args=adapter_args,
+            do_connect=do_connect,
+            after_connection=after_connection)
+
+        class FakeCursor(object):
+            '''
+            The Python Database API Specification has a cursor() method, which
+            NoSql drivers generally don't support.  If the exception in this
+            function is taken then it likely means that some piece of
+            functionality has not yet been implemented in the driver. And
+            something is using the cursor.
+
+            https://www.python.org/dev/peps/pep-0249/
+            '''
+
+            def warn_bad_usage (self, attr):
+                raise Exception("FakeCursor.%s is not implemented" % attr)
+
+            def __getattr__(self, attr):
+                self.warn_bad_usage(attr)
+
+            def __setattr__(self, attr, value):
+                self.warn_bad_usage(attr)
+
+        self.fake_cursor = FakeCursor()
+
     def id_query(self, table):
         return table._id > 0
+
+    def execute_test_query(self):
+        ''' NoSql DBs don't have a universal query language.  Override this
+            specifc driver if need to test connection status.  Throw exception
+            on failure.
+        '''
+        return None
 
     def represent(self, obj, fieldtype):
         field_is_type = fieldtype.startswith

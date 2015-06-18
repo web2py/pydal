@@ -1551,6 +1551,35 @@ class TestRecordVersioning(unittest.TestCase):
         db.close()
 
 
+
+@unittest.skipIf(not IS_MONGODB, 'TODO: Connections only implemented on NoSql MongoDB')
+class TestConnection(unittest.TestCase):
+
+    def testRun(self):
+        # check connection are reused with pool_size
+        connections = {}
+        for a in range(10):
+            db2 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+            c = db2._adapter.connection
+            connections[id(c)] = c
+            db2.close()
+        self.assertEqual(len(connections), 1)
+        c = [connections[x] for x in connections][0]
+        c.commit()
+        c.close()
+
+        # check correct use of pool_size
+        dbs = []
+        for a in range(10):
+            db3 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+            dbs.append(db3)
+        for db in dbs:
+            db.close()
+        self.assertEqual(len(db3._adapter.POOLS[DEFAULT_URI]), 5)
+        for c in db3._adapter.POOLS[DEFAULT_URI]:
+            c.close()
+        db3._adapter.POOLS[DEFAULT_URI] = []
+
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestBasicOps(unittest.TestCase):
 
