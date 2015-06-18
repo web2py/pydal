@@ -1552,10 +1552,24 @@ class TestRecordVersioning(unittest.TestCase):
 
 
 
-@unittest.skipIf(not IS_MONGODB, 'TODO: Connections only implemented on NoSql MongoDB')
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestConnection(unittest.TestCase):
 
     def testRun(self):
+        # check for adapter reconnect without parameters
+        db1 = DAL(DEFAULT_URI, check_reserved=['all'])
+        db1.define_table('tt', Field('aa', 'integer'))
+        self.assertEqual(isinstance(db1.tt.insert(aa=1), long), True)
+        self.assertEqual(db1(db1.tt.aa == 1).count(), 1)
+        drop(db1.tt)
+        db1._adapter.close()
+        db1._adapter.reconnect()
+        db1.define_table('tt', Field('aa', 'integer'))
+        self.assertEqual(isinstance(db1.tt.insert(aa=1), long), True)
+        self.assertEqual(db1(db1.tt.aa == 1).count(), 1)
+        drop(db1.tt)
+        db1.close()
+
         # check connection are reused with pool_size
         connections = {}
         for a in range(10):

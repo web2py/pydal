@@ -97,8 +97,6 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
     MAX_FETCH_LIMIT = 1000000
     uploads_in_blob = True
     types = {}
-    # reconnect is not required for Datastore dbs
-    reconnect = lambda *args, **kwargs: None
 
     def file_exists(self, filename): pass
     def file_open(self, filename, mode='rb', lock=True): pass
@@ -131,19 +129,30 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 'list:integer': (lambda **kwargs: ndb.IntegerProperty(repeated=True,default=None, **kwargs)),
                 'list:reference': (lambda **kwargs: ndb.IntegerProperty(repeated=True,default=None, **kwargs)),
                 })
-        self.db = db
-        self.uri = uri
+
+        super(GoogleDatastoreAdapter, self).__init__(
+            db=db,
+            uri=uri,
+            pool_size=pool_size,
+            folder=folder,
+            db_codec='UTF-8',
+            credential_decoder=credential_decoder,
+            driver_args=driver_args,
+            adapter_args=adapter_args,
+            do_connect=do_connect,
+            after_connection=after_connection)
+
         self.dbengine = 'google:datastore'
-        self.folder = folder
         db['_lastsql'] = ''
-        self.db_codec = 'UTF-8'
-        self._after_connection = after_connection
-        self.pool_size = 0
         match = self.REGEX_NAMESPACE.match(uri)
         if match:
             namespace_manager.set_namespace(match.group('namespace'))
 
         self.ndb_settings = adapter_args.get('ndb_settings')
+
+        # connections and reconnect are not required for Datastore dbs
+        self.connector = self.null_connector
+        self.reconnect()
 
     def parse_id(self, value, field_type):
         return value

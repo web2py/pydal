@@ -1832,6 +1832,24 @@ class NoSQLAdapter(BaseAdapter):
 
         self.fake_cursor = FakeCursor()
 
+    def null_connector(self):
+        class Bunch(dict):
+            def __init__(self, **kw):
+                dict.__init__(self, kw)
+                self.__dict__ = self
+
+            def __str__(self):
+                state = ["%s=%r" % (attribute, value)
+                         for (attribute, value)
+                         in self.__dict__.items()]
+                return '\n'.join(state)
+
+        driver = Bunch()
+        driver.cursor = lambda : self.fake_cursor
+        driver.close = lambda : None
+        driver.commit = lambda : None
+        return driver
+
     def id_query(self, table):
         return table._id > 0
 
