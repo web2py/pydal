@@ -97,6 +97,13 @@ class MongoDBAdapter(NoSQLAdapter):
 
         self.reconnect(connector, cursor=False)
 
+        # _server_version is a string like '3.0.3' or '2.4.12'
+        self._server_version = self.connection.command("serverStatus")['version']
+        self.server_version = tuple(
+            [int(x) for x in self._server_version.split('.')])
+        self.server_version_major = (
+            self.server_version[0] + self.server_version[1] / 10.0)
+
     def object_id(self, arg=None):
         """ Convert input to a valid Mongodb ObjectId instance
 
@@ -269,7 +276,7 @@ class MongoDBAdapter(NoSQLAdapter):
         ctable = self.connection[table._tablename]
         ctable.remove(None, w=self._get_safe(safe))
 
-    def count(self, query, distinct=None, snapshot=True):
+    def count(self, query, distinct=None, snapshot=True, return_tuple=False):
         if distinct:
             raise RuntimeError("COUNT DISTINCT not supported")
         if not isinstance(query, Query):
@@ -277,6 +284,8 @@ class MongoDBAdapter(NoSQLAdapter):
 
         (ctable, _filter) = self._expand_query(query)
         result = ctable.count(filter=_filter)
+        if return_tuple:
+            return (ctable, _filter, result) 
         return result
 
     def select(self, query, fields, attributes, snapshot=False):
@@ -395,25 +404,74 @@ class MongoDBAdapter(NoSQLAdapter):
         # @ related not finding the result
         if not isinstance(query, Query):
             raise RuntimeError("Not implemented")
-        amount = self.count(query, False)
-        if not isinstance(query, Query):
-            raise SyntaxError("Not Supported")
 
-        (ctable, _filter) = self._expand_query(query, tablename, safe)
+        safe = self._get_safe(safe)
+        if safe:
+            (ctable, _filter) = self._expand_query(query, tablename, safe)
+            amount = 0
+        else:
+            (ctable, _filter, amount) = self.count(
+                query, distinct=False, return_tuple=True)
+            if amount == 0:
+                return amount
 
-        # do not try to update id fields to avoid backend errors
-        modify = {'$set': dict((k.name, self.represent(v, k.type)) for
-                  k, v in fields if (not k.name in ("_id", "id")))}
-        try:
-            result = ctable.update_many(filter=_filter,
-                       update=modify)
-            if result.acknowledged:
-                amount = result.matched_count
+        projection = None
+        for (field, value) in fields:
+            if isinstance(value, Expression):
+                # add all fields to projection to pass them through
+                projection = dict((f, 1) for f in field.table.fields
+                                  if (f not in ("_id", "id")))
+                break
 
-            return amount
-        except Exception as e:
-            # TODO Reverse update query to verify that the query suceeded
-            raise RuntimeError("uncaught exception when updating rows: %s" % e)
+        if projection != None:
+            for field, value in fields:
+                # do not update id fields
+                if field.name not in ("_id", "id"):
+                    expanded = self.expand(value, field.type)
+                    if not isinstance(value, Expression):
+                        if self.server_version_major >= 2.6 and 0:
+                            expanded = { '$literal': expanded }
+
+                        # '$literal' not present in server versions < 2.6
+                        elif field.type in ['string', 'text', 'password']:
+                            expanded = { '$concat': [ expanded ] }
+                        elif field.type in ['integer', 'bigint', 'float', 'double']:
+                            expanded = { '$add': [ expanded ] }
+                        elif field.type == 'boolean':
+                            expanded = { '$and': [ expanded ] }
+                        elif field.type in ['date', 'time', 'datetime']:
+                            expanded = { '$add': [ expanded ] }
+                        else:
+                            raise RuntimeError("updating with expressions not "
+                                + "supported for field type '"
+                                + "%s' in MongoDB version < 2.6" % field.type)
+
+                    projection.update({field.name: expanded})
+            pipeline = [{ '$match': _filter }, { '$project': projection }]
+
+            try:
+                for doc in ctable.aggregate(pipeline):
+                    idname = '_id'
+                    result = ctable.replace_one({'_id': doc['_id']}, doc)
+                    if safe and result.acknowledged:
+                        amount += result.matched_count
+                return amount
+            except Exception as e:
+                # TODO Reverse update query to verify that the query suceeded
+                raise RuntimeError("uncaught exception when updating rows: %s" % e)
+
+        else:
+            # do not update id fields
+            update = {'$set': dict((k.name, self.represent(v, k.type)) for
+                      k, v in fields if (not k.name in ("_id", "id")))}
+            try:
+                result = ctable.update_many(filter=_filter, update=update)
+                if safe and result.acknowledged:
+                    amount = result.matched_count
+                return amount
+            except Exception as e:
+                # TODO Reverse update query to verify that the query suceeded
+                raise RuntimeError("uncaught exception when updating rows: %s" % e)
 
     def delete(self, tablename, query, safe=None):
         if not isinstance(query, Query):
@@ -522,66 +580,51 @@ class MongoDBAdapter(NoSQLAdapter):
         items = [self.expand(item, first.type) for item in second]
         return {self.expand(first) : {"$in" : items} }
 
-    def EQ(self,first,second=None):
-        result = {}
-        result[self.expand(first)] = self.expand(second, first.type)
-        return result
+    def _validate_second (self, first, second):
+        if second is None:
+            raise RuntimeError("Cannot compare %s with None" % first)
+
+    def EQ(self, first, second=None):
+        return {self.expand(first): self.expand(second, first.type)}
 
     def NE(self, first, second=None):
-        result = {}
-        result[self.expand(first)] = {'$ne': self.expand(second, first.type)}
-        return result
+        return {self.expand(first): {'$ne': self.expand(second, first.type)}}
 
-    def LT(self,first,second=None):
-        if second is None:
-            raise RuntimeError("Cannot compare %s < None" % first)
-        result = {}
-        result[self.expand(first)] = {'$lt': self.expand(second, first.type)}
-        return result
+    def LT(self, first, second=None):
+        self._validate_second (first, second)
+        return {self.expand(first): {'$lt': self.expand(second, first.type)}}
 
-    def LE(self,first,second=None):
-        if second is None:
-            raise RuntimeError("Cannot compare %s <= None" % first)
-        result = {}
-        result[self.expand(first)] = {'$lte': self.expand(second, first.type)}
-        return result
+    def LE(self ,first, second=None):
+        self._validate_second (first, second)
+        return {self.expand(first): {'$lte': self.expand(second, first.type)}}
 
-    def GT(self,first,second):
-        result = {}
-        result[self.expand(first)] = {'$gt': self.expand(second, first.type)}
-        return result
+    def GT(self, first, second=None):
+        self._validate_second (first, second)
+        return {self.expand(first): {'$gt': self.expand(second, first.type)}}
 
-    def GE(self,first,second=None):
-        if second is None:
-            raise RuntimeError("Cannot compare %s >= None" % first)
-        result = {}
-        result[self.expand(first)] = {'$gte': self.expand(second, first.type)}
-        return result
+    def GE(self, first, second=None):
+        self._validate_second (first, second)
+        return {self.expand(first): {'$gte': self.expand(second, first.type)}}
 
     def ADD(self, first, second):
-        raise NotImplementedError(self.error_messages["javascript_needed"])
-        return '%s + %s' % (self.expand(first),
-                            self.expand(second, first.type))
+        return {'$add': [
+            '$' + self.expand(first), self.expand(second, first.type)]}
 
     def SUB(self, first, second):
-        raise NotImplementedError(self.error_messages["javascript_needed"])
-        return '(%s - %s)' % (self.expand(first),
-                              self.expand(second, first.type))
+        return {'$subtract': [
+            '$' + self.expand(first), self.expand(second, first.type)]}
 
     def MUL(self, first, second):
-        raise NotImplementedError(self.error_messages["javascript_needed"])
-        return '(%s * %s)' % (self.expand(first),
-                              self.expand(second, first.type))
+        return {'$multiply': [
+            '$' + self.expand(first), self.expand(second, first.type)]}
 
     def DIV(self, first, second):
-        raise NotImplementedError(self.error_messages["javascript_needed"])
-        return '(%s / %s)' % (self.expand(first),
-                              self.expand(second, first.type))
+        return {'$divide': [
+            '$' + self.expand(first), self.expand(second, first.type)]}
 
     def MOD(self, first, second):
-        raise NotImplementedError(self.error_messages["javascript_needed"])
-        return '(%s %% %s)' % (self.expand(first),
-                               self.expand(second, first.type))
+        return {'$mod': [
+            '$' + self.expand(first), self.expand(second, first.type)]}
 
     def AS(self, first, second):
         raise NotImplementedError(self.error_messages["javascript_needed"])
