@@ -97,6 +97,13 @@ class MongoDBAdapter(NoSQLAdapter):
 
         self.reconnect(connector, cursor=False)
 
+        # _server_version is a string like '3.0.3' or '2.4.12'
+        self._server_version = self.connection.command("serverStatus")['version']
+        self.server_version = tuple(
+            [int(x) for x in self._server_version.split('.')])
+        self.server_version_major = (
+            self.server_version[0] + self.server_version[1] / 10.0)
+
     def object_id(self, arg=None):
         """ Convert input to a valid Mongodb ObjectId instance
 
@@ -422,7 +429,23 @@ class MongoDBAdapter(NoSQLAdapter):
                 if field.name not in ("_id", "id"):
                     expanded = self.expand(value, field.type)
                     if not isinstance(value, Expression):
-                        expanded = {'$literal': expanded}
+                        if self.server_version_major >= 2.6 and 0:
+                            expanded = { '$literal': expanded }
+
+                        # '$literal' not present in server versions < 2.6
+                        elif field.type in ['string', 'text', 'password']:
+                            expanded = { '$concat': [ expanded ] }
+                        elif field.type in ['integer', 'bigint', 'float', 'double']:
+                            expanded = { '$add': [ expanded ] }
+                        elif field.type == 'boolean':
+                            expanded = { '$and': [ expanded ] }
+                        elif field.type in ['date', 'time', 'datetime']:
+                            expanded = { '$add': [ expanded ] }
+                        else:
+                            raise RuntimeError("updating with expressions not "
+                                + "supported for field type '"
+                                + "%s' in MongoDB version < 2.6" % field.type)
+
                     projection.update({field.name: expanded})
             pipeline = [{ '$match': _filter }, { '$project': projection }]
 

@@ -605,7 +605,8 @@ class TestExpressions(unittest.TestCase):
             )
         for dal_opt in DAL_OPTS:
             db = DAL(DEFAULT_URI, check_reserved=['all'], **dal_opt[1])
-            db.define_table('tt', Field('aa', 'integer'), Field('bb', 'integer'))
+            db.define_table('tt', Field('aa', 'integer'), 
+                            Field('bb', 'integer'), Field('cc'))
             self.assertEqual(isinstance(db.tt.insert(aa=1), long), dal_opt[0])
             self.assertEqual(isinstance(db.tt.insert(aa=2), long), dal_opt[0])
             self.assertEqual(isinstance(db.tt.insert(aa=3), long), dal_opt[0])
@@ -617,7 +618,8 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(db(db.tt.aa == 4).update(aa=db.tt.aa * 2, bb=5), 1)
             self.assertEqual(db(db.tt.bb == 5).count(), 1)
             self.assertEqual(db(db.tt.aa == 8).count(), 1)
-            self.assertEqual(db(db.tt.aa == 8).update(aa=db.tt.aa - 2), 1)
+            self.assertEqual(db(db.tt.aa == 8).update(aa=db.tt.aa - 2, cc='cc'), 1)
+            self.assertEqual(db(db.tt.cc == 'cc').count(), 1)
             self.assertEqual(db(db.tt.aa == 6).count(), 1)
             self.assertEqual(db(db.tt.aa == 6).update(aa=db.tt.aa / 2), 1)
             self.assertEqual(db(db.tt.aa == 3).count(), 1)
