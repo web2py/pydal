@@ -57,7 +57,7 @@ def setUpModule():
         def clean_table(db, tablename):
             db.define_table(tablename)
             drop(db[tablename])
-        for tablename in ['tt', 't0', 't1', 't2', 't3', 't4']:
+        for tablename in ['tt', 't0', 't1', 't2', 't3', 't4', 'easy_name']:
             clean_table(db, tablename)
         db.close()
 
@@ -342,6 +342,7 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
         self.assertEqual(db(~((db.tt.aa < '1') | (db.tt.aa > '2'))).count(), 2)
         self.assertEqual(db(~((db.tt.aa >= '1') & (db.tt.aa <= '2'))).count(), 1)
+        self.assertRaises(db(db.tt.aa <= None))
         drop(db.tt)
         db.close()
 
@@ -593,23 +594,42 @@ class TestDatetime(unittest.TestCase):
         db.close()
 
 
-@unittest.skipIf(IS_GAE or IS_MONGODB or IS_IMAP, "Expressions are not supported")
+@unittest.skipIf(IS_GAE or IS_IMAP, "Expressions are not supported")
 class TestExpressions(unittest.TestCase):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', Field('aa', 'integer'))
-        self.assertEqual(isinstance(db.tt.insert(aa=1), long), True)
-        self.assertEqual(isinstance(db.tt.insert(aa=2), long), True)
-        self.assertEqual(isinstance(db.tt.insert(aa=3), long), True)
-        self.assertEqual(db(db.tt.aa == 3).update(aa=db.tt.aa + 1), 1)
-        self.assertEqual(db(db.tt.aa == 4).count(), 1)
-        self.assertEqual(db(db.tt.aa == -2).count(), 0)
-        sum = (db.tt.aa + 1).sum()
-        self.assertEqual(db(db.tt.aa == 2).select(sum).first()[sum], 3)
-        self.assertEqual(db(db.tt.aa == -2).select(sum).first()[sum], None)
-        drop(db.tt)
-        db.close()
+        if IS_MONGODB:
+            DAL_OPTS = (
+                (True,  {'adapter_args': {'safe': True}}),
+                (False, {'adapter_args': {'safe': False}}),
+            )
+        for dal_opt in DAL_OPTS:
+            db = DAL(DEFAULT_URI, check_reserved=['all'], **dal_opt[1])
+            db.define_table('tt', Field('aa', 'integer'), Field('bb', 'integer'))
+            self.assertEqual(isinstance(db.tt.insert(aa=1), long), dal_opt[0])
+            self.assertEqual(isinstance(db.tt.insert(aa=2), long), dal_opt[0])
+            self.assertEqual(isinstance(db.tt.insert(aa=3), long), dal_opt[0])
+            self.assertEqual(db(db.tt.aa == 3).update(aa=db.tt.aa + 1,
+                                                      bb=db.tt.aa - 1), 1)
+            self.assertEqual(db(db.tt.aa == 4).count(), 1)
+            self.assertEqual(db(db.tt.bb == 2).count(), 1)
+            self.assertEqual(db(db.tt.aa == -2).count(), 0)
+            self.assertEqual(db(db.tt.aa == 4).update(aa=db.tt.aa * 2, bb=5), 1)
+            self.assertEqual(db(db.tt.bb == 5).count(), 1)
+            self.assertEqual(db(db.tt.aa == 8).count(), 1)
+            self.assertEqual(db(db.tt.aa == 8).update(aa=db.tt.aa - 2), 1)
+            self.assertEqual(db(db.tt.aa == 6).count(), 1)
+            self.assertEqual(db(db.tt.aa == 6).update(aa=db.tt.aa / 2), 1)
+            self.assertEqual(db(db.tt.aa == 3).count(), 1)
+            self.assertEqual(db(db.tt.aa == 3).update(aa=db.tt.aa % 2), 1)
+            self.assertEqual(db(db.tt.aa == 1).count(), 2)
+
+            #sum = (db.tt.aa + 1).sum()
+            #self.assertEqual(db(db.tt.aa == 2).select(sum).first()[sum], 3)
+            #self.assertEqual(db(db.tt.aa == -2).select(sum).first()[sum], None)
+
+            drop(db.tt)
+            db.close()
 
 
 @unittest.skip("JOIN queries are not supported")
