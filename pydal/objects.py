@@ -1110,7 +1110,7 @@ class Expression(object):
             return self[i:i + 1]
 
     def __str__(self):
-        return self.db._adapter.expand(self, self.type)
+        return str(self.db._adapter.expand(self, self.type))
 
     def __or__(self, other):  # for use in sortby
         db = self.db

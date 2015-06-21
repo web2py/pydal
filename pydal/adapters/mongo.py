@@ -87,6 +87,24 @@ class MongoDBAdapter(NoSQLAdapter):
         # function parameter
         self.safe = 1 if adapter_args.get('safe', True) else 0
 
+        # Aggregations require a slightly different syntax for identifiers.
+        # This is a bit of hack to add state information to backend for the
+        # parser.  (ie: expand())  The parser backend is VERY intimately tied
+        # to the adapter.  When making these changes only found one state
+        # variable relative to the backend (_colnames).
+        # 
+        # Don't fully understand the threading model this adapter is expected
+        # to run under so went this conservative route to avoid state
+        # information from the parse being stored in the adapter. If the adapter
+        # is never expected to run in a multi thread environment, then this bit
+        # could be very slightly simpler, if not then _colnames is likely a bug. 
+        self.aggregate = False
+        self.aggregate_expander = MongoDbAggregateExpander()
+        self.aggregate_expander.ObjectId = ObjectId
+        def aggregate_expand(self, expression, field_type=None):
+            self.aggregate_expander.expand(expression, field_type)
+        self.expand_aggregate = self.aggregate_expander.expand
+
         if isinstance(m, tuple):
             m = {"database": m[1]}
         if m.get('database') is None:
@@ -245,18 +263,24 @@ class MongoDBAdapter(NoSQLAdapter):
             if expression.type=='id':
                 result = "_id"
             else:
-                result =  expression.name
+                result = expression.name
+                if self.aggregate:
+                    result = '$' + result
+
         elif isinstance(expression, (Expression, Query)):
             first = expression.first
             second = expression.second
             op = expression.op
             optional_args = expression.optional_args or {}
             if not second is None:
-                result = op(first, second, **optional_args)
+                result = op.__func__(self, first, second, **optional_args)
             elif not first is None:
-                result = op(first, **optional_args)
+                result = op.__func__(self, first, **optional_args)
+            elif isinstance(op, str):
+                result = op
             else:
-                result = op if isinstance(op, str) else op(**optional_args)
+                result = op.__func__(self, **optional_args)
+
         elif field_type:
             result = self.represent(expression,field_type)
         elif isinstance(expression,(list,tuple)):
@@ -324,7 +348,10 @@ class MongoDBAdapter(NoSQLAdapter):
         if isinstance(query, Query):
             tablename = self.get_table(query)
         elif len(fields) != 0:
-            tablename = fields[0].tablename
+            if isinstance(fields[0], Expression):
+                tablename = self.get_table(fields[0])
+            else:
+                tablename = fields[0].tablename
         else:
             raise SyntaxError("The table name could not be found in " +
                               "the query nor from the select statement.")
@@ -334,43 +361,68 @@ class MongoDBAdapter(NoSQLAdapter):
                 query = self.common_filter(query,[tablename])
 
         mongoqry_dict = self.expand(query)
-
-        fields = fields or self.db[tablename]
-        for field in fields:
-            mongofields_dict[field.name] = 1
         ctable = self.connection[tablename]
         modifiers={'snapshot':snapshot}
 
-        mongo_list_dicts = ctable.find(
-            mongoqry_dict, mongofields_dict, skip=limitby_skip,
-            limit=limitby_limit, sort=mongosort_list, modifiers=modifiers)
+        projection = {}
+        for field in fields:
+            if not isinstance(field, Field) and isinstance(field, Expression):
+                for field in fields:
+                    if not isinstance(field, Field):
+                        p = self.expand_aggregate(field)
+                        field.name = str(p)
+                        projection.update({field.name:p})
+                projection['_id'] = None
+                break
+
+        if not len(projection):
+            fields = fields or self.db[tablename]
+            for field in fields:
+                mongofields_dict[field.name] = 1
+            mongo_list_dicts = ctable.find(
+                mongoqry_dict, mongofields_dict, skip=limitby_skip,
+                limit=limitby_limit, sort=mongosort_list, modifiers=modifiers)
+            null_rows = []
+        else:
+            pipeline = []
+            if mongoqry_dict != None:
+                pipeline.append({ '$match': mongoqry_dict })
+            pipeline.append({ '$group': projection })
+            mongo_list_dicts = ctable.aggregate(pipeline)
+            null_rows = [(None,)]
+
         rows = []
         # populate row in proper order
         # Here we replace ._id with .id to follow the standard naming
         colnames = []
         newnames = []
         for field in fields:
-            colname = str(field)
+            fieldname = str(field)
+            tablename_prefix = tablename + '.'
+            if fieldname.startswith(tablename_prefix):
+                if field.name in ('id', '_id'):
+                    # Mongodb reserved uuid key
+                    colname = (tablename_prefix, 'id', '_id')
+                else:
+                    colname = (tablename_prefix, field.name, field.name)
+            else:
+                colname = ('', field.name, field.name)
             colnames.append(colname)
-            tablename, fieldname = colname.split(".")
-            if fieldname == "_id":
-                # Mongodb reserved uuid key
-                field.name = "id"
-            newnames.append(".".join((tablename, field.name)))
+            newnames.append("".join(colname[0:2]))
 
         for record in mongo_list_dicts:
             row = []
             for colname in colnames:
-                tablename, fieldname = colname.split(".")
-                # switch to Mongo _id uuids for retrieving
-                # record id's
-                if fieldname == "id": fieldname = "_id"
-                if fieldname in record:
+                fieldname = colname[2]
+                try:
                     value = record[fieldname]
-                else:
+                except:
                     value = None
                 row.append(value)
             rows.append(row)
+        if not rows:
+            rows = null_rows
+
         processor = attributes.get('processor', self.parse)
         result = processor(rows, fields, newnames, blob_decode=True)
         return result
@@ -427,9 +479,9 @@ class MongoDBAdapter(NoSQLAdapter):
             for field, value in fields:
                 # do not update id fields
                 if field.name not in ("_id", "id"):
-                    expanded = self.expand(value, field.type)
+                    expanded = self.expand_aggregate(value, field.type)
                     if not isinstance(value, Expression):
-                        if self.server_version_major >= 2.6 and 0:
+                        if self.server_version_major >= 2.6:
                             expanded = { '$literal': expanded }
 
                         # '$literal' not present in server versions < 2.6
@@ -447,7 +499,10 @@ class MongoDBAdapter(NoSQLAdapter):
                                 + "%s' in MongoDB version < 2.6" % field.type)
 
                     projection.update({field.name: expanded})
-            pipeline = [{ '$match': _filter }, { '$project': projection }]
+            pipeline = []
+            if _filter != None:
+                pipeline.append({ '$match': _filter })
+            pipeline.append({ '$project': projection })
 
             try:
                 for doc in ctable.aggregate(pipeline):
@@ -607,24 +662,49 @@ class MongoDBAdapter(NoSQLAdapter):
         return {self.expand(first): {'$gte': self.expand(second, first.type)}}
 
     def ADD(self, first, second):
-        return {'$add': [
-            '$' + self.expand(first), self.expand(second, first.type)]}
+        op_code = '$add'
+        for field in [first, second]:
+            try:
+                if field.type in ['string', 'text', 'password']:
+                    op_code = '$concat'
+                    break
+            except:
+                pass
+        return {op_code : [self.expand(first), self.expand(second, first.type)]}
 
     def SUB(self, first, second):
         return {'$subtract': [
-            '$' + self.expand(first), self.expand(second, first.type)]}
+            self.expand(first), self.expand(second, first.type)]}
 
     def MUL(self, first, second):
         return {'$multiply': [
-            '$' + self.expand(first), self.expand(second, first.type)]}
+            self.expand(first), self.expand(second, first.type)]}
 
     def DIV(self, first, second):
         return {'$divide': [
-            '$' + self.expand(first), self.expand(second, first.type)]}
+            self.expand(first), self.expand(second, first.type)]}
 
     def MOD(self, first, second):
         return {'$mod': [
-            '$' + self.expand(first), self.expand(second, first.type)]}
+            self.expand(first), self.expand(second, first.type)]}
+
+    _aggregate_map = {
+        'SUM': '$sum',
+        'MAX': '$max',
+        'MIN': '$min',
+        'AVG': '$avg',
+    }
+
+    def AGGREGATE(self, first, what):
+        try:
+            return {self._aggregate_map[what]: self.expand_aggregate(first)}
+        except:
+            raise NotImplementedError("'%s' not implemented" % what)
+
+    def COUNT(self, first, distinct=None):
+        if distinct:
+            raise NotImplementedError("distinct not implmented for count op")
+        return {"$sum": 1}
 
     def AS(self, first, second):
         raise NotImplementedError(self.error_messages["javascript_needed"])
@@ -713,6 +793,11 @@ class MongoDBAdapter(NoSQLAdapter):
             ret = {self.expand(first): val}
 
         return ret
+
+class MongoDbAggregateExpander(MongoDBAdapter):
+    def __init__ (self):
+        self.aggregate = True
+        self.expand_aggregate = self.expand
 
 class MongoBlob(Binary):
     MONGO_BLOB_BYTES        = USER_DEFINED_SUBTYPE
