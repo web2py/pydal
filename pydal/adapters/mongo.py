@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import datetime
-import re
 
 from .._globals import IDENTITY
 from .._compat import integer_types, basestring
@@ -92,12 +91,12 @@ class MongoDBAdapter(NoSQLAdapter):
         # parser.  (ie: expand())  The parser backend is VERY intimately tied
         # to the adapter.  When making these changes only found one state
         # variable relative to the backend (_colnames).
-        # 
+        #
         # Don't fully understand the threading model this adapter is expected
         # to run under so went this conservative route to avoid state
         # information from the parse being stored in the adapter. If the adapter
         # is never expected to run in a multi thread environment, then this bit
-        # could be very slightly simpler, if not then _colnames is likely a bug. 
+        # could be very slightly simpler, if not then _colnames is likely a bug.
         self.aggregate = False
         self.aggregate_expander = MongoDbAggregateExpander()
         self.aggregate_expander.ObjectId = ObjectId
@@ -309,7 +308,7 @@ class MongoDBAdapter(NoSQLAdapter):
         (ctable, _filter) = self._expand_query(query)
         result = ctable.count(filter=_filter)
         if return_tuple:
-            return (ctable, _filter, result) 
+            return (ctable, _filter, result)
         return result
 
     def select(self, query, fields, attributes, snapshot=False):
@@ -358,11 +357,11 @@ class MongoDBAdapter(NoSQLAdapter):
 
         if query:
             if use_common_filters(query):
-                query = self.common_filter(query,[tablename])
+                query = self.common_filter(query, [tablename])
 
         mongoqry_dict = self.expand(query)
         ctable = self.connection[tablename]
-        modifiers={'snapshot':snapshot}
+        modifiers = {'snapshot': snapshot}
 
         projection = {}
         for field in fields:
@@ -371,7 +370,7 @@ class MongoDBAdapter(NoSQLAdapter):
                     if not isinstance(field, Field):
                         p = self.expand_aggregate(field)
                         field.name = str(p)
-                        projection.update({field.name:p})
+                        projection.update({field.name: p})
                 projection['_id'] = None
                 break
 
@@ -385,9 +384,9 @@ class MongoDBAdapter(NoSQLAdapter):
             null_rows = []
         else:
             pipeline = []
-            if mongoqry_dict != None:
-                pipeline.append({ '$match': mongoqry_dict })
-            pipeline.append({ '$group': projection })
+            if mongoqry_dict is not None:
+                pipeline.append({'$match': mongoqry_dict})
+            pipeline.append({'$group': projection})
             mongo_list_dicts = ctable.aggregate(pipeline)
             null_rows = [(None,)]
 
@@ -396,9 +395,9 @@ class MongoDBAdapter(NoSQLAdapter):
         # Here we replace ._id with .id to follow the standard naming
         colnames = []
         newnames = []
+        tablename_prefix = tablename + '.'
         for field in fields:
-            fieldname = str(field)
-            tablename_prefix = tablename + '.'
+            fieldname = field.tablename + '.' + field.name
             if fieldname.startswith(tablename_prefix):
                 if field.name in ('id', '_id'):
                     # Mongodb reserved uuid key
@@ -436,7 +435,7 @@ class MongoDBAdapter(NoSQLAdapter):
         ctable = self._get_collection(table._tablename, safe)
 
         for k, v in fields:
-            if not k.name in ["id", "safe"]:
+            if k.name not in ["id", "safe"]:
                 fieldname = k.name
                 fieldtype = table[k.name].type
                 values[fieldname] = self.represent(v, fieldtype)
@@ -572,7 +571,7 @@ class MongoDBAdapter(NoSQLAdapter):
                         filter=modify, update={'$pull': modify})
 
             # for cascaded items, if the reference is the only item in the list,
-            # then remove the entire record, else delete reference from the list 
+            # then remove the entire record, else delete reference from the list
             for field in cascade_list:
                 for delete in deleted:
                     modify = {field.name: [delete]}
