@@ -57,7 +57,8 @@ def setUpModule():
         def clean_table(db, tablename):
             db.define_table(tablename)
             drop(db[tablename])
-        for tablename in ['tt', 't0', 't1', 't2', 't3', 't4', 'easy_name']:
+        for tablename in ['tt', 't0', 't1', 't2', 't3', 't4',
+                          'easy_name', 'tt_archive']:
             clean_table(db, tablename)
         db.close()
 
@@ -85,6 +86,23 @@ class TestFields(unittest.TestCase):
         # Check that Fields allows underscores in the body of a field name.
         self.assertTrue(Field('a_bc', 'string'),
             "Field isn't allowing underscores in fieldnames.  It should.")
+
+        # Check that Field names don't allow a python keyword
+        self.assertRaises(SyntaxError, Field, 'True', 'string')
+        self.assertRaises(SyntaxError, Field, 'elif', 'string')
+        self.assertRaises(SyntaxError, Field, 'while', 'string')
+
+        # Check that Field names don't allow a non-valid python identifier
+        non_valid_examples = ["1x", "xx$%@%", "xx yy", "yy\na", "yy\n"]
+        for a in non_valid_examples:
+            self.assertRaises(SyntaxError, Field, a, 'string')
+
+        # Check that Field names don't allow a unicode string
+        non_valid_examples = non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ", 
+                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ', 
+                u'ℊεᾔ℮яαт℮∂', u'♭ƴ', u'ᾔ☤ρℌℓ☺ḓ']
+        for a in non_valid_examples:
+            self.assertRaises(SyntaxError, Field, a, 'string')
 
     def testFieldTypes(self):
 
@@ -217,6 +235,24 @@ class TestTables(unittest.TestCase):
         # Check that Table allows underscores in the body of a field name.
         self.assertTrue(Table(None, 'a_bc'),
             "Table isn't allowing underscores in tablename.  It should.")
+
+        # Check that Table names don't allow a python keyword
+        self.assertRaises(SyntaxError, Table, None, 'True')
+        self.assertRaises(SyntaxError, Table, None, 'elif')
+        self.assertRaises(SyntaxError, Table, None, 'while')
+
+        # Check that Table names don't allow a non-valid python identifier
+        non_valid_examples = ["1x", "xx$%@%", "xx yy", "yy\na", "yy\n"]
+        for a in non_valid_examples:
+            self.assertRaises(SyntaxError, Table, None, a)
+
+        # Check that Table names don't allow a unicode string
+        non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ", 
+                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ', 
+                u'ℊεᾔ℮яαт℮∂', u'♭ƴ', u'ᾔ☤ρℌℓ☺ḓ']
+        for a in non_valid_examples:
+            self.assertRaises(SyntaxError, Table, None, a)
+
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
 class TestAll(unittest.TestCase):
@@ -610,6 +646,8 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(isinstance(db.tt.insert(aa=1), long), dal_opt[0])
             self.assertEqual(isinstance(db.tt.insert(aa=2), long), dal_opt[0])
             self.assertEqual(isinstance(db.tt.insert(aa=3), long), dal_opt[0])
+
+            # test update
             self.assertEqual(db(db.tt.aa == 3).update(aa=db.tt.aa + 1,
                                                       bb=db.tt.aa - 1), 1)
             self.assertEqual(db(db.tt.aa == 4).count(), 1)
@@ -618,20 +656,81 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(db(db.tt.aa == 4).update(aa=db.tt.aa * 2, bb=5), 1)
             self.assertEqual(db(db.tt.bb == 5).count(), 1)
             self.assertEqual(db(db.tt.aa == 8).count(), 1)
-            self.assertEqual(db(db.tt.aa == 8).update(aa=db.tt.aa - 2, cc='cc'), 1)
+            self.assertEqual(db(db.tt.aa == 8).update(aa=db.tt.aa - 2,
+                                                      cc='cc'), 1)
             self.assertEqual(db(db.tt.cc == 'cc').count(), 1)
             self.assertEqual(db(db.tt.aa == 6).count(), 1)
-            self.assertEqual(db(db.tt.aa == 6).update(aa=db.tt.aa / 2), 1)
+            self.assertEqual(db(db.tt.aa == 6).update(aa=db.tt.aa / 2 + 4,
+                                                      bb=db.tt.aa *
+                                                         (db.tt.bb - 3)), 1)
+            self.assertEqual(db(db.tt.bb == 12).count(), 1)
+            self.assertEqual(db(db.tt.aa == 7).count(), 1)
+            self.assertEqual(db(db.tt.aa == 7).update(aa=db.tt.aa % 4,
+                                                      cc=db.tt.cc + '1' +'1'), 1)
+            self.assertEqual(db(db.tt.cc == 'cc11').count(), 1)
             self.assertEqual(db(db.tt.aa == 3).count(), 1)
-            self.assertEqual(db(db.tt.aa == 3).update(aa=db.tt.aa % 2), 1)
-            self.assertEqual(db(db.tt.aa == 1).count(), 2)
 
-            #sum = (db.tt.aa + 1).sum()
-            #self.assertEqual(db(db.tt.aa == 2).select(sum).first()[sum], 3)
-            #self.assertEqual(db(db.tt.aa == -2).select(sum).first()[sum], None)
+            # test select aggregations
+            sum = (db.tt.aa + 1).sum()
+            self.assertEqual(db(db.tt.aa >= 2).select(sum).first()[sum], 7)
+            self.assertEqual(db(db.tt.aa == -2).select(sum).first()[sum], None)
+
+            count=db.tt.aa.count()
+            avg=db.tt.aa.avg()
+            min=db.tt.aa.min()
+            max=db.tt.aa.max()
+            result = db(db.tt).select(sum, count, avg, min, max).first()
+            self.assertEqual(result[sum], 9)
+            self.assertEqual(result[count], 3)
+            self.assertEqual(result[avg], 2)
+            self.assertEqual(result[min], 1)
+            self.assertEqual(result[max], 3)
 
             drop(db.tt)
             db.close()
+
+    @unittest.skipIf(True, "LENGTH is not supported")
+    def testSubstring(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t0 = db.define_table('t0', Field('name'))
+        input_name = "web2py"
+        t0.insert(name=input_name)
+        exp_slice = t0.name.lower()[4:6]
+        exp_slice_no_max = t0.name.lower()[4:]
+        exp_slice_neg_max = t0.name.lower()[2:-2]
+        exp_slice_neg_start = t0.name.lower()[-2:]
+        exp_item = t0.name.lower()[3]
+        out = db(t0).select(exp_slice, exp_item, exp_slice_no_max, exp_slice_neg_max, exp_slice_neg_start).first()
+        self.assertEqual(out[exp_slice], input_name[4:6])
+        self.assertEqual(out[exp_item], input_name[3])
+        self.assertEqual(out[exp_slice_no_max], input_name[4:])
+        self.assertEqual(out[exp_slice_neg_max], input_name[2:-2])
+        self.assertEqual(out[exp_slice_neg_start], input_name[-2:])
+        t0.drop()
+        db.close()
+
+    @unittest.skipIf(True, "OPS of aggregations are not supported")
+    def testOps(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t0 = db.define_table('t0', Field('vv', 'integer'))
+        self.assertTrue(isinstance(db.t0.insert(vv=1), long))
+        self.assertTrue(isinstance(db.t0.insert(vv=2), long))
+        self.assertTrue(isinstance(db.t0.insert(vv=3), long))
+        sum = db.t0.vv.sum()
+        count=db.t0.vv.count()
+        op = sum/count
+        op1 = (sum/count).with_alias('tot')
+        self.assertEqual(db(t0).select(op).first()[op], 2)
+        self.assertEqual(db(t0).select(op1).first()[op1], 2)
+        op2 = avg*count
+        self.assertEqual(db(t0).select(op2).first()[op2], 6)
+        # the following is not possible at least on sqlite
+        sum = db.t0.vv.sum().with_alias('s')
+        count=db.t0.vv.count().with_alias('c')
+        op = sum/count
+        #self.assertEqual(db(t0).select(op).first()[op], 2)
+        t0.drop()
+        db.close()
 
 
 @unittest.skip("JOIN queries are not supported")
@@ -705,7 +804,7 @@ class TestJoin(unittest.TestCase):
         db.close()
 
 
-@unittest.skipIf(IS_GAE or IS_MONGODB or IS_IMAP, 'TODO: Datastore throws "AttributeError: Row object has no attribute _extra"')
+@unittest.skipIf(IS_GAE or IS_IMAP, 'TODO: Datastore throws "AttributeError: Row object has no attribute _extra"')
 class TestMinMaxSumAvg(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
@@ -1591,6 +1690,62 @@ class TestBasicOps(unittest.TestCase):
         drop(tt)
         db.close()
 
+
+@unittest.skipIf(IS_GAE or IS_IMAP, "Skip test lazy")
+class TestLazy(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'], lazy_tables=True)
+        t0 = db.define_table('t0', Field('name'))
+        self.assertTrue(('t0' in db._LAZY_TABLES.keys()))
+        db.t0.insert(name='1')
+        self.assertFalse(('t0' in db._LAZY_TABLES.keys()))
+        db.t0.drop()
+        db.close()
+
+    def testLazyGetter(self):
+        db=DAL(DEFAULT_URI, lazy_tables=True)
+        db.define_table('tt',  Field('value', 'integer'))
+        db.define_table('ttt',
+            Field('value', 'integer'),
+            Field('tt_id', 'reference tt'),
+        )
+        # Force table definition
+        db.ttt.value.writable=False
+        idd=db.tt.insert(value=0)
+        db.ttt.insert(tt_id=idd)
+        db.ttt.drop()
+        db.tt.drop()
+        db.close()
+
+    def testRowNone(self):
+        db=DAL(DEFAULT_URI, lazy_tables=True)
+        tt = db.define_table('tt',  Field('value', 'integer'))
+        db.tt.insert(value=None)
+        row = db(db.tt).select(db.tt.ALL).first()
+        self.assertEqual(row.value, None)
+        self.assertEqual(row[db.tt.value], None)
+        self.assertEqual(row['tt.value'], None)
+        self.assertEqual(row.get('tt.value'), None)
+        self.assertEqual(row['value'], None)
+        self.assertEqual(row.get('value'), None)
+        db.tt.drop()
+        db.close()
+
+
+class TestRedefine(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'], lazy_tables=True, migrate=False)
+        db.define_table('t_a', Field('code'))
+        self.assertTrue('code' in db.t_a)
+        self.assertTrue('code' in db['t_a'])
+        db.define_table('t_a', Field('code_a'), redefine=True)
+        self.assertFalse('code' in db.t_a)
+        self.assertFalse('code' in db['t_a'])
+        self.assertTrue('code_a' in db.t_a)
+        self.assertTrue('code_a' in db['t_a'])
+        db.close()
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestUpdateInsert(unittest.TestCase):

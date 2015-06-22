@@ -110,7 +110,7 @@ class TestFields(unittest.TestCase):
         # Check that Tables passed in the type creates a reference
         self.assertTrue(Field('abc', Table(None, 'temp')).type
                       == 'reference temp',
-                     'Passing an Table does not result in a reference type.')
+                     'Passing a Table does not result in a reference type.')
 
     def testFieldLabels(self):
 
