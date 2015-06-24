@@ -174,61 +174,72 @@ class MSSQLAdapter(BaseAdapter):
     def CONCAT(self, *items):
         return '(%s)' % ' + '.join(self.expand(x, 'string') for x in items)
 
-    def REGEXP(self,first,second):
-        second = self.expand(second,'string').replace('\\', '\\\\').replace('%', '\%')
-        second = second.replace('*', '%').replace('.', '_')
+    def REGEXP(self, first, second):
+        second = self.expand(second, 'string').replace('\\', '\\\\')
+        second = second.replace('%', '\%').replace('*', '%').replace('.', '_')
         return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first), second)
 
-    def like_expander(self, term):
+    def mssql_like_normalizer(self, term):
+        term = term.replace('[', '[[]')
+        return term
+
+    def like_escaper_default(self, term):
         if isinstance(term, Expression):
             return term
-        if term.startswith('%') and term.endswith('%'):
-            pre, term, post = '%', term[1:-1], '%'
-        elif term.startswith('%'):
-            pre, term, post = '%', term[1:], ''
-        elif term.endswith('%'):
-            pre, term, post = '', term[:-1], '%'
-        else:
-            return term
-        term = term.replace('\\', '\\\\').replace('[', '[[]')
-        term = term.replace('%', '[%]').replace('_', '[_]')
-        return ''.join([pre, term, post])
+        term = term.replace('\\', '\\\\')
+        term = term.replace('%', '\%').replace('_', '\_')
+        return self.mssql_like_normalizer(term)
 
-    def LIKE(self, first, second):
+    def LIKE(self, first, second, escape=None):
         """Case sensitive like operator"""
-        return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first),
-                self.expand(self.like_expander(second), 'string'))
+        if isinstance(second, Expression):
+            second = self.expand(second, 'string')
+        else:
+            second = self.expand(second, 'string')
+            if escape is None:
+                escape = '\\'
+                second = second.replace(escape, escape * 2)
+        return "(%s LIKE %s ESCAPE '%s')" % (self.expand(first),
+                second, escape)
 
-    def ILIKE(self, first, second):
+    def ILIKE(self, first, second, escape=None):
         """Case insensitive like operator"""
-        return "(LOWER(%s) LIKE %s ESCAPE '\\')" % (self.expand(first),
-                self.expand(self.like_expander(second), 'string').lower())
+        if isinstance(second, Expression):
+            second = self.expand(second, 'string')
+        else:
+            second = self.expand(second, 'string').lower()
+            if escape is None:
+                escape = '\\'
+                second = second.replace(escape, escape*2)
+        return "(LOWER(%s) LIKE %s ESCAPE '%s')" % (self.expand(first),
+                second, escape)
 
     def STARTSWITH(self, first, second):
         return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first),
-                self.expand(self.like_expander(second)+'%', 'string'))
+                self.expand(self.like_escaper_default(second)+'%', 'string'))
 
     def ENDSWITH(self, first, second):
         return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first),
-                self.expand('%'+self.like_expander(second), 'string'))
+                self.expand('%'+self.like_escaper_default(second), 'string'))
 
     def CONTAINS(self, first, second, case_sensitive=True):
-        if first.type in ('string','text', 'json'):
-            if isinstance(second,Expression):
+        if first.type in ('string', 'text', 'json'):
+            if isinstance(second, Expression):
                 second = Expression(second.db, self.CONCAT('%',Expression(
-                            second.db, self.REPLACE(second,('%','%%'))),'%'))
+                            second.db, self.REPLACE(second,('%','\%'))),'%'))
             else:
-                second = '%'+str(second)+'%'
+                second = '%'+self.like_escaper_default(str(second))+'%'
         elif first.type.startswith('list:'):
             if isinstance(second,Expression):
                 second = Expression(second.db, self.CONCAT(
                         '%|',Expression(second.db, self.REPLACE(
                                 Expression(second.db, self.REPLACE(
-                                        second,('%','%%'))),('|','||'))),'|%'))
+                                        second,('%','\%'))),('|','||'))),'|%'))
             else:
-                second = '%|'+str(second).replace('|','||')+'|%'
+                second = str(second).replace('|', '||')
+                second = '%|'+self.like_escaper_default(second)+'|%'
         op = case_sensitive and self.LIKE or self.ILIKE
-        return op(first,second)
+        return op(first, second, escape='\\')
 
     # GIS Spatial Extensions
 
@@ -438,13 +449,20 @@ class MSSQL2Adapter(MSSQLAdapter):
         return self.log_execute(*a, **b)
         #return self.log_execute(a.decode('utf8'))
 
-    def ILIKE(self, first, second):
-        second = self.expand(second, 'string').lower()
-        if second.startswith("n'"):
-            second = "N'" + self.like_expander(second[2:-1]) + "'"
+
+    def ILIKE(self, first, second, escape=None):
+        """Case insensitive like operator"""
+        if isinstance(second, Expression):
+            second = self.expand(second, 'string')
         else:
-            second = self.like_expander(second)
-        return "(LOWER(%s) LIKE %s ESCAPE '\\')" % (self.expand(first), second)
+            second = self.expand(second, 'string').lower()
+            if escape is None:
+                escape = '\\'
+                second = second.replace(escape, escape*2)
+        if second.startswith("n'"):
+            second = "N'" + second[2:]
+        return "(LOWER(%s) LIKE %s ESCAPE '%s')" % (self.expand(first),
+                second, escape)
 
 
 class MSSQLNAdapter(MSSQLAdapter):
@@ -499,17 +517,20 @@ class MSSQLNAdapter(MSSQLAdapter):
             a = tuple(newa)
         return self.log_execute(*a, **b)
 
-    def ILIKE(self, first, second):
+    def ILIKE(self, first, second, escape=None):
+        """Case insensitive like operator"""
         if isinstance(second, Expression):
             second = self.expand(second, 'string')
-            second = self.like_expander(second)
         else:
             second = self.expand(second, 'string').lower()
-            if second.startswith("n'"):
-                second = "N'" + self.like_expander(second[2:-1]) + "'"
-            else:
-                second = self.like_expander(second)
-        return "(LOWER(%s) LIKE %s ESCAPE '\\')" % (self.expand(first), second)
+            if escape is None:
+                escape = '\\'
+                second = second.replace(escape, escape*2)
+        if second.startswith("n'"):
+            second = "N'" + second[2:]
+        return "(LOWER(%s) LIKE %s ESCAPE '%s')" % (self.expand(first),
+                second, escape)
+
 
 
 class MSSQL3NAdapter(MSSQLNAdapter):

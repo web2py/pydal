@@ -1177,13 +1177,13 @@ class Expression(object):
         db = self.db
         return Query(db, db._adapter.GE, self, value)
 
-    def like(self, value, case_sensitive=True):
+    def like(self, value, case_sensitive=True, escape=None):
         db = self.db
         op = case_sensitive and db._adapter.LIKE or db._adapter.ILIKE
-        return Query(db, op, self, value)
+        return Query(db, op, self, value, escape=escape)
 
-    def ilike(self, value):
-        return self.like(value, case_sensitive=False)
+    def ilike(self, value, escape=None):
+        return self.like(value, case_sensitive=False, escape=escape)
 
     def regexp(self, value):
         db = self.db

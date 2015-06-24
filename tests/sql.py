@@ -473,6 +473,24 @@ class TestContains(unittest.TestCase):
             self.assertEqual(db(db.tt.bb.contains('A', case_sensitive=False)).count(), 3)
 
         db.tt.drop()
+        # string field contains string field
+        db.define_table('tt', Field('aa'), Field('bb'))
+        db.tt.insert(aa='aaa', bb='%aaa')
+        db.tt.insert(aa='aaa', bb='aaa')
+        self.assertEqual(db(db.tt.aa.contains(db.tt.bb)).count(), 1)
+        db.tt.drop()
+
+        #escaping
+        db.define_table('tt', Field('aa'))
+        db.tt.insert(aa='perc%ent')
+        db.tt.insert(aa='percent')
+        db.tt.insert(aa='percxyzent')
+        db.tt.insert(aa='under_score')
+        db.tt.insert(aa='underxscore')
+        db.tt.insert(aa='underyscore')
+        self.assertEqual(db(db.tt.aa.contains('perc%ent')).count(), 1)
+        self.assertEqual(db(db.tt.aa.contains('under_score')).count(), 1)
+        db.tt.drop()
         db.close()
 
 
@@ -521,6 +539,34 @@ class TestLike(unittest.TestCase):
         self.assertEqual(db(db.tt.aa.endswith('c')).count(), 1)
         self.assertEqual(db(db.tt.aa.startswith('c')).count(), 0)
         self.assertEqual(db(db.tt.aa.endswith('a')).count(), 0)
+        db(db.tt.id>0).delete()
+
+        # test escaping
+        term = 'ahbc'.replace('h', '\\') #funny but to avoid any doubts...
+        db.tt.insert(aa='a%bc')
+        db.tt.insert(aa=term)
+        self.assertEqual(db(db.tt.aa.like('%ax%bc%', escape='x')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('%'+term+'%')).count(), 1)
+        db(db.tt.id>0).delete()
+        # test "literal" like, i.e. exactly as LIKE in the backend
+        db.tt.insert(aa='perc%ent')
+        db.tt.insert(aa='percent')
+        db.tt.insert(aa='percxyzent')
+        db.tt.insert(aa='under_score')
+        db.tt.insert(aa='underxscore')
+        db.tt.insert(aa='underyscore')
+        self.assertEqual(db(db.tt.aa.like('%perc%ent%')).count(), 3)
+        self.assertEqual(db(db.tt.aa.like('%under_score%')).count(), 3)
+        db(db.tt.id>0).delete()
+        # escaping with startswith and endswith
+        db.tt.insert(aa='%percent')
+        db.tt.insert(aa='xpercent')
+        db.tt.insert(aa='discount%')
+        db.tt.insert(aa='discountx')
+        self.assertEqual(db(db.tt.aa.endswith('discount%')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('discount%%')).count(), 2)
+        self.assertEqual(db(db.tt.aa.startswith('%percent')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('%%percent')).count(), 2)
 
         db.tt.drop()
         db.define_table('tt', Field('aa', 'integer'))
@@ -756,7 +802,7 @@ class TestReference(unittest.TestCase):
                 for key in ['reference','reference FK']:
                     db._adapter.types[key]=db._adapter.types[key].replace(
                     '%(on_delete_action)s','NO ACTION')
-            db.define_table('tt', Field('name'), 
+            db.define_table('tt', Field('name'),
                             Field('aa','reference tt',ondelete=ondelete))
             db.commit()
             x = db.tt.insert(name='xxx')

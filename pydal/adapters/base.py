@@ -776,42 +776,63 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         """Regular expression operator"""
         raise NotImplementedError
 
-    def LIKE(self, first, second):
-        """Case sensitive like operator"""
-        return '(%s LIKE %s)' % (self.expand(first),
-                                 self.expand(second, 'string'))
+    def like_escaper_default(self, term):
+        if isinstance(term, Expression):
+            return term
+        term = term.replace('\\', '\\\\')
+        term = term.replace('%', '\%').replace('_', '\_')
+        return term
 
-    def ILIKE(self, first, second):
+    def LIKE(self, first, second, escape=None):
+        """Case sensitive like operator"""
+        if isinstance(second, Expression):
+            second = self.expand(second, 'string')
+        else:
+            second = self.expand(second, 'string')
+            if escape is None:
+                escape = '\\'
+                second = second.replace(escape, escape * 2)
+        return "(%s LIKE %s ESCAPE '%s')" % (self.expand(first),
+                second, escape)
+
+    def ILIKE(self, first, second, escape=None):
         """Case insensitive like operator"""
-        return '(LOWER(%s) LIKE %s)' % (self.expand(first),
-                                 self.expand(second, 'string').lower())
+        if isinstance(second, Expression):
+            second = self.expand(second, 'string')
+        else:
+            second = self.expand(second, 'string').lower()
+            if escape is None:
+                escape = '\\'
+                second = second.replace(escape, escape*2)
+        return "(LOWER(%s) LIKE %s ESCAPE '%s')" % (self.expand(first),
+                second, escape)
 
     def STARTSWITH(self, first, second):
-        return '(%s LIKE %s)' % (self.expand(first),
-                                 self.expand(second+'%', 'string'))
+        return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first),
+                self.expand(self.like_escaper_default(second)+'%', 'string'))
 
     def ENDSWITH(self, first, second):
-        return '(%s LIKE %s)' % (self.expand(first),
-                                 self.expand('%'+second, 'string'))
+        return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first),
+                self.expand('%'+self.like_escaper_default(second), 'string'))
 
     def CONTAINS(self, first, second, case_sensitive=True):
         if first.type in ('string','text', 'json'):
             if isinstance(second,Expression):
                 second = Expression(second.db, self.CONCAT('%',Expression(
-                            second.db, self.REPLACE(second,('%','%%'))),'%'))
+                            second.db, self.REPLACE(second,('%','\%'))),'%'))
             else:
-                second = '%'+str(second).replace('%','%%')+'%'
+                second = '%'+self.like_escaper_default(str(second))+'%'
         elif first.type.startswith('list:'):
             if isinstance(second,Expression):
                 second = Expression(second.db, self.CONCAT(
                         '%|',Expression(second.db, self.REPLACE(
                                 Expression(second.db, self.REPLACE(
-                                        second,('%','%%'))),('|','||'))),'|%'))
+                                        second,('%','\%'))),('|','||'))),'|%'))
             else:
-                second = '%|'+str(second).replace('%','%%')\
-                    .replace('|','||')+'|%'
+                second = str(second).replace('|', '||')
+                second = '%|'+self.like_escaper_default(second)+'|%'
         op = case_sensitive and self.LIKE or self.ILIKE
-        return op(first,second)
+        return op(first,second,escape='\\')
 
     def EQ(self, first, second=None):
         if second is None:
