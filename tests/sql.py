@@ -372,7 +372,7 @@ class TestSelect(unittest.TestCase):
 
     def testTestQuery(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.executesql(db._adapter.test_query)
+        db._adapter.execute_test_query()
         db.close()
 
     def testListInteger(self):

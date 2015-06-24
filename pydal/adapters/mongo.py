@@ -55,8 +55,18 @@ class MongoDBAdapter(NoSQLAdapter):
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}, do_connect=True, after_connection=None):
 
-        self.db = db
-        self.uri = uri
+        super(MongoDBAdapter, self).__init__(
+            db=db,
+            uri=uri,
+            pool_size=pool_size,
+            folder=folder,
+            db_codec=db_codec,
+            credential_decoder=credential_decoder,
+            driver_args=driver_args,
+            adapter_args=adapter_args,
+            do_connect=do_connect,
+            after_connection=after_connection)
+
         if do_connect: self.find_driver(adapter_args)
         import random
         from bson.objectid import ObjectId
@@ -72,11 +82,8 @@ class MongoDBAdapter(NoSQLAdapter):
         self.WriteConcern = WriteConcern
 
         self.dbengine = 'mongodb'
-        self.folder = folder
         db['_lastsql'] = ''
         self.db_codec = 'UTF-8'
-        self._after_connection = after_connection
-        self.pool_size = pool_size
         self.find_or_make_work_folder()
         #this is the minimum amount of replicates that it should wait
         # for on insert/update
@@ -111,9 +118,13 @@ class MongoDBAdapter(NoSQLAdapter):
             raise SyntaxError("Database is required!")
 
         def connector(uri=self.uri, m=m):
-            return self.driver.MongoClient(uri, w=self.safe)[m.get('database')]
-
-        self.reconnect(connector, cursor=False)
+            driver = self.driver.MongoClient(uri, w=self.safe)[m.get('database')]
+            driver.cursor = lambda : self.fake_cursor
+            driver.close = lambda : None
+            driver.commit = lambda : None
+            return driver
+        self.connector = connector
+        self.reconnect()
 
         # _server_version is a string like '3.0.3' or '2.4.12'
         self._server_version = self.connection.command("serverStatus")['version']

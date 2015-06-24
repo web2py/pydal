@@ -84,10 +84,9 @@ class ConnectionPool(object):
         #this it is supposed to be overloaded by adapters
         pass
 
-    def reconnect(self, f=None, cursor=True):
+    def reconnect(self, f=None):
         """
         Defines: `self.connection` and `self.cursor`
-        (if cursor is True)
         if `self.pool_size>0` it will try pull the connection from the pool
         if the connection is not active (closed by db server) it will loop
         if not `self.pool_size` or no active connections in pool makes a new one
@@ -103,7 +102,7 @@ class ConnectionPool(object):
 
         if not self.pool_size:
             self.connection = f()
-            self.cursor = cursor and self.connection.cursor()
+            self.cursor = self.connection.cursor()
         else:
             uri = self.uri
             POOLS = ConnectionPool.POOLS
@@ -114,16 +113,16 @@ class ConnectionPool(object):
                 if POOLS[uri]:
                     self.connection = POOLS[uri].pop()
                     GLOBAL_LOCKER.release()
-                    self.cursor = cursor and self.connection.cursor()
+                    self.cursor = self.connection.cursor()
                     try:
-                        if self.cursor and self.check_active_connection:
-                            self.execute(self.test_query)
+                        if self.check_active_connection:
+                            self.execute_test_query()
                         break
                     except:
                         pass
                 else:
                     GLOBAL_LOCKER.release()
                     self.connection = f()
-                    self.cursor = cursor and self.connection.cursor()
+                    self.cursor = self.connection.cursor()
                     break
         self.after_connection_hook()

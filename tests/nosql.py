@@ -1672,6 +1672,49 @@ class TestRecordVersioning(unittest.TestCase):
         db.close()
 
 
+
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
+class TestConnection(unittest.TestCase):
+
+    def testRun(self):
+        # check for adapter reconnect without parameters
+        db1 = DAL(DEFAULT_URI, check_reserved=['all'])
+        db1.define_table('tt', Field('aa', 'integer'))
+        self.assertEqual(isinstance(db1.tt.insert(aa=1), long), True)
+        self.assertEqual(db1(db1.tt.aa == 1).count(), 1)
+        drop(db1.tt)
+        db1._adapter.close()
+        db1._adapter.reconnect()
+        db1.define_table('tt', Field('aa', 'integer'))
+        self.assertEqual(isinstance(db1.tt.insert(aa=1), long), True)
+        self.assertEqual(db1(db1.tt.aa == 1).count(), 1)
+        drop(db1.tt)
+        db1.close()
+
+        # check connection are reused with pool_size
+        connections = {}
+        for a in range(10):
+            db2 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+            c = db2._adapter.connection
+            connections[id(c)] = c
+            db2.close()
+        self.assertEqual(len(connections), 1)
+        c = [connections[x] for x in connections][0]
+        c.commit()
+        c.close()
+
+        # check correct use of pool_size
+        dbs = []
+        for a in range(10):
+            db3 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+            dbs.append(db3)
+        for db in dbs:
+            db.close()
+        self.assertEqual(len(db3._adapter.POOLS[DEFAULT_URI]), 5)
+        for c in db3._adapter.POOLS[DEFAULT_URI]:
+            c.close()
+        db3._adapter.POOLS[DEFAULT_URI] = []
+
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestBasicOps(unittest.TestCase):
 

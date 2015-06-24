@@ -175,16 +175,22 @@ class IMAPAdapter(NoSQLAdapter):
                  do_connect=True,
                  after_connection=None):
 
+        super(IMAPAdapter, self).__init__(
+            db=db,
+            uri=uri,
+            pool_size=pool_size,
+            folder=folder,
+            db_codec=db_codec,
+            credential_decoder=credential_decoder,
+            driver_args=driver_args,
+            adapter_args=adapter_args,
+            do_connect=do_connect,
+            after_connection=after_connection)
+
         # db uri: user@example.com:password@imap.server.com:123
         # TODO: max size adapter argument for preventing large mail transfers
 
-        self.db = db
-        self.uri = uri
         if do_connect: self.find_driver(adapter_args)
-        self.pool_size=pool_size
-        self.folder = folder
-        self.db_codec = db_codec
-        self._after_connection = after_connection
         self.credential_decoder = credential_decoder
         self.driver_args = driver_args
         self.adapter_args = adapter_args
@@ -238,8 +244,10 @@ class IMAPAdapter(NoSQLAdapter):
             # static mailbox list
             connection.mailbox_names = None
 
-            # dummy cursor function
-            connection.cursor = lambda : True
+            # dummy dbapi functions
+            connection.cursor = lambda : self.fake_cursor
+            connection.close = lambda : None
+            connection.commit = lambda : None
 
             return connection
 
@@ -247,7 +255,7 @@ class IMAPAdapter(NoSQLAdapter):
         self.connector = connector
         if do_connect: self.reconnect()
 
-    def reconnect(self, f=None, cursor=True):
+    def reconnect(self, f=None):
         """
         IMAP4 Pool connection method
 
@@ -264,7 +272,7 @@ class IMAPAdapter(NoSQLAdapter):
 
         if not self.pool_size:
             self.connection = f()
-            self.cursor = cursor and self.connection.cursor()
+            self.cursor = self.connection.cursor()
         else:
             POOLS = ConnectionPool.POOLS
             uri = self.uri
@@ -275,7 +283,7 @@ class IMAPAdapter(NoSQLAdapter):
                 if POOLS[uri]:
                     self.connection = POOLS[uri].pop()
                     GLOBAL_LOCKER.release()
-                    self.cursor = cursor and self.connection.cursor()
+                    self.cursor = self.connection.cursor()
                     if self.cursor and self.check_active_connection:
                         try:
                             # check if connection is alive or close it
@@ -288,7 +296,7 @@ class IMAPAdapter(NoSQLAdapter):
                 else:
                     GLOBAL_LOCKER.release()
                     self.connection = f()
-                    self.cursor = cursor and self.connection.cursor()
+                    self.cursor = self.connection.cursor()
                     break
         self.after_connection_hook()
 
