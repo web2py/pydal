@@ -754,13 +754,13 @@ class MongoDBAdapter(NoSQLAdapter):
                 regex['$options'] = 'i'
             return regex
 
-    def LIKE(self, first, second, case_sensitive=True):
+    def LIKE(self, first, second, case_sensitive=True, escape=None):
         regex = self._build_like_regex(
             second, case_sensitive=case_sensitive, like_wildcards=True)
         return { self.expand(first): regex }
 
-    def ILIKE(self, first, second):
-        return self.LIKE(first, second, case_sensitive=False)
+    def ILIKE(self, first, second, escape=None):
+        return self.LIKE(first, second, case_sensitive=False, escape=escape)
 
     def STARTSWITH(self, first, second):
         regex = self._build_like_regex(second, starts_with=True)

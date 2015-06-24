@@ -202,21 +202,40 @@ class PostgreSQLAdapter(BaseAdapter):
             self.db.logger.debug("Your database version does not support the JSON"
                 " data type (using TEXT instead)")
 
-    def LIKE(self,first,second):
-        args = (self.expand(first), self.expand(second,'string'))
-        if not first.type in ('string', 'text', 'json'):
-            return '(%s LIKE %s)' % (
-                self.CAST(args[0], 'CHAR(%s)' % first.length), args[1])
+    def LIKE(self, first, second, escape=None):
+        """Case sensitive like operator"""
+        if isinstance(second, Expression):
+            second = self.expand(second, 'string')
         else:
-            return '(%s LIKE %s)' % args
+            second = self.expand(second, 'string')
+            if escape is None:
+                escape = '\\'
+                second = second.replace(escape, escape * 2)
+        if first.type not in ('string', 'text', 'json'):
+            return "(%s LIKE %s ESCAPE '%s')" % (
+                self.CAST(self.expand(first), 'CHAR(%s)' % first.length),
+                second, escape
+                )
+        else:
+            return "(%s LIKE %s ESCAPE '%s')" % (self.expand(first), second, escape)
 
-    def ILIKE(self,first,second):
-        args = (self.expand(first), self.expand(second,'string'))
-        if not first.type in ('string', 'text', 'json', 'list:string'):
-            return '(%s LIKE %s)' % (
-                self.CAST(args[0], 'CHAR(%s)' % first.length), args[1])
+    def ILIKE(self, first, second, escape=None):
+        """Case sensitive like operator"""
+        if isinstance(second, Expression):
+            second = self.expand(second, 'string')
         else:
-            return '(%s ILIKE %s)' % args
+            second = self.expand(second, 'string')
+            if escape is None:
+                escape = '\\'
+                second = second.replace(escape, escape * 2)
+        if first.type not in ('string', 'text', 'json', 'list:string'):
+            return "(%s ILIKE %s ESCAPE '%s')" % (
+                self.CAST(self.expand(first), 'CHAR(%s)' % first.length),
+                second, escape
+                )
+        else:
+            return "(%s ILIKE %s ESCAPE '%s')" % (self.expand(first), second, escape)
+
 
     def REGEXP(self,first,second):
         return '(%s ~ %s)' % (self.expand(first),
@@ -400,20 +419,22 @@ class NewPostgreSQLAdapter(PostgreSQLAdapter):
         if first.type.startswith('list'):
             f = self.expand(second, 'string')
             s = self.ANY(first)
-            op = self.EQ if case_sensitive == True else self.ILIKE
-            return op(f, s)
+            if case_sensitive is True:
+                return self.EQ(f, s)
+            else:
+                return self.ILIKE(f, s, escape='\\')
         else:
             return PostgreSQLAdapter.CONTAINS(self, first, second, case_sensitive=case_sensitive)
 
     def ANY(self, first):
         return "ANY(%s)" % self.expand(first)
 
-    def ILIKE(self, first, second):
+    def ILIKE(self, first, second, escape=None):
         if first and 'type' not in first:
             args = (first, self.expand(second))
             ilike = '(%s ILIKE %s)' % args
         else:
-            ilike = PostgreSQLAdapter.ILIKE(self, first, second)
+            ilike = PostgreSQLAdapter.ILIKE(self, first, second, escape=escape)
         return ilike
 
     def EQ(self, first, second=None):
