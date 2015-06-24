@@ -397,25 +397,22 @@ class MongoDBAdapter(NoSQLAdapter):
         colnames = []
         newnames = []
         for field in fields:
-            fieldname = str(field)
-            tablename_prefix = tablename + '.'
-            if fieldname.startswith(tablename_prefix):
+            if hasattr(field, "tablename"):
                 if field.name in ('id', '_id'):
                     # Mongodb reserved uuid key
-                    colname = (tablename_prefix, 'id', '_id')
+                    colname = (tablename + "." + 'id', '_id')
                 else:
-                    colname = (tablename_prefix, field.name, field.name)
+                    colname = (tablename + "." + field.name, field.name)
             else:
-                colname = ('', field.name, field.name)
-            colnames.append(colname)
-            newnames.append("".join(colname[0:2]))
+                colname = (field.name, field.name)
+            colnames.append(colname[1])
+            newnames.append(colname[0])
 
         for record in mongo_list_dicts:
             row = []
             for colname in colnames:
-                fieldname = colname[2]
                 try:
-                    value = record[fieldname]
+                    value = record[colname]
                 except:
                     value = None
                 row.append(value)
