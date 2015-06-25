@@ -163,7 +163,7 @@ class PostgreSQLAdapter(BaseAdapter):
         if fields:
             keys = ','.join(f.sqlsafe_name for f, v in fields)
             values = ','.join(self.expand(v, f.type) for f, v in fields)
-            if table._id:
+            if hasattr(table, '_id'):
                 self._last_insert = (table._id, 1)
                 return 'INSERT INTO %s(%s) VALUES (%s) RETURNING %s;' % (
                     table_rname, keys, values, self.QUOTE_TEMPLATE % table._id.name)
