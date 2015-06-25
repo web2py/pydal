@@ -722,13 +722,13 @@ class Table(Serializable, BasicStorage):
         return response, new_fields
 
     def validate_and_insert(self, **fields):
-        response, new_fields = self._validate_fields(**fields)
+        response, new_fields = self._validate_fields(fields)
         if not response.errors:
             response.id = self.insert(**new_fields)
         return response
 
     def validate_and_update(self, _key=DEFAULT, **fields):
-        response, new_fields = self._validate_fields(**fields)
+        response, new_fields = self._validate_fields(fields)
         #: select record(s) for update
         if _key is DEFAULT:
             record = self(**fields)
