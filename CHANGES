@@ -1,6 +1,15 @@
 pydal changelog
 ===============
 
+Next
+----
+
+(Release date to be announced)
+
+- `Table.validate_and_insert` and `Table.validate_and_update` methods now
+  validates also empty fields
+
+
 Version 15.05.29
 ----------------
 
