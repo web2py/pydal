@@ -166,7 +166,7 @@ class PostgreSQLAdapter(BaseAdapter):
             if table._id:
                 self._last_insert = (table._id, 1)
                 return 'INSERT INTO %s(%s) VALUES (%s) RETURNING %s;' % (
-                    table_rname, keys, values, table._id.name)
+                    table_rname, keys, values, self.QUOTE_TEMPLATE % table._id.name)
             else:
                 self._last_insert = None
                 return 'INSERT INTO %s(%s) VALUES (%s);' % (table_rname, keys, values)
