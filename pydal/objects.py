@@ -718,7 +718,8 @@ class Table(Serializable, BasicStorage):
             if error:
                 response.errors[fieldname] = "%s" % error
             else:
-                new_fields[fieldname] = value
+                if value is not None:
+                    new_fields[fieldname] = value
         return response, new_fields
 
     def validate_and_insert(self, **fields):
