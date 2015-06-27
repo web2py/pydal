@@ -410,7 +410,7 @@ class Table(Serializable, BasicStorage):
             #fieldname = field.name ##FIXME not used ?
             field_type = field.type
             if isinstance(field_type, str) and (
-                    field_type.startswith('reference ') or 
+                    field_type.startswith('reference ') or
                     field_type.startswith('list:reference ')):
 
                 is_list = field_type[:15] == 'list:reference '
@@ -709,41 +709,35 @@ class Table(Serializable, BasicStorage):
             [f(fields, ret) for f in self._after_insert]
         return ret
 
-    def validate_and_insert(self, **fields):
+    def _validate_fields(self, fields):
         response = Row()
-        response.errors = Row()
+        response.id, response.errors = None, Row()
         new_fields = copy.copy(fields)
-        for key, value in iteritems(fields):
-            value, error = self[key].validate(value)
+        for fieldname in self.fields:
+            value, error = self[fieldname].validate(fields.get(fieldname))
             if error:
-                response.errors[key] = "%s" % error
+                response.errors[fieldname] = "%s" % error
             else:
-                new_fields[key] = value
+                if value is not None:
+                    new_fields[fieldname] = value
+        return response, new_fields
+
+    def validate_and_insert(self, **fields):
+        response, new_fields = self._validate_fields(fields)
         if not response.errors:
             response.id = self.insert(**new_fields)
-        else:
-            response.id = None
         return response
 
     def validate_and_update(self, _key=DEFAULT, **fields):
-        response = Row()
-        response.errors = Row()
-        new_fields = copy.copy(fields)
-
-        for key, value in iteritems(fields):
-            value, error = self[key].validate(value)
-            if error:
-                response.errors[key] = "%s" % error
-            else:
-                new_fields[key] = value
-
+        response, new_fields = self._validate_fields(fields)
+        #: select record(s) for update
         if _key is DEFAULT:
             record = self(**fields)
         elif isinstance(_key, dict):
             record = self(**_key)
         else:
             record = self(_key)
-
+        #: do the update
         if not response.errors and record:
             if '_id' in self:
                 myset = self._db(self._id == record[self._id.name])
@@ -755,9 +749,7 @@ class Table(Serializable, BasicStorage):
                     else:
                         query = query & (getattr(self, key) == value)
                 myset = self._db(query)
-            response.id = myset.update(**fields)
-        else:
-            response.id = None
+            response.id = myset.update(**new_fields)
         return response
 
     def update_or_insert(self, _key=DEFAULT, **values):
