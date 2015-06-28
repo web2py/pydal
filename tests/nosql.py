@@ -34,7 +34,6 @@ elif IS_GAE:
 print('Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
                                           DEFAULT_URI))
 
-
 ALLOWED_DATATYPES = [
     'string',
     'text',
@@ -50,10 +49,10 @@ ALLOWED_DATATYPES = [
     'json',
     ]
 
-
 def setUpModule():
     if not IS_IMAP:
         db = DAL(DEFAULT_URI, check_reserved=['all'])
+
         def clean_table(db, tablename):
             db.define_table(tablename)
             drop(db[tablename])
@@ -446,6 +445,7 @@ class TestAddMethod(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'))
+
         @db.tt.add_method.all
         def select_all(table,orderby=None):
             return table._db(table).select(orderby=orderby)
@@ -484,7 +484,7 @@ class TestBelongs(unittest.TestCase):
     @unittest.skipIf(IS_GAE or IS_MONGODB, "Datastore/Mongodb belongs() does not accept nested queries")
     def testNested(self):
         db = self.db
-        self.assertEqual(db(db.tt.aa.belongs(db(db.tt.id > 2)._select(db.tt.aa))).count(), 1)
+        self.assertEqual(db(db.tt.aa.belongs(db(db.tt.id == self.i_id)._select(db.tt.aa))).count(), 1)
 
         self.assertEqual(db(db.tt.aa.belongs(db(db.tt.aa.belongs(('1',
                      '3')))._select(db.tt.aa))).count(), 2)
@@ -612,16 +612,26 @@ class TestDatetime(unittest.TestCase):
         self.assertEqual(isinstance(db.tt.insert(aa=datetime.datetime(1971, 11, 21,
                          10, 30)), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa=datetime.datetime(1970, 12, 21,
-                         9, 30)), long), True)
+                         9, 31)), long), True)
         self.assertEqual(db(db.tt.aa == datetime.datetime(1971, 12,
                          21, 11, 30)).count(), 1)
         self.assertEqual(db(db.tt.aa >= datetime.datetime(1971, 1, 1)).count(), 2)
+
+        self.assertEqual(db(db.tt.aa.year() == 1971).count(), 2)
+        self.assertEqual(db(db.tt.aa.month() > 11).count(), 2)
+        self.assertEqual(db(db.tt.aa.day() >= 21).count(), 3)
+        self.assertEqual(db(db.tt.aa.hour() == 11).count(), 1)
+        self.assertEqual(db(db.tt.aa.minutes() <= 30).count(), 2)
+        self.assertEqual(db(db.tt.aa.seconds() != 31).count(), 3)
+        self.assertEqual(db(db.tt.aa.epoch() < 365*24*3600).count(), 1)
         drop(db.tt)
+
         db.define_table('tt', Field('aa', 'time'))
         t0 = datetime.time(10, 30, 55)
         db.tt.insert(aa=t0)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
         drop(db.tt)
+        
         db.define_table('tt', Field('aa', 'date'))
         t0 = datetime.date.today()
         db.tt.insert(aa=t0)
@@ -1670,7 +1680,6 @@ class TestRecordVersioning(unittest.TestCase):
         db.tt._before_delete = []
         drop(tt)
         db.close()
-
 
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")

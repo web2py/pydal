@@ -81,6 +81,7 @@ class MongoDBAdapter(NoSQLAdapter):
 
         m = pymongo.uri_parser.parse_uri(uri)
 
+        self.epoch = datetime.datetime.fromtimestamp(0)
         self.SON = SON
         self.ObjectId = ObjectId
         self.random = random
@@ -256,7 +257,8 @@ class MongoDBAdapter(NoSQLAdapter):
             if self.parse_data['aggregate']:
                 # if the query needs the aggregation engine, set that up
                 if self.query_dict:
-                    self.pipeline = [{'$match': adapter.expand(self.query)}]
+                    self.pipeline = [{'$project': 
+                                      {'query': adapter.expand(self.query)}}]
                 self.query_dict = None
             else:
                 # expand the fields
@@ -289,6 +291,12 @@ class MongoDBAdapter(NoSQLAdapter):
                     self.field_dicts['_id'] = None
                     self.pipeline.append({'$group': self.field_dicts})
                     self.field_dicts = adapter.SON()
+
+            elif crud == 'count':
+                if self.parse_data['aggregate']:
+                    self.pipeline.append({'$match': {'query': True}})
+                    self.pipeline.append(
+                        {'$group': {"_id": None, crud : {"$sum": 1}}})
 
         def _expand_fields(self, mid_loop):
             if self.crud == 'update':
@@ -447,7 +455,11 @@ class MongoDBAdapter(NoSQLAdapter):
 
         expanded = MongoDBAdapter.Expanded(self, 'count', query)
         ctable = expanded.get_collection()
-        return ctable.count(filter=expanded.query_dict)
+        if not expanded.parse_data['aggregate']:
+            return ctable.count(filter=expanded.query_dict)
+        else:
+            for record in ctable.aggregate(expanded.pipeline):
+                return record['count']
 
     def select(self, query, fields, attributes, snapshot=False):
         mongofields_dict = self.SON()
@@ -731,26 +743,42 @@ class MongoDBAdapter(NoSQLAdapter):
         if second is None:
             raise RuntimeError("Cannot compare %s with None" % first)
 
+    @needs_mongodb_aggregation
+    def CMP_OPS_AGGREGATE(self, op, first, second):
+        return {op: [self.expand(first), self.expand(second, first.type)]}
+
     def EQ(self, first, second=None):
+        if not isinstance(first, Field):
+            return self.CMP_OPS_AGGREGATE('$eq', first, second)
         return {self.expand(first): self.expand(second, first.type)}
 
     def NE(self, first, second=None):
+        if not isinstance(first, Field):
+            return self.CMP_OPS_AGGREGATE('$ne', first, second)
         return {self.expand(first): {'$ne': self.expand(second, first.type)}}
 
     def LT(self, first, second=None):
         self._validate_second(first, second)
+        if not isinstance(first, Field):
+            return self.CMP_OPS_AGGREGATE('$lt', first, second)
         return {self.expand(first): {'$lt': self.expand(second, first.type)}}
 
     def LE(self, first, second=None):
         self._validate_second(first, second)
+        if not isinstance(first, Field):
+            return self.CMP_OPS_AGGREGATE('$lte', first, second)
         return {self.expand(first): {'$lte': self.expand(second, first.type)}}
 
     def GT(self, first, second=None):
         self._validate_second(first, second)
+        if not isinstance(first, Field):
+            return self.CMP_OPS_AGGREGATE('$gt', first, second)
         return {self.expand(first): {'$gt': self.expand(second, first.type)}}
 
     def GE(self, first, second=None):
         self._validate_second(first, second)
+        if not isinstance(first, Field):
+            return self.CMP_OPS_AGGREGATE('$gte', first, second)
         return {self.expand(first): {'$gte': self.expand(second, first.type)}}
 
     @needs_mongodb_aggregation
@@ -804,6 +832,28 @@ class MongoDBAdapter(NoSQLAdapter):
         if distinct:
             raise NotImplementedError("distinct not implmented for count op")
         return {"$sum": 1}
+
+    _extract_map = {
+        'dayofyear':    '$dayOfYear',
+        'day':          '$dayOfMonth',
+        'dayofweek':    '$dayOfWeek',
+        'year':         '$year',
+        'month':        '$month',
+        'week':         '$week',
+        'hour':         '$hour',
+        'minute':       '$minute',
+        'second':       '$second',
+        'millisecond':  '$millisecond',
+        'string':       '$dateToString',
+    }
+
+    @needs_mongodb_aggregation
+    def EXTRACT(self, first, what):
+        return {self._extract_map[what]: self.expand(first)}
+
+    @needs_mongodb_aggregation
+    def EPOCH(self, first):
+        return {"$divide": [{"$subtract": [self.expand(first), self.epoch]}, 1000]}
 
     def AS(self, first, second):
         raise NotImplementedError("javascript_needed")
