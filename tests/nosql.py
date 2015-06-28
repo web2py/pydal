@@ -617,13 +617,14 @@ class TestDatetime(unittest.TestCase):
                          21, 11, 30)).count(), 1)
         self.assertEqual(db(db.tt.aa >= datetime.datetime(1971, 1, 1)).count(), 2)
 
-        self.assertEqual(db(db.tt.aa.year() == 1971).count(), 2)
-        self.assertEqual(db(db.tt.aa.month() > 11).count(), 2)
-        self.assertEqual(db(db.tt.aa.day() >= 21).count(), 3)
-        self.assertEqual(db(db.tt.aa.hour() == 11).count(), 1)
-        self.assertEqual(db(db.tt.aa.minutes() <= 30).count(), 2)
-        self.assertEqual(db(db.tt.aa.seconds() != 31).count(), 3)
-        self.assertEqual(db(db.tt.aa.epoch() < 365*24*3600).count(), 1)
+        if IS_MONGODB:
+            self.assertEqual(db(db.tt.aa.year() == 1971).count(), 2)
+            self.assertEqual(db(db.tt.aa.month() > 11).count(), 2)
+            self.assertEqual(db(db.tt.aa.day() >= 21).count(), 3)
+            self.assertEqual(db(db.tt.aa.hour() == 11).count(), 1)
+            self.assertEqual(db(db.tt.aa.minutes() <= 30).count(), 2)
+            self.assertEqual(db(db.tt.aa.seconds() != 31).count(), 3)
+            self.assertEqual(db(db.tt.aa.epoch() < 365*24*3600).count(), 1)
         drop(db.tt)
 
         db.define_table('tt', Field('aa', 'time'))
