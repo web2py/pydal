@@ -966,7 +966,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             tbl = self.db[tbl]
         return tbl.sqlsafe_alias
 
-
     def alias(self, table, alias):
         """
         Given a table object, makes a new table object
@@ -1045,8 +1044,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             counter =  None
         return counter
 
-    def get_table(self, query):
-        tablenames = self.tables(query)
+    def get_table(self, *queries):
+        tablenames = self.tables(*queries)
         if len(tablenames)==1:
             return tablenames[0]
         elif len(tablenames)<1:
