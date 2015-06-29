@@ -9,7 +9,7 @@ from .base import BaseAdapter
 class FireBirdAdapter(BaseAdapter):
     drivers = ('kinterbasdb','firebirdsql','fdb','pyodbc')
 
-    commit_on_alter_table = False
+    commit_on_alter_table = True
     support_distributed_transaction = True
     types = {
         'boolean': 'CHAR(1)',
