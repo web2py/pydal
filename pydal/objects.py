@@ -75,7 +75,11 @@ class Row(BasicStorage):
 
         raise KeyError
 
-    __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict(custom_types=[LazySet])
+    __getattr__ = __getitem__
+
+    __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict(
+        custom_types=[LazySet]
+    )
 
     __int__ = lambda self: self.get('id')
 
@@ -102,33 +106,35 @@ class Row(BasicStorage):
         SERIALIZABLE_TYPES = [str, int, float, bool, list, dict]
         if PY2:
             SERIALIZABLE_TYPES += [unicode, long]
-        if isinstance(custom_types,(list,tuple,set)):
+        if isinstance(custom_types, (list, tuple, set)):
             SERIALIZABLE_TYPES += custom_types
         elif custom_types:
             SERIALIZABLE_TYPES.append(custom_types)
         d = dict(self)
         for k in list(d.keys()):
-            v=d[k]
+            v = d[k]
             if d[k] is None:
                 continue
-            elif isinstance(v,Row):
-                d[k]=v.as_dict()
-            elif isinstance(v,Reference):
-                d[k]=long(v)
-            elif isinstance(v,decimal.Decimal):
-                d[k]=float(v)
-            elif isinstance(v, (datetime.date, datetime.datetime, datetime.time)):
+            elif isinstance(v, Row):
+                d[k] = v.as_dict()
+            elif isinstance(v, Reference):
+                d[k] = long(v)
+            elif isinstance(v, decimal.Decimal):
+                d[k] = float(v)
+            elif isinstance(v, (
+                    datetime.date, datetime.datetime, datetime.time)):
                 if datetime_to_str:
-                    d[k] = v.isoformat().replace('T',' ')[:19]
-            elif not isinstance(v,tuple(SERIALIZABLE_TYPES)):
+                    d[k] = v.isoformat().replace('T', ' ')[:19]
+            elif not isinstance(v, tuple(SERIALIZABLE_TYPES)):
                 del d[k]
         return d
 
     def as_xml(self, row_name="row", colnames=None, indent='  '):
-        def f(row,field,indent='  '):
-            if isinstance(row,Row):
-                spc = indent+'  \n'
-                items = [f(row[x],x,indent+'  ') for x in row]
+
+        def f(row, field, indent='  '):
+            if isinstance(row, Row):
+                spc = indent + '  \n'
+                items = [f(row[x], x, indent+'  ') for x in row]
                 return '%s<%s>\n%s\n%s</%s>' % (
                     indent,
                     field,
@@ -137,10 +143,10 @@ class Row(BasicStorage):
                     field)
             elif not callable(row):
                 if REGEX_ALPHANUMERIC.match(field):
-                    return '%s<%s>%s</%s>' % (indent,field,row,field)
+                    return '%s<%s>%s</%s>' % (indent, field, row, field)
                 else:
                     return '%s<extra name="%s">%s</extra>' % \
-                        (indent,field,row)
+                        (indent, field, row)
             else:
                 return None
         return f(self, row_name, indent=indent)
