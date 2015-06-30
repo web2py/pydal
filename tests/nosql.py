@@ -15,7 +15,7 @@ from pydal._compat import PY2, basestring, StringIO, integer_types
 long = integer_types[-1]
 
 from pydal import DAL, Field
-from pydal.objects import Table
+from pydal.objects import Table, Query
 from pydal.helpers.classes import SQLALL
 from ._adapt import DEFAULT_URI, IS_IMAP, drop, IS_GAE, IS_MONGODB
 
@@ -57,15 +57,67 @@ def setUpModule():
             db.define_table(tablename)
             drop(db[tablename])
         for tablename in ['tt', 't0', 't1', 't2', 't3', 't4',
-                          'easy_name', 'tt_archive']:
+                          'easy_name', 'tt_archive', 'pet_farm']:
             clean_table(db, tablename)
         db.close()
+
 
 def tearDownModule():
     if os.path.isfile('sql.log'):
         os.unlink('sql.log')
     for a in glob.glob('*.table'):
         os.unlink(a)
+
+
+@unittest.skipIf(not IS_MONGODB, "Skipping MongoDB Tests")
+class TestMongo(unittest.TestCase):
+    """ Tests specific to MongoDB,  error and side path exercisers, etc
+    """
+
+    def testVersionCheck(self):
+        driver_args={'fake_version': '2.9 Phony'}
+        with self.assertRaises(Exception):
+            db = DAL(DEFAULT_URI, attempts=1, check_reserved=['all'],
+                     driver_args=driver_args)
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa', 'reference'))
+        with self.assertRaises(ValueError):
+            db.tt.insert(aa='x')
+        with self.assertRaises(ValueError):
+            db.tt.insert(aa='_')
+        with self.assertRaises(TypeError):
+            db.tt.insert(aa=3.1)
+        self.assertEqual(isinstance(db.tt.insert(aa='<random>'), long), True)
+        self.assertEqual(isinstance(db.tt.insert(aa='1'), long), True)
+        drop(db.tt)
+
+        db.define_table('tt', Field('aa', 'date'))
+        self.assertEqual(isinstance(db.tt.insert(aa=None), long), True)
+        self.assertEqual(db().select(db.tt.aa)[0].aa, None)
+        drop(db.tt)
+
+        db.define_table('tt', Field('aa', 'time'))
+        self.assertEqual(isinstance(db.tt.insert(aa=None), long), True)
+        self.assertEqual(db().select(db.tt.aa)[0].aa, None)
+        with self.assertRaises(RuntimeError):
+            db(db.tt.aa <= None).count()
+        drop(db.tt)
+        db.close()
+
+        for safe in [False, True, False]:
+            db = DAL(DEFAULT_URI, check_reserved=['all'])
+            db.define_table('tt', Field('aa'))
+            self.assertEqual(isinstance(db.tt.insert(aa='x'), long), True)
+            with self.assertRaises(RuntimeError):
+                db._adapter.delete('tt', 'x', safe=safe)
+            self.assertEqual(db._adapter.delete(
+                'tt', Query(db, db._adapter.EQ, db.tt.aa, 'x'), safe=safe), 1)
+            self.assertEqual(db(db.tt.aa=='x').count(), 0)
+            drop(db.tt)
+            db.close()
+
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
 class TestFields(unittest.TestCase):
@@ -377,7 +429,6 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
         self.assertEqual(db(~((db.tt.aa < '1') | (db.tt.aa > '2'))).count(), 2)
         self.assertEqual(db(~((db.tt.aa >= '1') & (db.tt.aa <= '2'))).count(), 1)
-        self.assertRaises(db(db.tt.aa <= None))
         drop(db.tt)
         db.close()
 
@@ -621,10 +672,10 @@ class TestDatetime(unittest.TestCase):
             self.assertEqual(db(db.tt.aa.year() == 1971).count(), 2)
             self.assertEqual(db(db.tt.aa.month() > 11).count(), 2)
             self.assertEqual(db(db.tt.aa.day() >= 21).count(), 3)
-            self.assertEqual(db(db.tt.aa.hour() == 11).count(), 1)
+            self.assertEqual(db(db.tt.aa.hour() < 10).count(), 1)
             self.assertEqual(db(db.tt.aa.minutes() <= 30).count(), 2)
             self.assertEqual(db(db.tt.aa.seconds() != 31).count(), 3)
-            self.assertEqual(db(db.tt.aa.epoch() < 365*24*3600).count(), 1)
+            self.assertEqual(db(db.tt.aa.epoch() < 365*24*3600).delete(), 1)
         drop(db.tt)
 
         db.define_table('tt', Field('aa', 'time'))
@@ -666,8 +717,8 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(db(db.tt.aa == -2).count(), 0)
             self.assertEqual(db(db.tt.aa == 4).update(aa=db.tt.aa * 2, bb=5), 1)
             self.assertEqual(db(db.tt.bb == 5).count(), 1)
-            self.assertEqual(db(db.tt.aa == 8).count(), 1)
-            self.assertEqual(db(db.tt.aa == 8).update(aa=db.tt.aa - 2,
+            self.assertEqual(db(db.tt.aa + 1 == 9).count(), 1)
+            self.assertEqual(db(db.tt.aa + 1 == 9).update(aa=db.tt.aa - 2,
                                                       cc='cc'), 1)
             self.assertEqual(db(db.tt.cc == 'cc').count(), 1)
             self.assertEqual(db(db.tt.aa == 6).count(), 1)
@@ -681,10 +732,14 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(db(db.tt.cc == 'cc11').count(), 1)
             self.assertEqual(db(db.tt.aa == 3).count(), 1)
 
+            # test comparsion expression based count
+            self.assertEqual(db(db.tt.aa != db.tt.aa).count(), 0)
+            self.assertEqual(db(db.tt.aa == db.tt.aa).count(), 3)
+
             # test select aggregations
             sum = (db.tt.aa + 1).sum()
-            self.assertEqual(db(db.tt.aa >= 2).select(sum).first()[sum], 7)
-            self.assertEqual(db(db.tt.aa == -2).select(sum).first()[sum], None)
+            self.assertEqual(db(db.tt.aa + 1 >= 3).select(sum).first()[sum], 7)
+            self.assertEqual(db(db.tt.aa * 2 == -2).select(sum).first()[sum], None)
 
             count=db.tt.aa.count()
             avg=db.tt.aa.avg()
@@ -697,6 +752,18 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(result[min], 1)
             self.assertEqual(result[max], 3)
 
+            # Test basic expressions evaluated at python level
+            self.assertEqual(db((1==1) & (db.tt.aa >= 2)).count(), 2)
+            self.assertEqual(db((1==1) | (db.tt.aa >= 2)).count(), 3)
+            self.assertEqual(db((1==0) & (db.tt.aa >= 2)).count(), 0)
+            self.assertEqual(db((1==0) | (db.tt.aa >= 2)).count(), 2)
+
+            # test expression based delete
+            self.assertEqual(db(db.tt.aa + 1 >= 4).count(), 1)
+            self.assertEqual(db(db.tt.aa + 1 >= 4).delete(), 1)
+            self.assertEqual(db(db.tt.aa).count(), 2)
+
+            # cleanup
             drop(db.tt)
             db.close()
 
@@ -730,6 +797,7 @@ class TestExpressions(unittest.TestCase):
         sum = db.t0.vv.sum()
         count=db.t0.vv.count()
         op = sum/count
+        # ::TODO::  this calls 'AS' on SQL adapters...
         op1 = (sum/count).with_alias('tot')
         self.assertEqual(db(t0).select(op).first()[op], 2)
         self.assertEqual(db(t0).select(op1).first()[op1], 2)
@@ -1296,13 +1364,13 @@ class TestRNameTable(unittest.TestCase):
 
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
+@unittest.skipIf(IS_GAE, 'TODO: Datastore AGGREGATE Not Supported')
 class TestRNameFields(unittest.TestCase):
     # tests for highly experimental rname attribute
-    @unittest.skipIf(IS_GAE or IS_MONGODB, 'TODO: Datastore/MongoDB AGGREGATE Not Supported')
     def testSelect(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.QUOTE_TEMPLATE % 'a very complicated fieldname'
-        rname2 = db._adapter.QUOTE_TEMPLATE % 'rrating from 1 to 10'
+        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'a very complicated fieldname'
+        rname2 = db._adapter.__class__.QUOTE_TEMPLATE % 'rating from 1 to 10'
         db.define_table(
             'easy_name',
             Field('a_field', rname=rname),
@@ -1328,15 +1396,11 @@ class TestRNameFields(unittest.TestCase):
         self.assertEqual(rtn, 1)
         rtn = db(db.easy_name.a_field != 'c').count()
         self.assertEqual(rtn, 1)
-        avg = db.easy_name.id.avg()
-        rtn = db(db.easy_name.id > 0).select(avg)
-        self.assertEqual(rtn[0][avg], 3)
-
         avg = db.easy_name.rating.avg()
         rtn = db(db.easy_name.id > 0).select(avg)
         self.assertEqual(rtn[0][avg], 2)
 
-        rname = db._adapter.QUOTE_TEMPLATE % 'this is the person name'
+        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'this is the person name'
         db.define_table(
             'person',
             Field('name', default="Michael", rname=rname),
@@ -1346,6 +1410,7 @@ class TestRNameFields(unittest.TestCase):
         john = db.person.insert(name='John')
         luke = db.person.insert(name='Luke')
 
+        rtn = db(db.person.id > 0).select()
         self.assertEqual(len(rtn), 3)
         self.assertEqual(rtn[0].id, michael)
         self.assertEqual(rtn[0].name, 'Michael')
@@ -1356,11 +1421,11 @@ class TestRNameFields(unittest.TestCase):
         rtn = db(db.person.id > 0).select()
         self.assertEqual(rtn[0].id, michael)
         self.assertEqual(rtn[0].name, 'Michael')
-        self.assertEqual(rtn[3].name, 'Luke')
-        self.assertEqual(rtn[3].id, luke)
+        self.assertEqual(rtn[2].name, 'Luke')
+        self.assertEqual(rtn[2].id, luke)
         #as dict
         rtn = db(db.person.id > 0).select().as_dict()
-        self.assertEqual(rtn[1]['name'], 'Michael')
+        self.assertEqual(rtn[michael]['name'], 'Michael')
         #as list
         rtn = db(db.person.id > 0).select().as_list()
         self.assertEqual(rtn[0]['name'], 'Michael')
@@ -1368,48 +1433,10 @@ class TestRNameFields(unittest.TestCase):
         rtn = db(db.person.id > 0).isempty()
         self.assertEqual(rtn, False)
 
-        #aliases
-        rname = db._adapter.QUOTE_TEMPLATE % 'the cub name'
-        db.define_table('pet_farm',
-            Field('name', rname=rname),
-            Field('father','reference pet_farm'),
-            Field('mother','reference pet_farm'),
-        )
-
-        minali = db.pet_farm.insert(name='Minali')
-        osbert = db.pet_farm.insert(name='Osbert')
-
-        #they had a cub
-        selina = db.pet_farm.insert(name='Selina', father=osbert, mother=minali)
-
-        father = db.pet_farm.with_alias('father')
-        mother = db.pet_farm.with_alias('mother')
-
-        #fetch pets with relatives
-        rtn = db().select(
-            db.pet_farm.name, father.name, mother.name,
-            left=[
-                father.on(father.id == db.pet_farm.father),
-                mother.on(mother.id == db.pet_farm.mother)
-            ],
-            orderby=db.pet_farm.id
-        )
-
-        self.assertEqual(len(rtn), 3)
-        self.assertEqual(rtn[0].pet_farm.name, 'Minali')
-        self.assertEqual(rtn[0].father.name, None)
-        self.assertEqual(rtn[0].mother.name, None)
-        self.assertEqual(rtn[1].pet_farm.name, 'Osbert')
-        self.assertEqual(rtn[2].pet_farm.name, 'Selina')
-        self.assertEqual(rtn[2].father.name, 'Osbert')
-        self.assertEqual(rtn[2].mother.name, 'Minali')
-
         #clean up
-        drop(db.pet_farm)
         drop(db.person)
         drop(db.easy_name)
         db.close()
-
 
     @unittest.skipIf(IS_GAE, 'TODO: Datastore does not accept dict objects as json field input.')
     def testRun(self):
@@ -1741,6 +1768,36 @@ class TestBasicOps(unittest.TestCase):
         self.assertEqual(len(db(db.tt).select()), 1)
         self.assertEqual(db(db.tt).count(), 1)
         drop(tt)
+        db.close()
+
+
+@unittest.skipIf(IS_IMAP, "TODO: IMAP test")
+@unittest.skipIf(IS_GAE, 'TODO: Datastore "unsupported operand type"')
+class TestSQLCustomType(unittest.TestCase):
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        from pydal.helpers.classes import SQLCustomType
+        native_double = "double"
+        native_string = "string"
+        if hasattr(db._adapter, 'types'):
+            native_double = db._adapter.types['double']
+            try:
+                native_string = db._adapter.types['string'] % {'length': 256}
+            except:
+                native_string = db._adapter.types['string']
+        basic_t = SQLCustomType(type = "double", native = native_double)
+        basic_t_str = SQLCustomType(type = "string", native = native_string)
+        t0=db.define_table('t0', Field("price", basic_t), Field("product", basic_t_str))
+        r_id = t0.insert(price=None, product=None)
+        row = db(t0.id == r_id).select(t0.ALL).first()
+        self.assertEqual(row['price'], None)
+        self.assertEqual(row['product'], None)
+        r_id = t0.insert(price=1.2, product="car")
+        row=db(t0.id == r_id).select(t0.ALL).first()
+        self.assertEqual(row['price'], 1.2)
+        self.assertEqual(row['product'], 'car')
+        t0.drop()
         db.close()
 
 

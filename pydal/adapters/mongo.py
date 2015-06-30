@@ -68,10 +68,12 @@ class MongoDBAdapter(NoSQLAdapter):
             self.find_driver(adapter_args)
 
             from pymongo import version
+            if 'fake_version' in driver_args:
+                version = driver_args['fake_version']
             if int(version.split('.')[0]) < 3:
                 raise Exception(
                     "pydal requires pymongo version >= 3.0, found '%s'"
-                    % pymongo_version)
+                    % version)
 
         import random
         from bson.objectid import ObjectId
@@ -133,7 +135,7 @@ class MongoDBAdapter(NoSQLAdapter):
             if arg.isdigit() and (not rawhex):
                 arg = int(arg)
             elif arg == "<random>":
-                arg = int("0x%sL" %
+                arg = int("0x%s" %
                     "".join([self.random.choice("0123456789abcdef")
                         for x in range(24)]), 0)
             elif arg.isalnum():
@@ -170,12 +172,9 @@ class MongoDBAdapter(NoSQLAdapter):
                      self).parse_id(value, field_type)
 
     def represent(self, obj, fieldtype):
-        # the base adapter does not support MongoDB ObjectId
-        if isinstance(obj, self.ObjectId):
-            value = obj
-        else:
-            value = NoSQLAdapter.represent(self, obj, fieldtype)
-        # reference types must be convert to ObjectID
+        value = NoSQLAdapter.represent(
+            self, obj, fieldtype, object_id=self.object_id)
+
         if fieldtype == 'date':
             if value is None:
                 return value
@@ -187,21 +186,28 @@ class MongoDBAdapter(NoSQLAdapter):
         elif fieldtype == 'time':
             if value is None:
                 return value
-            # this piece of data can be stripped of based on the fieldtype
+            # this piece of data can be stripped off based on the fieldtype
             d = datetime.date(2000, 1, 1)
             # mongodb doesn't has a  time object and so it must datetime,
             # string or integer
             return datetime.datetime.combine(d, value)
         elif fieldtype == "blob":
             return MongoBlob(value)
+
+        # reference types must be converted to ObjectID
         elif isinstance(fieldtype, basestring):
-            if fieldtype.startswith('list:'):
+            if isinstance(value, self.ObjectId):
+                pass
+            elif fieldtype.startswith('list:'):
                 if fieldtype.startswith('list:reference'):
                     value = [self.object_id(v) for v in value]
             elif fieldtype.startswith("reference") or fieldtype == "id":
                 value = self.object_id(value)
+
         elif isinstance(fieldtype, Table):
+            raise NotImplementedError("How did you reach this line of code???")
             value = self.object_id(value)
+
         return value
 
     def parse_blob(self, value, field_type):
@@ -222,9 +228,7 @@ class MongoDBAdapter(NoSQLAdapter):
         return 1 if val else 0
 
     def create_table(self, table, migrate=True, fake_migrate=False,
-                     polymodel=None, is_capped=False):
-        if is_capped:
-            raise RuntimeError("Not implemented")
+                     polymodel=None):
         table._dbt = None
 
     class Expanded (object):
@@ -234,7 +238,7 @@ class MongoDBAdapter(NoSQLAdapter):
         """
         def __init__ (self, adapter, crud, query, fields=(), tablename=None):
             self.adapter = adapter
-            self.parse_data = {'aggregate': False}
+            self._parse_data = {'pipeline': False}
             self.crud = crud
             if crud == 'update':
                 self.values = [(f[0], self.annotate_expression(f[1]))
@@ -254,53 +258,60 @@ class MongoDBAdapter(NoSQLAdapter):
             self.query_dict = adapter.expand(self.query)
             self.field_dicts = adapter.SON()
 
-            if self.parse_data['aggregate']:
+            if self._parse_data['pipeline']:
                 # if the query needs the aggregation engine, set that up
-                if self.query_dict:
-                    self.pipeline = [{'$project': 
-                                      {'query': adapter.expand(self.query)}}]
+                if crud in ['select', 'update']:
+                    self._add_all_fields_projection(
+                        {'__query__': adapter.expand(self.query)})
+                else:
+                    self.pipeline = [{'$project':
+                        {'__query__': adapter.expand(self.query)}}]
+                self.pipeline.append({'$match': {'__query__': True}})
                 self.query_dict = None
+                # expand the fields for the aggregation engine
+                self._expand_fields(None)
             else:
                 # expand the fields
                 try:
                     self._expand_fields(self._fields_loop_abort)
+
                 except StopIteration:
-                    pass
-            if self.parse_data['aggregate']:
-                # expand the fields for the aggregation engine
-                self._expand_fields(None)
+                    # if the fields needs the aggregation engine, set that up
+                    self.field_dicts = self.adapter.SON()
+                    if self.query_dict:
+                        self.pipeline = [{'$match': self.query_dict}]
+                    self.query_dict = {}
+                    # expand the fields for the aggregation engine
+                    self._expand_fields(None)
 
-            if crud == 'update':
-                if self.parse_data['aggregate']:
-                    for fieldname in adapter.db[self.tablename].fields:
-                        # add all fields to projection to pass them through
-                        if fieldname not in self.field_dicts:
-                            if fieldname not in ("_id", "id"):
-                                self.field_dicts[fieldname] = 1
-                    self.pipeline.append({'$project': self.field_dicts})
-                    self.field_dicts = adapter.SON()
-
-                else:
+            if not self._parse_data['pipeline']:
+                if crud == 'update':
                     # do not update id fields
                     for fieldname in ("_id", "id"):
                         if fieldname in self.field_dicts:
                             self.field_dicts.delete(fieldname)
+            else:
+                if crud == 'update':
+                    self._add_all_fields_projection(self.field_dicts)
+                    self.field_dicts = adapter.SON()
 
-            elif crud == 'select':
-                if self.parse_data['aggregate']:
+                elif crud == 'select':
+                    #::TODO:: need to do group vs project.
+                    # is group a super set of project?  (how do they differ?)
                     self.field_dicts['_id'] = None
                     self.pipeline.append({'$group': self.field_dicts})
                     self.field_dicts = adapter.SON()
 
-            elif crud == 'count':
-                if self.parse_data['aggregate']:
-                    self.pipeline.append({'$match': {'query': True}})
+                elif crud == 'count':
                     self.pipeline.append(
-                        {'$group': {"_id": None, crud : {"$sum": 1}}})
+                        {'$group': {"_id": None, 'count': {"$sum": 1}}})
+
+                #elif crud == 'delete':
+                #    pass
 
         def _expand_fields(self, mid_loop):
             if self.crud == 'update':
-                mid_loop = mid_loop or self._fields_loop_update_aggregate
+                mid_loop = mid_loop or self._fields_loop_update_pipeline
                 for field, value in self.values:
                     self._expand_field(field, value, mid_loop)
             else:
@@ -321,15 +332,11 @@ class MongoDBAdapter(NoSQLAdapter):
 
         def _fields_loop_abort(self, expanded, *args):
             # if we need the aggregation engine, then start over
-            if self.parse_data['aggregate']:
-                self.field_dicts = self.adapter.SON()
-                if self.query_dict:
-                    self.pipeline = [{'$match': self.query_dict}]
-                self.query_dict = {}
+            if self._parse_data['pipeline']:
                 raise StopIteration()
             return expanded
 
-        def _fields_loop_update_aggregate(self, expanded, field, value):
+        def _fields_loop_update_pipeline(self, expanded, field, value):
             if not isinstance(value, Expression):
                 if self.adapter.server_version_major >= 2.6:
                     expanded = {'$literal': expanded}
@@ -349,27 +356,39 @@ class MongoDBAdapter(NoSQLAdapter):
                         + "%s' in MongoDB version < 2.6" % field.type)
             return expanded
 
-        def annotate_expression(self, expression):
-            import types
+        def _add_all_fields_projection(self, fields):
+            for fieldname in self.adapter.db[self.tablename].fields:
+                # add all fields to projection to pass them through
+                if fieldname not in fields and fieldname not in ("_id", "id"):
+                    fields[fieldname] = 1
+            self.pipeline.append({'$project': fields})
 
-            def get_child(self, element):
-                child = getattr(self, element)
+        def annotate_expression(self, expression):
+            def mark_has_field(expression):
+                if not isinstance(expression, (Expression, Query)):
+                    return False
+                first_has_field = mark_has_field(expression.first)
+                second_has_field = mark_has_field(expression.second)
+                expression.has_field = (isinstance(expression, Field)
+                    or first_has_field or second_has_field)
+                return expression.has_field
+
+            def add_parse_data(child, parent):
                 if isinstance(child, (Expression, Query)):
-                    child.parse_root = self.parse_root
-                    child.parse_parent = self
-                    child.parse_depth = self.parse_depth + 1
-                    child.parse_data = self.parse_data
-                    child.get_child = types.MethodType(get_child, child)
-                return child
+                    child.parse_root = parent.parse_root
+                    child.parse_parent = parent
+                    child.parse_depth = parent.parse_depth + 1
+                    child._parse_data = parent._parse_data
+                    add_parse_data(child.first, child)
+                    add_parse_data(child.second, child)
 
             if isinstance(expression, (Expression, Query)):
                 expression.parse_root = expression
-                expression.parse_parent = self
-                expression.parse_depth = 0
-                expression.parse_data = self.parse_data
-                expression.parse_data['test'] = 1
-                expression.get_child = types.MethodType(get_child, expression)
+                expression.parse_depth = -1
+                expression._parse_data = self._parse_data
+                add_parse_data(expression, expression)
 
+            mark_has_field(expression)
             return expression
 
         def get_collection(self, safe=None):
@@ -379,13 +398,20 @@ class MongoDBAdapter(NoSQLAdapter):
     def parse_data(expression, attribute, value=None):
         if value is not None:
             try:
-                expression.parse_data[attribute] = value
+                expression._parse_data[attribute] = value
             except AttributeError:
                 return None
         try:
-            return expression.parse_data[attribute]
-        except AttributeError:
+            return expression._parse_data[attribute]
+        except (AttributeError, TypeError):
             return None
+
+    @staticmethod
+    def has_field(expression):
+        try:
+            return expression.has_field
+        except AttributeError:
+            return False
 
     def expand(self, expression, field_type=None):
 
@@ -394,13 +420,14 @@ class MongoDBAdapter(NoSQLAdapter):
                 result = "_id"
             else:
                 result = expression.name
-            if self.parse_data(expression, 'aggregate'):
+            if self.parse_data(expression, 'pipeline'):
+                # field names as part of expressions need to start with '$' 
                 result = '$' + result
 
         elif isinstance(expression, (Expression, Query)):
             try:
-                first = expression.get_child('first')
-                second = expression.get_child('second')
+                first = expression.first
+                second = expression.second
             except AttributeError:
                 return self.expand(MongoDBAdapter.Expanded(
                     self, '', expression), field_type).query
@@ -455,11 +482,12 @@ class MongoDBAdapter(NoSQLAdapter):
 
         expanded = MongoDBAdapter.Expanded(self, 'count', query)
         ctable = expanded.get_collection()
-        if not expanded.parse_data['aggregate']:
+        if not expanded.pipeline:
             return ctable.count(filter=expanded.query_dict)
         else:
             for record in ctable.aggregate(expanded.pipeline):
                 return record['count']
+            return 0
 
     def select(self, query, fields, attributes, snapshot=False):
         mongofields_dict = self.SON()
@@ -514,7 +542,7 @@ class MongoDBAdapter(NoSQLAdapter):
         ctable = self.connection[tablename]
         modifiers = {'snapshot':snapshot}
 
-        if not expanded.parse_data['aggregate']:
+        if not expanded.pipeline:
             mongo_list_dicts = ctable.find(
                 expanded.query_dict, expanded.field_dicts, skip=limitby_skip,
                 limit=limitby_limit, sort=mongosort_list, modifiers=modifiers)
@@ -562,6 +590,7 @@ class MongoDBAdapter(NoSQLAdapter):
         For safety, we use by default synchronous requests"""
 
         values = {}
+        safe = self._get_safe(safe)
         ctable = self._get_collection(table._tablename, safe)
 
         for k, v in fields:
@@ -596,7 +625,7 @@ class MongoDBAdapter(NoSQLAdapter):
 
         expanded = MongoDBAdapter.Expanded(self, 'update', query, fields)
         ctable = expanded.get_collection(safe)
-        if expanded.parse_data['aggregate']:
+        if expanded.pipeline:
             try:
                 for doc in ctable.aggregate(expanded.pipeline):
                     result = ctable.replace_one({'_id': doc['_id']}, doc)
@@ -623,11 +652,13 @@ class MongoDBAdapter(NoSQLAdapter):
         if not isinstance(query, Query):
             raise RuntimeError("query type %s is not supported" % type(query))
 
+        safe = self._get_safe(safe)
         expanded = MongoDBAdapter.Expanded(self, 'delete', query)
         ctable = expanded.get_collection(safe)
-        _filter = expanded.query_dict
-
-        deleted = [x['_id'] for x in ctable.find(_filter)]
+        if expanded.pipeline:
+            deleted = [x['_id'] for x in ctable.aggregate(expanded.pipeline)]
+        else:
+            deleted = [x['_id'] for x in ctable.find(expanded.query_dict)]
 
         # find references to deleted items
         db = self.db
@@ -650,7 +681,7 @@ class MongoDBAdapter(NoSQLAdapter):
                     set_null_list.append(field)
 
         # perform delete
-        result = ctable.delete_many(_filter)
+        result = ctable.delete_many({"_id": { "$in": deleted }})
         if result.acknowledged:
             amount = result.deleted_count
         else:
@@ -687,14 +718,14 @@ class MongoDBAdapter(NoSQLAdapter):
         return [self.insert(table, item) for item in items]
 
     ## OPERATORS
-    def needs_mongodb_aggregation(f):
-        def mark_aggregate(*args, **kwargs):
+    def needs_mongodb_aggregation_pipeline(f):
+        def mark_pipeline(*args, **kwargs):
             if len(args) > 1:
-                args[0].parse_data(args[1], 'aggregate', True)
+                args[0].parse_data(args[1], 'pipeline', True)
             if len(args) > 2:
-                args[0].parse_data(args[2], 'aggregate', True)
+                args[0].parse_data(args[2], 'pipeline', True)
             return f(*args, **kwargs)
-        return mark_aggregate
+        return mark_pipeline
 
     def INVERT(self, first):
         #print "in invert first=%s" % first
@@ -724,10 +755,18 @@ class MongoDBAdapter(NoSQLAdapter):
 
     def AND(self, first, second):
         # pymongo expects: .find({'$and': [{'x':'1'}, {'y':'2'}]})
+        if isinstance(second, bool):
+            if second:
+                return self.expand(first)
+            return self.NE(first, first)
         return {'$and': [self.expand(first), self.expand(second)]}
 
     def OR(self, first, second):
         # pymongo expects: .find({'$or': [{'name':'1'}, {'name':'2'}]})
+        if isinstance(second, bool):
+            if not second:
+                return self.expand(first)
+            return True
         return {'$or': [self.expand(first), self.expand(second)]}
 
     def BELONGS(self, first, second):
@@ -737,51 +776,77 @@ class MongoDBAdapter(NoSQLAdapter):
             # work if _select did not return SQL.
             raise RuntimeError("nested queries not supported")
         items = [self.expand(item, first.type) for item in second]
-        return {self.expand(first) : {"$in" : items} }
+        return {self.expand(first): {"$in": items}}
 
-    def _validate_second(self, first, second):
-        if second is None:
-            raise RuntimeError("Cannot compare %s with None" % first)
+    def validate_second(f):
+        def check_second(*args, **kwargs):
+            if len(args) < 3 or args[2] is None:
+                raise RuntimeError("Cannot compare %s with None" % args[1])
+            return f(*args, **kwargs)
+        return check_second
 
-    @needs_mongodb_aggregation
-    def CMP_OPS_AGGREGATE(self, op, first, second):
-        return {op: [self.expand(first), self.expand(second, first.type)]}
+    def check_fields_for_cmp(f):
+        def check_fields(self, first, second=None, *args, **kwargs):
+            if (self.parse_data(first, 'pipeline')
+                    or self.parse_data(second, 'pipeline')):
+                pipeline = True
+            elif not isinstance(first, Field) or self.has_field(second):
+                pipeline = True
+                self.parse_data(first, 'pipeline', True)
+                self.parse_data(second, 'pipeline', True)
+            else:
+                pipeline = False
+            return f(self, first, second, *args, pipeline=pipeline, **kwargs)
+        return check_fields
 
-    def EQ(self, first, second=None):
-        if not isinstance(first, Field):
-            return self.CMP_OPS_AGGREGATE('$eq', first, second)
+    def CMP_OPS_AGGREGATION_PIPELINE(self, op, first, second):
+        try:
+            type = first.type
+        except:
+            type = None
+        return {op: [self.expand(first), self.expand(second, type)]}
+
+    @check_fields_for_cmp
+    def EQ(self, first, second=None, pipeline=False):
+        if pipeline:
+            return self.CMP_OPS_AGGREGATION_PIPELINE('$eq', first, second)
         return {self.expand(first): self.expand(second, first.type)}
 
-    def NE(self, first, second=None):
-        if not isinstance(first, Field):
-            return self.CMP_OPS_AGGREGATE('$ne', first, second)
+    @check_fields_for_cmp
+    def NE(self, first, second=None, pipeline=False):
+        if pipeline:
+            return self.CMP_OPS_AGGREGATION_PIPELINE('$ne', first, second)
         return {self.expand(first): {'$ne': self.expand(second, first.type)}}
 
-    def LT(self, first, second=None):
-        self._validate_second(first, second)
-        if not isinstance(first, Field):
-            return self.CMP_OPS_AGGREGATE('$lt', first, second)
+    @validate_second
+    @check_fields_for_cmp
+    def LT(self, first, second=None, pipeline=False):
+        if pipeline:
+            return self.CMP_OPS_AGGREGATION_PIPELINE('$lt', first, second)
         return {self.expand(first): {'$lt': self.expand(second, first.type)}}
 
-    def LE(self, first, second=None):
-        self._validate_second(first, second)
-        if not isinstance(first, Field):
-            return self.CMP_OPS_AGGREGATE('$lte', first, second)
+    @validate_second
+    @check_fields_for_cmp
+    def LE(self, first, second=None, pipeline=False):
+        if pipeline:
+            return self.CMP_OPS_AGGREGATION_PIPELINE('$lte', first, second)
         return {self.expand(first): {'$lte': self.expand(second, first.type)}}
 
-    def GT(self, first, second=None):
-        self._validate_second(first, second)
-        if not isinstance(first, Field):
-            return self.CMP_OPS_AGGREGATE('$gt', first, second)
+    @validate_second
+    @check_fields_for_cmp
+    def GT(self, first, second=None, pipeline=False):
+        if pipeline:
+            return self.CMP_OPS_AGGREGATION_PIPELINE('$gt', first, second)
         return {self.expand(first): {'$gt': self.expand(second, first.type)}}
 
-    def GE(self, first, second=None):
-        self._validate_second(first, second)
-        if not isinstance(first, Field):
-            return self.CMP_OPS_AGGREGATE('$gte', first, second)
+    @validate_second
+    @check_fields_for_cmp
+    def GE(self, first, second=None, pipeline=False):
+        if pipeline:
+            return self.CMP_OPS_AGGREGATION_PIPELINE('$gte', first, second)
         return {self.expand(first): {'$gte': self.expand(second, first.type)}}
 
-    @needs_mongodb_aggregation
+    @needs_mongodb_aggregation_pipeline
     def ADD(self, first, second):
         op_code = '$add'
         for field in [first, second]:
@@ -793,22 +858,22 @@ class MongoDBAdapter(NoSQLAdapter):
                 pass
         return {op_code: [self.expand(first), self.expand(second, first.type)]}
 
-    @needs_mongodb_aggregation
+    @needs_mongodb_aggregation_pipeline
     def SUB(self, first, second):
         return {'$subtract': [
             self.expand(first), self.expand(second, first.type)]}
 
-    @needs_mongodb_aggregation
+    @needs_mongodb_aggregation_pipeline
     def MUL(self, first, second):
         return {'$multiply': [
             self.expand(first), self.expand(second, first.type)]}
 
-    @needs_mongodb_aggregation
+    @needs_mongodb_aggregation_pipeline
     def DIV(self, first, second):
         return {'$divide': [
             self.expand(first), self.expand(second, first.type)]}
 
-    @needs_mongodb_aggregation
+    @needs_mongodb_aggregation_pipeline
     def MOD(self, first, second):
         return {'$mod': [
             self.expand(first), self.expand(second, first.type)]}
@@ -820,14 +885,14 @@ class MongoDBAdapter(NoSQLAdapter):
         'AVG': '$avg',
     }
 
-    @needs_mongodb_aggregation
+    @needs_mongodb_aggregation_pipeline
     def AGGREGATE(self, first, what):
         try:
             return {self._aggregate_map[what]: self.expand(first)}
         except:
             raise NotImplementedError("'%s' not implemented" % what)
 
-    @needs_mongodb_aggregation
+    @needs_mongodb_aggregation_pipeline
     def COUNT(self, first, distinct=None):
         if distinct:
             raise NotImplementedError("distinct not implmented for count op")
@@ -847,11 +912,11 @@ class MongoDBAdapter(NoSQLAdapter):
         'string':       '$dateToString',
     }
 
-    @needs_mongodb_aggregation
+    @needs_mongodb_aggregation_pipeline
     def EXTRACT(self, first, what):
         return {self._extract_map[what]: self.expand(first)}
 
-    @needs_mongodb_aggregation
+    @needs_mongodb_aggregation_pipeline
     def EPOCH(self, first):
         return {"$divide": [{"$subtract": [self.expand(first), self.epoch]}, 1000]}
 
