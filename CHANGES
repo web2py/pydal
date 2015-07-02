@@ -6,8 +6,17 @@ Next
 
 (Release date to be announced)
 
+- Added `smart_query` support for 'contains' on fields of type 'list:string'
+- Implemented correct escaping for 'LIKE'
+  (see https://github.com/web2py/pydal/issues/212)
+- Added support for `ondelete` with fields of type 'list:reference' on
+  `MongoDBAdapter`
+- Improved `BasicStorage` performance
+- Added arithmetic expressions support on `MongoDBAdapter`
+- Added aggregations support on `MongoDBAdapter`
 - `Table.validate_and_insert` and `Table.validate_and_update` methods now
   validates also empty fields
+- Several bugfixes
 
 
 Version 15.05.29
