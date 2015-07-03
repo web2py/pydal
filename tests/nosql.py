@@ -91,6 +91,7 @@ class TestMongo(unittest.TestCase):
             db.tt.insert(aa=3.1)
         self.assertEqual(isinstance(db.tt.insert(aa='<random>'), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='1'), long), True)
+        self.assertEqual(isinstance(db.tt.insert(aa='0x1'), long), True)
         drop(db.tt)
 
         db.define_table('tt', Field('aa', 'date'))
@@ -103,7 +104,17 @@ class TestMongo(unittest.TestCase):
         self.assertEqual(db().select(db.tt.aa)[0].aa, None)
         with self.assertRaises(RuntimeError):
             db(db.tt.aa <= None).count()
+        with self.assertRaises(NotImplementedError):
+            db._adapter.select(Query(db, db._adapter.AGGREGATE, db.tt.aa,
+                                     'UNKNOWN'), [db.tt.aa], {})
         drop(db.tt)
+
+        db.define_table('tt', Field('aa', 'integer'))
+        case=(db.tt.aa == 0).case(db.tt.aa + 2)
+        with self.assertRaises(SyntaxError):
+            db(case).count()
+        drop(db.tt)
+
         db.close()
 
         for safe in [False, True, False]:
@@ -767,6 +778,40 @@ class TestExpressions(unittest.TestCase):
             drop(db.tt)
             db.close()
 
+    def testUpdate(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+
+        # some db's only support milliseconds
+        datetime_datetime_today = datetime.datetime.today()
+        datetime_datetime_today = datetime_datetime_today.replace(
+            microsecond = datetime_datetime_today.microsecond -
+                          datetime_datetime_today.microsecond % 1000)
+
+        update_vals = (
+            ('float',     1.0),
+            ('string',   'x'),
+            ('text',     'x'),
+            ('password', 'x'),
+            ('integer',   1),
+            ('bigint',    1),
+            ('float',     1.0),
+            ('double',    1.0),
+            ('boolean',   True),
+            ('date', datetime.date.today()),
+            ('datetime', datetime.datetime(1971, 12, 21, 10, 30, 55, 0)),
+            ('time', datetime_datetime_today.time())
+            )
+
+        for uv in update_vals:
+            db.define_table('tt', Field('aa', 'integer', default=0), 
+                            Field('bb', uv[0]))
+            self.assertTrue(isinstance(db.tt.insert(bb=uv[1]), long))
+            self.assertEqual(db(db.tt.aa + 1 == 1).select(db.tt.bb)[0].bb, uv[1])
+            self.assertEqual(db(db.tt.aa + 1 == 1).update(bb=uv[1]), 1)
+            self.assertEqual(db(db.tt.aa / 3 == 0).select(db.tt.bb)[0].bb, uv[1])
+            drop(db.tt)
+        db.close()
+
     @unittest.skipIf(True, "LENGTH is not supported")
     def testSubstring(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
@@ -787,7 +832,6 @@ class TestExpressions(unittest.TestCase):
         t0.drop()
         db.close()
 
-    @unittest.skipIf(True, "OPS of aggregations are not supported")
     def testOps(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         t0 = db.define_table('t0', Field('vv', 'integer'))
@@ -795,19 +839,21 @@ class TestExpressions(unittest.TestCase):
         self.assertTrue(isinstance(db.t0.insert(vv=2), long))
         self.assertTrue(isinstance(db.t0.insert(vv=3), long))
         sum = db.t0.vv.sum()
-        count=db.t0.vv.count()
+        count = db.t0.vv.count()
+        avg=db.t0.vv.avg()
         op = sum/count
-        # ::TODO::  this calls 'AS' on SQL adapters...
         op1 = (sum/count).with_alias('tot')
         self.assertEqual(db(t0).select(op).first()[op], 2)
-        self.assertEqual(db(t0).select(op1).first()[op1], 2)
+        #self.assertEqual(db(t0).select(op1).first()[op1], 2)
+        #self.assertEqual(db(t0).select(op1).first()['tot'], 2)
         op2 = avg*count
         self.assertEqual(db(t0).select(op2).first()[op2], 6)
         # the following is not possible at least on sqlite
         sum = db.t0.vv.sum().with_alias('s')
-        count=db.t0.vv.count().with_alias('c')
+        count = db.t0.vv.count().with_alias('c')
         op = sum/count
-        #self.assertEqual(db(t0).select(op).first()[op], 2)
+        with self.assertRaises(NotImplementedError):
+            self.assertEqual(db(t0).select(op).first()[op], 2)
         t0.drop()
         db.close()
 

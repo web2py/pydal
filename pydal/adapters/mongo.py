@@ -47,6 +47,8 @@ class MongoDBAdapter(NoSQLAdapter):
         'list:reference': list,
     }
 
+    GROUP_MARK = "__#GROUP#__"
+
     def __init__(self, db, uri='mongodb://127.0.0.1:5984/db',
                  pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
@@ -188,7 +190,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 return None
             # this piece of data can be stripped off based on the fieldtype
             t = datetime.time(0, 0, 0)
-            # mongodb doesn't has a date object and so it must datetime,
+            # mongodb doesn't have a date object and so it must datetime,
             # string or integer
             return datetime.datetime.combine(obj, t)
         elif fieldtype == 'time':
@@ -196,7 +198,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 return None
             # this piece of data can be stripped off based on the fieldtype
             d = datetime.date(2000, 1, 1)
-            # mongodb doesn't has a  time object and so it must datetime,
+            # mongodb doesn't have a time object and so it must datetime,
             # string or integer
             return datetime.datetime.combine(d, obj)
         elif fieldtype == "blob":
@@ -271,16 +273,18 @@ class MongoDBAdapter(NoSQLAdapter):
             self.field_dicts = adapter.SON()
 
             if self._parse_data['pipeline']:
-                # if the query needs the aggregation engine, set that up
-                if crud in ['select', 'update']:
-                    self._add_all_fields_projection(
-                        {'__query__': adapter.expand(self.query)})
-                else:
-                    self.pipeline = [{'$project':
-                        {'__query__': adapter.expand(self.query)}}]
-                self.pipeline.append({'$match': {'__query__': True}})
-                self.query_dict = None
+                if self.query_dict is not None:
+                    # if the query needs the aggregation engine, set that up
+                    if crud in ['select', 'update']:
+                        self._add_all_fields_projection(
+                            {'__query__': adapter.expand(self.query)})
+                    else:
+                        self.pipeline = [{'$project':
+                            {'__query__': adapter.expand(self.query)}}]
+                    self.pipeline.append({'$match': {'__query__': True}})
+                    self.query_dict = None
                 # expand the fields for the aggregation engine
+                self.field_groups = self.adapter.SON()
                 self._expand_fields(None)
             else:
                 # expand the fields
@@ -294,6 +298,7 @@ class MongoDBAdapter(NoSQLAdapter):
                         self.pipeline = [{'$match': self.query_dict}]
                     self.query_dict = {}
                     # expand the fields for the aggregation engine
+                    self.field_groups = self.adapter.SON()
                     self._expand_fields(None)
 
             if not self._parse_data['pipeline']:
@@ -308,10 +313,10 @@ class MongoDBAdapter(NoSQLAdapter):
                     self.field_dicts = adapter.SON()
 
                 elif crud == 'select':
-                    #::TODO:: need to do group vs project.
-                    # is group a super set of project?  (how do they differ?)
-                    self.field_dicts['_id'] = None
-                    self.pipeline.append({'$group': self.field_dicts})
+                    if self.field_groups:
+                        self.field_groups['_id'] = None
+                        self.pipeline.append({'$group': self.field_groups})
+                    self.pipeline.append({'$project': self.field_dicts})
                     self.field_dicts = adapter.SON()
 
                 elif crud == 'count':
@@ -326,9 +331,12 @@ class MongoDBAdapter(NoSQLAdapter):
                 mid_loop = mid_loop or self._fields_loop_update_pipeline
                 for field, value in self.values:
                     self._expand_field(field, value, mid_loop)
-            else:
+            elif self.crud == 'select':
+                mid_loop = mid_loop or self._fields_loop_select_pipeline
                 for field in self.fields:
                     self._expand_field(field, field, mid_loop)
+            elif self.fields:
+                raise RuntimeError(self.crud + " not supported with fields")
 
         def _expand_field(self, field, value, mid_loop):
             expanded = {}
@@ -366,6 +374,35 @@ class MongoDBAdapter(NoSQLAdapter):
                     raise RuntimeError("updating with expressions not "
                         + "supported for field type '"
                         + "%s' in MongoDB version < 2.6" % field.type)
+            return expanded
+
+        def _fields_loop_select_pipeline(self, expanded, field, value):
+
+            # search for anything needing $group
+            def parse_groups(items, parent, parent_key):
+                for item in items:
+                    if isinstance(items[item], list):
+                        for list_item in items[item]:
+                            if isinstance(list_item, dict):
+                                parse_groups(
+                                    list_item, items[item], items[item].index(list_item))
+
+                    elif isinstance(items[item], dict):
+                        parse_groups(items[item], items, item)
+
+                    if item == MongoDBAdapter.GROUP_MARK:
+                        name = str(items[item])
+                        self.field_groups[name] = items[item]
+                        if parent:
+                            parent[parent_key] = '$' + name
+                return items
+
+            if MongoDBAdapter.GROUP_MARK in expanded:
+                self.field_groups[field.name] = expanded[MongoDBAdapter.GROUP_MARK]
+                expanded = 1
+            elif MongoDBAdapter.GROUP_MARK in field.name:
+                expanded = parse_groups(expanded, None, None)
+
             return expanded
 
         def _add_all_fields_projection(self, fields):
@@ -490,7 +527,7 @@ class MongoDBAdapter(NoSQLAdapter):
         if distinct:
             raise RuntimeError("COUNT DISTINCT not supported")
         if not isinstance(query, Query):
-            raise SyntaxError("Not Supported")
+            raise SyntaxError("Type '%s' not supported in count" % type(query))
 
         expanded = MongoDBAdapter.Expanded(self, 'count', query)
         ctable = expanded.get_collection()
@@ -900,15 +937,16 @@ class MongoDBAdapter(NoSQLAdapter):
     @needs_mongodb_aggregation_pipeline
     def AGGREGATE(self, first, what):
         try:
-            return {self._aggregate_map[what]: self.expand(first)}
-        except:
+            return {MongoDBAdapter.GROUP_MARK: 
+                    {self._aggregate_map[what]: self.expand(first)}}
+        except KeyError:
             raise NotImplementedError("'%s' not implemented" % what)
 
     @needs_mongodb_aggregation_pipeline
     def COUNT(self, first, distinct=None):
         if distinct:
-            raise NotImplementedError("distinct not implmented for count op")
-        return {"$sum": 1}
+            raise NotImplementedError("distinct not implemented for count op")
+        return {MongoDBAdapter.GROUP_MARK: {"$sum": 1}}
 
     _extract_map = {
         'dayofyear':    '$dayOfYear',
@@ -926,7 +964,10 @@ class MongoDBAdapter(NoSQLAdapter):
 
     @needs_mongodb_aggregation_pipeline
     def EXTRACT(self, first, what):
-        return {self._extract_map[what]: self.expand(first)}
+        try:
+            return {self._extract_map[what]: self.expand(first)}
+        except KeyError:
+            raise NotImplementedError("EXTRACT(%s) not implemented" % what)
 
     @needs_mongodb_aggregation_pipeline
     def EPOCH(self, first):
