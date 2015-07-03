@@ -1880,7 +1880,7 @@ class NoSQLAdapter(BaseAdapter):
         '''
         return None
 
-    def represent(self, obj, fieldtype, object_id=long):
+    def represent(self, obj, fieldtype):
         field_is_type = fieldtype.startswith
         if isinstance(obj, CALLABLETYPES):
             obj = obj()
@@ -1900,16 +1900,14 @@ class NoSQLAdapter(BaseAdapter):
         if not obj is None:
             if isinstance(obj, list) and not is_list:
                 obj = [self.represent(o, fieldtype) for o in obj]
-            elif fieldtype in ('integer','bigint'):
+            elif fieldtype in ('integer','bigint','id'):
                 obj = long(obj)
-            elif fieldtype == 'id':
-                obj = object_id(obj)
             elif fieldtype == 'double':
                 obj = float(obj)
             elif is_string and field_is_type('reference'):
                 if isinstance(obj, (Row, Reference)):
                     obj = obj['id']
-                obj = object_id(obj)
+                obj = long(obj)
             elif fieldtype == 'boolean':
                 if obj and not str(obj)[0].upper() in '0F':
                     obj = True

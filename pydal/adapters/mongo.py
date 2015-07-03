@@ -4,7 +4,7 @@ import re
 
 from .._globals import IDENTITY
 from .._compat import integer_types, basestring
-from ..objects import Table, Query, Field, Expression
+from ..objects import Table, Query, Field, Expression, Row
 from ..helpers.classes import SQLALL, Reference
 from ..helpers.methods import use_common_filters, xorify
 from .base import NoSQLAdapter
@@ -153,6 +153,11 @@ class MongoDBAdapter(NoSQLAdapter):
             return arg
 
         if not isinstance(arg, (int, long)):
+            try:
+                if isinstance(arg, Row):
+                    return self.object_id(long(arg))
+            except:
+                pass
             raise TypeError("object_id argument must be of type " +
                             "ObjectId or an objectid representable integer")
         hexvalue = hex(arg)[2:].rstrip('L').zfill(24)
@@ -172,41 +177,48 @@ class MongoDBAdapter(NoSQLAdapter):
                      self).parse_id(value, field_type)
 
     def represent(self, obj, fieldtype):
-        value = NoSQLAdapter.represent(
-            self, obj, fieldtype, object_id=self.object_id)
-
-        if fieldtype == 'date':
-            if value is None:
-                return value
+        if isinstance(obj, self.ObjectId):
+            value = obj
+        elif fieldtype == 'id':
+            value = self.object_id(obj)
+        elif fieldtype in ['double', 'float']:
+            value = float(obj)
+        elif fieldtype == 'date':
+            if obj is None:
+                return None
             # this piece of data can be stripped off based on the fieldtype
             t = datetime.time(0, 0, 0)
             # mongodb doesn't has a date object and so it must datetime,
             # string or integer
-            return datetime.datetime.combine(value, t)
+            return datetime.datetime.combine(obj, t)
         elif fieldtype == 'time':
-            if value is None:
-                return value
+            if obj is None:
+                return None
             # this piece of data can be stripped off based on the fieldtype
             d = datetime.date(2000, 1, 1)
             # mongodb doesn't has a  time object and so it must datetime,
             # string or integer
-            return datetime.datetime.combine(d, value)
+            return datetime.datetime.combine(d, obj)
         elif fieldtype == "blob":
-            return MongoBlob(value)
+            if isinstance(obj, basestring) and obj == '':
+                obj = None
+            return MongoBlob(obj)
 
         # reference types must be converted to ObjectID
         elif isinstance(fieldtype, basestring):
-            if isinstance(value, self.ObjectId):
-                pass
-            elif fieldtype.startswith('list:'):
-                if fieldtype.startswith('list:reference'):
-                    value = [self.object_id(v) for v in value]
+            if fieldtype.startswith('list:reference'):
+                value = [self.object_id(v) for v in obj]
             elif fieldtype.startswith("reference") or fieldtype == "id":
-                value = self.object_id(value)
+                value = self.object_id(obj)
+            else:
+                value = NoSQLAdapter.represent(self, obj, fieldtype)
 
         elif isinstance(fieldtype, Table):
             raise NotImplementedError("How did you reach this line of code???")
-            value = self.object_id(value)
+            value = self.object_id(obj)
+
+        else:
+            value = NoSQLAdapter.represent(self, obj, fieldtype)
 
         return value
 
