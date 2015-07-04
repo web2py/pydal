@@ -48,6 +48,7 @@ class MongoDBAdapter(NoSQLAdapter):
     }
 
     GROUP_MARK = "__#GROUP#__"
+    AS_MARK = "__#AS#__"
 
     def __init__(self, db, uri='mongodb://127.0.0.1:5984/db',
                  pool_size=0, folder=None, db_codec='UTF-8',
@@ -227,6 +228,11 @@ class MongoDBAdapter(NoSQLAdapter):
     def parse_blob(self, value, field_type):
         return MongoBlob.decode(value)
 
+    REGEX_SELECT_AS_PARSER = re.compile("\\'" + AS_MARK + "\\': \\'(\\S+)\\'")
+
+    def _regex_select_as_parser(self, colname):
+        return self.REGEX_SELECT_AS_PARSER.search(colname)
+
     def _get_collection(self, tablename, safe=None):
         ctable = self.connection[tablename]
 
@@ -396,6 +402,15 @@ class MongoDBAdapter(NoSQLAdapter):
                         if parent:
                             parent[parent_key] = '$' + name
                 return items
+
+            if MongoDBAdapter.AS_MARK in field.name:
+                if isinstance(expanded, list):
+                    expanded = expanded[1]
+                elif MongoDBAdapter.AS_MARK in expanded:
+                    del expanded[MongoDBAdapter.AS_MARK]
+                else:
+                    # ::TODO:: should be possible to do this...
+                    raise SyntaxError("AS() not at top of parse tree")
 
             if MongoDBAdapter.GROUP_MARK in expanded:
                 self.field_groups[field.name] = expanded[MongoDBAdapter.GROUP_MARK]
@@ -988,8 +1003,14 @@ class MongoDBAdapter(NoSQLAdapter):
                           self.expand(true_false[0]), 
                           self.expand(true_false[1])]}
 
+    @needs_mongodb_aggregation_pipeline
     def AS(self, first, second):
-        raise NotImplementedError("javascript_needed")
+        if isinstance(first, Field):
+            return [{MongoDBAdapter.AS_MARK: second}, self.expand(first)]
+        else:
+            result = self.expand(first)
+            result[MongoDBAdapter.AS_MARK] = second
+        return result
 
     # We could implement an option that simulates a full featured SQL
     # database. But I think the option should be set explicit or

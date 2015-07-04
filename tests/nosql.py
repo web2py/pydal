@@ -243,6 +243,12 @@ class TestFields(unittest.TestCase):
             self.assertTrue(isinstance(db.tt.insert(aa=iv[1]), long))
             self.assertEqual(db().select(db.tt.aa)[0].aa, default_return)
             self.assertEqual(db().select(db.tt.aa)[1].aa, iv[1])
+
+            if not IS_GAE:
+                ## field aliases
+                row = db().select(db.tt.aa.with_alias('zz'))[1]
+                self.assertEqual(row['zz'], iv[1])
+
             drop(db.tt)
 
         ## Row APIs
@@ -771,19 +777,23 @@ class TestExpressions(unittest.TestCase):
 
             # test abs()
             self.assertEqual(db(db.tt.aa == 2).update(aa=db.tt.aa*-10), 1)
-            abs=db.tt.aa.abs()
+            abs=db.tt.aa.abs().with_alias('abs')
             result = db(db.tt.aa == -20).select(abs).first()
             self.assertEqual(result[abs], 20)
+            self.assertEqual(result['abs'], 20)
             abs=db.tt.aa.abs()/10+5
             exp=abs.min()*2+1
             result = db(db.tt.aa == -20).select(exp).first()
             self.assertEqual(result[exp], 15)
 
             # test case()
-            case=(db.tt.aa > 2).case(db.tt.aa + 2, db.tt.aa - 2)
+            case=(db.tt.aa > 2).case(db.tt.aa + 2, db.tt.aa - 2).with_alias('case')
             result = db().select(case)
             self.assertEqual(len(result), 3)
             self.assertEqual(result[0][case], -1)
+            self.assertEqual(result[0]['case'], -1)
+            self.assertEqual(result[1]['case'], -22)
+            self.assertEqual(result[2]['case'], 5)
 
             # test expression based delete
             self.assertEqual(db(db.tt.aa + 1 >= 4).count(), 1)
@@ -860,15 +870,15 @@ class TestExpressions(unittest.TestCase):
         op = sum/count
         op1 = (sum/count).with_alias('tot')
         self.assertEqual(db(t0).select(op).first()[op], 2)
-        #self.assertEqual(db(t0).select(op1).first()[op1], 2)
-        #self.assertEqual(db(t0).select(op1).first()['tot'], 2)
+        self.assertEqual(db(t0).select(op1).first()[op1], 2)
+        self.assertEqual(db(t0).select(op1).first()['tot'], 2)
         op2 = avg*count
         self.assertEqual(db(t0).select(op2).first()[op2], 6)
         # the following is not possible at least on sqlite
         sum = db.t0.vv.sum().with_alias('s')
         count = db.t0.vv.count().with_alias('c')
         op = sum/count
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(SyntaxError):
             self.assertEqual(db(t0).select(op).first()[op], 2)
         t0.drop()
         db.close()
