@@ -769,6 +769,22 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(db((1==0) & (db.tt.aa >= 2)).count(), 0)
             self.assertEqual(db((1==0) | (db.tt.aa >= 2)).count(), 2)
 
+            # test abs()
+            self.assertEqual(db(db.tt.aa == 2).update(aa=db.tt.aa*-10), 1)
+            abs=db.tt.aa.abs()
+            result = db(db.tt.aa == -20).select(abs).first()
+            self.assertEqual(result[abs], 20)
+            abs=db.tt.aa.abs()/10+5
+            exp=abs.min()*2+1
+            result = db(db.tt.aa == -20).select(exp).first()
+            self.assertEqual(result[exp], 15)
+
+            # test case()
+            case=(db.tt.aa > 2).case(db.tt.aa + 2, db.tt.aa - 2)
+            result = db().select(case)
+            self.assertEqual(len(result), 3)
+            self.assertEqual(result[0][case], -1)
+
             # test expression based delete
             self.assertEqual(db(db.tt.aa + 1 >= 4).count(), 1)
             self.assertEqual(db(db.tt.aa + 1 >= 4).delete(), 1)

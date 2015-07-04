@@ -936,6 +936,12 @@ class MongoDBAdapter(NoSQLAdapter):
 
     @needs_mongodb_aggregation_pipeline
     def AGGREGATE(self, first, what):
+        if what == 'ABS':
+            return {"$cond": [
+                        {"$lt": [self.expand(first), 0]},
+                        {"$subtract": [0, self.expand(first)]},
+                        self.expand(first)
+                        ]}
         try:
             return {MongoDBAdapter.GROUP_MARK: 
                     {self._aggregate_map[what]: self.expand(first)}}
@@ -972,6 +978,15 @@ class MongoDBAdapter(NoSQLAdapter):
     @needs_mongodb_aggregation_pipeline
     def EPOCH(self, first):
         return {"$divide": [{"$subtract": [self.expand(first), self.epoch]}, 1000]}
+
+    def CASE(self, query, true, false):
+        return Expression(self.db, self.EXPAND_CASE, query, (true, false))
+            
+    @needs_mongodb_aggregation_pipeline
+    def EXPAND_CASE(self, query, true_false):
+        return {"$cond": [self.expand(query), 
+                          self.expand(true_false[0]), 
+                          self.expand(true_false[1])]}
 
     def AS(self, first, second):
         raise NotImplementedError("javascript_needed")
