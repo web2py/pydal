@@ -1686,9 +1686,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             else:
                 if not '_extra' in new_row:
                     new_row['_extra'] = Row()
-                new_row['_extra'][colname] = \
-                    self.parse_value(value,
-                                     fields[j].type,blob_decode)
+                value = self.parse_value(value, fields[j].type,blob_decode)
+                new_row['_extra'][colname] = value
                 new_column_name = \
                     REGEX_SELECT_AS_PARSER.search(colname)
                 if not new_column_name is None:
