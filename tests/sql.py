@@ -142,6 +142,14 @@ class TestFields(unittest.TestCase):
         self.assertEqual(db.tt.insert(aa=3), 1)
         self.assertEqual(db().select(db.tt.aa)[0].aa, 3)
         db.tt.drop()
+
+        db.define_table('tt', Field('aa', 'string'))
+        ucs = 'A\xc3\xa9 A'
+        self.assertEqual(db.tt.insert(aa=ucs), 1)
+        self.assertEqual(db().select(db.tt.aa)[0].aa, ucs)
+        self.assertEqual(db().select(db.tt.aa.with_alias('zz'))[0].zz, ucs)
+        db.tt.drop()
+
         db.define_table('tt', Field('aa', 'double', default=1))
         self.assertEqual(db.tt.insert(aa=3.1), 1)
         self.assertEqual(db().select(db.tt.aa)[0].aa, 3.1)
