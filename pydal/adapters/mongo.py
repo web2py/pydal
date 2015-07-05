@@ -256,10 +256,13 @@ class MongoDBAdapter(NoSQLAdapter):
         Class to encapsulate a pydal expression and track the parse expansion
         and its results.
         """
-        def __init__ (self, adapter, crud, query, fields=(), tablename=None):
+        def __init__ (self, adapter, crud, query, fields=(), tablename=None,
+                      groupby=None):
             self.adapter = adapter
-            self._parse_data = {'pipeline': False}
+            self._parse_data = {'pipeline': False, 
+                                'need_group': groupby is not False}
             self.crud = crud
+            self.groupby = groupby
             if crud == 'update':
                 self.values = [(f[0], self.annotate_expression(f[1]))
                                for f in (fields or [])]
@@ -277,6 +280,8 @@ class MongoDBAdapter(NoSQLAdapter):
             self.pipeline = []
             self.query_dict = adapter.expand(self.query)
             self.field_dicts = adapter.SON()
+            self.field_groups = self.adapter.SON()
+            self.field_groups['_id'] = self.adapter.SON()
 
             if self._parse_data['pipeline']:
                 if self.query_dict is not None:
@@ -290,7 +295,6 @@ class MongoDBAdapter(NoSQLAdapter):
                     self.pipeline.append({'$match': {'__query__': True}})
                     self.query_dict = None
                 # expand the fields for the aggregation engine
-                self.field_groups = self.adapter.SON()
                 self._expand_fields(None)
             else:
                 # expand the fields
@@ -304,7 +308,6 @@ class MongoDBAdapter(NoSQLAdapter):
                         self.pipeline = [{'$match': self.query_dict}]
                     self.query_dict = {}
                     # expand the fields for the aggregation engine
-                    self.field_groups = self.adapter.SON()
                     self._expand_fields(None)
 
             if not self._parse_data['pipeline']:
@@ -319,11 +322,15 @@ class MongoDBAdapter(NoSQLAdapter):
                     self.field_dicts = adapter.SON()
 
                 elif crud == 'select':
-                    if self.field_groups:
-                        self.field_groups['_id'] = None
+                    if len(self.field_groups) > 1:
+                        if not self.groupby:
+                            self.field_groups['_id'] = None
+                        else:
+                            self.field_dicts['_id'] = False
                         self.pipeline.append({'$group': self.field_groups})
-                    self.pipeline.append({'$project': self.field_dicts})
-                    self.field_dicts = adapter.SON()
+                    if self.field_dicts:
+                        self.pipeline.append({'$project': self.field_dicts})
+                        self.field_dicts = adapter.SON()
 
                 elif crud == 'count':
                     self.pipeline.append(
@@ -415,8 +422,16 @@ class MongoDBAdapter(NoSQLAdapter):
             if MongoDBAdapter.GROUP_MARK in expanded:
                 self.field_groups[field.name] = expanded[MongoDBAdapter.GROUP_MARK]
                 expanded = 1
+
             elif MongoDBAdapter.GROUP_MARK in field.name:
                 expanded = parse_groups(expanded, None, None)
+
+            elif self._parse_data['need_group']:
+                if field in self.groupby:
+                    self.field_groups['_id'][field.name] = expanded
+                    expanded = '$_id.' + field.name
+                else:
+                    raise SyntaxError("field '%s' not in groupby" % field)
 
             return expanded
 
@@ -559,27 +574,29 @@ class MongoDBAdapter(NoSQLAdapter):
         # try an orderby attribute
         orderby = attributes.get('orderby', False)
         limitby = attributes.get('limitby', False)
+        groupby = attributes.get('groupby', False)
         # distinct = attributes.get('distinct', False)
         if 'for_update' in attributes:
             self.db.logger.warning('mongodb does not support for_update')
-        for key in set(attributes.keys())-set(('limitby', 
-                                                'orderby', 'for_update')):
+        for key in set(attributes.keys())-set(('limitby', 'orderby',
+                                               'groupby', 'for_update')):
             if attributes[key] is not None:
                 self.db.logger.warning(
                     'select attribute not implemented: %s' % key)
-        if limitby:
-            limitby_skip, limitby_limit = limitby[0], int(limitby[1]) - 1
-        else:
-            limitby_skip = limitby_limit = 0
         if orderby:
+            if snapshot:
+                raise RuntimeError("snapshot and orderby are mutually exclusive")
             if isinstance(orderby, (list, tuple)):
                 orderby = xorify(orderby)
             # !!!! need to add 'random'
             for f in self.expand(orderby).split(','):
+                include = 1
                 if f.startswith('-'):
-                    mongosort_list.append((f[1:], -1))
-                else:
-                    mongosort_list.append((f, 1))
+                    include = -1
+                    f = f[1:]
+                if f.startswith('$'):
+                    f = f[1:]
+                mongosort_list.append((f, include))
         for item in fields:
             if isinstance(item, SQLALL):
                 new_fields += item._table
@@ -602,16 +619,31 @@ class MongoDBAdapter(NoSQLAdapter):
                 query = self.common_filter(query, [tablename])
 
         expanded = MongoDBAdapter.Expanded(
-            self, 'select', query, fields or self.db[tablename])
+            self, 'select', query, fields or self.db[tablename],
+            groupby=groupby)
         ctable = self.connection[tablename]
         modifiers = {'snapshot':snapshot}
 
         if not expanded.pipeline:
+            if limitby:
+                limitby_skip, limitby_limit = limitby[0], int(limitby[1]) - 1
+            else:
+                limitby_skip = limitby_limit = 0
             mongo_list_dicts = ctable.find(
                 expanded.query_dict, expanded.field_dicts, skip=limitby_skip,
                 limit=limitby_limit, sort=mongosort_list, modifiers=modifiers)
             null_rows = []
         else:
+            if mongosort_list:
+                sortby_dict = self.SON()
+                for f in mongosort_list:
+                    sortby_dict[f[0]] = f[1]
+                expanded.pipeline.append({'$sort': sortby_dict})
+            if limitby and limitby[1]:
+                expanded.pipeline.append({'$limit': limitby[1]})
+            if limitby and limitby[0]:
+                expanded.pipeline.append({'$skip': limitby[0]})
+
             mongo_list_dicts = ctable.aggregate(expanded.pipeline)
             null_rows = [(None,)]
 
@@ -958,15 +990,18 @@ class MongoDBAdapter(NoSQLAdapter):
                         self.expand(first)
                         ]}
         try:
-            return {MongoDBAdapter.GROUP_MARK: 
-                    {self._aggregate_map[what]: self.expand(first)}}
+            expanded = {self._aggregate_map[what]: self.expand(first)}
         except KeyError:
             raise NotImplementedError("'%s' not implemented" % what)
+
+        self.parse_data(first, 'need_group', True)
+        return {MongoDBAdapter.GROUP_MARK: expanded} 
 
     @needs_mongodb_aggregation_pipeline
     def COUNT(self, first, distinct=None):
         if distinct:
             raise NotImplementedError("distinct not implemented for count op")
+        self.parse_data(first, 'need_group', True)
         return {MongoDBAdapter.GROUP_MARK: {"$sum": 1}}
 
     _extract_map = {
@@ -1025,8 +1060,8 @@ class MongoDBAdapter(NoSQLAdapter):
         raise MongoDBAdapter.NotOnNoSqlError()
 
     def COMMA(self, first, second):
-        #::TODO:: understand (fix) this
-        return '%s, %s' % (self.expand(first), self.expand(second))
+        # returns field name lists, to be separated via split(',')
+        return '%s,%s' % (self.expand(first), self.expand(second))
 
     #TODO verify full compatibilty with official SQL Like operator
     def _build_like_regex(self, arg,

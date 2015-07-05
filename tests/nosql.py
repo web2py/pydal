@@ -425,8 +425,7 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db(db.tt.id > 0).select(orderby=~db.tt.aa | db.tt.id)[0].aa, '3')
         self.assertEqual(db(db.tt.id > 0).select(orderby=~db.tt.aa)[0].aa, '3')
         self.assertEqual(len(db(db.tt.id > 0).select(limitby=(1, 2))), 1)
-        self.assertEqual(db(db.tt.id > 0).select(limitby=(1, 2))[0].aa,
-                         '2')
+        self.assertEqual(db(db.tt.id > 0).select(limitby=(1, 2))[0].aa, '2')
         self.assertEqual(len(db().select(db.tt.ALL)), 3)
         self.assertEqual(db(db.tt.aa == None).count(), 0)
         self.assertEqual(db(db.tt.aa != None).count(), 3)
@@ -506,6 +505,44 @@ class TestSelect(unittest.TestCase):
             drop(db.tt)
             drop(db.t0)
         db.close()
+
+    @unittest.skipIf(IS_GAE, "no groupby in appengine")
+    def testGroupBy(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt',
+                        Field('aa'),
+                        Field('bb', 'integer'), 
+                        Field('cc', 'integer'))
+        db.tt.insert(aa='1', bb=1, cc=1)
+        db.tt.insert(aa='1', bb=2, cc=1)
+        db.tt.insert(aa='1', bb=3, cc=1)
+        db.tt.insert(aa='1', bb=4, cc=1)
+        db.tt.insert(aa='2', bb=1, cc=1)
+        db.tt.insert(aa='2', bb=2, cc=1)
+        db.tt.insert(aa='2', bb=3, cc=1)
+        db.tt.insert(aa='3', bb=1, cc=1)
+        db.tt.insert(aa='3', bb=2, cc=1)
+        db.tt.insert(aa='4', bb=1, cc=1)
+
+        result = db().select(db.tt.aa, db.tt.bb.sum(), groupby=db.tt.aa)
+        self.assertEqual(len(result), 4)
+        result = db().select(db.tt.aa, db.tt.bb.sum(),
+                             groupby=db.tt.aa, orderby=db.tt.aa)
+        self.assertEqual(result.response[2], ['3', 3])
+        result = db().select(db.tt.aa, db.tt.bb.sum(),
+                             groupby=db.tt.aa, orderby=~db.tt.aa)
+        self.assertEqual(result.response[1], ['3', 3])
+        result = db().select(db.tt.aa, db.tt.bb, db.tt.cc.sum(),
+                             groupby=db.tt.aa|db.tt.bb,
+                             orderby=(db.tt.aa|~db.tt.bb))
+        self.assertEqual(result.response[4], ['2', 3, 1])
+        result = db().select(db.tt.aa, db.tt.bb.sum(),
+                             groupby=db.tt.aa, orderby=~db.tt.aa, limitby=(1,2))
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.response[0], ['3', 3])
+        db.tt.drop()
+        db.close()
+
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestAddMethod(unittest.TestCase):
