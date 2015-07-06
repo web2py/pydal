@@ -714,17 +714,15 @@ class Table(Serializable, BasicStorage):
         response.id, response.errors = None, Row()
         new_fields = copy.copy(fields)
         for fieldname in self.fields:
-            default = getattr(self[fieldname], defattr)() \
-                if callable(getattr(self[fieldname], defattr)) else \
-                getattr(self[fieldname], defattr)
-            value, error = self[fieldname].validate(
-                fields.get(fieldname), default
-            )
+            default = getattr(self[fieldname], defattr)
+            if callable(default):
+                default = default()
+            raw_value = fields.get(fieldname, default)
+            value, error = self[fieldname].validate(raw_value)
             if error:
                 response.errors[fieldname] = "%s" % error
-            else:
-                if value is not None:
-                    new_fields[fieldname] = value
+            elif value is not None:
+                new_fields[fieldname] = value
         return response, new_fields
 
     def validate_and_insert(self, **fields):
