@@ -709,12 +709,17 @@ class Table(Serializable, BasicStorage):
             [f(fields, ret) for f in self._after_insert]
         return ret
 
-    def _validate_fields(self, fields):
+    def _validate_fields(self, fields, defattr='default'):
         response = Row()
         response.id, response.errors = None, Row()
         new_fields = copy.copy(fields)
         for fieldname in self.fields:
-            value, error = self[fieldname].validate(fields.get(fieldname))
+            default = getattr(self[fieldname], defattr)() \
+                if callable(getattr(self[fieldname], defattr)) else \
+                getattr(self[fieldname], defattr)
+            value, error = self[fieldname].validate(
+                fields.get(fieldname), default
+            )
             if error:
                 response.errors[fieldname] = "%s" % error
             else:
@@ -729,7 +734,7 @@ class Table(Serializable, BasicStorage):
         return response
 
     def validate_and_update(self, _key=DEFAULT, **fields):
-        response, new_fields = self._validate_fields(fields)
+        response, new_fields = self._validate_fields(fields, 'update')
         #: select record(s) for update
         if _key is DEFAULT:
             record = self(**fields)
