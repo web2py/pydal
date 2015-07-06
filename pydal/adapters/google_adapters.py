@@ -7,7 +7,7 @@ from .._globals import IDENTITY, THREAD_LOCAL
 from .._gae import classobj, gae, ndb, namespace_manager, NDBPolyModel, rdbms
 from ..objects import Table, Field, Expression, Query
 from ..helpers.classes import SQLCustomType, SQLALL, \
-    Reference, UseDatabaseStoredFile
+    Reference, UseDatabaseStoredFile, FakeDriver
 from ..helpers.methods import use_common_filters, xorify
 from ..helpers.gae import NDBDecimalProperty
 from ..helpers.serializers import serializers
@@ -151,8 +151,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         self.ndb_settings = adapter_args.get('ndb_settings')
 
         # connections and reconnect are not required for Datastore dbs
-        self.connector = self.null_connector
-        self.reconnect()
+        self.reconnect(FakeDriver)
 
     def parse_id(self, value, field_type):
         return value
