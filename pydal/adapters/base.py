@@ -1688,8 +1688,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     new_row['_extra'] = Row()
                 value = self.parse_value(value, fields[j].type,blob_decode)
                 new_row['_extra'][colname] = value
-                new_column_name = \
-                    REGEX_SELECT_AS_PARSER.search(colname)
+                new_column_name = self._regex_select_as_parser(colname)
                 if not new_column_name is None:
                     column_name = new_column_name.groups(0)
                     setattr(new_row,column_name[0],value)
@@ -1706,6 +1705,9 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 except (AttributeError, KeyError):
                     pass # not enough fields to define virtual field
         return new_row
+
+    def _regex_select_as_parser(self, colname):
+        return REGEX_SELECT_AS_PARSER.search(colname)
 
     def _parse_expand_colnames(self, colnames):
         """
