@@ -146,6 +146,7 @@ from .helpers.serializers import serializers
 from .objects import Table, Field, Row, Set
 from .adapters import ADAPTERS
 from .adapters.base import BaseAdapter
+from .adapters.none import NoneAdapter
 
 long = integer_types[-1]
 
@@ -458,7 +459,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             if not connected:
                 raise RuntimeError("Failure to connect, tried %d times:\n%s" % (attempts, tb))
         else:
-            self._adapter = BaseAdapter(db=self,pool_size=0,
+            self._adapter = NoneAdapter(db=self,pool_size=0,
                                         uri='None',folder=folder,
                                         db_codec=db_codec, after_connection=after_connection,
                                         entity_quoting=entity_quoting)
