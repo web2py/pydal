@@ -12,14 +12,99 @@ from .serializers import serializers
 long = integer_types[-1]
 
 
-class Reference(long):
+@implements_bool
+class BasicStorage(object):
+    def __init__(self, *args, **kwargs):
+        return self.__dict__.__init__(*args, **kwargs)
 
+    def __contains__(self, item):
+        return self.__dict__.__contains__(item)
+
+    def __getitem__(self, key):
+        return self.__dict__.__getitem__(str(key))
+
+    def __getattr__(self, key):
+        try:
+            return self.__dict__.__getitem__(str(key))
+        except:
+            raise AttributeError
+
+    __setitem__ = object.__setattr__
+
+    def __delitem__(self, key):
+        self.__dict__.__delitem__(key)
+
+    def __bool__(self):
+        return len(self.__dict__) > 0
+
+    __iter__ = lambda self: self.__dict__.__iter__()
+
+    __str__ = lambda self: self.__dict__.__str__()
+
+    __repr__ = lambda self: self.__dict__.__repr__()
+
+    has_key = __contains__
+
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
+
+    def update(self, *args, **kwargs):
+        return self.__dict__.update(*args, **kwargs)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def iterkeys(self):
+        return iterkeys(self.__dict__)
+
+    def values(self):
+        return self.__dict__.values()
+
+    def itervalues(self):
+        return itervalues(self.__dict__)
+
+    def items(self):
+        return self.__dict__.items()
+
+    def iteritems(self):
+        return iteritems(self.__dict__)
+
+    pop = lambda self, *args, **kwargs: self.__dict__.pop(*args, **kwargs)
+
+    clear = lambda self, *args, **kwargs: self.__dict__.clear(*args, **kwargs)
+
+    copy = lambda self, *args, **kwargs: self.__dict__.copy(*args, **kwargs)
+
+
+def pickle_basicstorage(s):
+    return BasicStorage, (dict(s),)
+
+copyreg.pickle(BasicStorage, pickle_basicstorage)
+
+
+class Serializable(object):
+    def as_dict(self, flat=False, sanitize=True):
+        return self.__dict__
+
+    def as_xml(self, sanitize=True):
+        return serializers.xml(self.as_dict(flat=True, sanitize=sanitize))
+
+    def as_json(self, sanitize=True):
+        return serializers.json(self.as_dict(flat=True, sanitize=sanitize))
+
+    def as_yaml(self, sanitize=True):
+        return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
+
+
+class Reference(long):
     def __allocate(self):
         if not self._record:
             self._record = self._table[long(self)]
         if not self._record:
             raise RuntimeError(
-                "Using a recursive select but encountered a broken reference: %s %d"%(self._table, long(self)))
+                "Using a recursive select but encountered a broken " +
+                "reference: %s %d" % (self._table, long(self))
+            )
 
     def __getattr__(self, key):
         if key == 'id':
@@ -116,18 +201,8 @@ class SQLCustomType(object):
 
     """
 
-    def __init__(
-        self,
-        type='string',
-        native=None,
-        encoder=None,
-        decoder=None,
-        validator=None,
-        _class=None,
-        widget=None,
-        represent=None
-        ):
-
+    def __init__(self, type='string', native=None, encoder=None, decoder=None,
+                 validator=None, _class=None, widget=None, represent=None):
         self.type = type
         self.native = native
         self.encoder = encoder or (lambda x: x)
@@ -165,13 +240,16 @@ class RecordUpdater(object):
             colset, table._db, table._tablename, id
 
     def __call__(self, **fields):
-        colset, db, tablename, id = self.colset, self.db, self.tablename, self.id
+        colset, db, tablename, id = self.colset, self.db, self.tablename, \
+            self.id
         table = db[tablename]
         newfields = fields or dict(colset)
         for fieldname in list(newfields.keys()):
             if fieldname not in table.fields or table[fieldname].type == 'id':
                 del newfields[fieldname]
-        table._db(table._id == id, ignore_common_filters=True).update(**newfields)
+        table._db(table._id == id, ignore_common_filters=True).update(
+            **newfields
+        )
         colset.update(newfields)
         return colset
 
@@ -208,6 +286,61 @@ class MethodAdder(object):
         return _decorated
 
 
+class FakeCursor(object):
+    '''
+    The Python Database API Specification has a cursor() method, which
+    NoSql drivers generally don't support.  If the exception in this
+    function is taken then it likely means that some piece of
+    functionality has not yet been implemented in the driver. And
+    something is using the cursor.
+
+    https://www.python.org/dev/peps/pep-0249/
+    '''
+    def warn_bad_usage(self, attr):
+        raise Exception("FakeCursor.%s is not implemented" % attr)
+
+    def __getattr__(self, attr):
+        self.warn_bad_usage(attr)
+
+    def __setattr__(self, attr, value):
+        self.warn_bad_usage(attr)
+
+
+class NullCursor(FakeCursor):
+    lastrowid = 1
+
+    def __getattr__(self, attr):
+        return lambda *a, **b: []
+
+
+class FakeDriver(BasicStorage):
+    def __init__(self, *args, **kwargs):
+        super(FakeDriver, self).__init__(*args, **kwargs)
+        self._build_cursor_()
+
+    def _build_cursor_(self):
+        self._fake_cursor_ = FakeCursor()
+
+    def cursor(self):
+        return self._fake_cursor_
+
+    def close(self):
+        return None
+
+    def commit(self):
+        return None
+
+    def __str__(self):
+        state = ["%s=%r" % (attribute, value)
+                 for (attribute, value) in self.items()]
+        return '\n'.join(state)
+
+
+class NullDriver(FakeDriver):
+    def _build_cursor_(self):
+        self._fake_cursor_ = NullCursor()
+
+
 class DatabaseStoredFile:
 
     web2py_filesystems = set()
@@ -227,7 +360,9 @@ class DatabaseStoredFile:
 
     def __init__(self, db, filename, mode):
         if db._adapter.dbengine not in ('mysql', 'postgres', 'sqlite'):
-            raise RuntimeError("only MySQL/Postgres/SQLite can store metadata .table files in database for now")
+            raise RuntimeError(
+                "only MySQL/Postgres/SQLite can store metadata .table files" +
+                " in database for now")
         self.db = db
         self.filename = filename
         self.mode = mode
@@ -268,9 +403,11 @@ class DatabaseStoredFile:
     def close_connection(self):
         if self.db is not None:
             self.db.executesql(
-                "DELETE FROM web2py_filesystem WHERE path='%s'" % self.filename)
+                "DELETE FROM web2py_filesystem WHERE path='%s'" %
+                self.filename
+            )
             query = "INSERT INTO web2py_filesystem(path,content) VALUES ('%s','%s')"\
-                % (self.filename, self.data.replace("'","''"))
+                % (self.filename, self.data.replace("'", "''"))
             self.db.executesql(query)
             self.db.commit()
             self.db = None
@@ -314,87 +451,3 @@ class UseDatabaseStoredFile:
         query = "DELETE FROM web2py_filesystem WHERE path='%s'" % filename
         self.db.executesql(query)
         self.db.commit()
-
-
-class Serializable(object):
-    def as_dict(self, flat=False, sanitize=True):
-        return self.__dict__
-
-    def as_xml(self, sanitize=True):
-        return serializers.xml(self.as_dict(flat=True, sanitize=sanitize))
-
-    def as_json(self, sanitize=True):
-        return serializers.json(self.as_dict(flat=True, sanitize=sanitize))
-
-    def as_yaml(self, sanitize=True):
-        return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
-
-
-@implements_bool
-class BasicStorage(object):
-    def __init__(self, *args, **kwargs):
-        return self.__dict__.__init__(*args, **kwargs)
-
-    def __contains__(self, item):
-        return self.__dict__.__contains__(item)
-
-    def __getitem__(self, key):
-        return self.__dict__.__getitem__(str(key))
-
-    def __getattr__(self, key):
-        try:
-            return self.__dict__.__getitem__(str(key))
-        except:
-            raise AttributeError
-
-    __setitem__ = object.__setattr__
-
-    def __delitem__(self, key):
-        self.__dict__.__delitem__(key)
-
-    def __bool__(self):
-        return len(self.__dict__) > 0
-
-    __iter__ = lambda self: self.__dict__.__iter__()
-
-    __str__ = lambda self: self.__dict__.__str__()
-
-    __repr__ = lambda self: self.__dict__.__repr__()
-
-    has_key = __contains__
-
-    def get(self, key, default=None):
-        return self.__dict__.get(key, default)
-
-    def update(self, *args, **kwargs):
-        return self.__dict__.update(*args, **kwargs)
-
-    def keys(self):
-        return self.__dict__.keys()
-
-    def iterkeys(self):
-        return iterkeys(self.__dict__)
-
-    def values(self):
-        return self.__dict__.values()
-
-    def itervalues(self):
-        return itervalues(self.__dict__)
-
-    def items(self):
-        return self.__dict__.items()
-
-    def iteritems(self):
-        return iteritems(self.__dict__)
-
-    pop = lambda self, *args, **kwargs: self.__dict__.pop(*args, **kwargs)
-
-    clear = lambda self, *args, **kwargs: self.__dict__.clear(*args, **kwargs)
-
-    copy = lambda self, *args, **kwargs: self.__dict__.copy(*args, **kwargs)
-
-
-def pickle_basicstorage(s):
-    return BasicStorage, (dict(s),)
-
-copyreg.pickle(BasicStorage, pickle_basicstorage)
