@@ -293,25 +293,27 @@ class TestSmartQuery(unittest.TestCase):
         # -----------------------------------------------------------------------------
         # Belongs and not belongs
 
-        # NOTE : The below tests don't works
-        # Issue : https://github.com/web2py/pydal/issues/161
+        # NOTE : The below tests works now
+        # Issue 161 can't be closed : https://github.com/web2py/pydal/issues/161
+        # There were differents mistake like wrong field name between text query and 
+        # web2py query and a remaining assertTrue...
 
         # (' in ', 'belongs') -> field.belongs(1, 2, 3)
-        # keywords = 'a_table.integer_field in "1, 2, 3"'
-        # q = (db.a_table.integer_field.belongs([1, 2, 3]))
-        # smart_q = smart_query(fields, keywords)
-        # self.assertEqual(smart_q, q)
+        keywords = 'a_table.integer_field in "1, 2, 3"'
+        q = (db.a_table.integer_field.belongs([1, 2, 3]))
+        smart_q = smart_query(fields, keywords)
+        self.assertEqual(smart_q, q)
 
-        # keywords = 'a_table.id in "1, 2, 3"'
-        # q = (db.a_table.id.belongs([1, 2, 3]))
-        # smart_q = smart_query(fields, keywords)
-        # self.assertEqual(smart_q, q)
-        #
-        # # (' not in ' , 'notbelongs'),
-        # keywords = 'a_table.integer_field not in "1, 2, 3"'
-        # q = (~db.a_table.id.belongs([1, 2, 3]))
-        # smart_q = smart_query(fields, keywords)
-        # self.assertTrue(smart_q == q)
+        keywords = 'a_table.id in "1, 2, 3"'
+        q = (db.a_table.id.belongs([1, 2, 3]))
+        smart_q = smart_query(fields, keywords)
+        self.assertEqual(smart_q, q)
+        
+        # (' not in ' , 'notbelongs'),
+        keywords = 'a_table.id not in "1, 2, 3"'
+        q = (~db.a_table.id.belongs([1, 2, 3]))
+        smart_q = smart_query(fields, keywords)
+        self.assertEqual(smart_q, q)
 
         # -----------------------------------------------------------------------------
         # cleanup table
