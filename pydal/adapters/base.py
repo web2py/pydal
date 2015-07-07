@@ -222,7 +222,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.connection = None
         self.cursor = None
         if uri == "None":
-            self.reconnect(NullDriver)
+            self.connector = NullDriver
+            self.reconnect()
 
 
     def sequence_name(self,tablename):

@@ -151,7 +151,8 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         self.ndb_settings = adapter_args.get('ndb_settings')
 
         # connections and reconnect are not required for Datastore dbs
-        self.reconnect(FakeDriver)
+        self.connector = FakeDriver
+        self.reconnect()
 
     def parse_id(self, value, field_type):
         return value
