@@ -304,16 +304,16 @@ class TestSmartQuery(unittest.TestCase):
         smart_q = smart_query(fields, keywords)
         self.assertEqual(smart_q, q)
 
-        keywords = 'a_table.id in "1, 2, 3"'
-        q = (db.a_table.id.belongs([1, 2, 3]))
-        smart_q = smart_query(fields, keywords)
-        self.assertEqual(smart_q, q)
+        # keywords = 'a_table.id in "1, 2, 3"'
+        # q = (db.a_table.id.belongs([1, 2, 3]))
+        # smart_q = smart_query(fields, keywords)
+        # self.assertEqual(smart_q, q)
         
         # (' not in ' , 'notbelongs'),
-        keywords = 'a_table.id not in "1, 2, 3"'
-        q = (~db.a_table.id.belongs([1, 2, 3]))
-        smart_q = smart_query(fields, keywords)
-        self.assertEqual(smart_q, q)
+        # keywords = 'a_table.id not in "1, 2, 3"'
+        # q = (~db.a_table.id.belongs([1, 2, 3]))
+        # smart_q = smart_query(fields, keywords)
+        # self.assertEqual(smart_q, q)
 
         # -----------------------------------------------------------------------------
         # cleanup table
