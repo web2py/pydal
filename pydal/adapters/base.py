@@ -24,7 +24,7 @@ from ..helpers.regex import REGEX_NO_GREEDY_ENTITY_NAME, REGEX_TYPE, \
 from ..helpers.methods import xorify, use_common_filters, bar_encode, \
     bar_decode_integer, bar_decode_string
 from ..helpers.classes import SQLCustomType, SQLALL, Reference, \
-    RecordUpdater, RecordDeleter
+    RecordUpdater, RecordDeleter, NullDriver, FakeCursor
 from ..helpers.serializers import serializers
 
 long = integer_types[-1]
@@ -209,7 +209,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             logfile.write(message)
             self.file_close(logfile)
 
-
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}, do_connect=True, after_connection=None):
@@ -222,6 +221,9 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self._after_connection = after_connection
         self.connection = None
         self.cursor = None
+        if uri == "None":
+            self.connector = NullDriver
+            self.reconnect()
 
 
     def sequence_name(self,tablename):
@@ -1818,7 +1820,6 @@ class NoSQLAdapter(BaseAdapter):
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}, do_connect=True, after_connection=None):
-
         super(NoSQLAdapter, self).__init__(
             db=db,
             uri=uri,
@@ -1830,46 +1831,7 @@ class NoSQLAdapter(BaseAdapter):
             adapter_args=adapter_args,
             do_connect=do_connect,
             after_connection=after_connection)
-
-        class FakeCursor(object):
-            '''
-            The Python Database API Specification has a cursor() method, which
-            NoSql drivers generally don't support.  If the exception in this
-            function is taken then it likely means that some piece of
-            functionality has not yet been implemented in the driver. And
-            something is using the cursor.
-
-            https://www.python.org/dev/peps/pep-0249/
-            '''
-
-            def warn_bad_usage (self, attr):
-                raise Exception("FakeCursor.%s is not implemented" % attr)
-
-            def __getattr__(self, attr):
-                self.warn_bad_usage(attr)
-
-            def __setattr__(self, attr, value):
-                self.warn_bad_usage(attr)
-
         self.fake_cursor = FakeCursor()
-
-    def null_connector(self):
-        class Bunch(dict):
-            def __init__(self, **kw):
-                dict.__init__(self, kw)
-                self.__dict__ = self
-
-            def __str__(self):
-                state = ["%s=%r" % (attribute, value)
-                         for (attribute, value)
-                         in self.__dict__.items()]
-                return '\n'.join(state)
-
-        driver = Bunch()
-        driver.cursor = lambda : self.fake_cursor
-        driver.close = lambda : None
-        driver.commit = lambda : None
-        return driver
 
     def id_query(self, table):
         return table._id > 0
