@@ -49,6 +49,8 @@ class MongoDBAdapter(NoSQLAdapter):
 
     GROUP_MARK = "__#GROUP#__"
     AS_MARK = "__#AS#__"
+    REGEXP_MARK1 = "__#REGEXP_1#__"
+    REGEXP_MARK2 = "__#REGEXP_2#__"
 
     def __init__(self, db, uri='mongodb://127.0.0.1:5984/db',
                  pool_size=0, folder=None, db_codec='UTF-8',
@@ -259,8 +261,8 @@ class MongoDBAdapter(NoSQLAdapter):
         def __init__ (self, adapter, crud, query, fields=(), tablename=None,
                       groupby=None):
             self.adapter = adapter
-            self._parse_data = {'pipeline': False, 
-                                'need_group': groupby is not False}
+            self._parse_data = {'pipeline': False,
+                                'need_group': True if groupby else False}
             self.crud = crud
             self.groupby = groupby
             if crud == 'update':
@@ -284,16 +286,10 @@ class MongoDBAdapter(NoSQLAdapter):
             self.field_groups['_id'] = self.adapter.SON()
 
             if self._parse_data['pipeline']:
+                # if the query needs the aggregation engine, set that up
                 if self.query_dict is not None:
-                    # if the query needs the aggregation engine, set that up
-                    if crud in ['select', 'update']:
-                        self._add_all_fields_projection(
-                            {'__query__': adapter.expand(self.query)})
-                    else:
-                        self.pipeline = [{'$project':
-                            {'__query__': adapter.expand(self.query)}}]
-                    self.pipeline.append({'$match': {'__query__': True}})
-                    self.query_dict = None
+                    self._build_pipeline_query()
+
                 # expand the fields for the aggregation engine
                 self._expand_fields(None)
             else:
@@ -338,6 +334,68 @@ class MongoDBAdapter(NoSQLAdapter):
 
                 #elif crud == 'delete':
                 #    pass
+
+        def _build_pipeline_query(self):
+
+            # search for anything needing the $match stage.
+            #   currently only '$regex' requires the match stage
+            def parse_need_match_stage(items, parent, parent_key):
+                need_match = False
+                non_matched_indices = []
+                if isinstance(items, list):
+                    indices = range(len(items))
+                elif isinstance(items, dict):
+                    indices = items.keys()
+                else:
+                    return
+
+                for i in indices:
+                    if parse_need_match_stage(items[i], items, i):
+                        need_match = True
+
+                    elif i not in [MongoDBAdapter.REGEXP_MARK1,
+                                   MongoDBAdapter.REGEXP_MARK2]:
+                        non_matched_indices.append(i)
+
+                    if i == MongoDBAdapter.REGEXP_MARK1:
+                        need_match = True
+                        self.query_dict['project'].update(items[i])
+                        parent[parent_key] = items[MongoDBAdapter.REGEXP_MARK2]
+
+                if need_match:
+                    for i in non_matched_indices:
+                        name = str(items[i])
+                        self.query_dict['project'][name] = items[i]
+                        items[i] = {name: True}
+
+                if parent is None and self.query_dict['project']:
+                    self.query_dict['match'] = items
+                return need_match
+
+            expanded = self.adapter.expand(self.query)
+
+            if MongoDBAdapter.REGEXP_MARK1 in expanded:
+                # the REGEXP_MARK is at the top of the tree, so can just split
+                # the regex over a '$project' and a '$match'
+                self.query_dict = None
+                match = expanded[MongoDBAdapter.REGEXP_MARK2]
+                project = expanded[MongoDBAdapter.REGEXP_MARK1]
+
+            else:
+                self.query_dict = {'project': {}, 'match': {}}
+                if parse_need_match_stage(expanded, None, None):
+                    project = self.query_dict['project']
+                    match = self.query_dict['match']
+                else:
+                    project = {'__query__': expanded}
+                    match = {'__query__': True}
+
+            if self.crud in ['select', 'update']:
+                self._add_all_fields_projection(project)
+            else:
+                self.pipeline.append({'$project': project})
+            self.pipeline.append({'$match': match})
+            self.query_dict = None
 
         def _expand_fields(self, mid_loop):
             if self.crud == 'update':
@@ -397,8 +455,8 @@ class MongoDBAdapter(NoSQLAdapter):
                     if isinstance(items[item], list):
                         for list_item in items[item]:
                             if isinstance(list_item, dict):
-                                parse_groups(
-                                    list_item, items[item], items[item].index(list_item))
+                                parse_groups(list_item, items[item], 
+                                             items[item].index(list_item))
 
                     elif isinstance(items[item], dict):
                         parse_groups(items[item], items, item)
@@ -411,23 +469,35 @@ class MongoDBAdapter(NoSQLAdapter):
                 return items
 
             if MongoDBAdapter.AS_MARK in field.name:
+                # The AS_MARK in the field name is used by base to alias the
+                # result, we don't actually need the AS_MARK in the parse tree
+                # so we remove it here.
                 if isinstance(expanded, list):
+                    # AS mark is first element in list, drop it
                     expanded = expanded[1]
+
                 elif MongoDBAdapter.AS_MARK in expanded:
+                    # AS mark is element in dict, drop it
                     del expanded[MongoDBAdapter.AS_MARK]
+
                 else:
                     # ::TODO:: should be possible to do this...
                     raise SyntaxError("AS() not at top of parse tree")
 
             if MongoDBAdapter.GROUP_MARK in expanded:
+                # the GROUP_MARK is at the top of the tree, so can just pass
+                # the group result straight through the '$project' stage
                 self.field_groups[field.name] = expanded[MongoDBAdapter.GROUP_MARK]
                 expanded = 1
 
             elif MongoDBAdapter.GROUP_MARK in field.name:
+                # the GROUP_MARK is not at the top of the tree, so we need to
+                # pass the group results through to a '$project' stage.
                 expanded = parse_groups(expanded, None, None)
 
             elif self._parse_data['need_group']:
                 if field in self.groupby:
+                    # this is a 'groupby' field
                     self.field_groups['_id'][field.name] = expanded
                     expanded = '$_id.' + field.name
                 else:
@@ -500,7 +570,7 @@ class MongoDBAdapter(NoSQLAdapter):
             else:
                 result = expression.name
             if self.parse_data(expression, 'pipeline'):
-                # field names as part of expressions need to start with '$' 
+                # field names as part of expressions need to start with '$'
                 result = '$' + result
 
         elif isinstance(expression, (Expression, Query)):
@@ -995,7 +1065,7 @@ class MongoDBAdapter(NoSQLAdapter):
             raise NotImplementedError("'%s' not implemented" % what)
 
         self.parse_data(first, 'need_group', True)
-        return {MongoDBAdapter.GROUP_MARK: expanded} 
+        return {MongoDBAdapter.GROUP_MARK: expanded}
 
     @needs_mongodb_aggregation_pipeline
     def COUNT(self, first, distinct=None):
@@ -1031,15 +1101,17 @@ class MongoDBAdapter(NoSQLAdapter):
 
     def CASE(self, query, true, false):
         return Expression(self.db, self.EXPAND_CASE, query, (true, false))
-            
+
     @needs_mongodb_aggregation_pipeline
     def EXPAND_CASE(self, query, true_false):
-        return {"$cond": [self.expand(query), 
-                          self.expand(true_false[0]), 
+        return {"$cond": [self.expand(query),
+                          self.expand(true_false[0]),
                           self.expand(true_false[1])]}
 
     @needs_mongodb_aggregation_pipeline
     def AS(self, first, second):
+        # put the AS_MARK into the structure.  The 'AS' name will be parsed
+        # later from the string of the field name.
         if isinstance(first, Field):
             return [{MongoDBAdapter.AS_MARK: second}, self.expand(first)]
         else:
@@ -1135,6 +1207,84 @@ class MongoDBAdapter(NoSQLAdapter):
             ret = {self.expand(first): val}
 
         return ret
+
+    @needs_mongodb_aggregation_pipeline
+    def SUBSTRING(self, field, parameters):
+        def parse_parameters(pos0, length):
+            """
+            The expression object can return these as string based expressions.
+            We can't use that so we have to tease it apart.
+
+            These are the possibilities:
+
+              pos0 = '(%s - %d)' % (self.len(), abs(start) - 1)
+              pos0 = start + 1
+
+              length = self.len()
+              length = '(%s - %d - %s)' % (self.len(), abs(stop) - 1, pos0)
+              length = '(%s - %s)' % (stop + 1, pos0)
+
+            Two of these five require the length of the string which is not
+            supported by Mongo, so for now these cause an Exception and
+            won't reach here.
+
+            If this were to ever be supported it may require a change to
+            Expression.__getitem__ so that it either returned the base
+            expression to be expanded here, or converted length to a string
+            to be parsed back to a call to STRLEN()
+            """
+            if isinstance(length, basestring):
+                return (pos0 - 1, eval(length))
+            else:
+                # take the rest of the string
+                return (pos0 - 1, -1)
+
+        parameters = parse_parameters(*parameters)
+        return {'$substr': [self.expand(field), parameters[0], parameters[1]]}
+
+    @needs_mongodb_aggregation_pipeline
+    def LOWER(self, first):
+        return {'$toLower': self.expand(first)}
+
+    @needs_mongodb_aggregation_pipeline
+    def UPPER(self, first):
+        return {'$toUpper': self.expand(first)}
+
+    def REGEXP(self, first, second):
+        """ MongoDB provides regular expression capabilities for pattern
+            matching strings in queries. MongoDB uses Perl compatible
+            regular expressions (i.e. 'PCRE') version 8.36 with UTF-8 support.
+        """
+        if (self.parse_data(first, 'pipeline')
+                or self.parse_data(second, 'pipeline')):
+
+            first = self.expand(first)
+            name = str(first)
+            return {MongoDBAdapter.REGEXP_MARK1: {name: first},
+                    MongoDBAdapter.REGEXP_MARK2: {name: {
+                        '$regex': self.expand(second, 'string')}}}
+        try:
+            return {self.expand(first):
+                        {'$regex': self.expand(second, 'string')}}
+        except TypeError:
+            self.parse_data(first, 'pipeline', True)
+            self.parse_data(second, 'pipeline', True)
+            return {}
+
+    def LENGTH(self, first):
+        """ https://jira.mongodb.org/browse/SERVER-5319
+            https://github.com/afchin/mongo/commit/f52105977e4d0ccb53bdddfb9c4528a3f3c40bdf
+        """
+        raise NotImplementedError()
+
+    def RANDOM(self):
+        """ ORDER BY RANDOM()
+
+            https://github.com/mongodb/cookbook/blob/master/content/patterns/random-attribute.txt
+            https://jira.mongodb.org/browse/SERVER-533
+            http://stackoverflow.com/questions/19412/how-to-request-a-random-row-in-sql
+        """
+        raise NotImplementedError()
 
     class NotOnNoSqlError(NotImplementedError):
         def __init__(self, message=None):

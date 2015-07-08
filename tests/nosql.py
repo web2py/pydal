@@ -528,18 +528,18 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(len(result), 4)
         result = db().select(db.tt.aa, db.tt.bb.sum(),
                              groupby=db.tt.aa, orderby=db.tt.aa)
-        self.assertEqual(result.response[2], ['3', 3])
+        self.assertEqual(tuple(result.response[2]), ('3', 3))
         result = db().select(db.tt.aa, db.tt.bb.sum(),
                              groupby=db.tt.aa, orderby=~db.tt.aa)
-        self.assertEqual(result.response[1], ['3', 3])
+        self.assertEqual(tuple(result.response[1]), ('3', 3))
         result = db().select(db.tt.aa, db.tt.bb, db.tt.cc.sum(),
                              groupby=db.tt.aa|db.tt.bb,
                              orderby=(db.tt.aa|~db.tt.bb))
-        self.assertEqual(result.response[4], ['2', 3, 1])
+        self.assertEqual(tuple(result.response[4]), ('2', 3, 1))
         result = db().select(db.tt.aa, db.tt.bb.sum(),
                              groupby=db.tt.aa, orderby=~db.tt.aa, limitby=(1,2))
         self.assertEqual(len(result), 1)
-        self.assertEqual(result.response[0], ['3', 3])
+        self.assertEqual(tuple(result.response[0]), ('3', 3))
         db.tt.drop()
         db.close()
 
@@ -677,7 +677,7 @@ class TestLike(unittest.TestCase):
         #this query comparing previously inserted 'abc' with 'ABC':
         #if the result is 0, then the backend recognizes
         #case-sensitivity, if 1 it isn't
-        is_case_insensitive = db(db.tt.aa.like('ABC')).count()
+        is_case_insensitive = db(db.tt.aa.like('%ABC%')).count()
         self.assertEqual(db(db.tt.aa.like('A%')).count(), is_case_insensitive)
         self.assertEqual(db(db.tt.aa.like('%B%')).count(), is_case_insensitive)
         self.assertEqual(db(db.tt.aa.like('%C')).count(), is_case_insensitive)
@@ -695,6 +695,54 @@ class TestLike(unittest.TestCase):
         self.assertEqual(db(db.tt.aa.endswith('c')).count(), 1)
         self.assertEqual(db(db.tt.aa.startswith('c')).count(), 0)
         self.assertEqual(db(db.tt.aa.endswith('a')).count(), 0)
+
+    @unittest.skipIf(IS_MONGODB, "Mongodb: escaping not implemented")
+    def testEscaping(self):
+        db = self.db
+        term = 'ahbc'.replace('h', '\\') #funny but to avoid any doubts...
+        db.tt.insert(aa='a%bc')
+        db.tt.insert(aa=term)
+        self.assertEqual(db(db.tt.aa.like('%ax%bc%', escape='x')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('%'+term+'%')).count(), 1)
+        db(db.tt.id>0).delete()
+        # test "literal" like, i.e. exactly as LIKE in the backend
+        db.tt.insert(aa='perc%ent')
+        db.tt.insert(aa='percent')
+        db.tt.insert(aa='percxyzent')
+        db.tt.insert(aa='under_score')
+        db.tt.insert(aa='underxscore')
+        db.tt.insert(aa='underyscore')
+        self.assertEqual(db(db.tt.aa.like('%perc%ent%')).count(), 3)
+        self.assertEqual(db(db.tt.aa.like('%under_score%')).count(), 3)
+        db(db.tt.id>0).delete()
+        # escaping with startswith and endswith
+        db.tt.insert(aa='%percent')
+        db.tt.insert(aa='xpercent')
+        db.tt.insert(aa='discount%')
+        db.tt.insert(aa='discountx')
+        self.assertEqual(db(db.tt.aa.endswith('discount%')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('discount%%')).count(), 2)
+        self.assertEqual(db(db.tt.aa.startswith('%percent')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('%%percent')).count(), 2)
+
+    def testRegexp(self):
+        db = self.db
+        db(db.tt.id>0).delete()
+        db.tt.insert(aa='%percent')
+        db.tt.insert(aa='xpercent')
+        db.tt.insert(aa='discount%')
+        db.tt.insert(aa='discountx')
+        try:
+            self.assertEqual(db(db.tt.aa.regexp('count')).count(), 2)
+        except NotImplementedError:
+            pass
+        else:
+            self.assertEqual(db(db.tt.aa.lower().regexp('count')).count(), 2)
+            self.assertEqual(db(db.tt.aa.upper().regexp('COUNT') &
+                                db.tt.aa.lower().regexp('count')).count(), 2)
+            self.assertEqual(db(db.tt.aa.upper().regexp('COUNT') |
+                                (db.tt.aa.lower()=='xpercent')).count(), 3)
+
 
     @unittest.skipIf(IS_MONGODB, "Mongodb: Like integer not implemeneted")
     def testLikeInteger(self):
@@ -875,23 +923,29 @@ class TestExpressions(unittest.TestCase):
             drop(db.tt)
         db.close()
 
-    @unittest.skipIf(True, "LENGTH is not supported")
+    #@unittest.skipIf(True, "LENGTH is not supported")
     def testSubstring(self):
+        if IS_MONGODB:
+            # MongoDB does not support string length
+            end = 3
+        else:
+            end = -2
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         t0 = db.define_table('t0', Field('name'))
         input_name = "web2py"
         t0.insert(name=input_name)
         exp_slice = t0.name.lower()[4:6]
         exp_slice_no_max = t0.name.lower()[4:]
-        exp_slice_neg_max = t0.name.lower()[2:-2]
-        exp_slice_neg_start = t0.name.lower()[-2:]
+        exp_slice_neg_max = t0.name.lower()[2:end]
+        exp_slice_neg_start = t0.name.lower()[end:]
         exp_item = t0.name.lower()[3]
-        out = db(t0).select(exp_slice, exp_item, exp_slice_no_max, exp_slice_neg_max, exp_slice_neg_start).first()
+        out = db(t0).select(exp_slice, exp_item, exp_slice_no_max,
+                            exp_slice_neg_max, exp_slice_neg_start).first()
         self.assertEqual(out[exp_slice], input_name[4:6])
         self.assertEqual(out[exp_item], input_name[3])
         self.assertEqual(out[exp_slice_no_max], input_name[4:])
-        self.assertEqual(out[exp_slice_neg_max], input_name[2:-2])
-        self.assertEqual(out[exp_slice_neg_start], input_name[-2:])
+        self.assertEqual(out[exp_slice_neg_max], input_name[2:end])
+        self.assertEqual(out[exp_slice_neg_start], input_name[end:])
         t0.drop()
         db.close()
 
