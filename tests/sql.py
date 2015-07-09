@@ -1965,6 +1965,14 @@ class TestLazy(unittest.TestCase):
         db.tt.drop()
         db.close()
 
+    def testRowExtra(self):
+        db=DAL(DEFAULT_URI, lazy_tables=True)
+        tt = db.define_table('tt',  Field('value', 'integer'))
+        db.tt.insert(value=1)
+        row = db(db.tt).select('value').first()
+        self.assertEqual(row.value, 1)
+        db.tt.drop()
+        db.close()
 
 class TestRedefine(unittest.TestCase):
 
