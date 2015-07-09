@@ -287,8 +287,7 @@ class MongoDBAdapter(NoSQLAdapter):
 
             if self._parse_data['pipeline']:
                 # if the query needs the aggregation engine, set that up
-                if self.query_dict is not None:
-                    self._build_pipeline_query()
+                self._build_pipeline_query()
 
                 # expand the fields for the aggregation engine
                 self._expand_fields(None)
@@ -464,8 +463,7 @@ class MongoDBAdapter(NoSQLAdapter):
                     if item == MongoDBAdapter.GROUP_MARK:
                         name = str(items[item])
                         self.field_groups[name] = items[item]
-                        if parent:
-                            parent[parent_key] = '$' + name
+                        parent[parent_key] = '$' + name
                 return items
 
             if MongoDBAdapter.AS_MARK in field.name:
@@ -646,11 +644,15 @@ class MongoDBAdapter(NoSQLAdapter):
         limitby = attributes.get('limitby', False)
         groupby = attributes.get('groupby', False)
         # distinct = attributes.get('distinct', False)
+
         if 'for_update' in attributes:
             self.db.logger.warning('mongodb does not support for_update')
         for key in set(attributes.keys())-set(('limitby', 'orderby',
                                                'groupby', 'for_update')):
             if attributes[key] is not None:
+                if key in ['join', 'left']:
+                    raise MongoDBAdapter.NotOnNoSqlError(
+                        "Attribute '%s' not Supported on NoSQL databases" % key)
                 self.db.logger.warning(
                     'select attribute not implemented: %s' % key)
         if orderby:
@@ -658,15 +660,19 @@ class MongoDBAdapter(NoSQLAdapter):
                 raise RuntimeError("snapshot and orderby are mutually exclusive")
             if isinstance(orderby, (list, tuple)):
                 orderby = xorify(orderby)
-            # !!!! need to add 'random'
-            for f in self.expand(orderby).split(','):
-                include = 1
-                if f.startswith('-'):
-                    include = -1
-                    f = f[1:]
-                if f.startswith('$'):
-                    f = f[1:]
-                mongosort_list.append((f, include))
+
+            if str(orderby) == '<random>':
+                # !!!! need to add 'random'
+                mongosort_list = self.RANDOM()
+            else:
+                for f in self.expand(orderby).split(','):
+                    include = 1
+                    if f.startswith('-'):
+                        include = -1
+                        f = f[1:]
+                    if f.startswith('$'):
+                        f = f[1:]
+                    mongosort_list.append((f, include))
         for item in fields:
             if isinstance(item, SQLALL):
                 new_fields += item._table
@@ -885,12 +891,11 @@ class MongoDBAdapter(NoSQLAdapter):
 
     ## OPERATORS
     def needs_mongodb_aggregation_pipeline(f):
-        def mark_pipeline(*args, **kwargs):
-            if len(args) > 1:
-                args[0].parse_data(args[1], 'pipeline', True)
-            if len(args) > 2:
-                args[0].parse_data(args[2], 'pipeline', True)
-            return f(*args, **kwargs)
+        def mark_pipeline(self, first, *args, **kwargs):
+            self.parse_data(first, 'pipeline', True)
+            if len(args) > 0:
+                self.parse_data(args[0], 'pipeline', True)
+            return f(self, first, *args, **kwargs)
         return mark_pipeline
 
     def INVERT(self, first):
@@ -1122,12 +1127,6 @@ class MongoDBAdapter(NoSQLAdapter):
     # We could implement an option that simulates a full featured SQL
     # database. But I think the option should be set explicit or
     # implemented as another library.
-    def JOIN(self):
-        raise MongoDBAdapter.NotOnNoSqlError()
-
-    def LEFT_JOIN(self):
-        raise MongoDBAdapter.NotOnNoSqlError()
-
     def ON(self, first, second):
         raise MongoDBAdapter.NotOnNoSqlError()
 

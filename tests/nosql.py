@@ -15,7 +15,7 @@ from pydal._compat import PY2, basestring, StringIO, integer_types
 long = integer_types[-1]
 
 from pydal import DAL, Field
-from pydal.objects import Table, Query
+from pydal.objects import Table, Query, Expression
 from pydal.helpers.classes import SQLALL
 from ._adapt import DEFAULT_URI, IS_IMAP, drop, IS_GAE, IS_MONGODB
 
@@ -23,6 +23,8 @@ if IS_IMAP:
     from pydal.adapters import IMAPAdapter
     from pydal.contrib import mockimaplib
     IMAPAdapter.driver = mockimaplib
+elif IS_MONGODB:
+    from pydal.adapters import MongoDBAdapter
 elif IS_GAE:
     # setup GAE dummy database
     from google.appengine.ext import testbed
@@ -92,6 +94,11 @@ class TestMongo(unittest.TestCase):
         self.assertEqual(isinstance(db.tt.insert(aa='<random>'), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='1'), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='0x1'), long), True)
+        try:
+            self.assertEqual(db(db.tt.aa+1==1).update(aa=0), 0)
+        except:
+            with self.assertRaises(RuntimeError):
+                self.assertEqual(db(db.tt.aa+1==1).update(aa=0), 0)
         drop(db.tt)
 
         db.define_table('tt', Field('aa', 'date'))
@@ -107,12 +114,30 @@ class TestMongo(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             db._adapter.select(Query(db, db._adapter.AGGREGATE, db.tt.aa,
                                      'UNKNOWN'), [db.tt.aa], {})
+        with self.assertRaises(NotImplementedError):
+            db._adapter.select(Expression(db, db._adapter.EXTRACT, db.tt.aa, 
+                                          'UNKNOWN', 'integer'), [db.tt.aa], {})
         drop(db.tt)
 
         db.define_table('tt', Field('aa', 'integer'))
         case=(db.tt.aa == 0).case(db.tt.aa + 2)
         with self.assertRaises(SyntaxError):
             db(case).count()
+        drop(db.tt)
+
+        db.define_table('tt', Field('aa'))
+        db.tt.insert(aa="aa")
+        with self.assertRaises(NotImplementedError):
+            db().select(db.tt.aa.lower()[4:-1]).first()
+        with self.assertRaises(RuntimeError):
+            db(db.tt.aa.belongs(db()._select(db.tt.aa))).count()
+        with self.assertRaises(RuntimeError):
+            db(db.tt.aa.lower()).update(aa='bb')
+        with self.assertRaises(NotImplementedError):
+            db().select(orderby='<random>')
+        with self.assertRaises(RuntimeError):
+            MongoDBAdapter.Expanded(db._adapter, 'delete',
+                Query(db, db._adapter.EQ, db.tt.aa, 'x'), [True])
         drop(db.tt)
 
         db.close()
@@ -126,8 +151,29 @@ class TestMongo(unittest.TestCase):
             self.assertEqual(db._adapter.delete(
                 'tt', Query(db, db._adapter.EQ, db.tt.aa, 'x'), safe=safe), 1)
             self.assertEqual(db(db.tt.aa=='x').count(), 0)
+            self.assertEqual(db._adapter.update('tt',
+                    Query(db, db._adapter.EQ, db.tt.aa, 'x'),
+                    db['tt']._listify({'aa':'x'}), safe=safe), 0)
             drop(db.tt)
             db.close()
+
+    def testJoin(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa', 'integer'), Field('b', 'reference tt'))
+        i1 = db.tt.insert(aa=1)
+        db.tt.insert(aa=4, b=i1)
+        q = db.tt.b==db.tt.id
+        with self.assertRaises(MongoDBAdapter.NotOnNoSqlError):
+            db(db.tt).select(left=db.tt.on(q))
+        with self.assertRaises(MongoDBAdapter.NotOnNoSqlError):
+            db(db.tt).select(join=db.tt.on(q))
+        with self.assertRaises(MongoDBAdapter.NotOnNoSqlError):
+            db(db.tt).select(db.tt.on(q))
+        self.assertEqual(db(db.tt).count(), 2)
+        db.tt.truncate()
+        self.assertEqual(db(db.tt).count(), 0)
+        drop(db.tt)
+        db.close()
 
 
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
@@ -743,7 +789,6 @@ class TestLike(unittest.TestCase):
             self.assertEqual(db(db.tt.aa.upper().regexp('COUNT') |
                                 (db.tt.aa.lower()=='xpercent')).count(), 3)
 
-
     @unittest.skipIf(IS_MONGODB, "Mongodb: Like integer not implemeneted")
     def testLikeInteger(self):
         db = self.db
@@ -923,7 +968,6 @@ class TestExpressions(unittest.TestCase):
             drop(db.tt)
         db.close()
 
-    #@unittest.skipIf(True, "LENGTH is not supported")
     def testSubstring(self):
         if IS_MONGODB:
             # MongoDB does not support string length
