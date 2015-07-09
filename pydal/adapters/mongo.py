@@ -3,11 +3,12 @@ import datetime
 import re
 
 from .._globals import IDENTITY
-from .._compat import integer_types, basestring
+from .._compat import integer_types, basestring, PY2
 from ..objects import Table, Query, Field, Expression, Row
 from ..helpers.classes import SQLALL, Reference
 from ..helpers.methods import use_common_filters, xorify
 from .base import NoSQLAdapter
+
 try:
     from bson import Binary
     from bson.binary import USER_DEFINED_SUBTYPE
@@ -543,6 +544,12 @@ class MongoDBAdapter(NoSQLAdapter):
 
     @staticmethod
     def parse_data(expression, attribute, value=None):
+        if isinstance(expression, (list, tuple)):
+            ret = False
+            for e in expression:
+                ret = MongoDBAdapter.parse_data(e, attribute, value) or ret
+            return ret
+
         if value is not None:
             try:
                 expression._parse_data[attribute] = value
@@ -619,7 +626,7 @@ class MongoDBAdapter(NoSQLAdapter):
 
     def truncate(self, table, mode, safe=None):
         ctable = self.connection[table._tablename]
-        ctable.remove(None, w=self._get_safe(safe))
+        ctable.delete_many({})
 
     def count(self, query, distinct=None, snapshot=True):
         if distinct:
@@ -958,13 +965,11 @@ class MongoDBAdapter(NoSQLAdapter):
 
     def check_fields_for_cmp(f):
         def check_fields(self, first, second=None, *args, **kwargs):
-            if (self.parse_data(first, 'pipeline')
-                    or self.parse_data(second, 'pipeline')):
+            if (self.parse_data((first, second), 'pipeline')):
                 pipeline = True
             elif not isinstance(first, Field) or self.has_field(second):
                 pipeline = True
-                self.parse_data(first, 'pipeline', True)
-                self.parse_data(second, 'pipeline', True)
+                self.parse_data((first, second), 'pipeline', True)
             else:
                 pipeline = False
             return f(self, first, second, *args, pipeline=pipeline, **kwargs)
@@ -1135,14 +1140,15 @@ class MongoDBAdapter(NoSQLAdapter):
         return '%s,%s' % (self.expand(first), self.expand(second))
 
     #TODO verify full compatibilty with official SQL Like operator
-    def _build_like_regex(self, arg,
+    def _build_like_regex(self, first, second,
                           case_sensitive=True,
+                          escape=None,
                           ends_with=False,
                           starts_with=False,
                           whole_string=True,
                           like_wildcards=False):
         import re
-        base = self.expand(arg, 'string')
+        base = self.expand(second, 'string')
         need_regex = (whole_string or not case_sensitive
                       or starts_with or ends_with
                       or like_wildcards and ('_' in base or '%' in base))
@@ -1151,8 +1157,30 @@ class MongoDBAdapter(NoSQLAdapter):
         else:
             expr = re.escape(base)
             if like_wildcards:
+                if escape:
+                    # protect % and _ which are escaped
+                    expr = expr.replace(escape+'\\%', '%')
+                    if PY2:
+                        expr = expr.replace(escape+'\\_', '_')
+                    elif escape+'_' in expr:
+                        set_aside = str(self.object_id('<random>'))
+                        while set_aside in expr:
+                            set_aside = str(self.object_id('<random>'))
+                        expr = expr.replace(escape+'_', set_aside)
+                    else:
+                        set_aside = None
                 expr = expr.replace('\\%', '.*')
-                expr = expr.replace('\\_', '.').replace('_', '.')
+                if PY2:
+                    expr = expr.replace('\\_', '.')
+                else:
+                    expr = expr.replace('_', '.')
+                if escape:
+                    # convert to protected % and _
+                    expr = expr.replace('%', '\\%')
+                    if PY2:
+                        expr = expr.replace('_', '\\_')
+                    elif set_aside:
+                        expr = expr.replace(set_aside, '_')
             if starts_with:
                 pattern = '^%s'
             elif ends_with:
@@ -1162,48 +1190,61 @@ class MongoDBAdapter(NoSQLAdapter):
             else:
                 pattern = '%s'
 
-            regex = {'$regex': pattern % expr}
-            if not case_sensitive:
-                regex['$options'] = 'i'
-            return regex
+            return self.REGEXP(first, pattern % expr, case_sensitive)
 
     def LIKE(self, first, second, case_sensitive=True, escape=None):
-        regex = self._build_like_regex(
-            second, case_sensitive=case_sensitive, like_wildcards=True)
-        return {self.expand(first): regex}
+        return self._build_like_regex(first, second, 
+            case_sensitive=case_sensitive, escape=escape, like_wildcards=True)
 
     def ILIKE(self, first, second, escape=None):
         return self.LIKE(first, second, case_sensitive=False, escape=escape)
 
     def STARTSWITH(self, first, second):
-        regex = self._build_like_regex(second, starts_with=True)
-        return {self.expand(first): regex}
+        return self._build_like_regex(first, second, starts_with=True)
 
     def ENDSWITH(self, first, second):
-        regex = self._build_like_regex(second, ends_with=True)
-        return {self.expand(first): regex}
+        return self._build_like_regex(first, second, ends_with=True)
 
     #TODO verify full compatibilty with official oracle contains operator
     def CONTAINS(self, first, second, case_sensitive=True):
-        ret = None
         if isinstance(second, self.ObjectId):
-            val = second
+            ret = {self.expand(first): second}
 
-        elif isinstance(first, Field) and first.type == 'list:string':
-            if isinstance(second, Field) and second.type == 'string':
-                ret = {
-                    '$where':
-                    "this.%s.indexOf(this.%s) > -1" % (first.name, second.name)
-                }
+        elif isinstance(second, Field):
+            if second.type in ['string', 'text']:
+                if isinstance(first, Field):
+                    if first.type in ['list:string', 'string', 'text']:
+                        ret = {'$where': "this.%s.indexOf(this.%s) > -1"
+                            % (first.name, second.name)}
+                    else:
+                        raise NotImplementedError("field.CONTAINS() not "
+                            + "implemented for field type of '%s'"
+                            % first.type)
+                else:
+                    raise NotImplementedError(
+                        "x.CONTAINS() not implemented for x type of '%s'"
+                        % type(first))
+
+            elif second.type in ['integer', 'bigint']:
+                ret = {'$where': "this.%s.indexOf(this.%s + '') > -1"
+                        % (first.name, second.name)}
             else:
-                val = self._build_like_regex(
-                    second, case_sensitive=case_sensitive, whole_string=True)
-        else:
-            val = self._build_like_regex(
-                second, case_sensitive=case_sensitive, whole_string=False)
+                raise NotImplementedError(
+                    "CONTAINS(field) not implemented for field type '%s'"
+                    % second.type)
 
-        if not ret:
-            ret = {self.expand(first): val}
+        elif isinstance(second, (basestring, int)):
+            whole_string = (isinstance(first, Field)
+                            and first.type == 'list:string')
+            ret = self._build_like_regex(first, second, 
+                case_sensitive=case_sensitive, whole_string=whole_string)
+
+            # first.type in ('string', 'text', 'json', 'upload')
+            # or first.type.startswith('list:'):
+
+        else:
+            raise NotImplementedError(
+                "CONTAINS() not implemented for type '%s'" % type(second))
 
         return ret
 
@@ -1249,25 +1290,24 @@ class MongoDBAdapter(NoSQLAdapter):
     def UPPER(self, first):
         return {'$toUpper': self.expand(first)}
 
-    def REGEXP(self, first, second):
+    def REGEXP(self, first, second, case_sensitive=True):
         """ MongoDB provides regular expression capabilities for pattern
             matching strings in queries. MongoDB uses Perl compatible
             regular expressions (i.e. 'PCRE') version 8.36 with UTF-8 support.
         """
-        if (self.parse_data(first, 'pipeline')
-                or self.parse_data(second, 'pipeline')):
-
-            first = self.expand(first)
-            name = str(first)
-            return {MongoDBAdapter.REGEXP_MARK1: {name: first},
-                    MongoDBAdapter.REGEXP_MARK2: {name: {
-                        '$regex': self.expand(second, 'string')}}}
+        expanded_first = self.expand(first)
+        regex_second = {'$regex': self.expand(second, 'string')}
+        if not case_sensitive:
+            regex_second['$options'] = 'i'
+        if (self.parse_data((first, second), 'pipeline')):
+            name = str(expanded_first)
+            return {MongoDBAdapter.REGEXP_MARK1: {name: expanded_first},
+                    MongoDBAdapter.REGEXP_MARK2: {name: regex_second}}
         try:
-            return {self.expand(first):
-                        {'$regex': self.expand(second, 'string')}}
+            return {expanded_first: regex_second}
         except TypeError:
-            self.parse_data(first, 'pipeline', True)
-            self.parse_data(second, 'pipeline', True)
+            # if first is not hashable, then will need the pipeline
+            self.parse_data((first, second), 'pipeline', True)
             return {}
 
     def LENGTH(self, first):

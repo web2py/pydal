@@ -125,8 +125,18 @@ class TestMongo(unittest.TestCase):
             db(case).count()
         drop(db.tt)
 
-        db.define_table('tt', Field('aa'))
+        db.define_table('tt', Field('aa'), Field('bb', 'integer'),
+                        Field('cc', 'list:integer'))
         db.tt.insert(aa="aa")
+
+        with self.assertRaises(NotImplementedError):
+            db((db.tt.aa+1).contains(db.tt.aa)).count()
+        with self.assertRaises(NotImplementedError):
+            db(db.tt.cc.contains(db.tt.aa)).count()
+        with self.assertRaises(NotImplementedError):
+            db(db.tt.aa.contains(db.tt.cc)).count()
+        with self.assertRaises(NotImplementedError):
+            db(db.tt.aa.contains(1.0)).count()
         with self.assertRaises(NotImplementedError):
             db().select(db.tt.aa.lower()[4:-1]).first()
         with self.assertRaises(RuntimeError):
@@ -540,6 +550,8 @@ class TestSelect(unittest.TestCase):
                 db(db.tt).select(db.tt.t0_id).last()[db.tt.t0_id], ref3)
 
             if IS_MONGODB:
+                self.assertEqual(db(db.tt.t0_id.contains(id_a1)).count(), 2)
+                self.assertEqual(db(db.tt.t0_id.contains(id_a2)).count(), 2)
                 db(db.t0.aa == 'test1').delete()
                 if ondelete == 'SET NULL':
                     self.assertEqual(db(db.tt).count(), 3)
@@ -667,7 +679,7 @@ class TestContains(unittest.TestCase):
         self.assertEqual(db(db.tt.bb.contains('d')).count(), 0)
         self.assertEqual(db(db.tt.aa.contains(db.tt.bb)).count(), 1)
 
-        #case-sensitivity tests, if 1 it isn't
+        # case-sensitivity tests, if 1 it isn't
         is_case_insensitive = db(db.tt.bb.contains('AAA', case_sensitive=True)).count()
         if is_case_insensitive:
             self.assertEqual(db(db.tt.aa.contains('AAA')).count(), 2)
@@ -677,7 +689,38 @@ class TestContains(unittest.TestCase):
             self.assertEqual(db(db.tt.bb.contains('A', case_sensitive=True)).count(), 0)
             self.assertEqual(db(db.tt.aa.contains('AAA', case_sensitive=False)).count(), 2)
             self.assertEqual(db(db.tt.bb.contains('A', case_sensitive=False)).count(), 3)
+        db.tt.drop()
 
+        # integers in string fields
+        db.define_table('tt', Field('aa', 'list:string'), Field('bb','string'), Field('cc','integer'))
+        self.assertEqual(isinstance(db.tt.insert(aa=['123','456'],bb='123', cc=12), long), True)
+        self.assertEqual(isinstance(db.tt.insert(aa=['124','456'],bb='123', cc=123), long), True)
+        self.assertEqual(isinstance(db.tt.insert(aa=['125','457'],bb='23', cc=125), long), True)
+        self.assertEqual(db(db.tt.aa.contains(123)).count(), 1)
+        self.assertEqual(db(db.tt.aa.contains(23)).count(), 0)
+        self.assertEqual(db(db.tt.aa.contains(db.tt.cc)).count(), 1)
+        self.assertEqual(db(db.tt.bb.contains(123)).count(), 2)
+        self.assertEqual(db(db.tt.bb.contains(23)).count(), 3)
+        self.assertEqual(db(db.tt.bb.contains(db.tt.cc)).count(), 2)
+        db.tt.drop()
+
+        # string field contains string field
+        db.define_table('tt', Field('aa'), Field('bb'))
+        db.tt.insert(aa='aaa', bb='%aaa')
+        db.tt.insert(aa='aaa', bb='aaa')
+        self.assertEqual(db(db.tt.aa.contains(db.tt.bb)).count(), 1)
+        drop(db.tt)
+
+        # escaping
+        db.define_table('tt', Field('aa'))
+        db.tt.insert(aa='perc%ent')
+        db.tt.insert(aa='percent')
+        db.tt.insert(aa='percxyzent')
+        db.tt.insert(aa='under_score')
+        db.tt.insert(aa='underxscore')
+        db.tt.insert(aa='underyscore')
+        self.assertEqual(db(db.tt.aa.contains('perc%ent')).count(), 1)
+        self.assertEqual(db(db.tt.aa.contains('under_score')).count(), 1)
         drop(db.tt)
         db.close()
 
@@ -728,12 +771,12 @@ class TestLike(unittest.TestCase):
         self.assertEqual(db(db.tt.aa.like('%B%')).count(), is_case_insensitive)
         self.assertEqual(db(db.tt.aa.like('%C')).count(), is_case_insensitive)
 
-    @unittest.skipIf(IS_MONGODB, "Mongodb: Upper/Lower not implemented")
     def testUpperLower(self):
         db = self.db
         self.assertEqual(db(db.tt.aa.upper().like('A%')).count(), 1)
         self.assertEqual(db(db.tt.aa.upper().like('%B%')).count(),1)
         self.assertEqual(db(db.tt.aa.upper().like('%C')).count(), 1)
+        self.assertEqual(db(db.tt.aa.lower().like('%c')).count(), 1)
 
     def testStartsEndsWith(self):
         db = self.db
@@ -742,13 +785,14 @@ class TestLike(unittest.TestCase):
         self.assertEqual(db(db.tt.aa.startswith('c')).count(), 0)
         self.assertEqual(db(db.tt.aa.endswith('a')).count(), 0)
 
-    @unittest.skipIf(IS_MONGODB, "Mongodb: escaping not implemented")
     def testEscaping(self):
         db = self.db
         term = 'ahbc'.replace('h', '\\') #funny but to avoid any doubts...
         db.tt.insert(aa='a%bc')
+        db.tt.insert(aa='a_bc')
         db.tt.insert(aa=term)
         self.assertEqual(db(db.tt.aa.like('%ax%bc%', escape='x')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('%ax_bc%', escape='x')).count(), 1)
         self.assertEqual(db(db.tt.aa.like('%'+term+'%')).count(), 1)
         db(db.tt.id>0).delete()
         # test "literal" like, i.e. exactly as LIKE in the backend
@@ -789,7 +833,7 @@ class TestLike(unittest.TestCase):
             self.assertEqual(db(db.tt.aa.upper().regexp('COUNT') |
                                 (db.tt.aa.lower()=='xpercent')).count(), 3)
 
-    @unittest.skipIf(IS_MONGODB, "Mongodb: Like integer not implemeneted")
+    @unittest.skipIf(IS_MONGODB, "Mongodb: Like integer not implemented")
     def testLikeInteger(self):
         db = self.db
         db.tt.drop()
