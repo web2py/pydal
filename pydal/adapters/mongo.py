@@ -1297,9 +1297,8 @@ class MongoDBAdapter(NoSQLAdapter):
         """
         if (isinstance(first, Field) and
                 first.type in ['integer', 'bigint', 'float', 'double']):
-            options = 'i' if case_sensitive else '' 
-            return {'$where': "RegExp('%s','%s').test(this.%s + '')"
-                % (self.expand(second, 'string'), options, first.name)}
+            return {'$where': "RegExp('%s').test(this.%s + '')"
+                % (self.expand(second, 'string'), first.name)}
 
         expanded_first = self.expand(first)
         regex_second = {'$regex': self.expand(second, 'string')}
