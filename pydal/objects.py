@@ -83,6 +83,12 @@ class Row(BasicStorage):
 
     __call__ = __getitem__
 
+    def __getattr__(self, k):
+        try:
+            return self.__getitem__(k)
+        except KeyError:
+            raise AttributeError
+
     def __copy__(self):
         return Row(self)
 
