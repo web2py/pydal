@@ -1,10 +1,10 @@
 pydal changelog
 ===============
 
-Next
-----
+Version 15.07
+-------------
 
-(Release date to be announced)
+Released on July 10th 2015
 
 - Added `smart_query` support for 'contains' on fields of type 'list:string'
 - Implemented correct escaping for 'LIKE'
@@ -16,6 +16,7 @@ Next
 - Added aggregations support on `MongoDBAdapter`
 - `Table.validate_and_insert` and `Table.validate_and_update` methods now
   validates also empty fields
+- Added support for expression operators on `MongoDBAdapter`
 - Several bugfixes
 
 
