@@ -565,12 +565,15 @@ class TestSelect(unittest.TestCase):
         db.close()
 
     @unittest.skipIf(IS_GAE, "no groupby in appengine")
-    def testGroupBy(self):
+    def testGroupByAndDistinct(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt',
                         Field('aa'),
-                        Field('bb', 'integer'), 
+                        Field('bb', 'integer'),
                         Field('cc', 'integer'))
+        db.tt.insert(aa='4', bb=1, cc=1)
+        db.tt.insert(aa='3', bb=2, cc=1)
+        db.tt.insert(aa='3', bb=1, cc=1)
         db.tt.insert(aa='1', bb=1, cc=1)
         db.tt.insert(aa='1', bb=2, cc=1)
         db.tt.insert(aa='1', bb=3, cc=1)
@@ -578,10 +581,9 @@ class TestSelect(unittest.TestCase):
         db.tt.insert(aa='2', bb=1, cc=1)
         db.tt.insert(aa='2', bb=2, cc=1)
         db.tt.insert(aa='2', bb=3, cc=1)
-        db.tt.insert(aa='3', bb=1, cc=1)
-        db.tt.insert(aa='3', bb=2, cc=1)
-        db.tt.insert(aa='4', bb=1, cc=1)
+        self.assertEqual(db(db.tt).count(), 10)
 
+        # test groupby
         result = db().select(db.tt.aa, db.tt.bb.sum(), groupby=db.tt.aa)
         self.assertEqual(len(result), 4)
         result = db().select(db.tt.aa, db.tt.bb.sum(),
@@ -598,6 +600,28 @@ class TestSelect(unittest.TestCase):
                              groupby=db.tt.aa, orderby=~db.tt.aa, limitby=(1,2))
         self.assertEqual(len(result), 1)
         self.assertEqual(tuple(result.response[0]), ('3', 3))
+        result = db().select(db.tt.aa, db.tt.bb.sum(),
+                             groupby=db.tt.aa, limitby=(0,3))
+        self.assertEqual(len(result), 3)
+        self.assertEqual(tuple(result.response[2]), ('3', 3))
+
+        # test distinct
+        result = db().select(db.tt.aa, db.tt.cc, distinct=True)
+        self.assertEqual(len(result), 4)
+        result = db().select(db.tt.cc, distinct=True, groupby=db.tt.cc)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].cc, 1)
+        result = db().select(db.tt.aa, distinct=True, orderby=~db.tt.aa)
+        self.assertEqual(result[2].aa, '2')
+        self.assertEqual(result[1].aa, '3')
+        result = db().select(db.tt.aa, db.tt.bb,
+                             distinct=True, orderby=(db.tt.aa|~db.tt.bb))
+        self.assertEqual(tuple(result.response[4]), ('2', 3))
+        result = db().select(db.tt.aa,
+                             distinct=db.tt.aa, orderby=~db.tt.aa, limitby=(1,2))
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].aa, '3')
+
         db.tt.drop()
         db.close()
 

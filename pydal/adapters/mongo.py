@@ -260,12 +260,21 @@ class MongoDBAdapter(NoSQLAdapter):
         and its results.
         """
         def __init__ (self, adapter, crud, query, fields=(), tablename=None,
-                      groupby=None):
+                      groupby=None, distinct=False):
             self.adapter = adapter
             self._parse_data = {'pipeline': False,
-                                'need_group': True if groupby else False}
+                                'need_group': bool(groupby or distinct)}
             self.crud = crud
-            self.groupby = groupby
+            self.distinct = distinct
+            if not groupby and distinct:
+                if distinct is True:
+                    # groupby gets all fields
+                    self.groupby = fields
+                else:
+                    self.groupby = distinct
+            else:
+                self.groupby = groupby
+
             if crud == 'update':
                 self.values = [(f[0], self.annotate_expression(f[1]))
                                for f in (fields or [])]
@@ -295,14 +304,18 @@ class MongoDBAdapter(NoSQLAdapter):
             else:
                 # expand the fields
                 try:
-                    self._expand_fields(self._fields_loop_abort)
+                    if not self._parse_data['need_group']:
+                        self._expand_fields(self._fields_loop_abort)
+                    else:
+                        self._parse_data['pipeline'] = True
+                        raise StopIteration
 
                 except StopIteration:
                     # if the fields needs the aggregation engine, set that up
                     self.field_dicts = self.adapter.SON()
                     if self.query_dict:
                         self.pipeline = [{'$match': self.query_dict}]
-                    self.query_dict = {}
+                        self.query_dict = {}
                     # expand the fields for the aggregation engine
                     self._expand_fields(None)
 
@@ -318,7 +331,7 @@ class MongoDBAdapter(NoSQLAdapter):
                     self.field_dicts = adapter.SON()
 
                 elif crud == 'select':
-                    if len(self.field_groups) > 1:
+                    if self._parse_data['need_group']:
                         if not self.groupby:
                             self.field_groups['_id'] = None
                         else:
@@ -644,15 +657,14 @@ class MongoDBAdapter(NoSQLAdapter):
             return 0
 
     def select(self, query, fields, attributes, snapshot=False):
-        mongofields_dict = self.SON()
-        new_fields, mongosort_list = [], []
-
+        new_fields = []
         for item in fields:
             if isinstance(item, SQLALL):
                 new_fields += item._table
             else:
                 new_fields.append(item)
         fields = new_fields
+
         if isinstance(query, Query):
             tablename = self.get_table(query)
         elif len(fields) != 0:
@@ -664,29 +676,35 @@ class MongoDBAdapter(NoSQLAdapter):
             raise SyntaxError("The table name could not be found in " +
                               "the query nor from the select statement.")
 
-        # try an orderby attribute
         orderby = attributes.get('orderby', False)
         limitby = attributes.get('limitby', False)
         groupby = attributes.get('groupby', False)
         orderby_on_limitby = attributes.get('orderby_on_limitby', True)
-        # distinct = attributes.get('distinct', False)
-
-        if limitby and not groupby and orderby_on_limitby and not orderby:
-            table = self.db[tablename]
-            orderby = [table[x] for x in (
-                hasattr(table, '_primarykey') and table._primarykey or ['_id'])]
+        distinct = attributes.get('distinct', False)
 
         if 'for_update' in attributes:
-            self.db.logger.warning('mongodb does not support for_update')
+            self.db.logger.warning(
+                'mongodb does not support record locking for_update')
         for key in set(attributes.keys())-set(('limitby', 'orderby',
-                'orderby_on_limitby', 'groupby', 'for_update')):
-            if attributes[key] is not None:
+                'orderby_on_limitby', 'groupby', 'for_update', 'distinct')):
+            if attributes[key]:
                 if key in ['join', 'left']:
                     raise MongoDBAdapter.NotOnNoSqlError(
                         "Attribute '%s' not Supported on NoSQL databases" % key)
                 self.db.logger.warning(
-                    'select attribute not implemented: %s' % key)
-        if orderby:
+                    'MongoDB select attribute not implemented: %s' % key)
+
+        if limitby and orderby_on_limitby and not orderby:
+            if groupby:
+                orderby = groupby
+            else:
+                table = self.db[tablename]
+                orderby = [table[x] for x in (hasattr(table, '_primarykey')
+                    and table._primarykey or ['_id'])]
+
+        if not orderby:
+            mongosort_list = []
+        else:
             if snapshot:
                 raise RuntimeError("snapshot and orderby are mutually exclusive")
             if isinstance(orderby, (list, tuple)):
@@ -696,6 +714,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 # !!!! need to add 'random'
                 mongosort_list = self.RANDOM()
             else:
+                mongosort_list = []
                 for f in self.expand(orderby).split(','):
                     include = 1
                     if f.startswith('-'):
@@ -705,13 +724,9 @@ class MongoDBAdapter(NoSQLAdapter):
                         f = f[1:]
                     mongosort_list.append((f, include))
 
-        if query:
-            if use_common_filters(query):
-                query = self.common_filter(query, [tablename])
-
         expanded = MongoDBAdapter.Expanded(
             self, 'select', query, fields or self.db[tablename],
-            groupby=groupby)
+            groupby=groupby, distinct=distinct)
         ctable = self.connection[tablename]
         modifiers = {'snapshot':snapshot}
 
