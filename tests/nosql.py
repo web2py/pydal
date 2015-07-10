@@ -833,14 +833,20 @@ class TestLike(unittest.TestCase):
             self.assertEqual(db(db.tt.aa.upper().regexp('COUNT') |
                                 (db.tt.aa.lower()=='xpercent')).count(), 3)
 
-    @unittest.skipIf(IS_MONGODB, "Mongodb: Like integer not implemented")
     def testLikeInteger(self):
         db = self.db
         db.tt.drop()
         db.define_table('tt', Field('aa', 'integer'))
         self.assertEqual(isinstance(db.tt.insert(aa=1111111111), long), True)
-        self.assertEqual(db(db.tt.aa.like('1%')).count(), 1)
+        self.assertEqual(isinstance(db.tt.insert(aa=1234567), long), True)
+        self.assertEqual(db(db.tt.aa.like('1%')).count(), 2)
+        self.assertEqual(db(db.tt.aa.like('1_3%')).count(), 1)
         self.assertEqual(db(db.tt.aa.like('2%')).count(), 0)
+        self.assertEqual(db(db.tt.aa.like('_2%')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('12%')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('012%')).count(), 0)
+        self.assertEqual(db(db.tt.aa.like('%45%')).count(), 1)
+        self.assertEqual(db(db.tt.aa.like('%54%')).count(), 0)
 
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")

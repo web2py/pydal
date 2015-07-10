@@ -1295,6 +1295,12 @@ class MongoDBAdapter(NoSQLAdapter):
             matching strings in queries. MongoDB uses Perl compatible
             regular expressions (i.e. 'PCRE') version 8.36 with UTF-8 support.
         """
+        if (isinstance(first, Field) and
+                first.type in ['integer', 'bigint', 'float', 'double']):
+            options = 'i' if case_sensitive else '' 
+            return {'$where': "RegExp('%s','%s').test(this.%s + '')"
+                % (self.expand(second, 'string'), options, first.name)}
+
         expanded_first = self.expand(first)
         regex_second = {'$regex': self.expand(second, 'string')}
         if not case_sensitive:
