@@ -646,16 +646,40 @@ class MongoDBAdapter(NoSQLAdapter):
     def select(self, query, fields, attributes, snapshot=False):
         mongofields_dict = self.SON()
         new_fields, mongosort_list = [], []
+
+        for item in fields:
+            if isinstance(item, SQLALL):
+                new_fields += item._table
+            else:
+                new_fields.append(item)
+        fields = new_fields
+        if isinstance(query, Query):
+            tablename = self.get_table(query)
+        elif len(fields) != 0:
+            if isinstance(fields[0], Expression):
+                tablename = self.get_table(fields[0])
+            else:
+                tablename = fields[0].tablename
+        else:
+            raise SyntaxError("The table name could not be found in " +
+                              "the query nor from the select statement.")
+
         # try an orderby attribute
         orderby = attributes.get('orderby', False)
         limitby = attributes.get('limitby', False)
         groupby = attributes.get('groupby', False)
+        orderby_on_limitby = attributes.get('orderby_on_limitby', True)
         # distinct = attributes.get('distinct', False)
+
+        if limitby and not groupby and orderby_on_limitby and not orderby:
+            table = self.db[tablename]
+            orderby = [table[x] for x in (
+                hasattr(table, '_primarykey') and table._primarykey or ['_id'])]
 
         if 'for_update' in attributes:
             self.db.logger.warning('mongodb does not support for_update')
         for key in set(attributes.keys())-set(('limitby', 'orderby',
-                                               'groupby', 'for_update')):
+                'orderby_on_limitby', 'groupby', 'for_update')):
             if attributes[key] is not None:
                 if key in ['join', 'left']:
                     raise MongoDBAdapter.NotOnNoSqlError(
@@ -680,22 +704,6 @@ class MongoDBAdapter(NoSQLAdapter):
                     if f.startswith('$'):
                         f = f[1:]
                     mongosort_list.append((f, include))
-        for item in fields:
-            if isinstance(item, SQLALL):
-                new_fields += item._table
-            else:
-                new_fields.append(item)
-        fields = new_fields
-        if isinstance(query, Query):
-            tablename = self.get_table(query)
-        elif len(fields) != 0:
-            if isinstance(fields[0], Expression):
-                tablename = self.get_table(fields[0])
-            else:
-                tablename = fields[0].tablename
-        else:
-            raise SyntaxError("The table name could not be found in " +
-                              "the query nor from the select statement.")
 
         if query:
             if use_common_filters(query):

@@ -144,7 +144,7 @@ class TestMongo(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             db(db.tt.aa.lower()).update(aa='bb')
         with self.assertRaises(NotImplementedError):
-            db().select(orderby='<random>')
+            db(db.tt).select(orderby='<random>')
         with self.assertRaises(RuntimeError):
             MongoDBAdapter.Expanded(db._adapter, 'delete',
                 Query(db, db._adapter.EQ, db.tt.aa, 'x'), [True])
