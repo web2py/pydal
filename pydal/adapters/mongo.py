@@ -402,8 +402,12 @@ class MongoDBAdapter(NoSQLAdapter):
                 #elif crud == 'delete':
                 #    pass
 
-        from bson.objectid import ObjectId
-        NULL_QUERY = {'_id': {'$gt': ObjectId('000000000000000000000000')}}
+        try:
+            from bson.objectid import ObjectId
+            NULL_QUERY = {'_id': {'$gt': 
+                                  ObjectId('000000000000000000000000')}}
+        except:
+            pass
 
         def _build_pipeline_query(self):
 
