@@ -314,7 +314,9 @@ class MongoDBAdapter(NoSQLAdapter):
                     # if the fields needs the aggregation engine, set that up
                     self.field_dicts = self.adapter.SON()
                     if self.query_dict:
-                        self.pipeline = [{'$match': self.query_dict}]
+                        if self.query_dict != {'_id': {'$gt':
+                                self.adapter.ObjectId('000000000000000000000000')}}:
+                            self.pipeline = [{'$match': self.query_dict}]
                         self.query_dict = {}
                     # expand the fields for the aggregation engine
                     self._expand_fields(None)
@@ -342,6 +344,8 @@ class MongoDBAdapter(NoSQLAdapter):
                         self.field_dicts = adapter.SON()
 
                 elif crud == 'count':
+                    if self._parse_data['need_group']:
+                        self.pipeline.append({'$group': self.field_groups})
                     self.pipeline.append(
                         {'$group': {"_id": None, 'count': {"$sum": 1}}})
 
@@ -415,7 +419,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 mid_loop = mid_loop or self._fields_loop_update_pipeline
                 for field, value in self.values:
                     self._expand_field(field, value, mid_loop)
-            elif self.crud == 'select':
+            elif self.crud in ['select', 'count']:
                 mid_loop = mid_loop or self._fields_loop_select_pipeline
                 for field in self.fields:
                     self._expand_field(field, field, mid_loop)
@@ -642,12 +646,26 @@ class MongoDBAdapter(NoSQLAdapter):
         ctable.delete_many({})
 
     def count(self, query, distinct=None, snapshot=True):
-        if distinct:
-            raise RuntimeError("COUNT DISTINCT not supported")
         if not isinstance(query, Query):
             raise SyntaxError("Type '%s' not supported in count" % type(query))
 
-        expanded = MongoDBAdapter.Expanded(self, 'count', query)
+        distinct_fields = []
+        if distinct is True:
+            distinct_fields = [x for x in query.first.table if x.name != 'id']
+        elif distinct:
+            if isinstance(distinct, Field):
+                distinct_fields = [distinct]
+            else:
+                while (isinstance(distinct, Expression) and
+                        isinstance(distinct.second, Field)):
+                    distinct_fields += [distinct.second]
+                    distinct = distinct.first
+                if isinstance(distinct, Field):
+                    distinct_fields += [distinct]
+            distinct = True
+
+        expanded = MongoDBAdapter.Expanded(
+            self, 'count', query, fields=distinct_fields, distinct=distinct)
         ctable = expanded.get_collection()
         if not expanded.pipeline:
             return ctable.count(filter=expanded.query_dict)
@@ -1102,9 +1120,10 @@ class MongoDBAdapter(NoSQLAdapter):
 
     @needs_mongodb_aggregation_pipeline
     def COUNT(self, first, distinct=None):
-        if distinct:
-            raise NotImplementedError("distinct not implemented for count op")
         self.parse_data(first, 'need_group', True)
+        if distinct:
+            return {'$size': {MongoDBAdapter.GROUP_MARK: 
+                              {"$addToSet": self.expand(first)}}}
         return {MongoDBAdapter.GROUP_MARK: {"$sum": 1}}
 
     _extract_map = {

@@ -622,7 +622,27 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].aa, '3')
 
-        db.tt.drop()
+        # test count distinct
+        db.tt.insert(aa='2', bb=3, cc=1)
+        self.assertEqual(db(db.tt).count(distinct=db.tt.aa), 4)
+        self.assertEqual(db(db.tt).count(distinct=db.tt.aa|db.tt.bb), 10)
+        self.assertEqual(db(db.tt).count(distinct=db.tt.aa|db.tt.bb|db.tt.cc), 10)
+        self.assertEqual(db(db.tt).count(distinct=True), 10)
+        self.assertEqual(db(db.tt.aa).count(db.tt.aa), 4)
+        self.assertEqual(db(db.tt.aa).count(), 11)
+        count=db.tt.aa.count()
+        self.assertEqual(db(db.tt).select(count).first()[count], 11)
+
+        count=db.tt.aa.count(distinct=True)
+        sum=db.tt.bb.sum()
+        result = db(db.tt).select(count, sum)
+        self.assertEqual(tuple(result.response[0]), (4, 23))
+        self.assertEqual(result.first()[count], 4)
+        self.assertEqual(result.first()[sum], 23)
+        count=db.tt.aa.count(distinct=True)+db.tt.bb.count(distinct=True)
+        self.assertEqual(db(db.tt).select(count).first()[count], 8)
+
+        drop(db.tt)
         db.close()
 
 
