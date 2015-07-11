@@ -179,6 +179,9 @@ class TestMongo(unittest.TestCase):
             db(db.tt).select(join=db.tt.on(q))
         with self.assertRaises(MongoDBAdapter.NotOnNoSqlError):
             db(db.tt).select(db.tt.on(q))
+        with self.assertRaises(SyntaxError):
+            db(db.tt).select(UNKNOWN=True)
+        db(db.tt).select(for_update=True)
         self.assertEqual(db(db.tt).count(), 2)
         db.tt.truncate()
         self.assertEqual(db(db.tt).count(), 0)
@@ -604,6 +607,10 @@ class TestSelect(unittest.TestCase):
                              groupby=db.tt.aa, limitby=(0,3))
         self.assertEqual(len(result), 3)
         self.assertEqual(tuple(result.response[2]), ('3', 3))
+
+        # test having
+        self.assertEqual(len(db().select(db.tt.aa, db.tt.bb.sum(),
+                        groupby=db.tt.aa, having=db.tt.bb.sum() > 2)), 3)
 
         # test distinct
         result = db().select(db.tt.aa, db.tt.cc, distinct=True)
