@@ -639,8 +639,11 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(tuple(result.response[0]), (4, 23))
         self.assertEqual(result.first()[count], 4)
         self.assertEqual(result.first()[sum], 23)
-        count=db.tt.aa.count(distinct=True)+db.tt.bb.count(distinct=True)
-        self.assertEqual(db(db.tt).select(count).first()[count], 8)
+
+        if not IS_MONGODB or db._adapter.server_version_major >= 2.6:
+            # mongo < 2.6 does not support $size
+            count=db.tt.aa.count(distinct=True)+db.tt.bb.count(distinct=True)
+            self.assertEqual(db(db.tt).select(count).first()[count], 8)
 
         drop(db.tt)
         db.close()

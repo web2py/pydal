@@ -795,6 +795,11 @@ class MongoDBAdapter(NoSQLAdapter):
                     value = record[colname]
                 except:
                     value = None
+                if self.server_version_major < 2.6:
+                    # '$size' not present in server versions < 2.6
+                    if isinstance(value, list) and '$addToSet' in colname:
+                        value = len(value)
+
                 row.append(value)
             rows.append(row)
         if not rows:
@@ -1122,8 +1127,12 @@ class MongoDBAdapter(NoSQLAdapter):
     def COUNT(self, first, distinct=None):
         self.parse_data(first, 'need_group', True)
         if distinct:
-            return {'$size': {MongoDBAdapter.GROUP_MARK: 
-                              {"$addToSet": self.expand(first)}}}
+            ret = {MongoDBAdapter.GROUP_MARK:
+                {"$addToSet": self.expand(first)}}
+            if self.server_version_major >= 2.6:
+                # '$size' not present in server versions < 2.6
+                ret = {'$size': ret}
+            return ret
         return {MongoDBAdapter.GROUP_MARK: {"$sum": 1}}
 
     _extract_map = {
