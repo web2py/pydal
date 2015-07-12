@@ -671,13 +671,8 @@ class MongoDBAdapter(NoSQLAdapter):
                 result = '$' + result
 
         elif isinstance(expression, (Expression, Query)):
-            try:
-                first = expression.first
-                second = expression.second
-            except AttributeError:
-                return self.expand(MongoDBAdapter.Expanded(
-                    self, '', expression), field_type).query
-
+            first = expression.first
+            second = expression.second
             if isinstance(first, Field) and "reference" in first.type:
                 # cast to Mongo ObjectId
                 if isinstance(second, (tuple, list, set)):
@@ -701,11 +696,13 @@ class MongoDBAdapter(NoSQLAdapter):
             expression.query = (self.expand(expression.query, field_type))
             result = expression
 
+        elif isinstance(expression, (list, tuple)):
+            raise NotImplementedError("How did you reach this line of code???")
+            result = [self.represent(item, field_type) for item in expression]
+
         elif field_type:
             result = self.represent(expression, field_type)
 
-        elif isinstance(expression, (list, tuple)):
-            result = [self.represent(item, field_type) for item in expression]
         else:
             result = expression
         return result
@@ -757,17 +754,7 @@ class MongoDBAdapter(NoSQLAdapter):
             else:
                 new_fields.append(item)
         fields = new_fields
-
-        if isinstance(query, Query):
-            tablename = self.get_table(query)
-        elif len(fields) != 0:
-            if isinstance(fields[0], Expression):
-                tablename = self.get_table(fields[0])
-            else:
-                tablename = fields[0].tablename
-        else:
-            raise SyntaxError("The table name could not be found in " +
-                              "the query nor from the select statement.")
+        tablename = self.get_table(query, *fields)
 
         orderby = attributes.get('orderby', False)
         limitby = attributes.get('limitby', False)

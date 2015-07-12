@@ -146,8 +146,19 @@ class TestMongo(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             db(db.tt).select(orderby='<random>')
         with self.assertRaises(RuntimeError):
+            db().select()
+        with self.assertRaises(RuntimeError):
             MongoDBAdapter.Expanded(db._adapter, 'delete',
                 Query(db, db._adapter.EQ, db.tt.aa, 'x'), [True])
+        with self.assertRaises(RuntimeError):
+            MongoDBAdapter.Expanded(db._adapter, 'delete',
+                Query(db, db._adapter.EQ, db.tt.aa, 'x'), [True])
+        with self.assertRaises(RuntimeError):
+            expanded = MongoDBAdapter.Expanded(db._adapter, 'count',
+                Query(db, db._adapter.EQ, db.tt.aa, 'x'), [True])
+        expanded = MongoDBAdapter.Expanded(db._adapter, 'count',
+            Query(db, db._adapter.EQ, db.tt.aa, 'x'), [])
+        self.assertEqual(db._adapter.expand(expanded).query_dict, {'aa': 'x'})
         drop(db.tt)
 
         db.close()
