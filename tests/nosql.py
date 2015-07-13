@@ -157,8 +157,12 @@ class TestMongo(unittest.TestCase):
             Query(db, db._adapter.EQ, db.tt.aa, 'x'), [])
         self.assertEqual(db._adapter.expand(expanded).query_dict, {'aa': 'x'})
 
-        with self.assertRaises(RuntimeError):
+        if db._adapter.server_version_major >= 2.6:
+            with self.assertRaises(RuntimeError):
+                db(db.tt).update(id=1)
+        else:
             db(db.tt).update(id=1)
+        self.assertNotEqual(db(db.tt.aa=='aa').select(db.tt.id).response[0][0], 1)
         drop(db.tt)
 
         db.close()
