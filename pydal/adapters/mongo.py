@@ -374,7 +374,7 @@ class MongoDBAdapter(NoSQLAdapter):
                     # do not update id fields
                     for fieldname in ("_id", "id"):
                         if fieldname in self.field_dicts:
-                            self.field_dicts.delete(fieldname)
+                            del self.field_dicts[fieldname]
             else:
                 if crud == 'update':
                     self._add_all_fields_projection(self.field_dicts)

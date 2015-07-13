@@ -94,11 +94,8 @@ class TestMongo(unittest.TestCase):
         self.assertEqual(isinstance(db.tt.insert(aa='<random>'), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='1'), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='0x1'), long), True)
-        try:
-            self.assertEqual(db(db.tt.aa+1==1).update(aa=0), 0)
-        except:
-            with self.assertRaises(RuntimeError):
-                self.assertEqual(db(db.tt.aa+1==1).update(aa=0), 0)
+        with self.assertRaises(RuntimeError):
+            db(db.tt.aa+1==1).update(aa=0)
         drop(db.tt)
 
         db.define_table('tt', Field('aa', 'date'))
@@ -159,6 +156,9 @@ class TestMongo(unittest.TestCase):
         expanded = MongoDBAdapter.Expanded(db._adapter, 'count',
             Query(db, db._adapter.EQ, db.tt.aa, 'x'), [])
         self.assertEqual(db._adapter.expand(expanded).query_dict, {'aa': 'x'})
+
+        with self.assertRaises(RuntimeError):
+            db(db.tt).update(id=1)
         drop(db.tt)
 
         db.close()
