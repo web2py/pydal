@@ -260,12 +260,21 @@ class MongoDBAdapter(NoSQLAdapter):
         and its results.
         """
         def __init__ (self, adapter, crud, query, fields=(), tablename=None,
-                      groupby=None):
+                      groupby=None, distinct=False):
             self.adapter = adapter
             self._parse_data = {'pipeline': False,
-                                'need_group': True if groupby else False}
+                                'need_group': bool(groupby or distinct)}
             self.crud = crud
-            self.groupby = groupby
+            self.distinct = distinct
+            if not groupby and distinct:
+                if distinct is True:
+                    # groupby gets all fields
+                    self.groupby = fields
+                else:
+                    self.groupby = distinct
+            else:
+                self.groupby = groupby
+
             if crud == 'update':
                 self.values = [(f[0], self.annotate_expression(f[1]))
                                for f in (fields or [])]
@@ -295,14 +304,20 @@ class MongoDBAdapter(NoSQLAdapter):
             else:
                 # expand the fields
                 try:
-                    self._expand_fields(self._fields_loop_abort)
+                    if not self._parse_data['need_group']:
+                        self._expand_fields(self._fields_loop_abort)
+                    else:
+                        self._parse_data['pipeline'] = True
+                        raise StopIteration
 
                 except StopIteration:
                     # if the fields needs the aggregation engine, set that up
                     self.field_dicts = self.adapter.SON()
                     if self.query_dict:
-                        self.pipeline = [{'$match': self.query_dict}]
-                    self.query_dict = {}
+                        if self.query_dict != {'_id': {'$gt':
+                                self.adapter.ObjectId('000000000000000000000000')}}:
+                            self.pipeline = [{'$match': self.query_dict}]
+                        self.query_dict = {}
                     # expand the fields for the aggregation engine
                     self._expand_fields(None)
 
@@ -318,7 +333,7 @@ class MongoDBAdapter(NoSQLAdapter):
                     self.field_dicts = adapter.SON()
 
                 elif crud == 'select':
-                    if len(self.field_groups) > 1:
+                    if self._parse_data['need_group']:
                         if not self.groupby:
                             self.field_groups['_id'] = None
                         else:
@@ -329,6 +344,8 @@ class MongoDBAdapter(NoSQLAdapter):
                         self.field_dicts = adapter.SON()
 
                 elif crud == 'count':
+                    if self._parse_data['need_group']:
+                        self.pipeline.append({'$group': self.field_groups})
                     self.pipeline.append(
                         {'$group': {"_id": None, 'count': {"$sum": 1}}})
 
@@ -402,7 +419,7 @@ class MongoDBAdapter(NoSQLAdapter):
                 mid_loop = mid_loop or self._fields_loop_update_pipeline
                 for field, value in self.values:
                     self._expand_field(field, value, mid_loop)
-            elif self.crud == 'select':
+            elif self.crud in ['select', 'count']:
                 mid_loop = mid_loop or self._fields_loop_select_pipeline
                 for field in self.fields:
                     self._expand_field(field, field, mid_loop)
@@ -629,12 +646,26 @@ class MongoDBAdapter(NoSQLAdapter):
         ctable.delete_many({})
 
     def count(self, query, distinct=None, snapshot=True):
-        if distinct:
-            raise RuntimeError("COUNT DISTINCT not supported")
         if not isinstance(query, Query):
             raise SyntaxError("Type '%s' not supported in count" % type(query))
 
-        expanded = MongoDBAdapter.Expanded(self, 'count', query)
+        distinct_fields = []
+        if distinct is True:
+            distinct_fields = [x for x in query.first.table if x.name != 'id']
+        elif distinct:
+            if isinstance(distinct, Field):
+                distinct_fields = [distinct]
+            else:
+                while (isinstance(distinct, Expression) and
+                        isinstance(distinct.second, Field)):
+                    distinct_fields += [distinct.second]
+                    distinct = distinct.first
+                if isinstance(distinct, Field):
+                    distinct_fields += [distinct]
+            distinct = True
+
+        expanded = MongoDBAdapter.Expanded(
+            self, 'count', query, fields=distinct_fields, distinct=distinct)
         ctable = expanded.get_collection()
         if not expanded.pipeline:
             return ctable.count(filter=expanded.query_dict)
@@ -644,48 +675,14 @@ class MongoDBAdapter(NoSQLAdapter):
             return 0
 
     def select(self, query, fields, attributes, snapshot=False):
-        mongofields_dict = self.SON()
-        new_fields, mongosort_list = [], []
-        # try an orderby attribute
-        orderby = attributes.get('orderby', False)
-        limitby = attributes.get('limitby', False)
-        groupby = attributes.get('groupby', False)
-        # distinct = attributes.get('distinct', False)
-
-        if 'for_update' in attributes:
-            self.db.logger.warning('mongodb does not support for_update')
-        for key in set(attributes.keys())-set(('limitby', 'orderby',
-                                               'groupby', 'for_update')):
-            if attributes[key] is not None:
-                if key in ['join', 'left']:
-                    raise MongoDBAdapter.NotOnNoSqlError(
-                        "Attribute '%s' not Supported on NoSQL databases" % key)
-                self.db.logger.warning(
-                    'select attribute not implemented: %s' % key)
-        if orderby:
-            if snapshot:
-                raise RuntimeError("snapshot and orderby are mutually exclusive")
-            if isinstance(orderby, (list, tuple)):
-                orderby = xorify(orderby)
-
-            if str(orderby) == '<random>':
-                # !!!! need to add 'random'
-                mongosort_list = self.RANDOM()
-            else:
-                for f in self.expand(orderby).split(','):
-                    include = 1
-                    if f.startswith('-'):
-                        include = -1
-                        f = f[1:]
-                    if f.startswith('$'):
-                        f = f[1:]
-                    mongosort_list.append((f, include))
+        new_fields = []
         for item in fields:
             if isinstance(item, SQLALL):
                 new_fields += item._table
             else:
                 new_fields.append(item)
         fields = new_fields
+
         if isinstance(query, Query):
             tablename = self.get_table(query)
         elif len(fields) != 0:
@@ -697,13 +694,57 @@ class MongoDBAdapter(NoSQLAdapter):
             raise SyntaxError("The table name could not be found in " +
                               "the query nor from the select statement.")
 
-        if query:
-            if use_common_filters(query):
-                query = self.common_filter(query, [tablename])
+        orderby = attributes.get('orderby', False)
+        limitby = attributes.get('limitby', False)
+        groupby = attributes.get('groupby', False)
+        orderby_on_limitby = attributes.get('orderby_on_limitby', True)
+        distinct = attributes.get('distinct', False)
+
+        if 'for_update' in attributes:
+            self.db.logger.warning(
+                'mongodb does not support record locking for_update')
+        for key in set(attributes.keys())-set(('limitby', 'orderby',
+                'orderby_on_limitby', 'groupby', 'for_update', 'distinct')):
+            if attributes[key]:
+                if key in ['join', 'left']:
+                    raise MongoDBAdapter.NotOnNoSqlError(
+                        "Attribute '%s' not Supported on NoSQL databases" % key)
+                self.db.logger.warning(
+                    'MongoDB select attribute not implemented: %s' % key)
+
+        if limitby and orderby_on_limitby and not orderby:
+            if groupby:
+                orderby = groupby
+            else:
+                table = self.db[tablename]
+                orderby = [table[x] for x in (hasattr(table, '_primarykey')
+                    and table._primarykey or ['_id'])]
+
+        if not orderby:
+            mongosort_list = []
+        else:
+            if snapshot:
+                raise RuntimeError("snapshot and orderby are mutually exclusive")
+            if isinstance(orderby, (list, tuple)):
+                orderby = xorify(orderby)
+
+            if str(orderby) == '<random>':
+                # !!!! need to add 'random'
+                mongosort_list = self.RANDOM()
+            else:
+                mongosort_list = []
+                for f in self.expand(orderby).split(','):
+                    include = 1
+                    if f.startswith('-'):
+                        include = -1
+                        f = f[1:]
+                    if f.startswith('$'):
+                        f = f[1:]
+                    mongosort_list.append((f, include))
 
         expanded = MongoDBAdapter.Expanded(
             self, 'select', query, fields or self.db[tablename],
-            groupby=groupby)
+            groupby=groupby, distinct=distinct)
         ctable = self.connection[tablename]
         modifiers = {'snapshot':snapshot}
 
@@ -754,6 +795,11 @@ class MongoDBAdapter(NoSQLAdapter):
                     value = record[colname]
                 except:
                     value = None
+                if self.server_version_major < 2.6:
+                    # '$size' not present in server versions < 2.6
+                    if isinstance(value, list) and '$addToSet' in colname:
+                        value = len(value)
+
                 row.append(value)
             rows.append(row)
         if not rows:
@@ -1079,9 +1125,14 @@ class MongoDBAdapter(NoSQLAdapter):
 
     @needs_mongodb_aggregation_pipeline
     def COUNT(self, first, distinct=None):
-        if distinct:
-            raise NotImplementedError("distinct not implemented for count op")
         self.parse_data(first, 'need_group', True)
+        if distinct:
+            ret = {MongoDBAdapter.GROUP_MARK:
+                {"$addToSet": self.expand(first)}}
+            if self.server_version_major >= 2.6:
+                # '$size' not present in server versions < 2.6
+                ret = {'$size': ret}
+            return ret
         return {MongoDBAdapter.GROUP_MARK: {"$sum": 1}}
 
     _extract_map = {
