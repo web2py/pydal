@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 import datetime
 import re
+import copy
 
 from .._globals import IDENTITY
 from .._compat import integer_types, basestring, PY2
 from ..objects import Table, Query, Field, Expression, Row
 from ..helpers.classes import SQLALL, Reference
 from ..helpers.methods import use_common_filters, xorify
-from .base import NoSQLAdapter
+from .base import NoSQLAdapter, SELECT_ARGS
 
 try:
     from bson import Binary
@@ -18,6 +19,14 @@ except:
     USER_DEFINED_SUBTYPE = 0
 
 long = integer_types[-1]
+
+
+SUPPORTED_SELECT_ARGS = set(('limitby', 'orderby', 'orderby_on_limitby',
+                             'groupby', 'distinct', 'having'))
+SQL_ONLY_SELECT_ARGS = set(('join', 'left'))
+NON_MONGO_SELECT_ARGS = set(('for_update',))
+NOT_IMPLEMENTED_SELECT_ARGS = (SELECT_ARGS - SUPPORTED_SELECT_ARGS
+    - SQL_ONLY_SELECT_ARGS - NON_MONGO_SELECT_ARGS)
 
 
 class MongoDBAdapter(NoSQLAdapter):
@@ -256,15 +265,55 @@ class MongoDBAdapter(NoSQLAdapter):
 
     class Expanded (object):
         """
-        Class to encapsulate a pydal expression and track the parse expansion
-        and its results.
+        Class to encapsulate a pydal expression and track the parse 
+        expansion and its results.
+
+        Two different MongoDB mechanisms are targeted here.  If the query 
+        is sufficiently simple, then simple queries are generated.  The 
+        bulk of the complexity here is however to support more complex 
+        queries that are targeted to the MongoDB Aggregation Pipeline.
+
+        This class supports four operations: 'count', 'select', 'update' 
+        and 'delete'.
+
+        Behavior varies somewhat for each operation type.  However 
+        building each pipeline stage is shared where the behavior is the
+        same (or similar) for the different operations.
+
+        In general an attempt is made to build the query without using the 
+        pipeline, and if that fails then the query is rebuilt with the 
+        pipeline.
+
+        QUERY constructed in _build_pipeline_query():
+          $project : used to calculate expressions if needed
+          $match: filters out records
+
+        FIELDS constructed in _expand_fields():
+            FIELDS:COUNT
+              $group : filter for distinct if needed
+              $group: count the records remaining
+
+            FIELDS:SELECT
+              $group : implement aggregations if needed
+              $project: implement expressions (etc) for select
+
+            FIELDS:UPDATE
+              $project: implement expressions (etc) for update
+
+        HAVING constructed in _add_having():
+          $project : used to calculate expressions
+          $match: filters out records
+          $project : used to filter out previous expression fields
+
         """
+
         def __init__ (self, adapter, crud, query, fields=(), tablename=None,
-                      groupby=None, distinct=False):
+                      groupby=None, distinct=False, having=None):
             self.adapter = adapter
-            self._parse_data = {'pipeline': False,
-                                'need_group': bool(groupby or distinct)}
+            self._parse_data = {'pipeline': False, 'need_group': 
+                                bool(groupby or distinct or having)}
             self.crud = crud
+            self.having = having
             self.distinct = distinct
             if not groupby and distinct:
                 if distinct is True:
@@ -292,8 +341,8 @@ class MongoDBAdapter(NoSQLAdapter):
             self.pipeline = []
             self.query_dict = adapter.expand(self.query)
             self.field_dicts = adapter.SON()
-            self.field_groups = self.adapter.SON()
-            self.field_groups['_id'] = self.adapter.SON()
+            self.field_groups = adapter.SON()
+            self.field_groups['_id'] = adapter.SON()
 
             if self._parse_data['pipeline']:
                 # if the query needs the aggregation engine, set that up
@@ -312,10 +361,9 @@ class MongoDBAdapter(NoSQLAdapter):
 
                 except StopIteration:
                     # if the fields needs the aggregation engine, set that up
-                    self.field_dicts = self.adapter.SON()
+                    self.field_dicts = adapter.SON()
                     if self.query_dict:
-                        if self.query_dict != {'_id': {'$gt':
-                                self.adapter.ObjectId('000000000000000000000000')}}:
+                        if self.query_dict != MongoDBAdapter.Expanded.NULL_QUERY:
                             self.pipeline = [{'$match': self.query_dict}]
                         self.query_dict = {}
                     # expand the fields for the aggregation engine
@@ -326,7 +374,7 @@ class MongoDBAdapter(NoSQLAdapter):
                     # do not update id fields
                     for fieldname in ("_id", "id"):
                         if fieldname in self.field_dicts:
-                            self.field_dicts.delete(fieldname)
+                            del self.field_dicts[fieldname]
             else:
                 if crud == 'update':
                     self._add_all_fields_projection(self.field_dicts)
@@ -335,13 +383,15 @@ class MongoDBAdapter(NoSQLAdapter):
                 elif crud == 'select':
                     if self._parse_data['need_group']:
                         if not self.groupby:
+                            # no groupby, aggregate all records
                             self.field_groups['_id'] = None
-                        else:
-                            self.field_dicts['_id'] = False
+                        # id has no value after aggregations
+                        self.field_dicts['_id'] = False
                         self.pipeline.append({'$group': self.field_groups})
                     if self.field_dicts:
                         self.pipeline.append({'$project': self.field_dicts})
                         self.field_dicts = adapter.SON()
+                    self._add_having()
 
                 elif crud == 'count':
                     if self._parse_data['need_group']:
@@ -351,6 +401,13 @@ class MongoDBAdapter(NoSQLAdapter):
 
                 #elif crud == 'delete':
                 #    pass
+
+        try:
+            from bson.objectid import ObjectId
+            NULL_QUERY = {'_id': {'$gt': 
+                                  ObjectId('000000000000000000000000')}}
+        except:
+            pass
 
         def _build_pipeline_query(self):
 
@@ -430,9 +487,11 @@ class MongoDBAdapter(NoSQLAdapter):
             expanded = {}
             if isinstance(field, Field):
                 expanded = self.adapter.expand(value, field.type)
-            elif isinstance(field, Expression):
+            elif isinstance(field, (Expression, Query)):
                 expanded = self.adapter.expand(field)
                 field.name = str(expanded)
+            else:
+                raise RuntimeError("%s not supported with fields" % type(field))
 
             if mid_loop:
                 expanded = mid_loop(expanded, field, value)
@@ -479,7 +538,7 @@ class MongoDBAdapter(NoSQLAdapter):
                         parse_groups(items[item], items, item)
 
                     if item == MongoDBAdapter.GROUP_MARK:
-                        name = str(items[item])
+                        name = str(items)
                         self.field_groups[name] = items[item]
                         parent[parent_key] = '$' + name
                 return items
@@ -526,6 +585,22 @@ class MongoDBAdapter(NoSQLAdapter):
                 # add all fields to projection to pass them through
                 if fieldname not in fields and fieldname not in ("_id", "id"):
                     fields[fieldname] = 1
+            self.pipeline.append({'$project': fields})
+
+        def _add_having(self):
+            if not self.having:
+                return
+            self._expand_field(
+                self.having, None, self._fields_loop_select_pipeline)
+            fields = {'__having__': self.field_dicts[self.having.name]}
+            for fieldname in self.pipeline[-1]['$project']:
+                # add all fields to projection to pass them through
+                if fieldname not in fields and fieldname not in ("_id", "id"):
+                    fields[fieldname] = 1
+
+            self.pipeline.append({'$project': copy.copy(fields)})
+            self.pipeline.append({'$match': {'__having__': True}})
+            del fields['__having__']
             self.pipeline.append({'$project': fields})
 
         def annotate_expression(self, expression):
@@ -596,13 +671,8 @@ class MongoDBAdapter(NoSQLAdapter):
                 result = '$' + result
 
         elif isinstance(expression, (Expression, Query)):
-            try:
-                first = expression.first
-                second = expression.second
-            except AttributeError:
-                return self.expand(MongoDBAdapter.Expanded(
-                    self, '', expression), field_type).query
-
+            first = expression.first
+            second = expression.second
             if isinstance(first, Field) and "reference" in first.type:
                 # cast to Mongo ObjectId
                 if isinstance(second, (tuple, list, set)):
@@ -626,11 +696,13 @@ class MongoDBAdapter(NoSQLAdapter):
             expression.query = (self.expand(expression.query, field_type))
             result = expression
 
+        elif isinstance(expression, (list, tuple)):
+            raise NotImplementedError("How did you reach this line of code???")
+            result = [self.represent(item, field_type) for item in expression]
+
         elif field_type:
             result = self.represent(expression, field_type)
 
-        elif isinstance(expression, (list, tuple)):
-            result = [self.represent(item, field_type) for item in expression]
         else:
             result = expression
         return result
@@ -682,36 +754,29 @@ class MongoDBAdapter(NoSQLAdapter):
             else:
                 new_fields.append(item)
         fields = new_fields
-
-        if isinstance(query, Query):
-            tablename = self.get_table(query)
-        elif len(fields) != 0:
-            if isinstance(fields[0], Expression):
-                tablename = self.get_table(fields[0])
-            else:
-                tablename = fields[0].tablename
-        else:
-            raise SyntaxError("The table name could not be found in " +
-                              "the query nor from the select statement.")
+        tablename = self.get_table(query, *fields)
 
         orderby = attributes.get('orderby', False)
         limitby = attributes.get('limitby', False)
-        groupby = attributes.get('groupby', False)
+        groupby = attributes.get('groupby', None)
         orderby_on_limitby = attributes.get('orderby_on_limitby', True)
         distinct = attributes.get('distinct', False)
-
-        if 'for_update' in attributes:
-            self.db.logger.warning(
-                'mongodb does not support record locking for_update')
-        for key in set(attributes.keys())-set(('limitby', 'orderby',
-                'orderby_on_limitby', 'groupby', 'for_update', 'distinct')):
-            if attributes[key]:
-                if key in ['join', 'left']:
+        having = attributes.get('having', None)
+        for key in attributes.keys():
+            if attributes[key] and key not in SUPPORTED_SELECT_ARGS:
+                if key in NON_MONGO_SELECT_ARGS:
+                    self.db.logger.warning(
+                        "Attribute '%s' unsuppored by MongoDB" % key)
+                elif key in NOT_IMPLEMENTED_SELECT_ARGS:
+                    self.db.logger.warning(
+                        "Attribute '%s' is not implemented by MongoDB" % key)
+                elif key in SQL_ONLY_SELECT_ARGS:
                     raise MongoDBAdapter.NotOnNoSqlError(
-                        "Attribute '%s' not Supported on NoSQL databases" % key)
-                self.db.logger.warning(
-                    'MongoDB select attribute not implemented: %s' % key)
-
+                        "Attribute '%s' not supported on NoSQL databases" % key)
+                else:
+                    raise SyntaxError(
+                        "Attribute '%s' is unknown" % key)
+                
         if limitby and orderby_on_limitby and not orderby:
             if groupby:
                 orderby = groupby
@@ -744,7 +809,7 @@ class MongoDBAdapter(NoSQLAdapter):
 
         expanded = MongoDBAdapter.Expanded(
             self, 'select', query, fields or self.db[tablename],
-            groupby=groupby, distinct=distinct)
+            groupby=groupby, distinct=distinct, having=having)
         ctable = self.connection[tablename]
         modifiers = {'snapshot':snapshot}
 
