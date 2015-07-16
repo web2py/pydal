@@ -231,7 +231,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             definitions from the databases folder (works only for simple models)
         bigint_id: If set, turn on bigint instead of int for id and reference
             fields
-        lazy_tables: delaya table definition until table access
+        lazy_tables: delays table definition until table access
         after_connection: can a callable that will be executed after the
             connection
 
