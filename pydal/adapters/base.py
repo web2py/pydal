@@ -247,10 +247,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         sql_fields_aux = {}
         TFK = {}
         tablename = table._tablename
-        sortable = 0
         types = self.types
-        for field in table:
-            sortable += 1
+        for sortable, field in enumerate(table, start=1):
             field_name = field.name
             field_type = field.type
             if isinstance(field_type,SQLCustomType):
@@ -370,14 +368,13 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                                          fieldname=field_name, srid=srid,
                                          dimension=dimension)
                     postcreation_fields.append(ftype)
-            elif not field_type in types:
+            elif field_type not in types:
                 raise SyntaxError('Field: unknown field type: %s for %s' % \
                     (field_type, field_name))
             else:
-                ftype = types[field_type]\
-                     % dict(length=field.length)
-            if not field_type.startswith('id') and \
-                    not field_type.startswith(('reference', 'big-reference')):
+                ftype = types[field_type] % {'length':field.length}
+
+            if not field_type.startswith(('id','reference', 'big-reference')):
                 if field.notnull:
                     ftype += ' NOT NULL'
                 else:
@@ -433,8 +430,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 foreign_key = ', '.join(pkeys),
                 on_delete_action = field.ondelete)
 
-        table_rname = table.sqlsafe
-
         if getattr(table,'_primarykey',None):
             query = "CREATE TABLE %s(\n    %s,\n    %s) %s" % \
                 (table.sqlsafe, fields,
@@ -464,7 +459,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             table._dbt = pjoin(dbpath, migrate)
         else:
             table._dbt = pjoin(
-                dbpath, '%s_%s.table' % (table._db._uri_hash, tablename))
+                dbpath, '%s_%s.table' % (db._uri_hash, tablename))
 
         if not table._dbt or not self.file_exists(table._dbt):
             if table._dbt:
@@ -472,13 +467,13 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                          % (datetime.datetime.today().isoformat(),
                             query), table)
             if not fake_migrate:
-                self.create_sequence_and_triggers(query,table)
-                table._db.commit()
+                self.create_sequence_and_triggers(query, table)
+                db.commit()
                 # Postgres geom fields are added now,
                 # after the table has been created
                 for query in postcreation_fields:
                     self.execute(query)
-                    table._db.commit()
+                    db.commit()
             if table._dbt:
                 tfile = self.file_open(table._dbt, 'wb')
                 pickle.dump(sql_fields, tfile)
