@@ -17,22 +17,16 @@ class BasicStorage(object):
     def __init__(self, *args, **kwargs):
         return self.__dict__.__init__(*args, **kwargs)
 
-    def __contains__(self, item):
-        return self.__dict__.__contains__(item)
-
     def __getitem__(self, key):
         return self.__dict__.__getitem__(str(key))
-
-    def __getattr__(self, key):
-        try:
-            return self.__dict__.__getitem__(str(key))
-        except:
-            raise AttributeError
 
     __setitem__ = object.__setattr__
 
     def __delitem__(self, key):
-        self.__dict__.__delitem__(key)
+        try:
+            delattr(self, key)
+        except AttributeError:
+            raise KeyError(key)
 
     def __bool__(self):
         return len(self.__dict__) > 0
@@ -43,7 +37,7 @@ class BasicStorage(object):
 
     __repr__ = lambda self: self.__dict__.__repr__()
 
-    has_key = __contains__
+    has_key = __contains__ = lambda self, key: key in self.__dict__
 
     def get(self, key, default=None):
         return self.__dict__.get(key, default)

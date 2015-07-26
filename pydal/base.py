@@ -903,7 +903,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 key in object.__getattribute__(self, '_LAZY_TABLES'):
             tablename, fields, args = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename, *fields, **args)
-        return super(DAL, self).__getattr__(key)
+        return BasicStorage.__getattribute__(self, key)
 
     def __setattr__(self, key, value):
         if key[:1] != '_' and key in self:

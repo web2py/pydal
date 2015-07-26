@@ -49,8 +49,8 @@ class Row(BasicStorage):
                 return v
 
         try:
-            return super(Row, self).__getitem__(k)
-        except KeyError:
+            return BasicStorage.__getattribute__(self, key)
+        except AttributeError:
             pass
 
         m = REGEX_TABLE_DOT_FIELD.match(key)
@@ -505,7 +505,10 @@ class Table(Serializable, BasicStorage):
                     orderby_on_limitby=False
                 ).first()
             else:
-                return super(Table, self).__getitem__(key)
+                try:
+                    return getattr(self, key)
+                except:
+                    raise KeyError(key)
 
     def __call__(self, key=DEFAULT, **kwargs):
         for_update = kwargs.get('_for_update', False)
@@ -566,12 +569,12 @@ class Table(Serializable, BasicStorage):
             if isinstance(key, dict):
                 raise SyntaxError(
                     'value must be a dictionary: %s' % value)
-            super(Table, self).__setitem__(str(key), value)
+            self.__dict__[str(key)] = value
 
     def __setattr__(self, key, value):
         if key[:1]!='_' and key in self:
             raise SyntaxError('Object exists and cannot be redefined: %s' % key)
-        super(Table, self).__setattr__(key, value)
+        self.__dict__[key] = value
 
     def __delitem__(self, key):
         if isinstance(key, dict):
