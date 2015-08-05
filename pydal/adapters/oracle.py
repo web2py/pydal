@@ -179,8 +179,9 @@ class OracleAdapter(BaseAdapter):
     #            pass
     #    return BaseAdapter.parse_value(self, value, field_type, blob_decode)
 
+
     def _fetchall(self):
-        if any(x[1]==cx_Oracle.LOB for x in self.cursor.description):
+        if any(x[1]==cx_Oracle.LOB or x[1]==cx_Oracle.CLOB for x in self.cursor.description):
             return [tuple([(c.read() if type(c) == cx_Oracle.LOB else c) \
                                for c in r]) for r in self.cursor]
         else:
