@@ -179,8 +179,9 @@ class OracleAdapter(BaseAdapter):
     #            pass
     #    return BaseAdapter.parse_value(self, value, field_type, blob_decode)
 
+
     def _fetchall(self):
-        if any(x[1]==cx_Oracle.LOB for x in self.cursor.description):
+        if any(x[1]==cx_Oracle.LOB or x[1]==cx_Oracle.CLOB for x in self.cursor.description):
             return [tuple([(c.read() if type(c) == cx_Oracle.LOB else c) \
                                for c in r]) for r in self.cursor]
         else:
@@ -191,3 +192,44 @@ class OracleAdapter(BaseAdapter):
             return (self.QUOTE_TEMPLATE + ' ' \
                     + self.QUOTE_TEMPLATE) % (ot, tablename)
         return self.QUOTE_TEMPLATE % tablename
+
+    def _insert(self, table, fields):
+        table_rname = table.sqlsafe
+        if fields:
+            keys = ','.join(f.sqlsafe_name for f, v in fields)
+            r_values = dict()
+            def value_man(f, v, r_values):
+                if f.type is 'text':
+                    r_values[':' + f.sqlsafe_name] = self.expand(v, f.type)
+                    return ':' + f.sqlsafe_name
+                else:
+                    return self.expand(v, f.type)
+            values = ','.join(value_man(f, v, r_values) for f, v in fields)
+            return ('INSERT INTO %s(%s) VALUES (%s);' % (table_rname, keys, values), r_values)
+        else:
+            return (self._insert_empty(table), None)
+
+    def insert(self, table, fields):
+        query, values = self._insert(table,fields)
+        try:
+            if not values:
+                self.execute(query)
+            else:
+                self.execute(query, values)
+        except Exception:
+            e = sys.exc_info()[1]
+            if hasattr(table,'_on_insert_error'):
+                return table._on_insert_error(table,fields,e)
+            raise e
+        if hasattr(table, '_primarykey'):
+            mydict = dict([(k[0].name, k[1]) for k in fields if k[0].name in table._primarykey])
+            if mydict != {}:
+                return mydict
+        id = self.lastrowid(table)
+        if hasattr(table, '_primarykey') and len(table._primarykey) == 1:
+            id = {table._primarykey[0]: id}
+        if not isinstance(id, (int, long)):
+            return id
+        rid = Reference(id)
+        (rid._table, rid._record) = (table, None)
+        return rid
