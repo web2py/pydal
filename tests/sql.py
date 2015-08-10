@@ -849,15 +849,15 @@ class TestExpressions(unittest.TestCase):
         self.assertEqual(result[exp], 15)
 
         # test case()
-        #condition = db.tt.aa > 2
-        #case = condition.case(db.tt.aa + 2, db.tt.aa - 2)
-        #my_case = case.with_alias('my_case')
-        #result = db().select(my_case)
-        #self.assertEqual(len(result), 3)
-        #self.assertEqual(result[0][my_case], -1)
-        #self.assertEqual(result[0]['my_case'], -1)
-        #self.assertEqual(result[1]['my_case'], -22)
-        #self.assertEqual(result[2]['my_case'], 5)
+        condition = db.tt.aa > 2
+        case = condition.case(db.tt.aa + 2, db.tt.aa - 2)
+        my_case = case.with_alias('my_case')
+        result = db().select(my_case)
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0][my_case], -1)
+        self.assertEqual(result[0]['my_case'], -1)
+        self.assertEqual(result[1]['my_case'], -22)
+        self.assertEqual(result[2]['my_case'], 5)
 
         # test expression based delete
         self.assertEqual(db(db.tt.aa + 1 >= 4).count(), 1)

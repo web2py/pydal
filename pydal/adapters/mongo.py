@@ -1225,9 +1225,6 @@ class MongoDBAdapter(NoSQLAdapter):
     def EPOCH(self, first):
         return {"$divide": [{"$subtract": [self.expand(first), self.epoch]}, 1000]}
 
-    def CASE(self, query, true, false):
-        return Expression(self.db, self.EXPAND_CASE, query, (true, false))
-
     @needs_mongodb_aggregation_pipeline
     def EXPAND_CASE(self, query, true_false):
         return {"$cond": [self.expand(query),
