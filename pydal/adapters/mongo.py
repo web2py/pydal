@@ -621,6 +621,9 @@ class MongoDBAdapter(NoSQLAdapter):
                     child._parse_data = parent._parse_data
                     add_parse_data(child.first, child)
                     add_parse_data(child.second, child)
+                elif isinstance(child, (list, tuple)):
+                    for c in child:
+                        add_parse_data(c, parent)
 
             if isinstance(expression, (Expression, Query)):
                 expression.parse_root = expression
@@ -1436,6 +1439,12 @@ class MongoDBAdapter(NoSQLAdapter):
             https://github.com/afchin/mongo/commit/f52105977e4d0ccb53bdddfb9c4528a3f3c40bdf
         """
         raise NotImplementedError()
+
+    @needs_mongodb_aggregation_pipeline
+    def COALESCE(self, first, second):
+        if len(second) > 1:
+            second = [self.COALESCE(second[0], second[1:])]
+        return {"$ifNull": [self.expand(first), self.expand(second[0])]}
 
     def RANDOM(self):
         """ ORDER BY RANDOM()
