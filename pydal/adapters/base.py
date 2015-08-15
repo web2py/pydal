@@ -206,6 +206,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             else:
                 table._loggername = pjoin(self.folder, logfilename)
             logfile = self.file_open(table._loggername, 'ab')
+            if not PY2:
+                message = bytes(message, 'utf8')
             logfile.write(message)
             self.file_close(logfile)
 
@@ -224,7 +226,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         if uri == "None":
             self.connector = NullDriver
             self.reconnect()
-
 
     def sequence_name(self,tablename):
         return self.QUOTE_TEMPLATE % ('%s_sequence' % tablename)
