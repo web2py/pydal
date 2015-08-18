@@ -1788,13 +1788,19 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return query
 
     def CASE(self,query,t,f):
+        return Expression(self.db, self.EXPAND_CASE, query, (t, f))
+
+    def EXPAND_CASE(self, query, true_false):
         def represent(x):
             types = {type(True):'boolean',type(0):'integer',type(1.0):'double'}
             if x is None: return 'NULL'
             elif isinstance(x,Expression): return str(x)
             else: return self.represent(x,types.get(type(x),'string'))
-        return Expression(self.db,'CASE WHEN %s THEN %s ELSE %s END' % \
-                              (self.expand(query),represent(t),represent(f)))
+
+        return 'CASE WHEN %s THEN %s ELSE %s END' % (
+            self.expand(query), 
+            represent(true_false[0]),
+            represent(true_false[1]))
 
     def sqlsafe_table(self, tablename, ot=None):
         if ot is not None:

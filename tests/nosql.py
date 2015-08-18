@@ -56,10 +56,17 @@ def setUpModule():
         db = DAL(DEFAULT_URI, check_reserved=['all'])
 
         def clean_table(db, tablename):
-            db.define_table(tablename)
-            drop(db[tablename])
+            try:
+                db.define_table(tablename)
+            except Exception as e:
+                pass
+            try:
+                drop(db[tablename])
+            except Exception as e:
+                pass
+
         for tablename in ['tt', 't0', 't1', 't2', 't3', 't4',
-                          'easy_name', 'tt_archive', 'pet_farm']:
+                          'easy_name', 'tt_archive', 'pet_farm', 'person']:
             clean_table(db, tablename)
         db.close()
 
@@ -208,6 +215,18 @@ class TestMongo(unittest.TestCase):
 class TestFields(unittest.TestCase):
 
     def testFieldName(self):
+        """
+        - a "str" something
+        - not a method or property of Table
+        - "dotted-notation" friendly:
+            - a valid python identifier
+            - not a python keyword
+            - not starting with underscore or an integer
+            - not containing dots
+        
+        Basically, anything alphanumeric, no symbols, only underscore as
+        punctuation
+        """
 
         # Check that Fields cannot start with underscores
         self.assertRaises(SyntaxError, Field, '_abc', 'string')
@@ -363,6 +382,18 @@ class TestFields(unittest.TestCase):
 class TestTables(unittest.TestCase):
 
     def testTableNames(self):
+        """
+        - a "str" something
+        - not a method or property of DAL
+        - "dotted-notation" friendly:
+            - a valid python identifier
+            - not a python keyword
+            - not starting with underscore or an integer
+            - not containing dots
+        
+        Basically, anything alphanumeric, no symbols, only underscore as
+        punctuation
+        """
 
         # Check that Tables cannot start with underscores
         self.assertRaises(SyntaxError, Table, None, '_abc')
@@ -970,14 +1001,14 @@ class TestExpressions(unittest.TestCase):
         for dal_opt in DAL_OPTS:
             db = DAL(DEFAULT_URI, check_reserved=['all'], **dal_opt[1])
             db.define_table('tt', Field('aa', 'integer'), 
-                            Field('bb', 'integer'), Field('cc'))
+                            Field('bb', 'integer', default=0), Field('cc'))
             self.assertEqual(isinstance(db.tt.insert(aa=1), long), dal_opt[0])
             self.assertEqual(isinstance(db.tt.insert(aa=2), long), dal_opt[0])
             self.assertEqual(isinstance(db.tt.insert(aa=3), long), dal_opt[0])
 
             # test update
             self.assertEqual(db(db.tt.aa == 3).update(aa=db.tt.aa + 1,
-                                                      bb=db.tt.aa - 1), 1)
+                                                      bb=db.tt.bb + 2), 1)
             self.assertEqual(db(db.tt.aa == 4).count(), 1)
             self.assertEqual(db(db.tt.bb == 2).count(), 1)
             self.assertEqual(db(db.tt.aa == -2).count(), 0)
@@ -988,12 +1019,11 @@ class TestExpressions(unittest.TestCase):
                                                       cc='cc'), 1)
             self.assertEqual(db(db.tt.cc == 'cc').count(), 1)
             self.assertEqual(db(db.tt.aa == 6).count(), 1)
-            self.assertEqual(db(db.tt.aa == 6).update(aa=db.tt.aa / 2 + 4,
-                                                      bb=db.tt.aa *
+            self.assertEqual(db(db.tt.aa == 6).update(bb=db.tt.aa *
                                                          (db.tt.bb - 3)), 1)
             self.assertEqual(db(db.tt.bb == 12).count(), 1)
-            self.assertEqual(db(db.tt.aa == 7).count(), 1)
-            self.assertEqual(db(db.tt.aa == 7).update(aa=db.tt.aa % 4,
+            self.assertEqual(db(db.tt.aa == 6).count(), 1)
+            self.assertEqual(db(db.tt.aa == 6).update(aa=db.tt.aa % 4 + 1,
                                                       cc=db.tt.cc + '1' +'1'), 1)
             self.assertEqual(db(db.tt.cc == 'cc11').count(), 1)
             self.assertEqual(db(db.tt.aa == 3).count(), 1)
@@ -1005,6 +1035,7 @@ class TestExpressions(unittest.TestCase):
             # test select aggregations
             sum = (db.tt.aa + 1).sum()
             self.assertEqual(db(db.tt.aa + 1 >= 3).select(sum).first()[sum], 7)
+            self.assertEqual(db((1==0) & (db.tt.aa >= db.tt.aa)).count(), 0)
             self.assertEqual(db(db.tt.aa * 2 == -2).select(sum).first()[sum], None)
 
             count=db.tt.aa.count()
@@ -1036,13 +1067,15 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(result[exp], 15)
 
             # test case()
-            case=(db.tt.aa > 2).case(db.tt.aa + 2, db.tt.aa - 2).with_alias('case')
-            result = db().select(case)
+            condition = db.tt.aa > 2
+            case = condition.case(db.tt.aa + 2, db.tt.aa - 2)
+            my_case = case.with_alias('my_case')
+            result = db().select(my_case)
             self.assertEqual(len(result), 3)
-            self.assertEqual(result[0][case], -1)
-            self.assertEqual(result[0]['case'], -1)
-            self.assertEqual(result[1]['case'], -22)
-            self.assertEqual(result[2]['case'], 5)
+            self.assertEqual(result[0][my_case], -1)
+            self.assertEqual(result[0]['my_case'], -1)
+            self.assertEqual(result[1]['my_case'], -22)
+            self.assertEqual(result[2]['my_case'], 5)
 
             # test expression based delete
             self.assertEqual(db(db.tt.aa + 1 >= 4).count(), 1)
@@ -1056,25 +1089,27 @@ class TestExpressions(unittest.TestCase):
     def testUpdate(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
 
-        # some db's only support milliseconds
+        # some db's only support seconds
         datetime_datetime_today = datetime.datetime.today()
         datetime_datetime_today = datetime_datetime_today.replace(
-            microsecond = datetime_datetime_today.microsecond -
-                          datetime_datetime_today.microsecond % 1000)
+            microsecond = 0)
+        one_day = datetime.timedelta(1)
+        one_sec = datetime.timedelta(0,1)
 
         update_vals = (
-            ('float',     1.0),
-            ('string',   'x'),
-            ('text',     'x'),
-            ('password', 'x'),
-            ('integer',   1),
-            ('bigint',    1),
-            ('float',     1.0),
-            ('double',    1.0),
-            ('boolean',   True),
-            ('date', datetime.date.today()),
-            ('datetime', datetime.datetime(1971, 12, 21, 10, 30, 55, 0)),
-            ('time', datetime_datetime_today.time())
+            ('string',   'x',  'y'),
+            ('text',     'x',  'y'),
+            ('password', 'x',  'y'),
+            ('integer',   1,    2),
+            ('bigint',    1,    2),
+            ('float',     1.0,  2.0),
+            ('double',    1.0,  2.0),
+            ('boolean',   True, False),
+            ('date', datetime.date.today(), datetime.date.today() + one_day),
+            ('datetime', datetime.datetime(1971, 12, 21, 10, 30, 55, 0),
+                datetime_datetime_today),
+            ('time', datetime_datetime_today.time(),
+                (datetime_datetime_today + one_sec).time()),
             )
 
         for uv in update_vals:
@@ -1082,9 +1117,9 @@ class TestExpressions(unittest.TestCase):
                             Field('bb', uv[0]))
             self.assertTrue(isinstance(db.tt.insert(bb=uv[1]), long))
             self.assertEqual(db(db.tt.aa + 1 == 1).select(db.tt.bb)[0].bb, uv[1])
-            self.assertEqual(db(db.tt.aa + 1 == 1).update(bb=uv[1]), 1)
-            self.assertEqual(db(db.tt.aa / 3 == 0).select(db.tt.bb)[0].bb, uv[1])
-            drop(db.tt)
+            self.assertEqual(db(db.tt.aa + 1 == 1).update(bb=uv[2]), 1)
+            self.assertEqual(db(db.tt.aa / 3 == 0).select(db.tt.bb)[0].bb, uv[2])
+            db.tt.drop()
         db.close()
 
     def testSubstring(self):
