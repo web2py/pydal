@@ -17,15 +17,9 @@ if PY2:
     iteritems = lambda d: d.iteritems()
     integer_types = (int, long)
     string_types = (str, unicode)
+    text_type = unicode
     basestring = basestring
     xrange = xrange
-
-    def to_unicode(obj):
-        if isinstance(obj, str):
-            return obj.decode('utf8')
-        if not isinstance(obj, unicode):
-            return unicode(obj)
-        return obj
 
     def implements_iterator(cls):
         cls.next = cls.__next__
@@ -36,6 +30,15 @@ if PY2:
         cls.__nonzero__ = cls.__bool__
         del cls.__bool__
         return cls
+
+    def to_bytes(obj, charset='utf-8', errors='strict'):
+        if obj is None:
+            return None
+        if isinstance(obj, (bytes, bytearray, buffer)):
+            return bytes(obj)
+        if isinstance(obj, unicode):
+            return obj.encode(charset, errors)
+        raise TypeError('Expected bytes')
 else:
     import pickle
     from io import StringIO
@@ -47,18 +50,21 @@ else:
     iteritems = lambda d: iter(d.items())
     integer_types = (int,)
     string_types = (str,)
+    text_type = str
     basestring = str
     xrange = range
 
-    def to_unicode(obj):
-        if isinstance(obj, bytes):
-            return obj.decode('utf8')
-        if not isinstance(obj, str):
-            return str(obj)
-        return obj
-
     implements_iterator = _identity
     implements_bool = _identity
+
+    def to_bytes(obj, charset='utf-8', errors='strict'):
+        if obj is None:
+            return None
+        if isinstance(obj, (bytes, bytearray, memoryview)):
+            return bytes(obj)
+        if isinstance(obj, str):
+            return obj.encode(charset, errors)
+        raise TypeError('Expected bytes')
 
 
 def with_metaclass(meta, *bases):
@@ -75,6 +81,14 @@ def with_metaclass(meta, *bases):
                 return type.__new__(cls, name, (), d)
             return meta(name, bases, d)
     return metaclass('temporary_class', None, {})
+
+
+def to_unicode(obj, charset='utf-8', errors='strict'):
+    if obj is None:
+        return None
+    if not isinstance(obj, bytes):
+        return text_type(obj)
+    return obj.decode(charset, errors)
 
 
 # shortcuts

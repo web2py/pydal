@@ -13,7 +13,7 @@ import json
 
 from .._compat import PY2, pjoin, exists, pickle, hashlib_md5, iterkeys, \
     iteritems, with_metaclass, to_unicode, integer_types, basestring, \
-    string_types
+    string_types, to_bytes
 from .._globals import IDENTITY
 from .._load import portalocker
 from ..connection import ConnectionPool
@@ -206,7 +206,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             else:
                 table._loggername = pjoin(self.folder, logfilename)
             logfile = self.file_open(table._loggername, 'ab')
-            logfile.write(message)
+            logfile.write(to_bytes(message))
             self.file_close(logfile)
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
