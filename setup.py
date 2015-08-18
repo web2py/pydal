@@ -18,9 +18,11 @@ Links
 """
 
 from setuptools import setup
+from pydal.helpers.utils import read_file
+
 setup(
     name='pyDAL',
-    version='15.08-dev',
+    version=read_file("VERSION").split()[0],
     url='https://github.com/web2py/pydal',
     license='BSD',
     author='Massimo Di Pierro',
