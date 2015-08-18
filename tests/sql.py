@@ -520,6 +520,30 @@ class TestSelect(unittest.TestCase):
         db.tt.drop()
         db.close()
 
+    def testCoalesce(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa'), Field('bb'), Field('cc'), Field('dd'))
+        db.tt.insert(aa='xx')
+        db.tt.insert(aa='xx', bb='yy')
+        db.tt.insert(aa='xx', bb='yy', cc='zz')
+        db.tt.insert(aa='xx', bb='yy', cc='zz', dd='')
+        result = db(db.tt).select(db.tt.dd.coalesce(db.tt.cc, db.tt.bb, db.tt.aa))
+        self.assertEqual(result.response[0][0], 'xx')
+        self.assertEqual(result.response[1][0], 'yy')
+        self.assertEqual(result.response[2][0], 'zz')
+        self.assertEqual(result.response[3][0], '')
+        db.tt.drop()
+
+        db.define_table('tt', Field('aa', 'integer'), Field('bb'))
+        db.tt.insert(bb='')
+        db.tt.insert(aa=1)
+        result = db(db.tt).select(db.tt.aa.coalesce_zero())
+        self.assertEqual(result.response[0][0], 0)
+        self.assertEqual(result.response[1][0], 1)
+
+        db.tt.drop()
+        db.close()
+
 
 class TestAddMethod(unittest.TestCase):
 

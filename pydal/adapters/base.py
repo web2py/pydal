@@ -671,7 +671,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return 'COALESCE(%s)' % ','.join(expressions)
 
     def COALESCE_ZERO(self, first):
-        return 'COALESCE(%s,0)' % self.expand(first)
+        return self.COALESCE(first, [0])
 
     def RAW(self, first):
         return first
