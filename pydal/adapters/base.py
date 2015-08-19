@@ -1644,8 +1644,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         """
         Return a parsed row
         """
-        new_row = self.db.row_class(
-            dict((tablename, self.db.row_class())
+        new_row = self.db.Row(
+            dict((tablename, self.db.Row())
                  for tablename in fields_virtual.keys()))
         for (j, colname) in enumerate(colnames):
             value = row[j]
@@ -1655,7 +1655,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 (tablename, fieldname, table, field, ft) = tmp
                 colset = new_row.get(tablename, None)
                 if colset is None:
-                    colset = new_row[tablename] = self.db.row_class()
+                    colset = new_row[tablename] = self.db.Row()
 
                 value = self.parse_value(value, ft, blob_decode)
                 if field.filter_out:
@@ -1688,7 +1688,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                             colset[referee_link] = LazySet(rfield, id)
             else:
                 if '_extra' not in new_row:
-                    new_row['_extra'] = self.db.row_class()
+                    new_row['_extra'] = self.db.Row()
                 value = self.parse_value(value, fields[j].type, blob_decode)
                 new_row['_extra'][colname] = value
                 new_column_name = self._regex_select_as_parser(colname)

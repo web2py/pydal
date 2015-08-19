@@ -161,7 +161,7 @@ class MetaDAL(type):
         #: intercept arguments for DAL costumisation on call
         intercepts = [
             'logger', 'representers', 'serializers', 'uuid', 'validators',
-            'validators_method', 'row_class']
+            'validators_method', 'Table', 'Row']
         intercepted = []
         for name in intercepts:
             val = kwargs.get(name)
@@ -255,9 +255,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     representers = {}
     uuid = lambda x: str(uuid4())
     logger = logging.getLogger("pyDAL")
-    row_class = Row
 
     Table = Table
+    Row = Row
 
     def __new__(cls, uri='sqlite://dummy.db', *args, **kwargs):
         if not hasattr(THREAD_LOCAL, 'db_instances'):
@@ -376,9 +376,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             return
         super(DAL, self).__init__()
 
-        if not issubclass(self.row_class, Row):
+        if not issubclass(self.Row, Row):
             raise RuntimeError(
-                '`row_class` must be a subclass of pydal.objects.Row'
+                '`Row` class must be a subclass of pydal.objects.Row'
             )
 
         from .drivers import DRIVERS, is_jdbc
@@ -651,7 +651,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 else:
                     i += 1
         if '/'.join(args) == 'patterns':
-            return self.row_class({'status':200,'pattern':'list',
+            return self.Row({'status':200,'pattern':'list',
                         'error':None,'response':patterns})
         for pattern in patterns:
             basequery, exposedfields = None, []
@@ -731,7 +731,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                             try:
                                 dbset=db(db[table][field].belongs(dbset._select(db[otable][selfld])))
                             except ValueError:
-                                return self.row_class({'status':400,'pattern':pattern,
+                                return self.Row({'status':400,'pattern':pattern,
                                             'error':'invalid path','response':None})
                         else:
                             items = [item.id for item in dbset.select(db[otable][selfld])]
@@ -747,20 +747,20 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     if not field in db[table]: break
                     # hand-built patterns should respect .readable=False as well
                     if not db[table][field].readable:
-                        return self.row_class({'status':418,'pattern':pattern,
+                        return self.Row({'status':418,'pattern':pattern,
                                     'error':'I\'m a teapot','response':None})
                     try:
                         distinct = vars.get('distinct', False) == 'True'
                         offset = long(vars.get('offset',None) or 0)
                         limits = (offset,long(vars.get('limit',None) or 1000)+offset)
                     except ValueError:
-                        return self.row_class({'status':400,'error':'invalid limits','response':None})
+                        return self.Row({'status':400,'error':'invalid limits','response':None})
                     items =  dbset.select(db[table][field], distinct=distinct, limitby=limits)
                     if items:
-                        return self.row_class({'status':200,'response':items,
+                        return self.Row({'status':200,'response':items,
                                     'pattern':pattern})
                     else:
-                        return self.row_class({'status':404,'pattern':pattern,
+                        return self.Row({'status':404,'pattern':pattern,
                                     'error':'no record found','response':None})
                 elif tag != args[i]:
                     break
@@ -774,7 +774,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     try:
                         orderby = [db[table][f] if not f.startswith('~') else ~db[table][f[1:]] for f in ofields]
                     except (KeyError, AttributeError):
-                        return self.row_class({'status':400,'error':'invalid orderby','response':None})
+                        return self.Row({'status':400,'error':'invalid orderby','response':None})
                     if exposedfields:
                         fields = [field for field in db[table] if str(field).split('.')[-1] in exposedfields and field.readable]
                     else:
@@ -784,17 +784,17 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                         offset = long(vars.get('offset',None) or 0)
                         limits = (offset,long(vars.get('limit',None) or 1000)+offset)
                     except ValueError:
-                        return self.row_class({'status':400,'error':'invalid limits','response':None})
+                        return self.Row({'status':400,'error':'invalid limits','response':None})
                     #if count > limits[1]-limits[0]:
-                    #    return self.row_class({'status':400,'error':'too many records','response':None})
+                    #    return self.Row({'status':400,'error':'too many records','response':None})
                     try:
                         response = dbset.select(limitby=limits,orderby=orderby,*fields)
                     except ValueError:
-                        return self.row_class({'status':400,'pattern':pattern,
+                        return self.Row({'status':400,'pattern':pattern,
                                     'error':'invalid path','response':None})
-                    return self.row_class({'status':200,'response':response,
+                    return self.Row({'status':200,'response':response,
                                 'pattern':pattern,'count':count})
-        return self.row_class({'status':400,'error':'no matching pattern','response':None})
+        return self.Row({'status':400,'error':'no matching pattern','response':None})
 
     def define_table(
         self,
