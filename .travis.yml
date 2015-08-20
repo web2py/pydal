@@ -55,8 +55,8 @@ before_script:
   - if [[ $ADAPTER == postgres* ]]; then psql -c 'SHOW SERVER_VERSION' -U postgres; fi
 
   # Install last sdk for app engine (update only whenever a new release is available)
-  - if [[ $ADAPTER == google ]]; then wget https://storage.googleapis.com/appengine-sdks/featured/google_appengine_1.9.20.zip -nv; fi
-  - if [[ $ADAPTER == google ]]; then unzip -q google_appengine_1.9.20.zip; fi
+  - if [[ $ADAPTER == google ]]; then wget https://storage.googleapis.com/appengine-sdks/featured/google_appengine_1.9.25.zip -nv; fi
+  - if [[ $ADAPTER == google ]]; then unzip -q google_appengine_1.9.25.zip; fi
   - if [[ $ADAPTER == google ]]; then mv -f ./google_appengine/google ./google; fi
 
 
