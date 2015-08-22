@@ -27,6 +27,9 @@ from ..helpers.classes import SQLCustomType, SQLALL, Reference, \
     RecordUpdater, RecordDeleter, NullDriver, FakeCursor
 from ..helpers.serializers import serializers
 
+if PY2:
+    from itertools import izip as zip
+
 long = integer_types[-1]
 
 TIMINGSSIZE = 100
@@ -1641,18 +1644,12 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         """
         Return a parsed row
         """
-        new_row = Row()
-        for (j,colname) in enumerate(colnames):
-            value = row[j]
-            tmp = tmps[j]
-            tablename = None
+        new_row = Row(dict((tablename, Row()) for tablename in fields_virtual.keys()))
+        for j, (colname, value, tmp) in enumerate(zip(colnames, row, tmps)):
             if tmp:
-                (tablename,fieldname,table,field,ft) = tmp
-                colset = new_row.get(tablename, None)
-                if colset is None:
-                    colset = new_row[tablename] = Row()
-
-                value = self.parse_value(value,ft,blob_decode)
+                (tablename, fieldname, table, field, ft) = tmp
+                colset = new_row[tablename]
+                value = self.parse_value(value, ft, blob_decode)
                 if field.filter_out:
                     value = field.filter_out(value)
                 colset[fieldname] = value
@@ -1733,15 +1730,11 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                                               if isinstance(v,FieldMethod)]
         return (fields_virtual, fields_lazy, tmps)
 
-    def parse(self, rows, fields, colnames, blob_decode=True,
-              cacheable = False):
-        new_rows = []
+    def parse(self, rows, fields, colnames, blob_decode=True, cacheable=False):
         (fields_virtual, fields_lazy, tmps) = self._parse_expand_colnames(colnames)
-        for row in rows:
-            new_row = self._parse(row, tmps, fields,
-                                  colnames, blob_decode, cacheable,
-                                  fields_virtual, fields_lazy)
-            new_rows.append(new_row)
+        new_rows = [self._parse(row, tmps, fields, colnames, blob_decode,
+                                cacheable, fields_virtual, fields_lazy)
+                    for row in rows]
         rowsobj = Rows(self.db, new_rows, colnames, rawrows=rows)
 
         # Old stype virtual fields
@@ -1750,7 +1743,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             ### old style virtual fields
             for item in table.virtualfields:
                 try:
-                    rowsobj = rowsobj.setvirtualfields(**{tablename:item})
+                    rowsobj = rowsobj.setvirtualfields(**{tablename: item})
                 except (KeyError, AttributeError):
                     # to avoid breaking virtualfields when partial select
                     pass
