@@ -248,9 +248,12 @@ class Table(Serializable, BasicStorage):
         self._after_update = []
         self._after_delete = []
 
+        self._virtual_fields = []
+        self._virtual_methods = []
+
         self.add_method = MethodAdder(self)
 
-        fieldnames, newfields=set(), []
+        fieldnames, newfields = set(), []
         _primarykey = getattr(self, '_primarykey', None)
         if _primarykey is not None:
             if not isinstance(_primarykey, list):
@@ -259,7 +262,7 @@ class Table(Serializable, BasicStorage):
                     % tablename)
             if len(_primarykey) == 1:
                 self._id = [f for f in fields if isinstance(f, Field)
-                                and f.name ==_primarykey[0]][0]
+                            and f.name == _primarykey[0]][0]
         elif not [f for f in fields if (isinstance(f, Field) and
                   f.type == 'id') or (isinstance(f, dict) and
                   f.get("type", None) == "id")]:
@@ -267,7 +270,6 @@ class Table(Serializable, BasicStorage):
             newfields.append(field)
             fieldnames.add('id')
             self._id = field
-        virtual_fields = []
 
         def include_new(field):
             newfields.append(field)
@@ -275,23 +277,27 @@ class Table(Serializable, BasicStorage):
             if field.type == 'id':
                 self._id = field
         for field in fields:
-            if isinstance(field, (FieldMethod, FieldVirtual)):
-                virtual_fields.append(field)
-            elif isinstance(field, Field) and not field.name in fieldnames:
+            if isinstance(field, FieldVirtual):
+                self._virtual_fields.append(field)
+            elif isinstance(field, FieldMethod):
+                self._virtual_methods.append(field)
+            elif isinstance(field, Field) and field.name not in fieldnames:
                 if field.db is not None:
                     field = copy.copy(field)
                 include_new(field)
             elif isinstance(field, Table):
                 table = field
                 for field in table:
-                    if not field.name in fieldnames and not field.type == 'id':
+                    if field.name not in fieldnames and field.type != 'id':
                         t2 = not table._actual and self._tablename
                         include_new(field.clone(point_self_references_to=t2))
-            elif isinstance(field, dict) and not field['fieldname'] in fieldnames:
+            elif isinstance(field, dict) and field['fieldname'] not in fieldnames:
                 include_new(Field(**field))
             elif not isinstance(field, (Field, Table)):
                 raise SyntaxError(
-                    'define_table argument is not a Field or Table: %s' % field)
+                    'define_table argument is not a Field or Table: %s' %
+                    field
+                )
         fields = newfields
         tablename = tablename
         self._fields = SQLCallableList()
@@ -347,7 +353,9 @@ class Table(Serializable, BasicStorage):
                         tablename)
                 else:
                     self[k].notnull = True
-        for field in virtual_fields:
+        for field in self._virtual_fields:
+            self[field.name] = field
+        for field in self._virtual_methods:
             self[field.name] = field
 
     @property

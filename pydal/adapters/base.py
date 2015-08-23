@@ -1608,7 +1608,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return float(value)
 
     def parse_json(self, value, field_type):
-        if not 'loads' in self.driver_auto_json:
+        if 'loads' not in self.driver_auto_json:
             if not isinstance(value, basestring):
                 raise RuntimeError('json data not a string')
             if PY2 and isinstance(value, unicode):
@@ -1618,22 +1618,22 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
     def build_parsemap(self):
         self.parsemap = {
-            'id':self.parse_id,
-            'integer':self.parse_integer,
-            'bigint':self.parse_integer,
-            'float':self.parse_double,
-            'double':self.parse_double,
-            'reference':self.parse_reference,
-            'boolean':self.parse_boolean,
-            'date':self.parse_date,
-            'time':self.parse_time,
-            'datetime':self.parse_datetime,
-            'blob':self.parse_blob,
-            'decimal':self.parse_decimal,
-            'json':self.parse_json,
-            'list:integer':self.parse_list_integers,
-            'list:reference':self.parse_list_references,
-            'list:string':self.parse_list_strings,
+            'id': self.parse_id,
+            'integer': self.parse_integer,
+            'bigint': self.parse_integer,
+            'float': self.parse_double,
+            'double': self.parse_double,
+            'reference': self.parse_reference,
+            'boolean': self.parse_boolean,
+            'date': self.parse_date,
+            'time': self.parse_time,
+            'datetime': self.parse_datetime,
+            'blob': self.parse_blob,
+            'decimal': self.parse_decimal,
+            'json': self.parse_json,
+            'list:integer': self.parse_list_integers,
+            'list:reference': self.parse_list_references,
+            'list:string': self.parse_list_strings,
         }
 
     def _parse(self, row, tmps, fields, colnames, blob_decode,
@@ -1642,24 +1642,24 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         Return a parsed row
         """
         new_row = Row()
-        for (j,colname) in enumerate(colnames):
+        for (j, colname) in enumerate(colnames):
             value = row[j]
             tmp = tmps[j]
             tablename = None
             if tmp:
-                (tablename,fieldname,table,field,ft) = tmp
+                (tablename, fieldname, table, field, ft) = tmp
                 colset = new_row.get(tablename, None)
                 if colset is None:
                     colset = new_row[tablename] = Row()
 
-                value = self.parse_value(value,ft,blob_decode)
+                value = self.parse_value(value, ft, blob_decode)
                 if field.filter_out:
                     value = field.filter_out(value)
                 colset[fieldname] = value
 
                 # for backward compatibility
-                if ft=='id' and fieldname!='id' and \
-                        not 'id' in table.fields:
+                if ft == 'id' and fieldname != 'id' and \
+                        'id' not in table.fields:
                     colset['id'] = value
 
                 if ft == 'id' and not cacheable:
@@ -1669,38 +1669,41 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                         colset.gae_item = value
                     else:
                         id = value
-                    colset.update_record = RecordUpdater(colset,table,id)
-                    colset.delete_record = RecordDeleter(table,id)
+                    colset.update_record = RecordUpdater(colset, table, id)
+                    colset.delete_record = RecordDeleter(table, id)
                     if table._db._lazy_tables:
-                        colset['__get_lazy_reference__'] = LazyReferenceGetter(table, id)
+                        colset['__get_lazy_reference__'] = \
+                            LazyReferenceGetter(table, id)
                     for rfield in table._referenced_by:
                         referee_link = self.db._referee_name and \
                             self.db._referee_name % dict(
-                            table=rfield.tablename,field=rfield.name)
-                        if (referee_link and not referee_link in colset and
-                            referee_link != tablename):
-                            colset[referee_link] = LazySet(rfield,id)
+                                table=rfield.tablename, field=rfield.name)
+                        if (referee_link and referee_link not in colset and
+                                referee_link != tablename):
+                            colset[referee_link] = LazySet(rfield, id)
             else:
-                if not '_extra' in new_row:
+                if '_extra' not in new_row:
                     new_row['_extra'] = Row()
-                value = self.parse_value(value, fields[j].type,blob_decode)
+                value = self.parse_value(value, fields[j].type, blob_decode)
                 new_row['_extra'][colname] = value
                 new_column_name = self._regex_select_as_parser(colname)
-                if not new_column_name is None:
+                if new_column_name is not None:
                     column_name = new_column_name.groups(0)
-                    setattr(new_row,column_name[0],value)
+                    setattr(new_row, column_name[0], value)
 
         for tablename in fields_virtual.keys():
             for f, v in fields_virtual[tablename]:
                 try:
                     new_row[tablename][f] = v.f(new_row)
                 except (AttributeError, KeyError):
-                    pass # not enough fields to define virtual field
+                    pass  # not enough fields to define virtual field
             for f, v in fields_lazy[tablename]:
                 try:
-                    new_row[tablename][f] = (v.handler or VirtualCommand)(v.f, new_row)
+                    new_row[tablename][f] = (v.handler or VirtualCommand)(
+                        v.f, new_row
+                    )
                 except (AttributeError, KeyError):
-                    pass # not enough fields to define virtual field
+                    pass  # not enough fields to define virtual field
         return new_row
 
     def _regex_select_as_parser(self, colname):
@@ -1727,20 +1730,23 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 ft = field.type
                 tmps.append((tablename, fieldname, table, field, ft))
                 if tablename not in fields_virtual:
-                    fields_virtual[tablename] = [(f,v) for (f,v) in table.iteritems()
-                                                 if isinstance(v,FieldVirtual)]
-                    fields_lazy[tablename] = [(f,v) for (f,v) in table.iteritems()
-                                              if isinstance(v,FieldMethod)]
+                    fields_virtual[tablename] = [
+                        (f.name, f) for f in table._virtual_fields
+                    ]
+                    fields_lazy[tablename] = [
+                        (f.name, f) for f in table._virtual_methods
+                    ]
         return (fields_virtual, fields_lazy, tmps)
 
     def parse(self, rows, fields, colnames, blob_decode=True,
-              cacheable = False):
+              cacheable=False):
         new_rows = []
-        (fields_virtual, fields_lazy, tmps) = self._parse_expand_colnames(colnames)
+        (fields_virtual, fields_lazy, tmps) = \
+            self._parse_expand_colnames(colnames)
         for row in rows:
-            new_row = self._parse(row, tmps, fields,
-                                  colnames, blob_decode, cacheable,
-                                  fields_virtual, fields_lazy)
+            new_row = self._parse(
+                row, tmps, fields, colnames, blob_decode, cacheable,
+                fields_virtual, fields_lazy)
             new_rows.append(new_row)
         rowsobj = Rows(self.db, new_rows, colnames, rawrows=rows)
 
@@ -1750,7 +1756,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             ### old style virtual fields
             for item in table.virtualfields:
                 try:
-                    rowsobj = rowsobj.setvirtualfields(**{tablename:item})
+                    rowsobj = rowsobj.setvirtualfields(**{tablename: item})
                 except (KeyError, AttributeError):
                     # to avoid breaking virtualfields when partial select
                     pass
@@ -1765,7 +1771,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return IterRows(self.db, sql, fields,
                         colnames, blob_decode, cacheable)
 
-
     def common_filter(self, query, tablenames):
         tenant_fieldname = self.db._request_tenant
 
@@ -1773,13 +1778,13 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             table = self.db[tablename]
 
             # deal with user provided filters
-            if table._common_filter != None:
+            if table._common_filter is not None:
                 query = query & table._common_filter(query)
 
             # deal with multi_tenant filters
             if tenant_fieldname in table:
                 default = table[tenant_fieldname].default
-                if not default is None:
+                if default is not None:
                     newquery = table[tenant_fieldname] == default
                     if query is None:
                         query = newquery
@@ -1798,7 +1803,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             else: return self.represent(x,types.get(type(x),'string'))
 
         return 'CASE WHEN %s THEN %s ELSE %s END' % (
-            self.expand(query), 
+            self.expand(query),
             represent(true_false[0]),
             represent(true_false[1]))
 
