@@ -576,10 +576,13 @@ class Table(Serializable, BasicStorage):
                 raise SyntaxError(
                     'value must be a dictionary: %s' % value)
             self.__dict__[str(key)] = value
-            if isinstance(value, FieldVirtual):
-                self._virtual_fields.append(value)
-            elif isinstance(value, FieldMethod):
-                self._virtual_methods.append(value)
+            if isinstance(value, (FieldVirtual, FieldMethod)):
+                if value.name == 'unknown':
+                    value.name = str(key)
+                if isinstance(value, FieldVirtual):
+                    self._virtual_fields.append(value)
+                else:
+                    self._virtual_methods.append(value)
 
     def __setattr__(self, key, value):
         if key[:1] != '_' and key in self:
