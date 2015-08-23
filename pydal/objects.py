@@ -271,16 +271,16 @@ class Table(Serializable, BasicStorage):
             fieldnames.add('id')
             self._id = field
 
+        virtual_fields = []
+
         def include_new(field):
             newfields.append(field)
             fieldnames.add(field.name)
             if field.type == 'id':
                 self._id = field
         for field in fields:
-            if isinstance(field, FieldVirtual):
-                self._virtual_fields.append(field)
-            elif isinstance(field, FieldMethod):
-                self._virtual_methods.append(field)
+            if isinstance(field, (FieldVirtual, FieldMethod)):
+                virtual_fields.append(field)
             elif isinstance(field, Field) and field.name not in fieldnames:
                 if field.db is not None:
                     field = copy.copy(field)
@@ -353,9 +353,7 @@ class Table(Serializable, BasicStorage):
                         tablename)
                 else:
                     self[k].notnull = True
-        for field in self._virtual_fields:
-            self[field.name] = field
-        for field in self._virtual_methods:
+        for field in virtual_fields:
             self[field.name] = field
 
     @property
@@ -578,11 +576,15 @@ class Table(Serializable, BasicStorage):
                 raise SyntaxError(
                     'value must be a dictionary: %s' % value)
             self.__dict__[str(key)] = value
+            if isinstance(value, FieldVirtual):
+                self._virtual_fields.append(value)
+            elif isinstance(value, FieldMethod):
+                self._virtual_methods.append(value)
 
     def __setattr__(self, key, value):
-        if key[:1]!='_' and key in self:
+        if key[:1] != '_' and key in self:
             raise SyntaxError('Object exists and cannot be redefined: %s' % key)
-        self.__dict__[key] = value
+        self[key] = value
 
     def __delitem__(self, key):
         if isinstance(key, dict):
