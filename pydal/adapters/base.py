@@ -27,6 +27,9 @@ from ..helpers.classes import SQLCustomType, SQLALL, Reference, \
     RecordUpdater, RecordDeleter, NullDriver, FakeCursor
 from ..helpers.serializers import serializers
 
+if PY2:
+    from itertools import izip as zip
+
 long = integer_types[-1]
 
 TIMINGSSIZE = 100
@@ -1641,7 +1644,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         """
         Return a parsed row
         """
-        new_row = Row()
+        new_row = Row(dict((tablename, Row()) for tablename in fields_virtual.keys()))
         for (j, colname) in enumerate(colnames):
             value = row[j]
             tmp = tmps[j]
@@ -1738,6 +1741,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     ]
         return (fields_virtual, fields_lazy, tmps)
 
+<<<<<<< HEAD
     def parse(self, rows, fields, colnames, blob_decode=True,
               cacheable=False):
         new_rows = []
@@ -1748,6 +1752,13 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 row, tmps, fields, colnames, blob_decode, cacheable,
                 fields_virtual, fields_lazy)
             new_rows.append(new_row)
+=======
+    def parse(self, rows, fields, colnames, blob_decode=True, cacheable=False):
+        (fields_virtual, fields_lazy, tmps) = self._parse_expand_colnames(colnames)
+        new_rows = [self._parse(row, tmps, fields, colnames, blob_decode,
+                                cacheable, fields_virtual, fields_lazy)
+                    for row in rows]
+>>>>>>> e1d55eb6db9b8ca1d118e39921f0f3b43c1e62fa
         rowsobj = Rows(self.db, new_rows, colnames, rawrows=rows)
 
         # Old stype virtual fields
