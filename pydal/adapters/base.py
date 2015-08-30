@@ -1741,24 +1741,12 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     ]
         return (fields_virtual, fields_lazy, tmps)
 
-<<<<<<< HEAD
-    def parse(self, rows, fields, colnames, blob_decode=True,
-              cacheable=False):
-        new_rows = []
-        (fields_virtual, fields_lazy, tmps) = \
-            self._parse_expand_colnames(colnames)
-        for row in rows:
-            new_row = self._parse(
-                row, tmps, fields, colnames, blob_decode, cacheable,
-                fields_virtual, fields_lazy)
-            new_rows.append(new_row)
-=======
     def parse(self, rows, fields, colnames, blob_decode=True, cacheable=False):
         (fields_virtual, fields_lazy, tmps) = self._parse_expand_colnames(colnames)
         new_rows = [self._parse(row, tmps, fields, colnames, blob_decode,
                                 cacheable, fields_virtual, fields_lazy)
                     for row in rows]
->>>>>>> e1d55eb6db9b8ca1d118e39921f0f3b43c1e62fa
+
         rowsobj = Rows(self.db, new_rows, colnames, rawrows=rows)
 
         # Old stype virtual fields
