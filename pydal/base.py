@@ -161,7 +161,7 @@ class MetaDAL(type):
         #: intercept arguments for DAL costumisation on call
         intercepts = [
             'logger', 'representers', 'serializers', 'uuid', 'validators',
-            'validators_method']
+            'validators_method', 'Table', 'Row']
         intercepted = []
         for name in intercepts:
             val = kwargs.get(name)
@@ -257,6 +257,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     logger = logging.getLogger("pyDAL")
 
     Table = Table
+    Row = Row
 
     def __new__(cls, uri='sqlite://dummy.db', *args, **kwargs):
         if not hasattr(THREAD_LOCAL, 'db_instances'):
@@ -375,6 +376,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             return
         super(DAL, self).__init__()
 
+        if not issubclass(self.Row, Row):
+            raise RuntimeError(
+                '`Row` class must be a subclass of pydal.objects.Row'
+            )
+
         from .drivers import DRIVERS, is_jdbc
         self._drivers_available = DRIVERS
 
@@ -412,7 +418,6 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             attempts = 5
         if uri:
             uris = isinstance(uri, (list, tuple)) and uri or [uri]
-            error = ''
             connected = False
             for k in range(attempts):
                 for uri in uris:
@@ -420,11 +425,15 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                         if is_jdbc and not uri.startswith('jdbc:'):
                             uri = 'jdbc:'+uri
                         self._dbname = REGEX_DBNAME.match(uri).group()
-                        if not self._dbname in ADAPTERS:
-                            raise SyntaxError("Error in URI '%s' or database not supported" % self._dbname)
+                        if self._dbname not in ADAPTERS:
+                            raise SyntaxError(
+                                "Error in URI '%s' or database not supported"
+                                % self._dbname
+                            )
                         # notice that driver args or {} else driver_args
                         # defaults to {} global, not correct
-                        kwargs = dict(db=self,uri=uri,
+                        kwargs = dict(db=self,
+                                      uri=uri,
                                       pool_size=pool_size,
                                       folder=folder,
                                       db_codec=db_codec,
@@ -443,25 +452,31 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                         if bigint_id:
                             if 'big-id' in types and 'reference' in types:
                                 self._adapter.types['id'] = types['big-id']
-                                self._adapter.types['reference'] = types['big-reference']
+                                self._adapter.types['reference'] = \
+                                    types['big-reference']
                         connected = True
                         break
                     except SyntaxError:
                         raise
                     except Exception:
                         tb = traceback.format_exc()
-                        self.logger.debug('DEBUG: connect attempt %i, connection error:\n%s' % (k, tb))
+                        self.logger.debug(
+                            'DEBUG: connect attempt %i, connection error:\n%s'
+                            % (k, tb)
+                        )
                 if connected:
                     break
                 else:
                     time.sleep(1)
             if not connected:
-                raise RuntimeError("Failure to connect, tried %d times:\n%s" % (attempts, tb))
+                raise RuntimeError(
+                    "Failure to connect, tried %d times:\n%s" % (attempts, tb)
+                )
         else:
-            self._adapter = BaseAdapter(db=self,pool_size=0,
-                                        uri='None',folder=folder,
-                                        db_codec=db_codec, after_connection=after_connection,
-                                        entity_quoting=entity_quoting)
+            self._adapter = BaseAdapter(
+                db=self, pool_size=0, uri='None', folder=folder,
+                db_codec=db_codec, after_connection=after_connection,
+                entity_quoting=entity_quoting)
             migrate = fake_migrate = False
         adapter = self._adapter
         self._uri_hash = table_hash or hashlib_md5(adapter.uri).hexdigest()
@@ -636,7 +651,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 else:
                     i += 1
         if '/'.join(args) == 'patterns':
-            return Row({'status':200,'pattern':'list',
+            return self.Row({'status':200,'pattern':'list',
                         'error':None,'response':patterns})
         for pattern in patterns:
             basequery, exposedfields = None, []
@@ -716,7 +731,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                             try:
                                 dbset=db(db[table][field].belongs(dbset._select(db[otable][selfld])))
                             except ValueError:
-                                return Row({'status':400,'pattern':pattern,
+                                return self.Row({'status':400,'pattern':pattern,
                                             'error':'invalid path','response':None})
                         else:
                             items = [item.id for item in dbset.select(db[otable][selfld])]
@@ -732,20 +747,20 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     if not field in db[table]: break
                     # hand-built patterns should respect .readable=False as well
                     if not db[table][field].readable:
-                        return Row({'status':418,'pattern':pattern,
+                        return self.Row({'status':418,'pattern':pattern,
                                     'error':'I\'m a teapot','response':None})
                     try:
                         distinct = vars.get('distinct', False) == 'True'
                         offset = long(vars.get('offset',None) or 0)
                         limits = (offset,long(vars.get('limit',None) or 1000)+offset)
                     except ValueError:
-                        return Row({'status':400,'error':'invalid limits','response':None})
+                        return self.Row({'status':400,'error':'invalid limits','response':None})
                     items =  dbset.select(db[table][field], distinct=distinct, limitby=limits)
                     if items:
-                        return Row({'status':200,'response':items,
+                        return self.Row({'status':200,'response':items,
                                     'pattern':pattern})
                     else:
-                        return Row({'status':404,'pattern':pattern,
+                        return self.Row({'status':404,'pattern':pattern,
                                     'error':'no record found','response':None})
                 elif tag != args[i]:
                     break
@@ -759,7 +774,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     try:
                         orderby = [db[table][f] if not f.startswith('~') else ~db[table][f[1:]] for f in ofields]
                     except (KeyError, AttributeError):
-                        return Row({'status':400,'error':'invalid orderby','response':None})
+                        return self.Row({'status':400,'error':'invalid orderby','response':None})
                     if exposedfields:
                         fields = [field for field in db[table] if str(field).split('.')[-1] in exposedfields and field.readable]
                     else:
@@ -769,17 +784,17 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                         offset = long(vars.get('offset',None) or 0)
                         limits = (offset,long(vars.get('limit',None) or 1000)+offset)
                     except ValueError:
-                        return Row({'status':400,'error':'invalid limits','response':None})
+                        return self.Row({'status':400,'error':'invalid limits','response':None})
                     #if count > limits[1]-limits[0]:
-                    #    return Row({'status':400,'error':'too many records','response':None})
+                    #    return self.Row({'status':400,'error':'too many records','response':None})
                     try:
                         response = dbset.select(limitby=limits,orderby=orderby,*fields)
                     except ValueError:
-                        return Row({'status':400,'pattern':pattern,
+                        return self.Row({'status':400,'pattern':pattern,
                                     'error':'invalid path','response':None})
-                    return Row({'status':200,'response':response,
+                    return self.Row({'status':200,'response':response,
                                 'pattern':pattern,'count':count})
-        return Row({'status':400,'error':'no matching pattern','response':None})
+        return self.Row({'status':400,'error':'no matching pattern','response':None})
 
     def define_table(
         self,
