@@ -197,7 +197,7 @@ class MongoDBAdapter(NoSQLAdapter):
         elif fieldtype == 'id':
             value = self.object_id(obj)
         elif fieldtype in ['double', 'float']:
-            value = float(obj)
+            value = None if obj is None else float(obj)
         elif fieldtype == 'date':
             if obj is None:
                 return None
