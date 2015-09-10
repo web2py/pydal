@@ -334,8 +334,10 @@ class TestFields(unittest.TestCase):
             default_return = None if iv[0] == 'blob' and iv[2] == '' else iv[2]
             self.assertTrue(isinstance(db.tt.insert(), long))
             self.assertTrue(isinstance(db.tt.insert(aa=iv[1]), long))
+            self.assertTrue(isinstance(db.tt.insert(aa=None), long))
             self.assertEqual(db().select(db.tt.aa)[0].aa, default_return)
             self.assertEqual(db().select(db.tt.aa)[1].aa, iv[1])
+            self.assertEqual(db().select(db.tt.aa)[2].aa, None)
 
             if not IS_GAE:
                 ## field aliases
