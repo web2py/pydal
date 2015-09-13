@@ -2692,13 +2692,16 @@ class IterRows(BasicRows):
         (self.fields_virtual, self.fields_lazy, self.tmps) = \
             self.db._adapter._parse_expand_colnames(colnames)
         self.db._adapter.execute(sql)
+        self.db._adapter.current_cursor_in_use = True
+        self.cursor = self.db._adapter.cursor
         self._head = None
         self.last_item = None
         self.last_item_id = None
         self.compact = True
+        self.sql = sql
 
     def __next__(self):
-        db_row = self.db._adapter._fetchone()
+        db_row = self.cursor.fetchone()
         if db_row is None:
             raise StopIteration
         row = self.db._adapter._parse(db_row, self.tmps, self.fields,
@@ -2719,10 +2722,21 @@ class IterRows(BasicRows):
     def __iter__(self):
         if self._head:
             yield self._head
-        row = next(self)
-        while row is not None:
-            yield row
+        try:
             row = next(self)
+            while row is not None:
+                yield row
+                row = next(self)
+        except StopIteration:
+            # Iterator is over, adjust the cursor logic
+            if self.db._adapter.current_cursor_in_use == True:
+                # nothing to do, current_cursor_in_use is still True
+                self.db._adapter.current_cursor_in_use = False
+            else:
+                # A sub query has opened a new cursor. Close the one in use, pop the former one from stack
+                self.db._adapter.cursor.close()
+                self.db._adapter.cursor = self.db._adapter.cursors_in_use.pop()
+            raise StopIteration
         return
 
     def first(self):
@@ -2750,7 +2764,7 @@ class IterRows(BasicRows):
 
         # fetch and drop the first key - 1 elements
         for i in xrange(n_to_drop):
-            self.db._adapter._fetchone()
+            self.cursor._fetchone()
         row = next(self)
         if row is None:
             raise IndexError

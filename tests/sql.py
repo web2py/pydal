@@ -2481,6 +2481,36 @@ class TestIterselect(unittest.TestCase):
         db.close()
         return
 
+    def testMultiSelect(self):
+        # Iterselect holds the cursors until all elemets have been evaluated
+        # inner queries use new cursors
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t0 = db.define_table('t0', Field('name'), Field('name_copy'))
+        db(db.t0).delete()
+        db.commit()
+        names = ['web2py', 'pydal', 'Massimo']
+        for n in names:
+            t0.insert(name=n)
+        c = 0
+        for r in db(db.t0).iterselect():
+            db.t0.update_or_insert(db.t0.id == r.id, name_copy = r.name)
+            c += 1
+
+        self.assertEqual(c, len(names), "The iterator is not looping over all elements")
+        self.assertEqual(db(db.t0).count(), len(names))
+        c = 0
+        for x in db(db.t0).iterselect(orderby=db.t0.id):
+            for y in db(db.t0).iterselect(orderby=db.t0.id):
+                db.t0.update_or_insert(db.t0.id == x.id, name_copy = x.name)
+                c += 1
+
+        self.assertEqual(c, len(names)*len(names))
+        self.assertEqual(db(db.t0).count(), len(names))
+        db._adapter.execute_test_query()
+        t0.drop()
+        db.close()
+        return
+
 if __name__ == '__main__':
     unittest.main()
     tearDownModule()

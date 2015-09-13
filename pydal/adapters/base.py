@@ -87,7 +87,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     T_SEP = ' '
     QUOTE_TEMPLATE = '"%s"'
     test_query = 'SELECT 1;'
-
+    cursors_in_use = []
+    current_cursor_in_use = False
 
     types = {
         'boolean': 'CHAR(1)',
@@ -225,6 +226,14 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             self.connector = NullDriver
             self.reconnect()
 
+    def get_cursor(self):
+    # safe_reuse allows further queries to be executed using the same cursor
+        if self.current_cursor_in_use == True:
+            self.current_cursor_in_use = False
+            # Save locally the current cursor in use
+            self.cursors_in_use.append(self.cursor)
+            self.cursor = self.connection.cursor()
+        return self.cursor
 
     def sequence_name(self,tablename):
         return self.QUOTE_TEMPLATE % ('%s_sequence' % tablename)
@@ -1364,7 +1373,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             self.db.logger.debug('SQL: %s' % command)
         self.db._lastsql = command
         t0 = time.time()
-        ret = self.cursor.execute(command, *a[1:], **b)
+        ret = self.get_cursor().execute(command, *a[1:], **b)
         self.db._timings.append((command,time.time()-t0))
         del self.db._timings[:-TIMINGSSIZE]
         return ret
