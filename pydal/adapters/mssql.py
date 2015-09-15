@@ -214,6 +214,9 @@ class MSSQLAdapter(BaseAdapter):
         return "(LOWER(%s) LIKE %s ESCAPE '%s')" % (self.expand(first),
                 second, escape)
 
+    def COLLATE(self, first, collation):
+        return "%s COLLATE %s" % (self.expand(first), collation)
+
     def STARTSWITH(self, first, second):
         return "(%s LIKE %s ESCAPE '\\')" % (self.expand(first),
                 self.expand(self.like_escaper_default(second)+'%', 'string'))
