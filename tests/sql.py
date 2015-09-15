@@ -9,7 +9,7 @@ import os
 import glob
 import datetime
 
-from pydal._compat import PY2, basestring, StringIO, integer_types
+from pydal._compat import PY2, basestring, StringIO, integer_types, xrange
 from pydal import DAL, Field
 from pydal.helpers.classes import SQLALL
 from pydal.objects import Table
@@ -2481,6 +2481,7 @@ class TestIterselect(unittest.TestCase):
         db.close()
         return
 
+    @unittest.skipIf(IS_MSSQL, "Skip mssql")
     def testMultiSelect(self):
         # Iterselect holds the cursors until all elemets have been evaluated
         # inner queries use new cursors
@@ -2506,6 +2507,29 @@ class TestIterselect(unittest.TestCase):
 
         self.assertEqual(c, len(names)*len(names))
         self.assertEqual(db(db.t0).count(), len(names))
+        db._adapter.execute_test_query()
+        t0.drop()
+        db.close()
+        return
+
+    @unittest.skipIf(IS_SQLITE | IS_MSSQL, "Skip sqlite & ms sql")
+    def testMultiSelectWithCommit(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        t0 = db.define_table('t0', Field('nn', 'integer'))
+        for n in xrange(1, 100, 1):
+            t0.insert(nn=n)
+        db.commit()
+        s = db.t0.nn.sum()
+        tot = db(db.t0).select(s).first()[s]
+        c = 0
+        for r in db(db.t0).iterselect(db.t0.ALL):
+            db.t0.update_or_insert(db.t0.id == r.id, nn = r.nn * 2)
+            db.commit()
+            c += 1
+
+        self.assertEqual(c, db(db.t0).count())
+        self.assertEqual(tot * 2, db(db.t0).select(s).first()[s])        
+
         db._adapter.execute_test_query()
         t0.drop()
         db.close()
