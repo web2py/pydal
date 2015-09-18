@@ -17,10 +17,19 @@ Links
 * `documentation <http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer>`_
 """
 
+import re
+import ast
 from setuptools import setup
+
+_version_re = re.compile(r'__version__\s+=\s+(.*)')
+
+with open('pydal/__init__.py', 'rb') as f:
+    version = str(ast.literal_eval(_version_re.search(
+        f.read().decode('utf-8')).group(1)))
+
 setup(
     name='pyDAL',
-    version='15.08-dev',
+    version=version,
     url='https://github.com/web2py/pydal',
     license='BSD',
     author='Massimo Di Pierro',
