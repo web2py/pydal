@@ -280,7 +280,7 @@ class _repr_ref_list(_repr_ref):
         else:
             refs = db(id.belongs(value)).select(id)
         return refs and ', '.join(
-            _fieldformat(self.ref, x.id) for x in value) or ''
+            _fieldformat(self.ref, x) for x in value) or ''
 
 
 def auto_represent(field):
