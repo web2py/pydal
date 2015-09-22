@@ -511,6 +511,12 @@ class TestInsert(unittest.TestCase):
             self.assertEqual(db(db.tt.aa == '2').isempty(), False)
             self.assertEqual(db(db.tt.aa == '2').delete(), 3)
             self.assertEqual(db(db.tt.aa == '2').isempty(), True)
+
+            def callable():
+                return 'aa'
+            self.assertTrue(isinstance(db.tt.insert(aa=callable), long))
+            self.assertEqual(db(db.tt.aa == 'aa').count(), 1)
+
             drop(db.tt)
             db.close()
 
