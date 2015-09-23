@@ -1568,13 +1568,18 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 h,m = tz.split(':')
                 dt = -datetime.timedelta(seconds=3600*int(h)+60*int(m))
             else:
+                ms = timezone.upper().split('Z')[0]
                 dt = None
             (y, m, d) = map(int,date_part.split('-'))
             time_parts = time_part and time_part.split(':')[:3] or (0,0,0)
             while len(time_parts)<3: time_parts.append(0)
             time_items = map(int,time_parts)
             (h, mi, s) = time_items
-            value = datetime.datetime(y, m, d, h, mi, s)
+            if ms and ms[0] == '.':
+                ms = int(ms[1:])
+            else:
+                ms = 0
+            value = datetime.datetime(y, m, d, h, mi, s, ms)
             if dt:
                 value = value + dt
         return value
