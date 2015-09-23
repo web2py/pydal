@@ -80,3 +80,24 @@ class TestUnicode(unittest.TestCase):
         db.commit()
         drop(db.tt)
         db.close()
+
+
+class TestParseDateTime(unittest.TestCase):
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.223245', None)
+        self.assertEqual(dt.microsecond, 223245)
+        self.assertEqual(dt.hour, 12)
+
+        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.223245Z', None)
+        self.assertEqual(dt.microsecond, 223245)
+        self.assertEqual(dt.hour, 12)
+
+        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.223245-2:0', None)
+        self.assertEqual(dt.microsecond, 223245)
+        self.assertEqual(dt.hour, 10)
+
+        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36+1:0', None)
+        self.assertEqual(dt.microsecond, 0)
+        self.assertEqual(dt.hour, 13)
+        db.close()
