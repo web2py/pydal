@@ -6,9 +6,9 @@ import copy
 from .._globals import IDENTITY
 from .._compat import integer_types, basestring, PY2
 from ..objects import Table, Query, Field, Expression, Row
-from ..helpers.classes import SQLALL, Reference
+from ..helpers.classes import SQLCustomType, SQLALL, Reference
 from ..helpers.methods import use_common_filters, xorify
-from .base import NoSQLAdapter, SELECT_ARGS
+from .base import NoSQLAdapter, CALLABLETYPES, SELECT_ARGS
 
 try:
     from bson import Binary
@@ -167,14 +167,13 @@ class MongoDBAdapter(NoSQLAdapter):
         elif isinstance(arg, self.ObjectId):
             return arg
 
-        if not isinstance(arg, (int, long)):
-            try:
-                if isinstance(arg, Row):
-                    return self.object_id(long(arg))
-            except:
-                pass
+        elif isinstance(arg, (Row, Reference)):
+            return self.object_id(long(arg['id']))
+
+        elif not isinstance(arg, (int, long)):
             raise TypeError("object_id argument must be of type " +
-                            "ObjectId or an objectid representable integer")
+                            "ObjectId or an objectid representable integer" +
+                            " (type %s)" % type(arg) )
         hexvalue = hex(arg)[2:].rstrip('L').zfill(24)
         return self.ObjectId(hexvalue)
 
@@ -192,6 +191,10 @@ class MongoDBAdapter(NoSQLAdapter):
                      self).parse_id(value, field_type)
 
     def represent(self, obj, fieldtype):
+        if isinstance(obj, CALLABLETYPES):
+            obj = obj()
+        if isinstance(fieldtype, SQLCustomType):
+            return fieldtype.encoder(obj)
         if isinstance(obj, self.ObjectId):
             value = obj
         elif fieldtype == 'id':
