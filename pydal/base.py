@@ -936,13 +936,17 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return Set(self, smart_query(fields, text))
 
     def __call__(self, query=None, ignore_common_filters=None):
+        return self.where(query, ignore_common_filters)
+
+    def where(self, query=None, ignore_common_filters=None):
         if isinstance(query, Table):
             query = self._adapter.id_query(query)
         elif isinstance(query, Field):
-            query = query!=None
+            query = query != None
         elif isinstance(query, dict):
             icf = query.get("ignore_common_filters")
-            if icf: ignore_common_filters = icf
+            if icf:
+                ignore_common_filters = icf
         return Set(self, query, ignore_common_filters=ignore_common_filters)
 
     def commit(self):

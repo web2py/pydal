@@ -1870,20 +1870,24 @@ class Set(Serializable):
         return '<Set %s>' % BaseAdapter.expand(self.db._adapter,self.query)
 
     def __call__(self, query, ignore_common_filters=False):
+        return self.where(query, ignore_common_filters)
+
+    def where(self, query, ignore_common_filters=False):
         if query is None:
             return self
-        elif isinstance(query,Table):
+        elif isinstance(query, Table):
             query = self.db._adapter.id_query(query)
-        elif isinstance(query,str):
-            query = Expression(self.db,query)
-        elif isinstance(query,Field):
-            query = query!=None
+        elif isinstance(query, str):
+            query = Expression(self.db, query)
+        elif isinstance(query, Field):
+            query = query != None
         if self.query:
             return Set(self.db, self.query & query,
                        ignore_common_filters=ignore_common_filters)
         else:
             return Set(self.db, query,
                        ignore_common_filters=ignore_common_filters)
+
 
     def _count(self,distinct=None):
         return self.db._adapter._count(self.query,distinct)
@@ -2136,6 +2140,7 @@ class Set(Serializable):
 class LazyReferenceGetter(object):
     def __init__(self, table, id):
         self.db, self.tablename, self.id = table._db, table._tablename, id
+
     def __call__(self, other_tablename):
         if self.db._lazy_tables is False:
             raise AttributeError()
@@ -2151,37 +2156,56 @@ class LazySet(object):
     def __init__(self, field, id):
         self.db, self.tablename, self.fieldname, self.id = \
             field.db, field._tablename, field.name, id
+
     def _getset(self):
-        query = self.db[self.tablename][self.fieldname]==self.id
-        return Set(self.db,query)
+        query = self.db[self.tablename][self.fieldname] == self.id
+        return Set(self.db, query)
+
     def __repr__(self):
         return repr(self._getset())
+
     def __call__(self, query, ignore_common_filters=False):
+        return self.where(query, ignore_common_filters)
+
+    def where(self, query, ignore_common_filters=False):
         return self._getset()(query, ignore_common_filters)
-    def _count(self,distinct=None):
+
+    def _count(self, distinct=None):
         return self._getset()._count(distinct)
+
     def _select(self, *fields, **attributes):
-        return self._getset()._select(*fields,**attributes)
+        return self._getset()._select(*fields, **attributes)
+
     def _delete(self):
         return self._getset()._delete()
+
     def _update(self, **update_fields):
         return self._getset()._update(**update_fields)
+
     def isempty(self):
         return self._getset().isempty()
-    def count(self,distinct=None, cache=None):
-        return self._getset().count(distinct,cache)
+
+    def count(self, distinct=None, cache=None):
+        return self._getset().count(distinct, cache)
+
     def select(self, *fields, **attributes):
-        return self._getset().select(*fields,**attributes)
-    def nested_select(self,*fields,**attributes):
-        return self._getset().nested_select(*fields,**attributes)
+        return self._getset().select(*fields, **attributes)
+
+    def nested_select(self, *fields, **attributes):
+        return self._getset().nested_select(*fields, **attributes)
+
     def delete(self):
         return self._getset().delete()
+
     def update(self, **update_fields):
         return self._getset().update(**update_fields)
+
     def update_naive(self, **update_fields):
         return self._getset().update_naive(**update_fields)
+
     def validate_and_update(self, **update_fields):
         return self._getset().validate_and_update(**update_fields)
+
     def delete_uploaded_files(self, upload_fields=None):
         return self._getset().delete_uploaded_files(upload_fields)
 
