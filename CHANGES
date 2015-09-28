@@ -1,6 +1,21 @@
 pydal changelog
 ===============
 
+Version 15.09
+-------------
+
+Released on September 28th 2015
+
+- [MongoDB] Implemented `orderby_on_limitby`
+- [MongoDB] Implemented `distinct` for count
+- [MongoDB] Implemented `select()` with `having` parameter
+- [MongoDB] Implemented coalesce operations
+- Virtual fields are now ordered depending on definition
+- Allow usage of custom `Row` classes
+- Added `.where` method to `Set` and `DAL`
+- Several bugfixes
+
+
 Version 15.07
 -------------
 
