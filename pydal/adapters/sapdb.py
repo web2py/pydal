@@ -54,7 +54,7 @@ class SAPDBAdapter(BaseAdapter):
                          % (table._tablename, table._id.name, table._sequence_name))
         self.execute(query)
 
-    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:@]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?sslmode=(?P<sslmode>.+))?$')
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>\[[^/]+\]|[^\:@]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?sslmode=(?P<sslmode>.+))?$')
 
 
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
