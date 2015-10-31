@@ -161,7 +161,7 @@ class IMAPAdapter(NoSQLAdapter):
 
     dbengine = 'imap'
 
-    REGEX_URI = re.compile('^(?P<user>[^:]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:@]+)(\:(?P<port>[0-9]+))?$')
+    REGEX_URI = re.compile('^(?P<user>[^:]+)(\:(?P<password>[^@]*))?@(?P<host>\[[^/]+\]|[^\:@]+)(\:(?P<port>[0-9]+))?$')
 
     def __init__(self,
                  db,
