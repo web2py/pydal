@@ -266,6 +266,17 @@ class MongoDBAdapter(NoSQLAdapter):
                      polymodel=None):
         table._dbt = None
 
+        table._notnulls = []
+        for field_name in table.fields:
+            if table[field_name].notnull:
+                table._notnulls.append(field_name)
+
+        table._uniques = []
+        for field_name in table.fields:
+            if table[field_name].unique:
+                # this is unnecessary if the fields are indexed and unique
+                table._uniques.append(field_name)
+
     class Expanded (object):
         """
         Class to encapsulate a pydal expression and track the parse 
@@ -880,6 +891,37 @@ class MongoDBAdapter(NoSQLAdapter):
         result = processor(rows, fields, newnames, blob_decode=True)
         return result
 
+    def check_notnull(self, table, values):
+        for fieldname in table._notnulls:
+            if fieldname not in values or values[fieldname] is None:
+                raise Exception("NOT NULL constraint failed: %s" % fieldname)
+
+    def check_unique(self, table, values):
+        if len(table._uniques) > 0:
+            db = table._db
+            unique_queries = []
+            for fieldname in table._uniques:
+                if fieldname in values:
+                    value = values[fieldname]
+                else:
+                    value = table[fieldname].default
+                unique_queries.append(
+                    Query(db, self.EQ, table[fieldname], value))
+
+            if len(unique_queries) > 0:
+                unique_query = unique_queries[0]
+
+                # if more than one field, build a query of ORs
+                for query in unique_queries[1:]:
+                    unique_query = Query(db, self.OR, unique_query, query)
+
+                if self.count(unique_query, distinct=False) != 0:
+                    for query in unique_queries:
+                        if self.count(query, distinct=False) != 0:
+                            # one of the 'OR' queries failed, see which one
+                            raise Exception("NOT UNIQUE constraint failed: %s" %
+                                          query.first.name)
+
     def insert(self, table, fields, safe=None):
         """Safe determines whether a asynchronous request is done or a
         synchronous action is done
@@ -895,6 +937,23 @@ class MongoDBAdapter(NoSQLAdapter):
                 fieldtype = table[k.name].type
                 values[fieldname] = self.represent(v, fieldtype)
 
+        # validate notnulls
+        try:
+            self.check_notnull(table, values)
+        except Exception as e:
+            if hasattr(table, '_on_insert_error'):
+                return table._on_insert_error(table, fields, e)
+            raise e
+
+        # validate uniques
+        try:
+            self.check_unique(table, values)
+        except Exception as e:
+            if hasattr(table, '_on_insert_error'):
+                return table._on_insert_error(table, fields, e)
+            raise e
+
+        # perform the insert
         result = ctable.insert_one(values)
 
         if result.acknowledged:
