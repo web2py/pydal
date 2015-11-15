@@ -1576,7 +1576,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             time_items = map(int,time_parts)
             (h, mi, s) = time_items
             if ms and ms[0] == '.':
-                ms = int(ms[1:])
+                ms = int(float('0' + ms) * 1000000)
             else:
                 ms = 0
             value = datetime.datetime(y, m, d, h, mi, s, ms)

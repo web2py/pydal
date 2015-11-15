@@ -100,4 +100,13 @@ class TestParseDateTime(unittest.TestCase):
         dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36+1:0', None)
         self.assertEqual(dt.microsecond, 0)
         self.assertEqual(dt.hour, 13)
+
+        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.123', None)
+        self.assertEqual(dt.microsecond, 123000)
+
+        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.00123', None)
+        self.assertEqual(dt.microsecond, 1230)
+
+        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.1234567890', None)
+        self.assertEqual(dt.microsecond, 123456)
         db.close()
