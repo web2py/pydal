@@ -17,6 +17,10 @@ environment:
       adapter: "mssql"
     - PYTHON: "C:/Python34"
       adapter: "mssqln"
+    - PYTHON: "C:/Python35"
+      adapter: "mssql"
+    - PYTHON: "C:/Python35"
+      adapter: "mssqln"
 
 clone_depth: 50
 
