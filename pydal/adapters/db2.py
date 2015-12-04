@@ -98,7 +98,7 @@ class DB2Adapter(BaseAdapter):
         return self.log_execute(command)
 
     def lastrowid(self,table):
-        self.execute('SELECT DISTINCT IDENTITY_VAL_LOCAL() FROM %s;' % table)
+        self.execute('SELECT DISTINCT IDENTITY_VAL_LOCAL() FROM %s;' % table.sqlsafe)
         return long(self.cursor.fetchone()[0])
 
     def rowslice(self,rows,minimum=0,maximum=None):
