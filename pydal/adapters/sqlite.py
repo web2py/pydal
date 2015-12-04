@@ -125,7 +125,7 @@ class SQLiteAdapter(BaseAdapter):
 
 
 SPATIALLIBS = {
-    'Windows':'libspatialite',
+    'Windows':'mod_spatialite.dll',
     'Linux':'libspatialite.so',
     'Darwin':'libspatialite.dylib'
     }
