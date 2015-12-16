@@ -1,6 +1,16 @@
 pydal changelog
 ===============
 
+Version 15.12
+-------------
+
+Released on December 16th 2015
+
+- Added IPV6 address enclosed in brackets support for URI's host
+- [MongoDB] Implemented unique and notnull support for fields during insert
+- Several bugfixes
+
+
 Version 15.09
 -------------
 
