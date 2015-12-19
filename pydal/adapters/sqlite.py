@@ -77,6 +77,7 @@ class SQLiteAdapter(BaseAdapter):
         def connector(dbpath=self.dbpath, driver_args=driver_args):
             return self.driver.Connection(dbpath, **driver_args)
         self.connector = connector
+        self.init_sql = []
         if do_connect: self.reconnect()
 
     def after_connection(self):
@@ -86,7 +87,7 @@ class SQLiteAdapter(BaseAdapter):
                                         SQLiteAdapter.web2py_regexp)
 
         if self.adapter_args.get('foreign_keys',True):
-            self.execute('PRAGMA foreign_keys=ON;')
+            self.init_sql.append('PRAGMA foreign_keys=ON;')
 
     def _truncate(self, table, mode=''):
         tablename = table._tablename
@@ -276,4 +277,8 @@ class JDBCSQLiteAdapter(SQLiteAdapter):
                                         SQLiteAdapter.web2py_extract)
 
     def execute(self, a):
+        if self.init_sql:
+            for item in self.init_sql:
+                self.log_execute(item)
+            self.init_sql[:] = []
         return self.log_execute(a)
