@@ -92,6 +92,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     test_query = 'SELECT 1;'
     cursors_in_use = []
     current_cursor_in_use = False
+    init_sql = []
 
     types = {
         'boolean': 'CHAR(1)',
