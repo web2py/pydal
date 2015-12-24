@@ -684,6 +684,9 @@ class Table(Serializable, BasicStorage):
                     # error silently unless field is required!
                     if ofield.required:
                         raise SyntaxError('unable to compute field: %s' % name)
+                    elif ofield.default is not None:
+                        row[name] = new_value = ofield.default
+                        new_fields[name] = (ofield, new_value)
         return list(new_fields.values())
 
     def _attempt_upload(self, fields):
@@ -711,7 +714,7 @@ class Table(Serializable, BasicStorage):
         for field in self:
              if (not field.name in fields and
                  field.type != "id" and
-                 field.compute is not None and
+                 field.compute is None and
                  field.default is not None):
                  fields[field.name] = field.default
         return fields
