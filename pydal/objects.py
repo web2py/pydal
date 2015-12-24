@@ -654,12 +654,12 @@ class Table(Serializable, BasicStorage):
         to_compute = []
         for ofield in self:
             name = ofield.name
+            # if field is supposed to be computed, compute it!
+            if ofield.compute:  # save those to compute for later
+                to_compute.append((name, ofield))
             if not name in new_fields:
-                # if field is supposed to be computed, compute it!
-                if ofield.compute:  # save those to compute for later
-                    to_compute.append((name, ofield))
                 # if field is required, check its default value
-                elif not update and not ofield.default is None:
+                if not update and not ofield.default is None:
                     value = ofield.default
                     fields[name] = value
                     new_fields[name] = (ofield, value)
