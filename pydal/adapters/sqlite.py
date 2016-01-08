@@ -11,7 +11,6 @@ from .._compat import PY2, pjoin
 from .._globals import IDENTITY
 from .base import BaseAdapter
 
-
 class SQLiteAdapter(BaseAdapter):
     drivers = ('sqlite2','sqlite3')
 

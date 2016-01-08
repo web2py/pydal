@@ -363,7 +363,7 @@ class DatabaseStoredFile:
         DatabaseStoredFile.try_create_web2py_filesystem(db)
         self.p = 0
         self.data = ''
-        if mode in ('r', 'rw', 'a'):
+        if mode in ('r', 'rw', 'rb', 'a'):
             query = "SELECT content FROM web2py_filesystem WHERE path='%s'" \
                 % filename
             rows = self.db.executesql(query)
@@ -378,7 +378,9 @@ class DatabaseStoredFile:
             elif mode in ('r', 'rw'):
                 raise RuntimeError("File %s does not exist" % filename)
 
-    def read(self, bytes):
+    def read(self, bytes=None):
+        if bytes is None:
+            bytes = len(self.data)
         data = self.data[self.p:self.p+bytes]
         self.p += len(data)
         return data
