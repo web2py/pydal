@@ -114,15 +114,15 @@ class Row(BasicStorage):
             SERIALIZABLE_TYPES.append(custom_types)
         d = dict(self)
         for k in list(d.keys()):
-            v=d[k]
+            v = d[k]
             if d[k] is None:
                 continue
             elif isinstance(v, Row):
-                d[k]=v.as_dict()
+                d[k] = v.as_dict()
             elif isinstance(v, Reference):
-                d[k]=long(v)
+                d[k] = long(v)
             elif isinstance(v, decimal.Decimal):
-                d[k]=float(v)
+                d[k] = float(v)
             elif isinstance(v, (datetime.date, datetime.datetime, datetime.time)):
                 if datetime_to_str:
                     d[k] = v.isoformat().replace('T', ' ')[:19]
@@ -311,7 +311,7 @@ class Table(Serializable, BasicStorage):
                 if isinstance(field, Field) and field.type == 'upload'\
                         and fn is True and not field.uploadfs:
                     fn = field.uploadfield = '%s_blob' % field.name
-                if isinstance(fn, str) and not fn in uploadfields and not field.uploadfs:
+                if isinstance(fn, str) and fn not in uploadfields and not field.uploadfs:
                     fields.append(Field(fn, 'blob', default='',
                                         writable=False, readable=False))
 
@@ -331,8 +331,7 @@ class Table(Serializable, BasicStorage):
             else:
                 fname_item = field_name
             if fname_item in fieldnames_set:
-                raise SyntaxError("duplicate field %s in table %s" %
-                                 (field_name, tablename))
+                raise SyntaxError("duplicate field %s in table %s" % (field_name, tablename))
             else:
                 fieldnames_set.add(fname_item)
 
@@ -348,9 +347,7 @@ class Table(Serializable, BasicStorage):
         if _primarykey is not None:
             for k in _primarykey:
                 if k not in self.fields:
-                    raise SyntaxError(
-                        "primarykey must be a list of fields from table '%s " %
-                        tablename)
+                    raise SyntaxError("primarykey must be a list of fields from table '%s " % tablename)
                 else:
                     self[k].notnull = True
         for field in virtual_fields:
@@ -397,7 +394,7 @@ class Table(Serializable, BasicStorage):
             newquery = lambda query, t=self, name=self._tablename: \
                 reduce(AND, [db[tn].is_active == True
                             for tn in db._adapter.tables(query)
-                            if tn == name or getattr(db[tn], '_ot', None)==name])
+                            if tn == name or getattr(db[tn], '_ot', None) == name])
             query = self._common_filter
             if query:
                 self._common_filter = lambda q: reduce(AND, [query(q), newquery(q)])
@@ -419,7 +416,7 @@ class Table(Serializable, BasicStorage):
         self._referenced_by = []
         self._references = []
         for field in self:
-            #fieldname = field.name ##FIXME not used ?
+            # fieldname = field.name  #FIXME not used ?
             field_type = field.type
             if isinstance(field_type, str) and (
                     field_type.startswith('reference ') or
@@ -471,7 +468,7 @@ class Table(Serializable, BasicStorage):
 
     def _filter_fields(self, record, id=False):
         return dict([(k, v) for (k, v) in iteritems(record) if k
-                     in self.fields and (self[k].type!='id' or id)])
+                     in self.fields and (self[k].type != 'id' or id)])
 
     def _build_query(self, key):
         """ for keyed table only """
@@ -483,10 +480,7 @@ class Table(Serializable, BasicStorage):
                 else:
                     query = (self[k] == v)
             else:
-                raise SyntaxError(
-                'Field %s is not part of the primary key of %s' %
-                (k, self._tablename)
-                )
+                raise SyntaxError('Field %s is not part of the primary key of %s' % (k, self._tablename))
         return query
 
     def __getitem__(self, key):
@@ -501,8 +495,7 @@ class Table(Serializable, BasicStorage):
             ).first()
         else:
             try:
-                isgoogle = 'google' in self._db._drivers_available and \
-                    isinstance(key, Key)
+                isgoogle = 'google' in self._db._drivers_available and isinstance(key, Key)
             except:
                 isgoogle = False
             if str(key).isdigit() or isgoogle:
@@ -525,7 +518,7 @@ class Table(Serializable, BasicStorage):
         if '_orderby' in kwargs:
             del kwargs['_orderby']
 
-        if not key is DEFAULT:
+        if key is not DEFAULT:
             if isinstance(key, Query):
                 record = self._db(key).select(
                     limitby=(0, 1),
@@ -542,11 +535,15 @@ class Table(Serializable, BasicStorage):
                     orderby_on_limitby=False).first()
             if record:
                 for k, v in iteritems(kwargs):
-                    if record[k]!=v: return None
+                    if record[k] != v:
+                        return None
             return record
         elif kwargs:
-            query = reduce(lambda a, b:a&b, [self[k]==v for k, v in iteritems(kwargs)])
-            return self._db(query).select(limitby=(0, 1), for_update=for_update, orderby=orderby, orderby_on_limitby=False).first()
+            query = reduce(lambda a, b: a & b, [self[k] == v for k, v in iteritems(kwargs)])
+            return self._db(query).select(limitby=(0, 1),
+                                          for_update=for_update,
+                                          orderby=orderby,
+                                          orderby_on_limitby=False).first()
         else:
             return None
 
@@ -562,9 +559,7 @@ class Table(Serializable, BasicStorage):
                     query = self._build_query(key)
                     self._db(query).update(**self._filter_fields(value))
             else:
-                raise SyntaxError(
-                    'key must have all fields from primary key: %s'%
-                    (self._primarykey))
+                raise SyntaxError('key must have all fields from primary key: %s' % self._primarykey)
         elif str(key).isdigit():
             if key == 0:
                 self.insert(**self._filter_fields(value))
@@ -617,16 +612,17 @@ class Table(Serializable, BasicStorage):
     @property
     def sqlsafe(self):
         rname = self._rname
-        if rname: return rname
+        if rname:
+            return rname
         return self._db._adapter.sqlsafe_table(self._tablename)
 
     @property
     def sqlsafe_alias(self):
         rname = self._rname
         ot = self._ot
-        if rname and not ot: return rname
+        if rname and not ot:
+            return rname
         return self._db._adapter.sqlsafe_table(self._tablename, self._ot)
-
 
     def _drop(self, mode=''):
         return self._db._adapter._drop(self, mode)
@@ -639,7 +635,7 @@ class Table(Serializable, BasicStorage):
 
         # store all fields passed as input in new_fields
         for name in fields:
-            if not name in self.fields:
+            if name not in self.fields:
                 if name != 'id':
                     raise SyntaxError(
                         'Field %s does not belong to the table' % name)
@@ -654,24 +650,23 @@ class Table(Serializable, BasicStorage):
         to_compute = []
         for ofield in self:
             name = ofield.name
-            if not name in new_fields:
+            if name not in new_fields:
                 # if field is supposed to be computed, compute it!
                 if ofield.compute:  # save those to compute for later
                     to_compute.append((name, ofield))
                 # if field is required, check its default value
-                elif not update and not ofield.default is None:
+                elif not update and ofield.default is not None:
                     value = ofield.default
                     fields[name] = value
                     new_fields[name] = (ofield, value)
                 # if this is an update, user the update field instead
-                elif update and not ofield.update is None:
+                elif update and ofield.update is not None:
                     value = ofield.update
                     fields[name] = value
                     new_fields[name] = (ofield, value)
                 # if the field is still not there but it should, error
                 elif not update and ofield.required:
-                    raise RuntimeError(
-                        'Table: missing required field: %s' % name)
+                    raise RuntimeError('Table: missing required field: %s' % name)
         # now deal with fields that are supposed to be computed
         if to_compute:
             row = Row(fields)
@@ -709,14 +704,14 @@ class Table(Serializable, BasicStorage):
                     fields[field.name] = new_name
 
     def _defaults(self, fields):
-        "If there are no fields/values specified, return table defaults"
+        """If there are no fields/values specified, return table defaults"""
         fields = copy.copy(fields)
         for field in self:
-             if (not field.name in fields and
-                 field.type != "id" and
-                 field.compute is None and
-                 field.default is not None):
-                 fields[field.name] = field.default
+            if (field.name not in fields and
+                    field.type != "id" and
+                    field.compute is None and
+                    field.default is not None):
+                fields[field.name] = field.default
         return fields
 
     def _insert(self, **fields):
@@ -842,15 +837,14 @@ class Table(Serializable, BasicStorage):
     def truncate(self, mode=None):
         return self._db._adapter.truncate(self, mode)
 
-    def import_from_csv_file(
-        self,
-        csvfile,
-        id_map=None,
-        null='<NULL>',
-        unique='uuid',
-        id_offset=None,  # id_offset used only when id_map is None
-        *args, **kwargs
-        ):
+    def import_from_csv_file(self,
+                             csvfile,
+                             id_map=None,
+                             null='<NULL>',
+                             unique='uuid',
+                             id_offset=None,  # id_offset used only when id_map is None
+                             *args, **kwargs
+                             ):
         """
         Import records from csv file.
         Column headers must have same names as table fields.
@@ -880,17 +874,17 @@ class Table(Serializable, BasicStorage):
                             quotechar=quotechar, quoting=quoting)
         colnames = None
         if isinstance(id_map, dict):
-            if not self._tablename in id_map:
+            if self._tablename not in id_map:
                 id_map[self._tablename] = {}
             id_map_self = id_map[self._tablename]
 
         def fix(field, value, id_map, id_offset):
-            list_reference_s='list:reference'
+            list_reference_s = 'list:reference'
             if value == null:
                 value = None
-            elif field.type=='blob':
+            elif field.type == 'blob':
                 value = base64.b64decode(value)
-            elif field.type=='double' or field.type=='float':
+            elif field.type == 'double' or field.type == 'float':
                 if not value.strip():
                     value = None
                 else:
@@ -964,9 +958,9 @@ class Table(Serializable, BasicStorage):
                         # then we are not restoring but
                         # extending db table with csv db table
                         id_offset[self._tablename] = (curr_id-csv_id) \
-                            if curr_id>csv_id else 0
+                            if curr_id > csv_id else 0
                     # create new id until we get the same as old_id+offset
-                    while curr_id<csv_id+id_offset[self._tablename]:
+                    while curr_id < csv_id+id_offset[self._tablename]:
                         self._db(self._db[self][colnames[cid]] == curr_id).delete()
                         curr_id = self.insert(**dict(items))
                 # Validation. Check for duplicate of 'unique' &,
@@ -1011,15 +1005,14 @@ class Table(Serializable, BasicStorage):
 
 class Expression(object):
 
-    def __init__(
-        self,
-        db,
-        op,
-        first=None,
-        second=None,
-        type=None,
-        **optional_args
-        ):
+    def __init__(self,
+                 db,
+                 op,
+                 first=None,
+                 second=None,
+                 type=None,
+                 **optional_args
+                 ):
 
         self.db = db
         self.op = op
@@ -1108,7 +1101,7 @@ class Expression(object):
     def __getitem__(self, i):
         if isinstance(i, slice):
             start = i.start or 0
-            stop  = i.stop
+            stop = i.stop
 
             db = self.db
             if start < 0:
@@ -1240,13 +1233,13 @@ class Expression(object):
 
     def startswith(self, value):
         db = self.db
-        if not self.type in ('string', 'text', 'json', 'upload'):
+        if self.type not in ('string', 'text', 'json', 'upload'):
             raise SyntaxError("startswith used with incompatible field type")
         return Query(db, db._adapter.STARTSWITH, self, value)
 
     def endswith(self, value):
         db = self.db
-        if not self.type in ('string', 'text', 'json', 'upload'):
+        if self.type not in ('string', 'text', 'json', 'upload'):
             raise SyntaxError("endswith used with incompatible field type")
         return Query(db, db._adapter.ENDSWITH, self, value)
 
@@ -1262,7 +1255,7 @@ class Expression(object):
                 return self.contains('')
             else:
                 return reduce(all and AND or OR, subqueries)
-        if not self.type in ('string', 'text', 'json', 'upload') and not self.type.startswith('list:'):
+        if self.type not in ('string', 'text', 'json', 'upload') and not self.type.startswith('list:'):
             raise SyntaxError("contains used with incompatible field type")
         return Query(db, db._adapter.CONTAINS, self, value, case_sensitive=case_sensitive)
 
@@ -1338,7 +1331,7 @@ class FieldVirtual(object):
         (self.name, self.f) = (name, f) if f else ('unknown', name)
         self.type = ftype
         self.label = label or self.name.capitalize().replace('_', ' ')
-        self.represent = lambda v, r=None:v
+        self.represent = lambda v, r=None: v
         self.formatter = IDENTITY
         self.comment = None
         self.readable = True
@@ -1347,6 +1340,7 @@ class FieldVirtual(object):
         self.widget = None
         self.tablename = table_name
         self.filter_out = None
+
     def __str__(self):
         return '%s.%s' % (self.tablename, self.name)
 
@@ -1393,41 +1387,40 @@ class Field(Expression, Serializable):
 
     """
 
-    def __init__(
-        self,
-        fieldname,
-        type='string',
-        length=None,
-        default=DEFAULT,
-        required=False,
-        requires=DEFAULT,
-        ondelete='CASCADE',
-        notnull=False,
-        unique=False,
-        uploadfield=True,
-        widget=None,
-        label=None,
-        comment=None,
-        writable=True,
-        readable=True,
-        update=None,
-        authorize=None,
-        autodelete=False,
-        represent=None,
-        uploadfolder=None,
-        uploadseparate=False,
-        uploadfs=None,
-        compute=None,
-        custom_store=None,
-        custom_retrieve=None,
-        custom_retrieve_file_properties=None,
-        custom_delete=None,
-        filter_in=None,
-        filter_out=None,
-        custom_qualifier=None,
-        map_none=None,
-        rname=None
-        ):
+    def __init__(self,
+                 fieldname,
+                 type='string',
+                 length=None,
+                 default=DEFAULT,
+                 required=False,
+                 requires=DEFAULT,
+                 ondelete='CASCADE',
+                 notnull=False,
+                 unique=False,
+                 uploadfield=True,
+                 widget=None,
+                 label=None,
+                 comment=None,
+                 writable=True,
+                 readable=True,
+                 update=None,
+                 authorize=None,
+                 autodelete=False,
+                 represent=None,
+                 uploadfolder=None,
+                 uploadseparate=False,
+                 uploadfs=None,
+                 compute=None,
+                 custom_store=None,
+                 custom_retrieve=None,
+                 custom_retrieve_file_properties=None,
+                 custom_delete=None,
+                 filter_in=None,
+                 filter_out=None,
+                 custom_qualifier=None,
+                 map_none=None,
+                 rname=None
+                 ):
         self._db = self.db = None  # both for backward compatibility
         self.op = None
         self.first = None
@@ -1438,10 +1431,9 @@ class Field(Expression, Serializable):
             except UnicodeEncodeError:
                 raise SyntaxError('Field: invalid unicode field name')
         self.name = fieldname = cleanup(fieldname)
-        if (not isinstance(fieldname, str) or hasattr(Table, fieldname)
-            or not REGEX_VALID_TB_FLD.match(fieldname)
-            or REGEX_PYTHON_KEYWORDS.match(fieldname)
-            ):
+        if (not isinstance(fieldname, str) or hasattr(Table, fieldname) or
+                not REGEX_VALID_TB_FLD.match(fieldname) or
+                REGEX_PYTHON_KEYWORDS.match(fieldname)):
             raise SyntaxError('Field: invalid field name: %s, '
                               'use rname for "funny" names' % fieldname)
 
@@ -1450,7 +1442,7 @@ class Field(Expression, Serializable):
         else:
             self.type = 'reference %s' % type
 
-        self.length = length if not length is None else DEFAULTLENGTH.get(self.type, 512)
+        self.length = length if length is not None else DEFAULTLENGTH.get(self.type, 512)
         self.default = default if default != DEFAULT else (update or None)
         self.required = required  # is this field required
         self.ondelete = ondelete.upper()  # this is for reference fields only
@@ -1489,8 +1481,7 @@ class Field(Expression, Serializable):
 
     def clone(self, point_self_references_to=False, **args):
         field = copy.copy(self)
-        if point_self_references_to and \
-                field.type == 'reference %s'+field._tablename:
+        if point_self_references_to and field.type == 'reference %s'+field._tablename:
             field.type = 'reference %s' % point_self_references_to
         field.__dict__.update(args)
         return field
@@ -1508,8 +1499,7 @@ class Field(Expression, Serializable):
         extension = m and m.group('e') or 'txt'
         uuid_key = self._db.uuid().replace('-', '')[-16:]
         encoded_filename = base64.b16encode(filename).lower()
-        newfilename = '%s.%s.%s.%s' % \
-            (self._tablename, self.name, uuid_key, encoded_filename)
+        newfilename = '%s.%s.%s.%s' % (self._tablename, self.name, uuid_key, encoded_filename)
         newfilename = newfilename[:(self.length - 1 - len(extension))] + '.' + extension
         self_uploadfield = self.uploadfield
         if isinstance(self_uploadfield, Field):
@@ -1721,15 +1711,14 @@ class Query(Serializable):
 
     """
 
-    def __init__(
-        self,
-        db,
-        op,
-        first=None,
-        second=None,
-        ignore_common_filters=False,
-        **optional_args
-        ):
+    def __init__(self,
+                 db,
+                 op,
+                 first=None,
+                 second=None,
+                 ignore_common_filters=False,
+                 **optional_args
+                 ):
         self.db = self._db = db
         self.op = op
         self.first = first
@@ -1853,7 +1842,7 @@ class Set(Serializable):
 
     """
 
-    def __init__(self, db, query, ignore_common_filters = None):
+    def __init__(self, db, query, ignore_common_filters=None):
         self.db = db
         self._db = db  # for backward compatibility
         self.dquery = None
@@ -1862,8 +1851,7 @@ class Set(Serializable):
         if isinstance(query, dict):
             query = self.parse(query)
 
-        if not ignore_common_filters is None and \
-                use_common_filters(query) == ignore_common_filters:
+        if ignore_common_filters is not None and use_common_filters(query) == ignore_common_filters:
             query = copy.copy(query)
             query.ignore_common_filters = ignore_common_filters
         self.query = query
@@ -1890,7 +1878,6 @@ class Set(Serializable):
         else:
             return Set(self.db, query,
                        ignore_common_filters=ignore_common_filters)
-
 
     def _count(self, distinct=None):
         return self.db._adapter._count(self.query, distinct)
@@ -1931,12 +1918,12 @@ class Set(Serializable):
             return self.__dict__
 
     def parse(self, dquery):
-        "Experimental: Turn a dictionary into a Query object"
+        """Experimental: Turn a dictionary into a Query object"""
         self.dquery = dquery
         return self.build(self.dquery)
 
     def build(self, d):
-        "Experimental: see .parse()"
+        """Experimental: see .parse()"""
         op, first, second = (d["op"], d["first"],
                              d.get("second", None))
         left = right = built = None
@@ -1959,18 +1946,26 @@ class Set(Serializable):
                     v = self.build(v)
                 if isinstance(v, dict) and ("tablename" in v):
                     v = self.db[v["tablename"]][v["fieldname"]]
-                if k == "left": left = v
-                else: right = v
+                if k == "left":
+                    left = v
+                else:
+                    right = v
 
             if hasattr(self.db._adapter, op):
                 opm = getattr(self.db._adapter, op)
 
-            if op == "EQ": built = left == right
-            elif op == "NE": built = left != right
-            elif op == "GT": built = left > right
-            elif op == "GE": built = left >= right
-            elif op == "LT": built = left < right
-            elif op == "LE": built = left <= right
+            if op == "EQ":
+                built = left == right
+            elif op == "NE":
+                built = left != right
+            elif op == "GT":
+                built = left > right
+            elif op == "GE":
+                built = left >= right
+            elif op == "LT":
+                built = left < right
+            elif op == "LE":
+                built = left <= right
             elif op in ("JOIN", "LEFT_JOIN", "RANDOM", "ALLOW_NULL"):
                 built = Expression(self.db, opm)
             elif op in ("LOWER", "UPPER", "EPOCH", "PRIMARY_KEY",
@@ -1983,7 +1978,8 @@ class Set(Serializable):
                         "COALESCE", "CONTAINS", "BELONGS"):
                 built = Expression(self.db, opm, left, right)
             # expression as string
-            elif not (left or right): built = Expression(self.db, op)
+            elif not (left or right):
+                built = Expression(self.db, op)
             else:
                 raise SyntaxError("Operator not supported: %s" % op)
 
@@ -2009,8 +2005,7 @@ class Set(Serializable):
                 key = hashlib_md5(key).hexdigest()
             return cache_model(
                 key,
-                (lambda self=self, distinct=distinct: \
-                  db._adapter.count(self.query, distinct)),
+                (lambda self=self, distinct=distinct: db._adapter.count(self.query, distinct)),
                 time_expire)
         return db._adapter.count(self.query, distinct)
 
@@ -2067,7 +2062,8 @@ class Set(Serializable):
         tablename = self.db._adapter.get_table(self.query)
         table = self.db[tablename]
         fields = table._listify(update_fields, update=True)
-        if not fields: raise SyntaxError("No fields to update")
+        if not fields:
+            raise SyntaxError("No fields to update")
 
         ret = self.db._adapter.update("%s" % table, self.query, fields)
         return ret
@@ -2090,7 +2086,8 @@ class Set(Serializable):
             if not any(f(self, new_fields) for f in table._before_update):
                 table._attempt_upload(new_fields)
                 fields = table._listify(new_fields, update=True)
-                if not fields: raise SyntaxError("No fields to update")
+                if not fields:
+                    raise SyntaxError("No fields to update")
                 ret = self.db._adapter.update(tablename, self.query, fields)
                 ret and [f(self, new_fields) for f in table._after_update]
             else:
@@ -2103,13 +2100,13 @@ class Set(Serializable):
         # ## mind uploadfield==True means file is not in DB
         if upload_fields:
             fields = list(upload_fields)
-            # Explicity add compute upload fields (ex: thumbnail)
+            # Explicitly add compute upload fields (ex: thumbnail)
             fields += [f for f in table.fields if table[f].compute is not None]
         else:
             fields = table.fields
-        fields = [f for f in fields if table[f].type == 'upload'
-                   and table[f].uploadfield == True
-                   and table[f].autodelete]
+        fields = [f for f in fields if table[f].type == 'upload' and
+                  table[f].uploadfield == True and
+                  table[f].autodelete]
         if not fields:
             return False
         for record in self.select(*[table[f] for f in fields]):
@@ -2126,14 +2123,10 @@ class Set(Serializable):
                 else:
                     uploadfolder = field.uploadfolder
                     if not uploadfolder:
-                        uploadfolder = pjoin(
-                            self.db._adapter.folder, '..', 'uploads')
+                        uploadfolder = pjoin(self.db._adapter.folder, '..', 'uploads')
                     if field.uploadseparate:
                         items = oldname.split('.')
-                        uploadfolder = pjoin(
-                            uploadfolder,
-                            "%s.%s" % (items[0], items[1]),
-                            items[2][:2])
+                        uploadfolder = pjoin(uploadfolder, "%s.%s" % (items[0], items[1]), items[2][:2])
                     oldpath = pjoin(uploadfolder, oldname)
                     if exists(oldpath):
                         os.unlink(oldpath)
@@ -2217,6 +2210,7 @@ class VirtualCommand(object):
     def __init__(self, method, row):
         self.method=method
         self.row=row
+
     def __call__(self, *args, **kwargs):
         return self.method(self.row, *args, **kwargs)
 
@@ -2642,8 +2636,9 @@ class Rows(BasicRows):
             one_result = args['one_result']
 
         def build_fields_struct(row, fields, num, groups):
-            ''' helper function:
-            '''
+            """
+            helper function:
+            """
             if num > len(fields)-1:
                 if one_result:
                     return row
