@@ -50,7 +50,9 @@ class PostgreSQLAdapter(BaseAdapter):
     def adapt(self, obj):
         if self.driver_name == 'psycopg2':
             adapted = psycopg2_adapt(obj)
-            adapted.prepare(self.connection)
+            # deal with new relic Connection Wrapper
+            cxn = getattr(self.connection,'_nr_connection',self.connection)
+            adapted.prepare(cxn)
             rv = adapted.getquoted()
             if not PY2:
                 if isinstance(rv, bytes):
