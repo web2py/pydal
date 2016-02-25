@@ -19,32 +19,32 @@ env:
     - PIP_DOWNLOAD_CACHE=$HOME/.pip-cache
   matrix:
     - ADAPTER=sqlite
-    - ADAPTER=mysql
-    - ADAPTER=postgres
-    - ADAPTER=postgresPG8000
-    - ADAPTER=postgres2
-    - ADAPTER=google
-    - ADAPTER=mongo
-    - ADAPTER=imap
+    # - ADAPTER=mysql
+    # - ADAPTER=postgres
+    # - ADAPTER=postgresPG8000
+    # - ADAPTER=postgres2
+    # - ADAPTER=google
+    # - ADAPTER=mongo
+    # - ADAPTER=imap
 
-matrix:
-  exclude:
-    - python: 'pypy'
-      env: ADAPTER=postgres
-    - python: 'pypy'
-      env: ADAPTER=postgres2
-    - python: 'pypy'
-      env: ADAPTER=google
-    - python: '2.6'
-      env: ADAPTER=google
-    - python: '3.3'
-      env: ADAPTER=google
-    - python: '3.3'
-      env: ADAPTER=imap
-    - python: '3.4'
-      env: ADAPTER=google
-    - python: '3.4'
-      env: ADAPTER=imap
+# matrix:
+#   exclude:
+#     - python: 'pypy'
+#       env: ADAPTER=postgres
+#     - python: 'pypy'
+#       env: ADAPTER=postgres2
+#     - python: 'pypy'
+#       env: ADAPTER=google
+#     - python: '2.6'
+#       env: ADAPTER=google
+#     - python: '3.3'
+#       env: ADAPTER=google
+#     - python: '3.3'
+#       env: ADAPTER=imap
+#     - python: '3.4'
+#       env: ADAPTER=google
+#     - python: '3.4'
+#       env: ADAPTER=imap
 
 before_script:
   - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install codecov; fi
@@ -61,8 +61,9 @@ before_script:
 
 
 script:
-  - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then tox -e $(echo py$TRAVIS_PYTHON_VERSION | tr -d . | sed -e 's/pypypy/pypy/')-$ADAPTER; fi
-  - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then tox -e coverage-$ADAPTER; fi
+  # - if [[ $TRAVIS_PYTHON_VERSION != "2.7" ]]; then tox -e $(echo py$TRAVIS_PYTHON_VERSION | tr -d . | sed -e 's/pypypy/pypy/')-$ADAPTER; fi
+  # - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then tox -e coverage-$ADAPTER; fi
+  - tox -e $(echo py$TRAVIS_PYTHON_VERSION | tr -d . | sed -e 's/pypypy/pypy/')-$ADAPTER
 
 after_success:
   - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then codecov; fi

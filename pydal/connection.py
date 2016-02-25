@@ -84,7 +84,7 @@ class ConnectionPool(object):
         #this it is supposed to be overloaded by adapters
         pass
 
-    def reconnect(self, f=None):
+    def reconnect(self):
         """
         Defines: `self.connection` and `self.cursor`
         if `self.pool_size>0` it will try pull the connection from the pool
@@ -93,15 +93,13 @@ class ConnectionPool(object):
         """
         if getattr(self, 'connection', None) is not None:
             return
-        if f is None:
-            f = self.connector
 
         # if not hasattr(self, "driver") or self.driver is None:
         #     LOGGER.debug("Skipping connection since there's no driver")
         #     return
 
         if not self.pool_size:
-            self.connection = f()
+            self.connection = self.connector()
             self.cursor = self.connection.cursor()
         else:
             uri = self.uri
@@ -116,13 +114,14 @@ class ConnectionPool(object):
                     self.cursor = self.connection.cursor()
                     try:
                         if self.check_active_connection:
-                            self.execute_test_query()
+                            #self.execute_test_query()
+                            self.test_connection()
                         break
                     except:
                         pass
                 else:
                     GLOBAL_LOCKER.release()
-                    self.connection = f()
+                    self.connection = self.connector()
                     self.cursor = self.connection.cursor()
                     break
         self.after_connection_hook()

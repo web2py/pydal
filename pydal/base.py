@@ -123,7 +123,6 @@ For more info::
 
 """
 
-import copy
 import glob
 import logging
 import socket
@@ -137,14 +136,14 @@ from ._compat import PY2, pickle, hashlib_md5, pjoin, copyreg, integer_types, \
     with_metaclass
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT
 from ._load import OrderedDict
-from .helpers.classes import Serializable, SQLCallableList, BasicStorage
+from .helpers.classes import Serializable, SQLCallableList, BasicStorage, \
+    RecordUpdater, RecordDeleter
 from .helpers.methods import hide_password, smart_query, auto_validators, \
     auto_represent
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME, \
     REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
 from .helpers.serializers import serializers
 from .objects import Table, Field, Row, Set
-from .adapters import ADAPTERS
 from .adapters.base import BaseAdapter
 
 long = integer_types[-1]
@@ -258,6 +257,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
 
     Table = Table
     Row = Row
+
+    record_operators = {
+        'update_record': RecordUpdater,
+        'delete_record': RecordDeleter
+    }
 
     def __new__(cls, uri='sqlite://dummy.db', *args, **kwargs):
         if not hasattr(THREAD_LOCAL, 'db_instances'):
@@ -422,14 +426,10 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             for k in range(attempts):
                 for uri in uris:
                     try:
+                        from .adapters import adapters
                         if is_jdbc and not uri.startswith('jdbc:'):
                             uri = 'jdbc:'+uri
                         self._dbname = REGEX_DBNAME.match(uri).group()
-                        if self._dbname not in ADAPTERS:
-                            raise SyntaxError(
-                                "Error in URI '%s' or database not supported"
-                                % self._dbname
-                            )
                         # notice that driver args or {} else driver_args
                         # defaults to {} global, not correct
                         kwargs = dict(db=self,
@@ -443,17 +443,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                                       do_connect=do_connect,
                                       after_connection=after_connection,
                                       entity_quoting=entity_quoting)
-                        self._adapter = ADAPTERS[self._dbname](**kwargs)
-                        types = ADAPTERS[self._dbname].types
-                        # copy so multiple DAL() possible
-                        self._adapter.types = copy.copy(types)
-                        self._adapter.build_parsemap()
-                        self._adapter.ignore_field_case = ignore_field_case
+                        adapter = adapters.get_for(self._dbname)
+                        self._adapter = adapter(**kwargs)
+                        #self._adapter.ignore_field_case = ignore_field_case
                         if bigint_id:
-                            if 'big-id' in types and 'reference' in types:
-                                self._adapter.types['id'] = types['big-id']
-                                self._adapter.types['reference'] = \
-                                    types['big-reference']
+                            self._adapter.dialect._force_bigints()
                         connected = True
                         break
                     except SyntaxError:
@@ -1035,7 +1029,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                         fields[i] = fields[i].decode("utf8")
 
             # will hold our finished resultset in a list
-            data = adapter._fetchall()
+            data = adapter.fetchall()
             # convert the list for each row into a dictionary so it's
             # easier to work with. row['field_name'] rather than row[0]
             if as_ordered_dict:
@@ -1044,7 +1038,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 _dict = dict
             return [_dict(zip(fields,row)) for row in data]
         try:
-            data = adapter._fetchall()
+            data = adapter.fetchall()
         except:
             return None
         if fields or colnames:

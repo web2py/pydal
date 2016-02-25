@@ -100,28 +100,30 @@ class TestUnicode(unittest.TestCase):
 class TestParseDateTime(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.223245', None)
+        parse = lambda v: db._adapter.parser.parse(v, 'datetime')
+
+        dt = parse('2015-09-04t12:33:36.223245')
         self.assertEqual(dt.microsecond, 223245)
         self.assertEqual(dt.hour, 12)
 
-        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.223245Z', None)
+        dt = parse('2015-09-04t12:33:36.223245Z')
         self.assertEqual(dt.microsecond, 223245)
         self.assertEqual(dt.hour, 12)
 
-        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.223245-2:0', None)
+        dt = parse('2015-09-04t12:33:36.223245-2:0')
         self.assertEqual(dt.microsecond, 223245)
         self.assertEqual(dt.hour, 10)
 
-        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36+1:0', None)
+        dt = parse('2015-09-04t12:33:36+1:0')
         self.assertEqual(dt.microsecond, 0)
         self.assertEqual(dt.hour, 13)
 
-        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.123', None)
+        dt = parse('2015-09-04t12:33:36.123')
         self.assertEqual(dt.microsecond, 123000)
 
-        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.00123', None)
+        dt = parse('2015-09-04t12:33:36.00123')
         self.assertEqual(dt.microsecond, 1230)
 
-        dt=db._adapter.parsemap['datetime']('2015-09-04t12:33:36.1234567890', None)
+        dt = parse('2015-09-04t12:33:36.1234567890')
         self.assertEqual(dt.microsecond, 123456)
         db.close()

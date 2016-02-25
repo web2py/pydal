@@ -10,6 +10,7 @@ IS_SQLITE = 'sqlite' in DEFAULT_URI
 IS_MSSQL = 'mssql' in DEFAULT_URI
 IS_MYSQL = 'mysql' in DEFAULT_URI
 
+
 def drop(table, cascade=None):
     if NOSQL and not (IS_MONGODB):
         # GAE drop/cleanup is not implemented
@@ -24,3 +25,7 @@ def drop(table, cascade=None):
             table.drop(cascade)
         else:
             table.drop()
+
+
+def _quote(db, value):
+    return db._adapter.dialect.__class__.quote_template % value

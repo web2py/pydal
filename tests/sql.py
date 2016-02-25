@@ -14,7 +14,8 @@ from pydal import DAL, Field
 from pydal.helpers.classes import SQLALL
 from pydal.objects import Table
 from ._compat import unittest
-from ._adapt import DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL
+from ._adapt import (
+    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, _quote)
 
 long = integer_types[-1]
 
@@ -78,7 +79,7 @@ class TestFields(unittest.TestCase):
             - not a python keyword
             - not starting with underscore or an integer
             - not containing dots
-        
+
         Basically, anything alphanumeric, no symbols, only underscore as
         punctuation
         """
@@ -108,8 +109,8 @@ class TestFields(unittest.TestCase):
             self.assertRaises(SyntaxError, Field, a, 'string')
 
         # Check that Field names don't allow a unicode string
-        non_valid_examples = non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ", 
-                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ', 
+        non_valid_examples = non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ",
+                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ',
                 u'ℊεᾔ℮яαт℮∂', u'♭ƴ', u'ᾔ☤ρℌℓ☺ḓ']
         for a in non_valid_examples:
             self.assertRaises(SyntaxError, Field, a, 'string')
@@ -253,7 +254,7 @@ class TestTables(unittest.TestCase):
             - not a python keyword
             - not starting with underscore or an integer
             - not containing dots
-        
+
         Basically, anything alphanumeric, no symbols, only underscore as
         punctuation
         """
@@ -283,8 +284,8 @@ class TestTables(unittest.TestCase):
             self.assertRaises(SyntaxError, Table, None, a)
 
         # Check that Table names don't allow a unicode string
-        non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ", 
-                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ', 
+        non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ",
+                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ',
                 u'ℊεᾔ℮яαт℮∂', u'♭ƴ', u'ᾔ☤ρℌℓ☺ḓ']
         for a in non_valid_examples:
             self.assertRaises(SyntaxError, Table, None, a)
@@ -397,7 +398,7 @@ class TestSelect(unittest.TestCase):
 
     def testTestQuery(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db._adapter.execute_test_query()
+        db._adapter.test_connection()
         db.close()
 
     def testListInteger(self):
@@ -792,7 +793,7 @@ class TestDatetime(unittest.TestCase):
         db.tt.insert(aa=t0)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
         db.tt.drop()
-        
+
         db.define_table('tt', Field('aa', 'date'))
         t0 = datetime.date.today()
         db.tt.insert(aa=t0)
@@ -1486,7 +1487,7 @@ class TestRNameTable(unittest.TestCase):
 
     def testSelect(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'a very complicated tablename'
+        rname = _quote(db, 'a very complicated tablename')
         db.define_table(
             'easy_name',
             Field('a_field'),
@@ -1515,14 +1516,14 @@ class TestRNameTable(unittest.TestCase):
         avg = db.easy_name.id.avg()
         rtn = db(db.easy_name.id > 0).select(avg)
         self.assertEqual(rtn[0][avg], 3)
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'this is the person table'
+        rname = _quote(db, 'this is the person table')
         db.define_table(
             'person',
             Field('name', default="Michael"),
             Field('uuid'),
             rname=rname
             )
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'this is the pet table'
+        rname = _quote(db, 'this is the pet table')
         db.define_table(
             'pet',
             Field('friend','reference person'),
@@ -1595,7 +1596,7 @@ class TestRNameTable(unittest.TestCase):
             for key in ['reference','reference FK']:
                 db._adapter.types[key]=db._adapter.types[key].replace(
                 '%(on_delete_action)s','NO ACTION')
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'the cubs'
+        rname = _quote(db, 'the cubs')
         db.define_table('pet_farm',
             Field('name'),
             Field('father','reference pet_farm'),
@@ -1639,8 +1640,8 @@ class TestRNameTable(unittest.TestCase):
 
     def testJoin(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'this is table t1'
-        rname2 = db._adapter.__class__.QUOTE_TEMPLATE % 'this is table t2'
+        rname = _quote(db, 'this is table t1')
+        rname2 = _quote(db, 'this is table t2')
         db.define_table('t1', Field('aa'), rname=rname)
         db.define_table('t2', Field('aa'), Field('b', db.t1), rname=rname2)
         i1 = db.t1.insert(aa='1')
@@ -1711,8 +1712,8 @@ class TestRNameFields(unittest.TestCase):
     # tests for highly experimental rname attribute
     def testSelect(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'a very complicated fieldname'
-        rname2 = db._adapter.__class__.QUOTE_TEMPLATE % 'rrating from 1 to 10'
+        rname = _quote(db, 'a very complicated fieldname')
+        rname2 = _quote(db, 'rrating from 1 to 10')
         db.define_table(
             'easy_name',
             Field('a_field', rname=rname),
@@ -1746,13 +1747,13 @@ class TestRNameFields(unittest.TestCase):
         rtn = db(db.easy_name.id > 0).select(avg)
         self.assertEqual(rtn[0][avg], 2)
 
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'this is the person name'
+        rname = _quote(db, 'this is the person name')
         db.define_table(
             'person',
             Field('name', default="Michael", rname=rname),
             Field('uuid')
             )
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'this is the pet name'
+        rname = _quote(db, 'this is the pet name')
         db.define_table(
             'pet',
             Field('friend','reference person'),
@@ -1819,7 +1820,7 @@ class TestRNameFields(unittest.TestCase):
         self.assertEqual(rtn[2].pet.name, 'Gertie')
 
         #aliases
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'the cub name'
+        rname = _quote(db, 'the cub name')
         if DEFAULT_URI.startswith('mssql'):
             #multiple cascade gotcha
             for key in ['reference','reference FK']:
@@ -1867,7 +1868,7 @@ class TestRNameFields(unittest.TestCase):
 
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'a very complicated fieldname'
+        rname = _quote(db, 'a very complicated fieldname')
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
             db.define_table('tt', Field('aa', ft, default='', rname=rname))
             self.assertEqual(db.tt.insert(aa='x'), 1)
@@ -1942,7 +1943,7 @@ class TestRNameFields(unittest.TestCase):
 
     def testInsert(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'a very complicated fieldname'
+        rname = _quote(db, 'a very complicated fieldname')
         db.define_table('tt', Field('aa', rname=rname))
         self.assertEqual(db.tt.insert(aa='1'), 1)
         self.assertEqual(db.tt.insert(aa='1'), 2)
@@ -1959,8 +1960,8 @@ class TestRNameFields(unittest.TestCase):
 
     def testJoin(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'this is field aa'
-        rname2 = db._adapter.__class__.QUOTE_TEMPLATE % 'this is field b'
+        rname = _quote(db, 'this is field aa')
+        rname2 = _quote(db, 'this is field b')
         db.define_table('t1', Field('aa', rname=rname))
         db.define_table('t2', Field('aa', rname=rname), Field('b', db.t1, rname=rname2))
         i1 = db.t1.insert(aa='1')
@@ -2507,7 +2508,7 @@ class TestIterselect(unittest.TestCase):
 
         self.assertEqual(c, len(names)*len(names))
         self.assertEqual(db(db.t0).count(), len(names))
-        db._adapter.execute_test_query()
+        db._adapter.test_connection()
         t0.drop()
         db.close()
         return
@@ -2528,9 +2529,9 @@ class TestIterselect(unittest.TestCase):
             c += 1
 
         self.assertEqual(c, db(db.t0).count())
-        self.assertEqual(tot * 2, db(db.t0).select(s).first()[s])        
+        self.assertEqual(tot * 2, db(db.t0).select(s).first()[s])
 
-        db._adapter.execute_test_query()
+        db._adapter.test_connection()
         t0.drop()
         db.close()
         return
