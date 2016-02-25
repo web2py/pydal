@@ -6,7 +6,7 @@ import re
 from .._globals import IDENTITY
 from ..drivers import cx_Oracle
 from .base import BaseAdapter
-
+from ..helpers.classes import Reference
 
 class OracleAdapter(BaseAdapter):
     drivers = ('cx_Oracle',)
