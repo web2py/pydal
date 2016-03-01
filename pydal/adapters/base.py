@@ -36,6 +36,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.pool_size = pool_size
         self.folder = folder
         self.db_codec = db_codec
+        self.credential_decoder = credential_decoder
         self.driver_args = driver_args
         self.adapter_args = adapter_args
         self._after_connection = after_connection

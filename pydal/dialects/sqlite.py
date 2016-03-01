@@ -20,9 +20,9 @@ class SQLiteDialect(SQLDialect):
 
 
 @dialects.register_for(Spatialite)
-class SpatialiteDialect(SQLDialect):
+class SpatialiteDialect(SQLiteDialect):
     @sqltype_for('geometry')
-    def _geometry(self):
+    def type_geometry(self):
         return 'GEOMETRY'
 
     def st_asgeojson(self, first, second):
