@@ -2,7 +2,7 @@ import json
 from base64 import b64decode
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
-from .._compat import PY2, integer_types, basestring
+from .._compat import PY2, integer_types, basestring, to_bytes, to_native
 from ..adapters.base import SQLAdapter
 from ..helpers.classes import Reference
 from ..helpers.methods import bar_decode_string, bar_decode_integer
@@ -35,9 +35,7 @@ class BasicParser(Parser):
 
     @for_type('blob')
     def _blob(self, value):
-        if PY2:
-            return b64decode(str(value))
-        return b64decode(value).decode('utf-8')
+        return to_native(b64decode(to_bytes(value)))
 
     @before_parse('reference')
     def reference_extras(self, field_type):

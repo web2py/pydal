@@ -100,6 +100,11 @@ class TestUnicode(unittest.TestCase):
 class TestParseDateTime(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
+
+        #: skip for adapters that use drivers for datetime parsing
+        if db._adapter.parser.registered.get('datetime') is None:
+            return
+
         parse = lambda v: db._adapter.parser.parse(v, 'datetime')
 
         dt = parse('2015-09-04t12:33:36.223245')

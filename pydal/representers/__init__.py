@@ -254,3 +254,4 @@ class Representer(with_metaclass(MetaRepresenter)):
 
 from .base import BaseRepresenter, SQLRepresenter, NoSQLRepresenter
 from .sqlite import SQLiteRepresenter, SpatialiteRepresenter
+from .postgre import PostgreRepresenter

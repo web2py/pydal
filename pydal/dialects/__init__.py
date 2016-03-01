@@ -1,4 +1,5 @@
 from .._compat import with_metaclass, iteritems
+from .._load import OrderedDict
 from ..helpers._internals import Dispatcher
 
 
@@ -24,17 +25,20 @@ class MetaDialect(type):
         if bases == (object,):
             return new_class
         #: collect declared attributes
-        sqltypes = {}
+        sqltypes = []
         for key, value in list(attrs.items()):
             if isinstance(value, sqltype_for):
-                sqltypes[key] = value
+                #sqltypes[key] = value
+                sqltypes.append((key, value))
+        sqltypes.sort(key=lambda x: x[1]._inst_count_)
         #: get super declared attributes
-        declared_sqltypes = {}
+        declared_sqltypes = OrderedDict()
         for base in reversed(new_class.__mro__[1:]):
             if hasattr(base, '_declared_sqltypes_'):
                 declared_sqltypes.update(base._declared_sqltypes_)
         #: set sqltypes
-        declared_sqltypes.update(sqltypes)
+        for key, val in sqltypes:
+            declared_sqltypes[key] = val
         new_class._declared_sqltypes_ = declared_sqltypes
         return new_class
 
@@ -42,12 +46,8 @@ class MetaDialect(type):
 class Dialect(with_metaclass(MetaDialect)):
     def __init__(self, adapter):
         self.adapter = adapter
-        sorted_types = []
-        for name, obj in iteritems(self._declared_sqltypes_):
-            sorted_types.append(obj)
-        sorted_types.sort(key=lambda x: x._inst_count_)
         self.types = {}
-        for obj in sorted_types:
+        for name, obj in iteritems(self._declared_sqltypes_):
             self.types[obj.key] = obj.f(self)
 
     def expand(self, *args, **kwargs):
@@ -56,3 +56,4 @@ class Dialect(with_metaclass(MetaDialect)):
 
 from .base import SQLDialect
 from .sqlite import SQLiteDialect, SpatialiteDialect
+from .postgre import PostgreDialect

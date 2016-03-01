@@ -1,7 +1,7 @@
 import json
 from base64 import b64encode
 from datetime import date, time, datetime
-from .._compat import PY2, integer_types, to_unicode
+from .._compat import PY2, integer_types, to_unicode, to_bytes
 from ..adapters.base import SQLAdapter, NoSQLAdapter
 from ..helpers.classes import Reference, SQLCustomType
 from ..helpers.methods import bar_encode
@@ -146,9 +146,7 @@ class SQLRepresenter(BaseRepresenter):
 
     @for_type('blob', encode=True)
     def _blob(self, value):
-        if PY2:
-            return b64encode(str(value))
-        return b64encode(value.encode('utf-8'))
+        return b64encode(to_bytes(value))
 
 
 @representers.register_for(NoSQLAdapter)

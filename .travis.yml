@@ -20,19 +20,19 @@ env:
   matrix:
     - ADAPTER=sqlite
     # - ADAPTER=mysql
-    # - ADAPTER=postgres
-    # - ADAPTER=postgresPG8000
+    - ADAPTER=postgres
+    - ADAPTER=postgresPG8000
     # - ADAPTER=postgres2
     # - ADAPTER=google
     # - ADAPTER=mongo
     # - ADAPTER=imap
 
-# matrix:
-#   exclude:
-#     - python: 'pypy'
-#       env: ADAPTER=postgres
-#     - python: 'pypy'
-#       env: ADAPTER=postgres2
+matrix:
+  exclude:
+    - python: 'pypy'
+      env: ADAPTER=postgres
+    - python: 'pypy'
+      env: ADAPTER=postgres2
 #     - python: 'pypy'
 #       env: ADAPTER=google
 #     - python: '2.6'

@@ -70,3 +70,4 @@ def with_connection_or_raise(f):
 
 from .base import SQLAdapter, NoSQLAdapter
 from .sqlite import SQLite
+from .postgres import Postgre, PostgrePsyco, PostgrePG8000
