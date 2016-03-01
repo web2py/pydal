@@ -10,14 +10,6 @@ class PostgreDialect(SQLDialect):
     true_exp = "TRUE"
     false_exp = "FALSE"
 
-    @sqltype_for('string')
-    def type_string(self):
-        return 'VARCHAR(%(length)s)'
-
-    @sqltype_for('boolean')
-    def type_boolean(self):
-        return 'CHAR(1)'
-
     @sqltype_for('blob')
     def type_blob(self):
         return 'BYTEA'
@@ -26,17 +18,9 @@ class PostgreDialect(SQLDialect):
     def type_bigint(self):
         return 'BIGINT'
 
-    @sqltype_for('float')
-    def type_float(self):
-        return 'FLOAT'
-
     @sqltype_for('double')
     def type_double(self):
         return 'FLOAT8'
-
-    @sqltype_for('decimal')
-    def type_decimal(self):
-        return 'NUMERIC(%(precision)s,%(scale)s)'
 
     @sqltype_for('id')
     def type_id(self):

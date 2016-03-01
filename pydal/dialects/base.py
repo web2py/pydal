@@ -15,11 +15,11 @@ class SQLDialect(Dialect):
 
     @sqltype_for('string')
     def type_string(self):
-        return 'CHAR(%(length)s)'
+        return 'VARCHAR(%(length)s)'
 
     @sqltype_for('boolean')
     def type_boolean(self):
-        return self.types['string'] % {'length': 1}
+        return 'CHAR(1)'
 
     @sqltype_for('text')
     def type_text(self):
@@ -51,15 +51,15 @@ class SQLDialect(Dialect):
 
     @sqltype_for('float')
     def type_float(self):
-        return 'DOUBLE'
+        return 'FLOAT'
 
     @sqltype_for('double')
     def type_double(self):
-        return self.types['float']
+        return 'DOUBLE'
 
     @sqltype_for('decimal')
     def type_decimal(self):
-        return self.types['float']
+        return 'NUMERIC(%(precision)s,%(scale)s)'
 
     @sqltype_for('date')
     def type_date(self):

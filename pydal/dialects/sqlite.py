@@ -5,6 +5,22 @@ from . import dialects, sqltype_for
 
 @dialects.register_for(SQLite)
 class SQLiteDialect(SQLDialect):
+    @sqltype_for('string')
+    def type_string(self):
+        return 'CHAR(%(length)s)'
+
+    @sqltype_for('float')
+    def type_float(self):
+        return 'DOUBLE'
+
+    @sqltype_for('double')
+    def type_double(self):
+        return self.types['float']
+
+    @sqltype_for('decimal')
+    def type_decimal(self):
+        return self.types['float']
+
     def extract(self, field, what):
         return "web2py_extract('%s', %s)" % (what, self.expand(field))
 

@@ -57,3 +57,4 @@ class Dialect(with_metaclass(MetaDialect)):
 from .base import SQLDialect
 from .sqlite import SQLiteDialect, SpatialiteDialect
 from .postgre import PostgreDialect
+from .mysql import MySQLDialect
