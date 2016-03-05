@@ -54,7 +54,8 @@ class BasicParser(Parser):
 
     @for_type('list:reference')
     def _list_references(self, value, field_type):
-        return [self.registered['reference'](el, field_type) for el in value]
+        return [self.registered['reference'](
+            el, field_type[5:]) for el in value]
 
     @for_type('bigint')
     def _bigint(self, value):

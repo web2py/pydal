@@ -22,7 +22,7 @@ env:
     - ADAPTER=mysql
     - ADAPTER=postgres
     - ADAPTER=postgresPG8000
-    # - ADAPTER=postgres2
+    - ADAPTER=postgres2
     # - ADAPTER=google
     # - ADAPTER=mongo
     # - ADAPTER=imap

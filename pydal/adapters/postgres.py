@@ -82,6 +82,14 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
             self.__version__ = None
         THREAD_LOCAL._pydal_last_insert_ = None
 
+    def _get_json_dialect(self):
+        from ..dialects.postgre import PostgreDialectJSON
+        return PostgreDialectJSON
+
+    def _get_json_parser(self):
+        from ..parsers.postgre import PostgreAutoJSONParser
+        return PostgreAutoJSONParser
+
     @property
     def _last_insert(self):
         return THREAD_LOCAL._pydal_last_insert_
@@ -139,11 +147,9 @@ class PostgrePsyco(Postgre):
         use_json = self.driver.__version__ >= "2.0.12" and \
             self.connection.server_version >= 90200
         if use_json:
-            from ..dialects.postgre import PostgreDialectJSON
-            self.dialect = PostgreDialectJSON(self)
+            self.dialect = self._get_json_dialect()(self)
         if self.driver.__version__ >= '2.5.0':
-            from ..parsers.postgre import PostgreAutoJSONParser
-            self.parser = PostgreAutoJSONParser(self)
+            self.parser = self._get_json_parser()(self)
 
     def adapt(self, obj):
         adapted = psycopg2_adapt(obj)
@@ -163,11 +169,9 @@ class PostgrePG8000(Postgre):
 
     def _config_json(self):
         if self.connection._server_version >= "9.2.0":
-            from ..dialects.postgre import PostgreDialectJSON
-            self.dialect = PostgreDialectJSON(self)
+            self.dialect = self._get_json_dialect()(self)
         if self.driver.__version__ >= '1.10.2':
-            from ..parsers.postgre import PostgreAutoJSONParser
-            self.parser = PostgreAutoJSONParser(self)
+            self.parser = self._get_json_parser()(self)
 
     def adapt(self, obj):
         return "'%s'" % obj.replace("%", "%%").replace("'", "''")
@@ -178,3 +182,24 @@ class PostgrePG8000(Postgre):
             args = list(args)
             args[0] = to_unicode(args[0])
         return super(PostgrePG8000, self).execute(*args, **kwargs)
+
+
+@adapters.register_for('postgres2')
+class PostgreNew(Postgre):
+    def _get_json_dialect(self):
+        from ..dialects.postgre import PostgreDialectArraysJSON
+        return PostgreDialectArraysJSON
+
+    def _get_json_parser(self):
+        from ..parsers.postgre import PostgreNewAutoJSONParser
+        return PostgreNewAutoJSONParser
+
+
+@adapters.register_for('postgres2:psycopg2')
+class PostgrePsycoNew(PostgrePsyco):
+    pass
+
+
+@adapters.register_for('postgres2:pg8000')
+class PostgrePG8000New(PostgrePG8000):
+    pass

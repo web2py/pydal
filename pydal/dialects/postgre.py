@@ -1,4 +1,4 @@
-from ..adapters.postgres import Postgre
+from ..adapters.postgres import Postgre, PostgreNew
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
 from .base import SQLDialect
@@ -171,6 +171,52 @@ class PostgreDialect(SQLDialect):
 
 
 class PostgreDialectJSON(PostgreDialect):
+    @sqltype_for('json')
+    def type_json(self):
+        return 'JSON'
+
+
+@dialects.register_for(PostgreNew)
+class PostgreDialectArrays(PostgreDialect):
+    @sqltype_for('list:integer')
+    def type_list_integer(self):
+        return 'BIGINT[]'
+
+    @sqltype_for('list:string')
+    def type_list_string(self):
+        return 'TEXT[]'
+
+    @sqltype_for('list:reference')
+    def type_list_reference(self):
+        return 'BIGINT[]'
+
+    def any(self, val):
+        return "ANY(%s)" % self.expand(val)
+
+    def contains(self, first, second, case_sensitive=True):
+        if first.type.startswith('list:'):
+            f = self.expand(second, 'string')
+            s = self.any(first)
+            if case_sensitive is True:
+                return self.eq(f, s)
+            return self.ilike(f, s, escape='\\')
+        return super(PostgreDialectArrays, self).contains(
+            first, second, case_sensitive=case_sensitive)
+
+    def ilike(self, first, second, escape=None):
+        if first and 'type' not in first:
+            args = (first, self.expand(second))
+            return '(%s ILIKE %s)' % args
+        return super(PostgreDialectArrays, self).ilike(
+                first, second, escape=escape)
+
+    def EQ(self, first, second=None):
+        if first and 'type' not in first:
+            return '(%s = %s)' % (first, self.expand(second))
+        return super(PostgreDialectArrays, self).eq(first, second)
+
+
+class PostgreDialectArraysJSON(PostgreDialectArrays):
     @sqltype_for('json')
     def type_json(self):
         return 'JSON'
