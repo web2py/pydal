@@ -39,7 +39,7 @@ CALLABLETYPES = (types.LambdaType, types.FunctionType,
 SELECT_ARGS = set(
     ('orderby', 'groupby', 'limitby', 'required', 'cache', 'left', 'distinct',
      'having', 'join', 'for_update', 'processor', 'cacheable',
-     'orderby_on_limitby'))
+     'orderby_on_limitby','outer_scoped'))
 
 
 class AdapterMeta(type):
@@ -1092,6 +1092,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         args_get = attributes.get
         tablenames = tables(query)
         tablenames_for_common_filters = tablenames
+        outer_scoped = [t._tablename for t in args_get('outer_scoped',[])]
         for field in fields:
             for tablename in tables(field):
                 if not tablename in tablenames:
@@ -1161,6 +1162,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                         if not t in important_tablenames ]
         else:
             excluded = tablenames
+
+        tablenames = [t for t in tablenames if t not in outer_scoped]
 
         if use_common_filters(query):
             query = self.common_filter(query,tablenames_for_common_filters)
