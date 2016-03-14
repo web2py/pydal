@@ -256,3 +256,4 @@ from .base import BaseRepresenter, SQLRepresenter, NoSQLRepresenter
 from .sqlite import SQLiteRepresenter, SpatialiteRepresenter
 from .postgre import PostgreRepresenter
 from .mysql import MySQLRepresenter
+from .mssql import MSSQLRepresenter

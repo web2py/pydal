@@ -58,3 +58,4 @@ from .base import SQLDialect
 from .sqlite import SQLiteDialect, SpatialiteDialect
 from .postgre import PostgreDialect
 from .mysql import MySQLDialect
+from .mssql import MSSQLDialect
