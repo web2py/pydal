@@ -25,9 +25,21 @@ class MSSQLDialect(SQLDialect):
     def type_integer(self):
         return 'INT'
 
+    @sqltype_for('double')
+    def type_double(self):
+        return 'FLOAT'
+
+    @sqltype_for('date')
+    def type_date(self):
+        return 'DATE'
+
     @sqltype_for('time')
     def type_time(self):
         return 'CHAR(8)'
+
+    @sqltype_for('datetime')
+    def type_datetime(self):
+        return 'DATETIME'
 
     @sqltype_for('id')
     def type_id(self):
@@ -35,7 +47,7 @@ class MSSQLDialect(SQLDialect):
 
     @sqltype_for('reference')
     def type_reference(self):
-        return 'INT %(null)s %(unique)s, CONSTRAINT %(constraint_name)s ' + \
+        return 'INT%(null)s%(unique)s, CONSTRAINT %(constraint_name)s ' + \
             'FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ON ' + \
             'DELETE %(on_delete_action)s'
 
@@ -45,7 +57,7 @@ class MSSQLDialect(SQLDialect):
 
     @sqltype_for('big-reference')
     def type_big_reference(self):
-        return 'BIGINT %(null)s %(unique)s, CONSTRAINT %(constraint_name)s' + \
+        return 'BIGINT%(null)s%(unique)s, CONSTRAINT %(constraint_name)s' + \
             ' FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_key)s ' + \
             'ON DELETE %(on_delete_action)s'
 
@@ -285,7 +297,7 @@ class MSSQL4Dialect(MSSQL3Dialect):
                 if not order:
                     order = ' ORDER BY %s' % self.random
                 offset = ' OFFSET %i ROWS FETCH NEXT %i ROWS ONLY' % (
-                    lmin, lmax)
+                    lmin, (lmax - lmin))
         if for_update:
             upd = ' FOR UPDATE'
         return 'SELECT%s %s FROM %s%s%s%s%s%s%s;' % (
@@ -293,14 +305,14 @@ class MSSQL4Dialect(MSSQL3Dialect):
 
 
 @dialects.register_for(MSSQL3N)
-class MSSQL3NDialect(MSSQL3Dialect, MSSQLNDialect):
+class MSSQL3NDialect(MSSQLNDialect, MSSQL3Dialect):
     @sqltype_for('text')
     def type_text(self):
         return 'NVARCHAR(MAX)'
 
 
 @dialects.register_for(MSSQL4N)
-class MSSQL4NDialect(MSSQL4Dialect, MSSQLNDialect):
+class MSSQL4NDialect(MSSQLNDialect, MSSQL4Dialect):
     @sqltype_for('text')
     def type_text(self):
-        return 'VARCHAR(MAX)'
+        return 'NVARCHAR(MAX)'

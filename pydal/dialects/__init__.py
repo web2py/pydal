@@ -31,15 +31,18 @@ class MetaDialect(type):
                 #sqltypes[key] = value
                 sqltypes.append((key, value))
         sqltypes.sort(key=lambda x: x[1]._inst_count_)
-        #: get super declared attributes
         declared_sqltypes = OrderedDict()
-        for base in reversed(new_class.__mro__[1:]):
-            if hasattr(base, '_declared_sqltypes_'):
-                declared_sqltypes.update(base._declared_sqltypes_)
-        #: set sqltypes
         for key, val in sqltypes:
             declared_sqltypes[key] = val
         new_class._declared_sqltypes_ = declared_sqltypes
+        #: get super declared attributes
+        all_sqltypes = OrderedDict()
+        for base in reversed(new_class.__mro__[1:]):
+            if hasattr(base, '_declared_sqltypes_'):
+                all_sqltypes.update(base._declared_sqltypes_)
+        #: set sqltypes
+        all_sqltypes.update(declared_sqltypes)
+        new_class._all_sqltypes_ = all_sqltypes
         return new_class
 
 
@@ -47,7 +50,7 @@ class Dialect(with_metaclass(MetaDialect)):
     def __init__(self, adapter):
         self.adapter = adapter
         self.types = {}
-        for name, obj in iteritems(self._declared_sqltypes_):
+        for name, obj in iteritems(self._all_sqltypes_):
             self.types[obj.key] = obj.f(self)
 
     def expand(self, *args, **kwargs):
