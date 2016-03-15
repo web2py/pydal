@@ -2718,9 +2718,9 @@ class IterRows(BasicRows):
         self.cacheable = cacheable
         (self.fields_virtual, self.fields_lazy, self.tmps) = \
             self.db._adapter._parse_expand_colnames(colnames)
-        self.db._adapter.execute(sql)
-        self.db._adapter.current_cursor_in_use = True
         self.cursor = self.db._adapter.cursor
+        self.db._adapter.execute(sql)
+        self.db._adapter.lock_cursor(self.cursor)
         self._head = None
         self.last_item = None
         self.last_item_id = None
@@ -2756,13 +2756,7 @@ class IterRows(BasicRows):
                 row = next(self)
         except StopIteration:
             # Iterator is over, adjust the cursor logic
-            if self.db._adapter.current_cursor_in_use == True:
-                # nothing to do, current_cursor_in_use is still True
-                self.db._adapter.current_cursor_in_use = False
-            else:
-                # A sub query has opened a new cursor. Close the one in use, pop the former one from stack
-                self.db._adapter.cursor.close()
-                self.db._adapter.cursor = self.db._adapter.cursors_in_use.pop()
+            self.db._adapter.close_cursor(self.cursor)
             raise StopIteration
         return
 

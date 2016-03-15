@@ -30,6 +30,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}, do_connect=True, after_connection=None):
+        super(BaseAdapter, self).__init__()
         self._load_dependencies()
         self.db = db
         self.uri = uri
@@ -41,7 +42,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.adapter_args = adapter_args
         self._after_connection = after_connection
         self.connection = None
-        self.cursor = None
         if do_connect:
             self.find_driver()
         self._initialize_(do_connect)
@@ -364,8 +364,8 @@ class SQLAdapter(BaseAdapter):
     commit_on_alter_table = False
     #[Note - gi0baro] can_select_for_update should be deprecated and removed
     can_select_for_update = True
-    cursors_in_use = []
-    current_cursor_in_use = False
+    # cursors_in_use = []
+    # current_cursor_in_use = False
     execution_handlers = []
 
     def __init__(self, *args, **kwargs):
@@ -392,15 +392,15 @@ class SQLAdapter(BaseAdapter):
             return str(obj)
         return self.adapt(str(obj))
 
-    def get_cursor(self):
-        #: safe_reuse allows further queries to be executed using the same
-        #  cursor
-        if self.current_cursor_in_use == True:
-            self.current_cursor_in_use = False
-            #: save current cursor in use locally
-            self.cursors_in_use.append(self.cursor)
-            self.cursor = self.connection.cursor()
-        return self.cursor
+    # def get_cursor(self):
+    #     #: safe_reuse allows further queries to be executed using the same
+    #     #  cursor
+    #     if self.current_cursor_in_use == True:
+    #         self.current_cursor_in_use = False
+    #         #: save current cursor in use locally
+    #         self.cursors_in_use.append(self.cursor)
+    #         self.cursor = self.connection.cursor()
+    #     return self.cursor
 
     def fetchall(self):
         return self.cursor.fetchall()
@@ -424,7 +424,7 @@ class SQLAdapter(BaseAdapter):
         for handler in handlers:
             handler.before_execute(command)
         #self.db._lastsql = command
-        rv = self.get_cursor().execute(command, *args[1:], **kwargs)
+        rv = self.cursor.execute(command, *args[1:], **kwargs)
         for handler in handlers:
             handler.after_execute(command)
         return rv
@@ -607,8 +607,8 @@ class SQLAdapter(BaseAdapter):
     def _select_wcols(self, query, fields, left=False, join=False,
                       distinct=False, orderby=False, groupby=False,
                       having=False, limitby=False, orderby_on_limitby=True,
-                      for_update=False, required=None, cache=None,
-                      cacheable=None, processor=None):
+                      for_update=False, outer_scoped=[], required=None,
+                      cache=None, cacheable=None, processor=None):
         #: parse tablenames
         tablenames = self.tables(query)
         tablenames_for_common_filters = tablenames
@@ -625,6 +625,10 @@ class SQLAdapter(BaseAdapter):
                     tablenames.append(tablename)
         if len(tablenames) < 1:
             raise SyntaxError('Set: no tables selected')
+        #: remove outer scoped tables if needed
+        if outer_scoped:
+            tablenames = [
+                name for name in tablenames if name not in outer_scoped]
         #: prepare columns and expand fields
         colnames = list(map(self._colexpand, fields))
         sql_fields = ', '.join(map(self._geoexpand, fields))

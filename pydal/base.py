@@ -264,30 +264,30 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     }
 
     def __new__(cls, uri='sqlite://dummy.db', *args, **kwargs):
-        if not hasattr(THREAD_LOCAL, 'db_instances'):
-            THREAD_LOCAL.db_instances = {}
-        if not hasattr(THREAD_LOCAL, 'db_instances_zombie'):
-            THREAD_LOCAL.db_instances_zombie = {}
+        if not hasattr(THREAD_LOCAL, '_pydal_db_instances_'):
+            THREAD_LOCAL._pydal_db_instances_ = {}
+        if not hasattr(THREAD_LOCAL, '_pydal_db_instances_zombie_'):
+            THREAD_LOCAL._pydal_db_instances_zombie_ = {}
         if uri == '<zombie>':
             db_uid = kwargs['db_uid']  # a zombie must have a db_uid!
-            if db_uid in THREAD_LOCAL.db_instances:
-                db_group = THREAD_LOCAL.db_instances[db_uid]
+            if db_uid in THREAD_LOCAL._pydal_db_instances_:
+                db_group = THREAD_LOCAL._pydal_db_instances_[db_uid]
                 db = db_group[-1]
-            elif db_uid in THREAD_LOCAL.db_instances_zombie:
-                db = THREAD_LOCAL.db_instances_zombie[db_uid]
+            elif db_uid in THREAD_LOCAL._pydal_db_instances_zombie_:
+                db = THREAD_LOCAL._pydal_db_instances_zombie_[db_uid]
             else:
                 db = super(DAL, cls).__new__(cls)
-                THREAD_LOCAL.db_instances_zombie[db_uid] = db
+                THREAD_LOCAL._pydal_db_instances_zombie_[db_uid] = db
         else:
             db_uid = kwargs.get('db_uid', hashlib_md5(repr(uri)).hexdigest())
-            if db_uid in THREAD_LOCAL.db_instances_zombie:
-                db = THREAD_LOCAL.db_instances_zombie[db_uid]
-                del THREAD_LOCAL.db_instances_zombie[db_uid]
+            if db_uid in THREAD_LOCAL._pydal_db_instances_zombie_:
+                db = THREAD_LOCAL._pydal_db_instances_zombie_[db_uid]
+                del THREAD_LOCAL._pydal_db_instances_zombie_[db_uid]
             else:
                 db = super(DAL, cls).__new__(cls)
-            db_group = THREAD_LOCAL.db_instances.get(db_uid, [])
+            db_group = THREAD_LOCAL._pydal_db_instances_.get(db_uid, [])
             db_group.append(db)
-            THREAD_LOCAL.db_instances[db_uid] = db_group
+            THREAD_LOCAL._pydal_db_instances_[db_uid] = db_group
         db._db_uid = db_uid
         return db
 
@@ -313,7 +313,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             }
 
         """
-        dbs = getattr(THREAD_LOCAL, 'db_instances', {}).items()
+        dbs = getattr(THREAD_LOCAL, '_pydal_db_instances_', {}).items()
         infos = {}
         for db_uid, db_group in dbs:
             for db in db_group:
@@ -951,11 +951,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
 
     def close(self):
         self._adapter.close()
-        if self._db_uid in THREAD_LOCAL.db_instances:
-            db_group = THREAD_LOCAL.db_instances[self._db_uid]
+        if self._db_uid in THREAD_LOCAL._pydal_db_instances_:
+            db_group = THREAD_LOCAL._pydal_db_instances_[self._db_uid]
             db_group.remove(self)
             if not db_group:
-                del THREAD_LOCAL.db_instances[self._db_uid]
+                del THREAD_LOCAL._pydal_db_instances_[self._db_uid]
 
     def executesql(self, query, placeholders=None, as_dict=False,
                    fields=None, colnames=None, as_ordered_dict=False):
