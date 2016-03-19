@@ -200,7 +200,7 @@ def smart_query(fields, text):
             elif field.type == 'list:string':
                 if op == 'contains': new_query = field.contains(value)
                 else: raise RuntimeError("Invalid operation")
-            elif field.type in ('text', 'string', 'json'):
+            elif field.type in ('text', 'string', 'json', 'upload'):
                 if op == 'contains': new_query = field.contains(value)
                 elif op == 'like': new_query = field.ilike(value)
                 elif op == 'startswith': new_query = field.startswith(value)
