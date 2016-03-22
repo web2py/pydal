@@ -75,3 +75,37 @@ class TeradataAdapter(BaseAdapter):
     def _truncate(self, table, mode=''):
         tablename = table._tablename
         return ['DELETE FROM %s ALL;' % (tablename)]
+
+          def LIKE(self, first, second, escape=None):
+        """Case sensitive like operator"""
+        if isinstance(second, Expression):
+            second = self.expand(second, 'string')
+        else:
+            second = self.expand(second, 'string')
+            if escape is None:
+                escape = '\\'
+                second = second.replace(escape, escape * 2)
+        return "(%s LIKE %s ESCAPE '%s')" % (self.expand(first),
+                second, escape)
+
+    def LIKE(self, first, second, escape=None):
+        """Case sensitive like operator"""
+
+        second = self.expand(second, 'string')
+
+        return "(%s LIKE %s)" % (self.expand(first), second)
+
+    def ILIKE(self, first, second, escape=None):
+        """Case insensitive like operator"""
+
+        second = self.expand(second, 'string')
+
+        return "(LOWER(%s) LIKE %s)" % (self.expand(first), second)
+
+    def STARTSWITH(self, first, second):
+        return "(%s LIKE %s)" % (self.expand(first),
+                self.expand(self.like_escaper_default(second)+'%', 'string'))
+
+    def ENDSWITH(self, first, second):
+        return "(%s LIKE %s)" % (self.expand(first),
+                self.expand('%'+self.like_escaper_default(second), 'string'))
