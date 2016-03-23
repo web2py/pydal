@@ -1,6 +1,18 @@
 pydal changelog
 ===============
 
+Version 16.03
+
+Released on March 23rd 2016
+
+- Faster SQLite logic in absence of db queris
+- PEP8 improvements
+- Added support for new relic
+- Added support for outerscoped tablenames
+- fixed Google Cloud SQL support
+- fixed Oracle DB support
+- serveral bug fixes
+
 Version 15.12
 -------------
 
