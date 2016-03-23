@@ -7,7 +7,7 @@ Released on March 23rd 2016
 
 - Faster SQLite logic in absence of db queris
 - PEP8 improvements
-- Added support for new relic
+- Added support for new relic (newrelic>=2.10.0.8)
 - Added support for outerscoped tablenames
 - fixed Google Cloud SQL support
 - fixed Oracle DB support
