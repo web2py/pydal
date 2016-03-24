@@ -153,8 +153,8 @@ class PostgrePsyco(Postgre):
 
     def adapt(self, obj):
         adapted = psycopg2_adapt(obj)
-        # deal with new relic Connection Wrapper
-        cxn = getattr(self.connection, '_nr_connection', self.connection)
+        # deal with new relic Connection Wrapper (newrelic>=2.10.0.8)
+        cxn = getattr(self.connection, '__wrapped__', self.connection)
         adapted.prepare(cxn)
         rv = adapted.getquoted()
         if not PY2:
