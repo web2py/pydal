@@ -1,4 +1,5 @@
-from ..adapters.mssql import MSSQL, MSSQLN, MSSQL3, MSSQL4, MSSQL3N, MSSQL4N
+from ..adapters.mssql import MSSQL, MSSQLN, MSSQL3, MSSQL4, MSSQL3N, MSSQL4N, \
+    Vertica, Sybase
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
 from .base import SQLDialect
@@ -24,6 +25,10 @@ class MSSQLDialect(SQLDialect):
     @sqltype_for('integer')
     def type_integer(self):
         return 'INT'
+
+    @sqltype_for('bigint')
+    def type_bigint(self):
+        return 'BIGINT'
 
     @sqltype_for('double')
     def type_double(self):
@@ -316,3 +321,67 @@ class MSSQL4NDialect(MSSQLNDialect, MSSQL4Dialect):
     @sqltype_for('text')
     def type_text(self):
         return 'NVARCHAR(MAX)'
+
+
+@dialects.register_for(Vertica)
+class VerticaDialect(MSSQLDialect):
+    dt_sep = ' '
+
+    @sqltype_for('boolean')
+    def type_boolean(self):
+        return 'BOOLEAN'
+
+    @sqltype_for('text')
+    def type_text(self):
+        return 'BYTEA'
+
+    @sqltype_for('json')
+    def type_json(self):
+        return self.types['string']
+
+    @sqltype_for('blob')
+    def type_blob(self):
+        return 'BYTEA'
+
+    @sqltype_for('double')
+    def type_double(self):
+        return 'DOUBLE PRECISION'
+
+    @sqltype_for('time')
+    def type_time(self):
+        return 'TIME'
+
+    @sqltype_for('id')
+    def type_id(self):
+        return 'IDENTITY'
+
+    @sqltype_for('reference')
+    def type_reference(self):
+        return 'INT REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s'
+
+    @sqltype_for('big-reference')
+    def type_big_reference(self):
+        return 'BIGINT REFERENCES %(foreign_key)s ON DELETE' + \
+            ' %(on_delete_action)s'
+
+    def extract(self, first, what):
+        return "DATE_PART('%s', TIMESTAMP %s)" % (what, self.expand(first))
+
+    def truncate(self, table, mode=''):
+        if mode:
+            mode = " %s" % mode
+        return ['TRUNCATE %s%s;' % (table.sqlsafe, mode)]
+
+    def select(self, *args, **kwargs):
+        return SQLDialect.select(self, *args, **kwargs)
+
+
+@dialects.register_for(Sybase)
+class SybaseDialect(MSSQLDialect):
+    @sqltype_for('string')
+    def type_string(self):
+        return 'CHAR VARYING(%(length)s)'
+
+    @sqltype_for('date')
+    def type_date(self):
+        return 'DATETIME'

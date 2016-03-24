@@ -133,11 +133,55 @@ class MSSQL4N(MSSQLN):
     pass
 
 
-# @adapters.register_for('vertica')
-# class Vertica(MSSQL1):
-#     pass
+@adapters.register_for('vertica')
+class Vertica(MSSQL1):
+    def lastrowid(self, table):
+        self.execute('SELECT SCOPE_IDENTITY();')
+        return long(self.cursor.fetchone()[0])
 
 
-# @adapters.register_for('sybase')
-# class Sybase(MSSQL1):
-#     pass
+@adapters.register_for('sybase')
+class Sybase(MSSQL1):
+    dbengine = 'sybase'
+
+    def _initialize_(self, do_connect):
+        super(MSSQL, self)._initialize_(do_connect)
+        ruri = self.uri.split('://', 1)[1]
+        if '@' not in ruri:
+            try:
+                m = self.REGEX_DSN.match(ruri)
+                if not m:
+                    raise SyntaxError(
+                        'Parsing uri string(%s) has no result' % self.uri)
+                dsn = m.group('dsn')
+                if not dsn:
+                    raise SyntaxError('DSN required')
+            except SyntaxError as e:
+                self.db.logger.error('NdGpatch error')
+                raise e
+            self.cnxn = dsn
+        else:
+            m = self.REGEX_URI.match(ruri)
+            if not m:
+                raise SyntaxError(
+                    "Invalid URI string in DAL: %s" % self.uri)
+            user = self.credential_decoder(m.group('user'))
+            if not user:
+                raise SyntaxError('User required')
+            password = self.credential_decoder(m.group('password'))
+            if not password:
+                password = ''
+            host = m.group('host')
+            if not host:
+                raise SyntaxError('Host name required')
+            db = m.group('db')
+            if not db:
+                raise SyntaxError('Database name required')
+            port = m.group('port') or '1433'
+            self.dsn = 'sybase:host=%s:%s;dbname=%s' % (host, port, db)
+            self.driver_args.update(
+                user=self.credential_decoder(user),
+                passwd=self.credential_decoder(password))
+
+    def connector(self):
+        return self.driver.connect(self.dsn, **self.driver_args)
