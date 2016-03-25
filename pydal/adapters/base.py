@@ -6,6 +6,7 @@ from .._compat import PY2, with_metaclass, iterkeys, iteritems, hashlib_md5, \
     integer_types
 from .._globals import IDENTITY
 from ..connection import ConnectionPool
+from ..exceptions import NotOnNOSQLError
 from ..helpers.classes import Reference, NullDriver, ExecutionHandler, \
     SQLCustomType, SQLALL
 from ..helpers.methods import use_common_filters, xorify
@@ -152,7 +153,26 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return str(expression)
 
     def expand_all(self, fields, tablenames):
-        return fields
+        new_fields = []
+        append = new_fields.append
+        for item in fields:
+            if isinstance(item, SQLALL):
+                new_fields += item._table
+            elif isinstance(item, str):
+                m = self.REGEX_TABLE_DOT_FIELD.match(item)
+                if m:
+                    tablename, fieldname = m.groups()
+                    append(self.db[tablename][fieldname])
+                else:
+                    append(Expression(self.db, lambda item=item: item))
+            else:
+                append(item)
+        # ## if no fields specified take them all from the requested tables
+        if not new_fields:
+            for table in tablenames:
+                for field in self.db[table]:
+                    append(field)
+        return new_fields
 
     def parse_value(self, value, field_type, blob_decode=True):
         #[Note - gi0baro] I think next if block can be (should be?) avoided
@@ -316,17 +336,9 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     def adapt(self, value):
         return value
 
-    def _represent_customtype(self, obj, field_type):
-        obj = field_type.encoder(obj)
-        if obj and field_type.type in ('string', 'text', 'json'):
-            return self.adapt(obj)
-        return obj or 'NULL'
-
     def represent(self, obj, field_type):
         if isinstance(obj, CALLABLETYPES):
             obj = obj()
-        if isinstance(field_type, SQLCustomType):
-            return self._represent_customtype(obj, field_type)
         return self.representer.represent(obj, field_type)
 
     def _drop_cleanup(self, table):
@@ -339,6 +351,19 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
     def rowslice(self, rows, minimum=0, maximum=None):
         return rows
+
+    def alias(self, table, alias):
+        other = copy.copy(table)
+        other['_ot'] = other._ot or other.sqlsafe
+        other['ALL'] = SQLALL(other)
+        other['_tablename'] = alias
+        for fieldname in other.fields:
+            other[fieldname] = copy.copy(other[fieldname])
+            other[fieldname]._tablename = alias
+            other[fieldname].tablename = alias
+            other[fieldname].table = other
+        table._db[alias] = other
+        return other
 
 
 # TODO: set default handlers from DAL class
@@ -364,8 +389,6 @@ class SQLAdapter(BaseAdapter):
     commit_on_alter_table = False
     #[Note - gi0baro] can_select_for_update should be deprecated and removed
     can_select_for_update = True
-    # cursors_in_use = []
-    # current_cursor_in_use = False
     execution_handlers = []
 
     def __init__(self, *args, **kwargs):
@@ -391,16 +414,6 @@ class SQLAdapter(BaseAdapter):
         if isinstance(obj, (int, float)):
             return str(obj)
         return self.adapt(str(obj))
-
-    # def get_cursor(self):
-    #     #: safe_reuse allows further queries to be executed using the same
-    #     #  cursor
-    #     if self.current_cursor_in_use == True:
-    #         self.current_cursor_in_use = False
-    #         #: save current cursor in use locally
-    #         self.cursors_in_use.append(self.cursor)
-    #         self.cursor = self.connection.cursor()
-    #     return self.cursor
 
     def fetchall(self):
         return self.cursor.fetchall()
@@ -469,28 +482,6 @@ class SQLAdapter(BaseAdapter):
         else:
             rv = expression
         return str(rv)
-
-    def expand_all(self, fields, tablenames):
-        new_fields = []
-        append = new_fields.append
-        for item in fields:
-            if isinstance(item, SQLALL):
-                new_fields += item._table
-            elif isinstance(item, str):
-                m = self.REGEX_TABLE_DOT_FIELD.match(item)
-                if m:
-                    tablename, fieldname = m.groups()
-                    append(self.db[tablename][fieldname])
-                else:
-                    append(Expression(self.db, lambda item=item: item))
-            else:
-                append(item)
-        # ## if no fields specified take them all from the requested tables
-        if not new_fields:
-            for table in tablenames:
-                for field in self.db[table]:
-                    append(field)
-        return new_fields
 
     def lastrowid(self, table):
         return self.cursor.lastrowid
@@ -864,19 +855,6 @@ class SQLAdapter(BaseAdapter):
             tbl = self.db[tbl]
         return tbl.sqlsafe_alias
 
-    def alias(self, table, alias):
-        other = copy.copy(table)
-        other['_ot'] = other._ot or other.sqlsafe
-        other['ALL'] = SQLALL(other)
-        other['_tablename'] = alias
-        for fieldname in other.fields:
-            other[fieldname] = copy.copy(other[fieldname])
-            other[fieldname]._tablename = alias
-            other[fieldname].tablename = alias
-            other[fieldname].table = other
-        table._db[alias] = other
-        return other
-
     def id_query(self, table):
         pkeys = getattr(table, '_primarykey', None)
         if pkeys:
@@ -904,6 +882,34 @@ class NoSQLAdapter(BaseAdapter):
 
     def id_query(self, table):
         return table._id > 0
+
+    def create_table(self, table, migrate=True, fake_migrate=False,
+                     polymodel=None):
+        table._dbt = None
+        table._notnulls = []
+        for field_name in table.fields:
+            if table[field_name].notnull:
+                table._notnulls.append(field_name)
+        table._uniques = []
+        for field_name in table.fields:
+            if table[field_name].unique:
+                # this is unnecessary if the fields are indexed and unique
+                table._uniques.append(field_name)
+
+    def drop(self, table, mode=''):
+        ctable = self.connection[table._tablename]
+        ctable.drop()
+        self._drop_cleanup(table)
+
+    def _select(self, *args, **kwargs):
+        raise NotOnNOSQLError(
+            "Nested queries are not supported on NoSQL databases")
+
+    def sqlsafe_table(self, tablename, original_tablename=None):
+        return tablename
+
+    def sqlsafe_field(self, fieldname):
+        return fieldname
 
 
 class NullAdapter(BaseAdapter):

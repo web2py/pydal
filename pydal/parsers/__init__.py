@@ -106,3 +106,4 @@ class Parser(with_metaclass(MetaParser)):
 from .base import BasicParser
 from .sqlite import SQLiteParser
 from .postgre import PostgreParser
+from .mongo import MongoParser

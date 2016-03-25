@@ -1,11 +1,37 @@
+import datetime
+from .._compat import integer_types
 from ..adapters.base import SQLAdapter
 from ..helpers.methods import use_common_filters
 from ..objects import Expression, Field
 from . import Dialect, dialects, sqltype_for
 
+long = integer_types[-1]
+
+
+class CommonDialect(Dialect):
+    def _force_bigints(self):
+        if 'big-id' in self.types and 'reference' in self.types:
+            self.types['id'] = self.types['big-id']
+            self.types['reference'] = self.types['big-reference']
+
+    def quote(self, val):
+        return self.quote_template % val
+
+    def varquote(self, val):
+        return val
+
+    def sequence_name(self, tablename):
+        return self.quote('%s_sequence' % tablename)
+
+    def trigger_name(self, tablename):
+        return '%s_sequence' % tablename
+
+    def coalesce_zero(self, val):
+        return self.coalesce(val, [0])
+
 
 @dialects.register_for(SQLAdapter)
-class SQLDialect(Dialect):
+class SQLDialect(CommonDialect):
     quote_template = '"%s"'
     true = "T"
     false = "F"
@@ -107,17 +133,6 @@ class SQLDialect(Dialect):
         return ', CONSTRAINT  "FK_%(constraint_name)s" FOREIGN KEY ' + \
             '(%(field_name)s) REFERENCES %(foreign_key)s ' + \
             'ON DELETE %(on_delete_action)s'
-
-    def _force_bigints(self):
-        if 'big-id' in self.types and 'reference' in self.types:
-            self.types['id'] = self.types['big-id']
-            self.types['reference'] = self.types['big-reference']
-
-    def quote(self, val):
-        return self.quote_template % val
-
-    def varquote(self, val):
-        return val
 
     def alias(self, original, new):
         return ('%s AS ' + self.quote_template) % (original, new)
@@ -387,9 +402,6 @@ class SQLDialect(Dialect):
         expressions = [self.expand(first)]+[self.expand(e) for e in second]
         return 'COALESCE(%s)' % ','.join(expressions)
 
-    def coalesce_zero(self, val):
-        return self.coalesce(val, [0])
-
     def raw(self, val):
         return val
 
@@ -420,11 +432,88 @@ class SQLDialect(Dialect):
     def constraint_name(self, table, fieldname):
         return '%s_%s__constraint' % (table, fieldname)
 
-    def sequence_name(self, tablename):
-        return self.quote('%s_sequence' % tablename)
-
-    def trigger_name(self, tablename):
-        return '%s_sequence' % tablename
-
     def concat_add(self, tablename):
         return ', ADD '
+
+
+class NoSQLDialect(CommonDialect):
+    quote_template = '%s'
+
+    @sqltype_for('string')
+    def type_string(self):
+        return str
+
+    @sqltype_for('boolean')
+    def type_boolean(self):
+        return bool
+
+    @sqltype_for('text')
+    def type_text(self):
+        return str
+
+    @sqltype_for('json')
+    def type_json(self):
+        return self.types['text']
+
+    @sqltype_for('password')
+    def type_password(self):
+        return self.types['string']
+
+    @sqltype_for('blob')
+    def type_blob(self):
+        return self.types['text']
+
+    @sqltype_for('upload')
+    def type_upload(self):
+        return self.types['string']
+
+    @sqltype_for('integer')
+    def type_integer(self):
+        return long
+
+    @sqltype_for('bigint')
+    def type_bigint(self):
+        return self.types['integer']
+
+    @sqltype_for('float')
+    def type_float(self):
+        return float
+
+    @sqltype_for('double')
+    def type_double(self):
+        return self.types['float']
+
+    @sqltype_for('date')
+    def type_date(self):
+        return datetime.date
+
+    @sqltype_for('time')
+    def type_time(self):
+        return datetime.time
+
+    @sqltype_for('datetime')
+    def type_datetime(self):
+        return datetime.datetime
+
+    @sqltype_for('id')
+    def type_id(self):
+        return long
+
+    @sqltype_for('reference')
+    def type_reference(self):
+        return long
+
+    @sqltype_for('list:integer')
+    def type_list_integer(self):
+        return list
+
+    @sqltype_for('list:string')
+    def type_list_string(self):
+        return list
+
+    @sqltype_for('list:reference')
+    def type_list_reference(self):
+        return list
+
+    def quote(self, val):
+        return val

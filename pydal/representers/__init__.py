@@ -197,14 +197,10 @@ class Representer(with_metaclass(MetaRepresenter)):
         self._pre_registry_ = []
         pres = []
         for name, obj in iteritems(self._declared_pres_):
-            # self._pre_registry_.append(
-            #     PreMethodWrapper(self, obj)
-            # )
             pres.append(obj)
-        #self._pre_registry_.sort(key=lambda x: x._inst_count_)
         pres.sort(key=lambda x: x._inst_count_)
         for pre in pres:
-            self._pre_registry_.append(PreMethodWrapper(self, obj))
+            self._pre_registry_.append(PreMethodWrapper(self, pre))
 
     def _default(self, value, field_type):
         return self.adapt(value)
@@ -257,3 +253,4 @@ from .sqlite import SQLiteRepresenter, SpatialiteRepresenter
 from .postgre import PostgreRepresenter
 from .mysql import MySQLRepresenter
 from .mssql import MSSQLRepresenter
+from .mongo import MongoRepresenter

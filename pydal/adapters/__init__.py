@@ -73,3 +73,4 @@ from .sqlite import SQLite
 from .postgres import Postgre, PostgrePsyco, PostgrePG8000
 from .mysql import MySQL
 from .mssql import MSSQL
+from .mongo import Mongo

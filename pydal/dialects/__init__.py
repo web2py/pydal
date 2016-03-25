@@ -62,3 +62,4 @@ from .sqlite import SQLiteDialect, SpatialiteDialect
 from .postgre import PostgreDialect
 from .mysql import MySQLDialect
 from .mssql import MSSQLDialect
+from .mongo import MongoDialect

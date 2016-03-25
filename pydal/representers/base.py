@@ -1,7 +1,7 @@
 import json
 from base64 import b64encode
 from datetime import date, time, datetime
-from .._compat import PY2, integer_types, to_unicode, to_bytes
+from .._compat import PY2, integer_types, to_unicode, to_bytes, basestring
 from ..adapters.base import SQLAdapter, NoSQLAdapter
 from ..helpers.classes import Reference, SQLCustomType
 from ..helpers.methods import bar_encode
@@ -32,25 +32,6 @@ class BaseRepresenter(Representer):
     @for_type('decimal', adapt=False)
     def _decimal(self, value):
         return str(value)
-
-    @before_type('reference')
-    def reference_extras(self, field_type):
-        return {'referenced': field_type[9:].strip()}
-
-    @for_type('reference', adapt=False)
-    def _reference(self, value, referenced):
-        if referenced in self.adapter.db.tables:
-            return str(long(value))
-        p = referenced.partition('.')
-        if p[2] != '':
-            try:
-                ftype = self.adapter.db[p[0]][p[2]].type
-                return self.adapter.represent(value, ftype)
-            except (ValueError, KeyError):
-                return repr(value)
-        elif isinstance(value, (Row, Reference)):
-            return str(value['id'])
-        return str(long(value))
 
     @for_type('double', adapt=False)
     def _double(self, value):
@@ -132,6 +113,9 @@ class SQLRepresenter(BaseRepresenter):
         r = self.exceptions(obj, field_type)
         return r
 
+    def exceptions(self, obj, field_type):
+        return None
+
     @for_instance(NoneType)
     def _none(self, value, field_type):
         return 'NULL'
@@ -144,6 +128,25 @@ class SQLRepresenter(BaseRepresenter):
     def _fieldexpr(self, value, field_type):
         return str(value)
 
+    @before_type('reference')
+    def reference_extras(self, field_type):
+        return {'referenced': field_type[9:].strip()}
+
+    @for_type('reference', adapt=False)
+    def _reference(self, value, referenced):
+        if referenced in self.adapter.db.tables:
+            return str(long(value))
+        p = referenced.partition('.')
+        if p[2] != '':
+            try:
+                ftype = self.adapter.db[p[0]][p[2]].type
+                return self.adapter.represent(value, ftype)
+            except (ValueError, KeyError):
+                return repr(value)
+        elif isinstance(value, (Row, Reference)):
+            return str(value['id'])
+        return str(long(value))
+
     @for_type('blob', encode=True)
     def _blob(self, value):
         return b64encode(to_bytes(value))
@@ -154,11 +157,11 @@ class NoSQLRepresenter(BaseRepresenter):
     def adapt(self, value):
         return value
 
-    @pre()
+    @pre(is_breaking=True)
     def _before_all(self, obj, field_type):
         if isinstance(field_type, SQLCustomType):
-            return field_type.encoder(obj)
-        return None
+            return True, field_type.encoder(obj)
+        return False, obj
 
     @pre(is_breaking=True)
     def _nullify_empty_string(self, obj, field_type):
@@ -166,9 +169,6 @@ class NoSQLRepresenter(BaseRepresenter):
            field_type[:2] in ('st', 'te', 'pa', 'up'):
             return True, None
         return False, obj
-
-    def _default(self, value, field_type):
-        return to_unicode(value)
 
     @for_instance(NoneType)
     def _none(self, value, field_type):
@@ -204,9 +204,19 @@ class NoSQLRepresenter(BaseRepresenter):
 
     @for_type('boolean')
     def _boolean(self, value):
-        if value and not str(value)[:1].upper() in '0F':
-            return True
-        return False
+        if not isinstance(value, bool):
+            if value and not str(value)[:1].upper() in '0F':
+                return True
+            return False
+        return value
+
+    @for_type('string')
+    def _string(self, value):
+        return to_unicode(value)
+
+    @for_type('text')
+    def _text(self, value):
+        return to_unicode(value)
 
     @for_type('blob')
     def _blob(self, value):
