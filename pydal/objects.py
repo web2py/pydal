@@ -1098,6 +1098,11 @@ class Expression(object):
         db = self.db
         return Expression(db, db._adapter.EPOCH, self, None, 'integer')
 
+    def getitem(self, key, *keys):
+        db = self.db
+        keys=(key,)+keys
+        return Expression(db, db._adapter.GETITEM, self, keys, 'string')
+
     def __getitem__(self, i):
         if isinstance(i, slice):
             start = i.start or 0

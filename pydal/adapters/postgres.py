@@ -243,6 +243,13 @@ class PostgreSQLAdapter(BaseAdapter):
         return '(%s ~ %s)' % (self.expand(first),
                               self.expand(second,'string'))
 
+    def GETITEM(self, first, second):
+        """
+        http://www.postgresql.org/docs/9.4/static/functions-json.html
+        """
+        what = ','.join(map(self.expand, second))
+        return "%s#>>'{%s}'" % (first,what)
+
     # GIS functions
 
     def ST_ASGEOJSON(self, first, second):
