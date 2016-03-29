@@ -1089,6 +1089,10 @@ class Expression(object):
     def coalesce_zero(self):
         db = self.db
         return Expression(db, db._adapter.COALESCE_ZERO, self, None, self.type)
+        
+    def collate(self, collation):
+        db = self.db
+        return Expression(db, db._adapter.COLLATE, self, collation, self.type)
 
     def seconds(self):
         db = self.db
