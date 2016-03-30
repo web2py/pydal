@@ -61,3 +61,13 @@ class MySQL(SQLAdapter):
     @with_connection
     def rollback_prepared(self, key):
         self.execute("XA ROLLBACK;")
+
+
+@adapters.register_for('cubrid')
+class Cubrid(MySQL):
+    dbengine = "cubrid"
+    drivers = ('cubriddb',)
+
+    def _initialize_(self, do_connect):
+        super(Cubrid, self)._initialize_(do_connect)
+        del self.driver_args['charset']
