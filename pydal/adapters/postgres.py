@@ -203,3 +203,55 @@ class PostgrePsycoNew(PostgrePsyco):
 @adapters.register_for('postgres2:pg8000')
 class PostgrePG8000New(PostgrePG8000):
     pass
+
+
+@adapters.register_for('jdbc:postgres')
+class JDBCPostgre(Postgre):
+    drivers = ('zxJDBC',)
+
+    REGEX_URI = re.compile(
+        '^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>\[[^/]+\]|' +
+        '[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>.+)$')
+
+    def _initialize_(self, do_connect):
+        super(Postgre, self)._initialize_(do_connect)
+        ruri = self.uri.split('://', 1)[1]
+        m = self.REGEX_URI.match(ruri)
+        if not m:
+            raise SyntaxError("Invalid URI string in DAL")
+        user = self.credential_decoder(m.group('user'))
+        if not user:
+            raise SyntaxError('User required')
+        password = self.credential_decoder(m.group('password'))
+        if not password:
+            password = ''
+        host = m.group('host')
+        if not host:
+            raise SyntaxError('Host name required')
+        db = m.group('db')
+        if not db:
+            raise SyntaxError('Database name required')
+        port = m.group('port') or '5432'
+        self.dsn = (
+            'jdbc:postgresql://%s:%s/%s' % (host, port, db), user, password)
+        # choose diver according uri
+        if self.driver:
+            self.__version__ = "%s %s" % (self.driver.__name__,
+                                          self.driver.__version__)
+        else:
+            self.__version__ = None
+        THREAD_LOCAL._pydal_last_insert_ = None
+
+    def connector(self):
+        return self.driver.connect(*self.dsn, **self.driver_args)
+
+    def after_connection(self):
+        self.connection.set_client_encoding('UTF8')
+        self.execute('BEGIN;')
+        self.execute("SET CLIENT_ENCODING TO 'UNICODE';")
+        self._config_json()
+
+    def _config_json(self):
+        use_json = self.connection.dbversion >= "9.2.0"
+        if use_json:
+            self.dialect = self._get_json_dialect()(self)

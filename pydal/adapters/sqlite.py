@@ -18,7 +18,7 @@ class SQLite(SQLAdapter):
         super(SQLite, self)._initialize_(do_connect)
         path_encoding = sys.getfilesystemencoding() \
             or locale.getdefaultlocale()[1] or 'utf8'
-        if self.uri.startswith(self.dbengine+':memory'):
+        if ':memory' in self.uri.split('://', 1)[0]:
             self.dbpath = ':memory:'
         else:
             self.dbpath = self.uri.split('://', 1)[1]
@@ -61,11 +61,17 @@ class SQLite(SQLAdapter):
             return False
         return re.compile(expression).search(item) is not None
 
-    def after_connection(self):
+    def _register_extract(self):
         self.connection.create_function(
             'web2py_extract', 2, self.web2py_extract)
+
+    def _register_regexp(self):
         self.connection.create_function(
             "REGEXP", 2, self.web2py_regexp)
+
+    def after_connection(self):
+        self._register_extract()
+        self._register_regexp()
         if self.adapter_args.get('foreign_keys', True):
             self.execute('PRAGMA foreign_keys=ON;')
 
@@ -101,7 +107,17 @@ class Spatialite(SQLite):
         self.connection.enable_load_extension(True)
         libspatialite = self.SPATIALLIBS[platform.system()]
         self.execute(r'SELECT load_extension("%s");' % libspatialite)
-        self.connection.create_function(
-            'web2py_extract', 2, self.web2py_extract)
-        self.connection.create_function(
-            "REGEXP", 2, self.web2py_regexp)
+        super(Spatialite, self).after_connection()
+
+
+@adapters.register_for('jdbc:sqlite', 'jdbc:sqlite:memory')
+class JDBCSQLite(SQLite):
+    drivers = ('zxJDBC_sqlite',)
+
+    def connector(self):
+        return self.driver.connect(
+            self.driver.getConnection('jdbc:sqlite:'+self.dbpath),
+            **self.driver_args)
+
+    def after_connection(self):
+        self._register_extract()
