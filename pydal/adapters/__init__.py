@@ -4,19 +4,19 @@ from ..helpers.regex import REGEX_NO_GREEDY_ENTITY_NAME
 
 
 class Adapters(Dispatcher):
-    def register_for(self, *drivers):
+    def register_for(self, *uris):
         def wrap(dispatch_class):
-            for driver in drivers:
-                self._registry_[driver] = dispatch_class
+            for uri in uris:
+                self._registry_[uri] = dispatch_class
             return dispatch_class
         return wrap
 
-    def get_for(self, driver_name):
+    def get_for(self, uri):
         try:
-            return self._registry_[driver_name]
+            return self._registry_[uri]
         except KeyError:
             raise SyntaxError(
-                'Adapter not found for specified driver %s' % driver_name
+                'Adapter not found for %s' % uri
             )
 
 adapters = Adapters('adapters')
