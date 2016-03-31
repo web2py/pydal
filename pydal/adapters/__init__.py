@@ -75,3 +75,4 @@ from .mysql import MySQL
 from .mssql import MSSQL
 from .mongo import Mongo
 from .db2 import DB2
+from .firebird import FireBird

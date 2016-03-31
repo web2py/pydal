@@ -64,3 +64,4 @@ from .mysql import MySQLDialect
 from .mssql import MSSQLDialect
 from .mongo import MongoDialect
 from .db2 import DB2Dialect
+from .firebird import FireBirdDialect
