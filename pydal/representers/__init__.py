@@ -254,3 +254,4 @@ from .postgre import PostgreRepresenter
 from .mysql import MySQLRepresenter
 from .mssql import MSSQLRepresenter
 from .mongo import MongoRepresenter
+from .db2 import DB2Representer
