@@ -66,3 +66,4 @@ from .mongo import MongoDialect
 from .db2 import DB2Dialect
 from .firebird import FireBirdDialect
 from .informix import InformixDialect
+from .ingres import IngresDialect
