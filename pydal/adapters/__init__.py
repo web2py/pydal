@@ -1,4 +1,5 @@
 import re
+from .._gae import gae
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_NO_GREEDY_ENTITY_NAME
 
@@ -76,3 +77,6 @@ from .mssql import MSSQL
 from .mongo import Mongo
 from .db2 import DB2
 from .firebird import FireBird
+
+if gae is not None:
+    from .google import GoogleSQL
