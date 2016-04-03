@@ -81,6 +81,7 @@ from .informix import Informix
 from .ingres import Ingres
 from .oracle import Oracle
 from .sap import SAPDB
+from .teradata import Teradata
 
 if gae is not None:
     from .google import GoogleSQL

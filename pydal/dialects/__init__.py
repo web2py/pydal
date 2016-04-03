@@ -69,3 +69,4 @@ from .informix import InformixDialect
 from .ingres import IngresDialect
 from .oracle import OracleDialect
 from .sap import SAPDBDialect
+from .teradata import TeradataDialect
