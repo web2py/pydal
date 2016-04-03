@@ -18,6 +18,10 @@ class FireBirdDialect(SQLDialect):
     def type_double(self):
         return 'DOUBLE PRECISION'
 
+    @sqltype_for('decimal')
+    def type_decimal(self):
+        return 'DECIMAL(%(precision)s,%(scale)s)'
+
     @sqltype_for('blob')
     def type_blob(self):
         return 'BLOB SUB_TYPE 0'
