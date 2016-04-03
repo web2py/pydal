@@ -79,6 +79,7 @@ from .db2 import DB2
 from .firebird import FireBird
 from .informix import Informix
 from .ingres import Ingres
+from .oracle import Oracle
 
 if gae is not None:
     from .google import GoogleSQL
