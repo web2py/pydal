@@ -82,6 +82,7 @@ from .ingres import Ingres
 from .oracle import Oracle
 from .sap import SAPDB
 from .teradata import Teradata
+from .couchdb import CouchDB
 
 if gae is not None:
     from .google import GoogleSQL

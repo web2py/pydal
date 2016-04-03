@@ -257,3 +257,4 @@ from .mongo import MongoRepresenter
 from .db2 import DB2Representer
 from .informix import InformixRepresenter
 from .oracle import OracleRepresenter
+from .couchdb import CouchDBRepresenter
