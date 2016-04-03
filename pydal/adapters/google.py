@@ -3,15 +3,37 @@ import re
 from .._compat import pjoin
 from .._globals import THREAD_LOCAL
 from .._gae import ndb, rdbms
-from ..helpers.classes import UseDatabaseStoredFile
+from ..migrator import Migrator
+from ..helpers.classes import DatabaseStoredFile
 from .mysql import MySQL
 from . import adapters, with_connection_or_raise
 
 
+class GoogleMigrator(Migrator):
+    def file_exists(self, filename):
+        return DatabaseStoredFile.exists(self.db, filename)
+
+    def file_open(self, filename, mode='rb', lock=True):
+        return DatabaseStoredFile(self.db, filename, mode)
+
+    @staticmethod
+    def file_close(fileobj):
+        fileobj.close_connection()
+
+    def file_delete(self, filename):
+        query = "DELETE FROM web2py_filesystem WHERE path='%s'" % filename
+        self.db.executesql(query)
+        self.db.commit()
+
+
 @adapters.register_for('google:sql')
-class GoogleSQL(UseDatabaseStoredFile, MySQL):
+class GoogleSQL(MySQL):
     uploads_in_blob = True
     REGEX_URI = re.compile('^(?P<instance>.*)/(?P<db>.*)$')
+
+    def __init__(self, *args, **kwargs):
+        super(GoogleSQL, self).__init__(*args, **kwargs)
+        self.migrator = GoogleMigrator(self)
 
     def _initialize_(self, do_connect):
         super(MySQL, self)._initialize_(do_connect)
