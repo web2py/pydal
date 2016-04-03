@@ -98,7 +98,7 @@ class FireBirdDialect(SQLDialect):
     def drop(self, table, mode):
         sequence_name = table._sequence_name
         return [
-            'DROP TABLE %s %s;' % table.sqlsafe,
+            'DROP TABLE %s %s;' % (table.sqlsafe, mode),
             'DROP GENERATOR %s;' % sequence_name]
 
     def truncate(self, table, mode=''):
