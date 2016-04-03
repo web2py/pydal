@@ -77,6 +77,7 @@ from .mssql import MSSQL
 from .mongo import Mongo
 from .db2 import DB2
 from .firebird import FireBird
+from .informix import Informix
 
 if gae is not None:
     from .google import GoogleSQL

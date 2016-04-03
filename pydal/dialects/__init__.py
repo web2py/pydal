@@ -65,3 +65,4 @@ from .mssql import MSSQLDialect
 from .mongo import MongoDialect
 from .db2 import DB2Dialect
 from .firebird import FireBirdDialect
+from .informix import InformixDialect
