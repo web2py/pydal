@@ -52,8 +52,8 @@ class InformixDialect(FireBirdDialect):
                 limit = ' FIRST %i' % fetch_amt
         if for_update:
             upd = ' FOR UPDATE'
-        return 'SELECT%s %s FROM %s%s%s%s%s%s%s;' % (
-            dst, fields, tables, whr, grp, order, limit, offset, upd)
+        return 'SELECT%s%s%s %s FROM %s%s%s%s%s;' % (
+            dst, offset, limit, fields, tables, whr, grp, order, upd)
 
 
 @dialects.register_for(InformixSE)

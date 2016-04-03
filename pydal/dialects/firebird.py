@@ -92,8 +92,8 @@ class FireBirdDialect(SQLDialect):
             offset = ' SKIP %i' % lmin
         if for_update:
             upd = ' FOR UPDATE'
-        return 'SELECT%s %s FROM %s%s%s%s%s%s%s;' % (
-            dst, fields, tables, whr, grp, order, limit, offset, upd)
+        return 'SELECT%s%s%s %s FROM %s%s%s%s%s;' % (
+            dst, limit, offset, fields, tables, whr, grp, order, upd)
 
     def drop(self, table, mode):
         sequence_name = table._sequence_name
