@@ -1,4 +1,5 @@
 from .._compat import with_metaclass, iteritems
+from .._gae import gae
 from .._load import OrderedDict
 from ..helpers._internals import Dispatcher
 
@@ -71,3 +72,6 @@ from .oracle import OracleDialect
 from .sap import SAPDBDialect
 from .teradata import TeradataDialect
 from .couchdb import CouchDBDialect
+
+if gae is not None:
+    from .google import GoogleDatastoreDialect

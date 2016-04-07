@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
-import os
-
-from ._compat import exists, itervalues
+from ._compat import itervalues
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL
 from ._load import OrderedDict
 from .helpers._internals import Cursor
-from .helpers.classes import UseDatabaseStoredFile
 
 
 class ConnectionPool(object):
@@ -110,18 +107,8 @@ class ConnectionPool(object):
             action(None)
         return
 
-    def find_or_make_work_folder(self):
-        #this actually does not make the folder. it has to be there
+    def _find_work_folder(self):
         self.folder = getattr(THREAD_LOCAL, '_pydal_folder_', '')
-
-        if os.path.isabs(self.folder) and \
-                isinstance(self, UseDatabaseStoredFile) and \
-                self.folder.startswith(os.getcwd()):
-            self.folder = os.path.relpath(self.folder, os.getcwd())
-
-        # Creating the folder if it does not exist
-        if False and self.folder and not exists(self.folder):
-            os.mkdir(self.folder)
 
     def after_connection_hook(self):
         """Hook for the after_connection parameter"""

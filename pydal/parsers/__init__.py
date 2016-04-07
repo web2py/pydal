@@ -1,4 +1,5 @@
 from .._compat import with_metaclass, iteritems
+from .._gae import gae
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_TYPE
 
@@ -107,3 +108,6 @@ from .base import BasicParser
 from .sqlite import SQLiteParser
 from .postgre import PostgreParser
 from .mongo import MongoParser
+
+if gae is not None:
+    from .google import GoogleDatastoreParser

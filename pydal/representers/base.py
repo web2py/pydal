@@ -165,8 +165,8 @@ class NoSQLRepresenter(BaseRepresenter):
 
     @pre(is_breaking=True)
     def _nullify_empty_string(self, obj, field_type):
-        if obj == '' and not isinstance(field_type, str) and \
-           field_type[:2] in ('st', 'te', 'pa', 'up'):
+        if obj == '' and not (isinstance(field_type, str) and
+           field_type[:2] in ('st', 'te', 'pa', 'up')):
             return True, None
         return False, obj
 

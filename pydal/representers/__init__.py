@@ -1,4 +1,5 @@
 from .._compat import PY2, with_metaclass, iteritems, to_unicode
+from .._gae import gae
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_TYPE
 
@@ -258,3 +259,6 @@ from .db2 import DB2Representer
 from .informix import InformixRepresenter
 from .oracle import OracleRepresenter
 from .couchdb import CouchDBRepresenter
+
+if gae is not None:
+    from .google import GoogleDatastoreRepresenter

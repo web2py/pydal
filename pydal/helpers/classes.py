@@ -455,20 +455,3 @@ class DatabaseStoredFile:
             tb = traceback.format_exc()
             db.logger.error("Could not retrieve %s\n%s" % (filename, tb))
         return False
-
-
-class UseDatabaseStoredFile:
-
-    def file_exists(self, filename):
-        return DatabaseStoredFile.exists(self.db, filename)
-
-    def file_open(self, filename, mode='rb', lock=True):
-        return DatabaseStoredFile(self.db, filename, mode)
-
-    def file_close(self, fileobj):
-        fileobj.close_connection()
-
-    def file_delete(self, filename):
-        query = "DELETE FROM web2py_filesystem WHERE path='%s'" % filename
-        self.db.executesql(query)
-        self.db.commit()

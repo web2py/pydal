@@ -58,7 +58,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.representer = representers.get_for(self)
 
     def _initialize_(self, do_connect):
-        self.find_or_make_work_folder()
+        self._find_work_folder()
 
     @property
     def types(self):
@@ -192,13 +192,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         else:
             return self.parser.parse(value, field_type)
 
-    def _reparse_id_for_row(self, value, row, fieldname):
-        return value
-        # on 'google:datastore':
-        # id = value.key.id()
-        # row[fieldname] = id
-        # row.gae_item = value
-
     def _add_operators_to_parsed_row(self, rid, table, row):
         for key, record_operator in iteritems(self.db.record_operators):
             setattr(row, key, record_operator(row, table, rid))
@@ -244,8 +237,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     colset['id'] = value
                 #: additional parsing for 'id' fields
                 if ft == 'id' and not cacheable:
-                    id = self._reparse_id_for_row(value, colset, fieldname)
-                    self._add_operators_to_parsed_row(id, table, colset)
+                    self._add_operators_to_parsed_row(value, table, colset)
                     self._add_reference_sets_to_parsed_row(
                         table, tablename, colset)
             #: otherwise we set the value in extras

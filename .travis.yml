@@ -23,7 +23,7 @@ env:
     - ADAPTER=postgres
     - ADAPTER=postgresPG8000
     - ADAPTER=postgres2
-    # - ADAPTER=google
+    - ADAPTER=google
     - ADAPTER=mongo
     # - ADAPTER=imap
 
@@ -33,18 +33,18 @@ matrix:
       env: ADAPTER=postgres
     - python: 'pypy'
       env: ADAPTER=postgres2
-#     - python: 'pypy'
-#       env: ADAPTER=google
-#     - python: '2.6'
-#       env: ADAPTER=google
-#     - python: '3.3'
-#       env: ADAPTER=google
-#     - python: '3.3'
-#       env: ADAPTER=imap
-#     - python: '3.4'
-#       env: ADAPTER=google
-#     - python: '3.4'
-#       env: ADAPTER=imap
+    - python: 'pypy'
+      env: ADAPTER=google
+    - python: '2.6'
+      env: ADAPTER=google
+    - python: '3.3'
+      env: ADAPTER=google
+    # - python: '3.3'
+    #   env: ADAPTER=imap
+    - python: '3.4'
+      env: ADAPTER=google
+    # - python: '3.4'
+    #   env: ADAPTER=imap
 
 before_script:
   - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install codecov; fi
