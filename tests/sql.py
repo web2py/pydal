@@ -155,7 +155,6 @@ class TestFields(unittest.TestCase):
         stream = tempfile.NamedTemporaryFile()
         content = b"this is the stream content"
         stream.write(content)
-
         # rewind before inserting
         stream.seek(0)
         
@@ -164,7 +163,6 @@ class TestFields(unittest.TestCase):
         db.define_table('tt', Field('fileobj', 'upload',
                                     uploadfolder=tempfile.gettempdir(),
                                     autodelete=True))
-
         f_id = db.tt.insert(fileobj=stream)
 
         row = db.tt[f_id]
