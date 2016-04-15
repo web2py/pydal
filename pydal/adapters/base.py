@@ -1,14 +1,13 @@
 import copy
 import sys
 import types
-from time import time
 from .._compat import PY2, with_metaclass, iterkeys, iteritems, hashlib_md5, \
     integer_types
 from .._globals import IDENTITY
 from ..connection import ConnectionPool
 from ..exceptions import NotOnNOSQLError
-from ..helpers.classes import Reference, NullDriver, ExecutionHandler, \
-    SQLCustomType, SQLALL
+from ..helpers.classes import Reference, ExecutionHandler, SQLCustomType, \
+    SQLALL
 from ..helpers.methods import use_common_filters, xorify
 from ..helpers.regex import REGEX_SELECT_AS_PARSER
 from ..migrator import Migrator
@@ -358,20 +357,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return other
 
 
-# TODO: set default handlers from DAL class
-class TimingHandler(ExecutionHandler):
-    MAXSTORAGE = 100
-    timings = []
-
-    def before_execute(self, command):
-        self.t = time()
-
-    def after_execute(self, command):
-        dt = time() - self.t
-        self.timings.append((command, dt))
-        del self.timings[:-self.MAXSTORAGE]
-
-
 class DebugHandler(ExecutionHandler):
     def before_execute(self, command):
         self.adapter.db.logger.debug('SQL: %s' % command)
@@ -387,7 +372,7 @@ class SQLAdapter(BaseAdapter):
         super(SQLAdapter, self).__init__(*args, **kwargs)
         self.migrator = Migrator(self)
         #if self.db._store_timings_on_execution:
-        self.execution_handlers.insert(0, TimingHandler)
+        self.execution_handlers = list(self.db.execution_handlers)
         if self.db._debug:
             self.execution_handlers.insert(0, DebugHandler)
 

@@ -2,6 +2,7 @@
 import copy
 import marshal
 import struct
+import time
 import traceback
 
 from .._compat import PY2, exists, copyreg, integer_types, implements_bool, \
@@ -346,6 +347,19 @@ class ExecutionHandler(object):
 
     def after_execute(self, command):
         pass
+
+
+class TimingHandler(ExecutionHandler):
+    MAXSTORAGE = 100
+    timings = []
+
+    def before_execute(self, command):
+        self.t = time.time()
+
+    def after_execute(self, command):
+        dt = time.time() - self.t
+        self.timings.append((command, dt))
+        del self.timings[:-self.MAXSTORAGE]
 
 
 class DatabaseStoredFile:
