@@ -149,6 +149,69 @@ class TestFields(unittest.TestCase):
             else:
                 isinstance(f.formatter(datetime.datetime.now()), str)
 
+    def testUploadField(self):
+        import tempfile
+
+        stream = tempfile.NamedTemporaryFile()
+        content = b"this is the stream content"
+        stream.write(content)
+
+        # rewind before inserting
+        stream.seek(0)
+        
+        
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('fileobj', 'upload',
+                                    uploadfolder=tempfile.gettempdir(),
+                                    autodelete=True))
+
+        f_id = db.tt.insert(fileobj=stream)
+
+        row = db.tt[f_id]
+        (retr_name, retr_stream) = db.tt.fileobj.retrieve(row.fileobj)
+
+        # name should be the same
+        self.assertEqual(retr_name, os.path.basename(stream.name))
+        # content should be the same
+        retr_content = retr_stream.read()
+        self.assertEqual(retr_content, content)
+
+        # delete
+        row.delete_record()
+
+        # drop
+        db.tt.drop()
+        
+        # this part is triggered only if fs (AKA pyfilesystem) module is installed
+        try:
+            from fs.memoryfs import MemoryFS
+
+            # rewind before inserting
+            stream.seek(0)
+            db.define_table('tt', Field('fileobj', 'upload',
+                                        uploadfs=MemoryFS(),
+                                        autodelete=True))
+
+            f_id = db.tt.insert(fileobj=stream)
+
+            row = db.tt[f_id]
+            (retr_name, retr_stream) = db.tt.fileobj.retrieve(row.fileobj)
+
+            # name should be the same
+            self.assertEqual(retr_name, os.path.basename(stream.name))
+            # content should be the same
+            retr_content = retr_stream.read()
+            self.assertEqual(retr_content, content)
+
+            # delete
+            row.delete_record()
+
+            # drop
+            db.tt.drop()
+
+        except ImportError:
+            pass
+
     def testRun(self):
         """Test all field types and their return values"""
         db = DAL(DEFAULT_URI, check_reserved=['all'])
