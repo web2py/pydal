@@ -7,7 +7,7 @@ from .._globals import IDENTITY
 from ..connection import ConnectionPool
 from ..exceptions import NotOnNOSQLError
 from ..helpers.classes import Reference, ExecutionHandler, SQLCustomType, \
-    SQLALL, NullDriver
+    SQLALL, NullDriver, BasicStorage
 from ..helpers.methods import use_common_filters, xorify
 from ..helpers.regex import REGEX_SELECT_AS_PARSER
 from ..migrator import Migrator
@@ -891,7 +891,11 @@ class NoSQLAdapter(BaseAdapter):
 
 class NullAdapter(BaseAdapter):
     def _load_dependencies(self):
-        pass
+        self.dialect = BasicStorage(
+            quote_template="%s",
+            sequence_name=lambda val: val,
+            trigger_name=lambda val: val
+        )
 
     def find_driver(self):
         pass
