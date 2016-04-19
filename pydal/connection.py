@@ -156,5 +156,7 @@ class ConnectionPool(object):
                 else:
                     GLOBAL_LOCKER.release()
                     self.connection = self.connector()
+                    self.after_connection_hook()
                     break
-        self.after_connection_hook()
+
+                    
