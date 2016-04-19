@@ -474,6 +474,8 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 db_codec=db_codec, after_connection=after_connection,
                 entity_quoting=entity_quoting)
             migrate = fake_migrate = False
+            self.validators_method = None
+            self.validators = None
         adapter = self._adapter
         self._uri_hash = table_hash or hashlib_md5(adapter.uri).hexdigest()
         self.check_reserved = check_reserved

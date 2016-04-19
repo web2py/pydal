@@ -891,11 +891,8 @@ class NoSQLAdapter(BaseAdapter):
 
 class NullAdapter(BaseAdapter):
     def _load_dependencies(self):
-        self.dialect = BasicStorage(
-            quote_template="%s",
-            sequence_name=lambda val: val,
-            trigger_name=lambda val: val
-        )
+        from ..dialects.base import CommonDialect
+        self.dialect = CommonDialect(self)
 
     def find_driver(self):
         pass
