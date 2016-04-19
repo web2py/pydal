@@ -39,6 +39,11 @@ if PY2:
         if isinstance(obj, unicode):
             return obj.encode(charset, errors)
         raise TypeError('Expected bytes')
+
+    def to_native(obj, charset='utf8', errors='strict'):
+        if obj is None or isinstance(obj, str):
+            return obj
+        return obj.encode(charset, errors)
 else:
     import pickle
     from io import StringIO
@@ -65,6 +70,11 @@ else:
         if isinstance(obj, str):
             return obj.encode(charset, errors)
         raise TypeError('Expected bytes')
+
+    def to_native(obj, charset='utf8', errors='strict'):
+        if obj is None or isinstance(obj, str):
+            return obj
+        return obj.decode(charset, errors)
 
 
 def with_metaclass(meta, *bases):

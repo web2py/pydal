@@ -17,14 +17,15 @@ long = integer_types[-1]
 from pydal import DAL, Field
 from pydal.objects import Table, Query, Expression
 from pydal.helpers.classes import SQLALL
-from ._adapt import DEFAULT_URI, IS_IMAP, drop, IS_GAE, IS_MONGODB
+from pydal.exceptions import NotOnNOSQLError
+from ._adapt import DEFAULT_URI, IS_IMAP, drop, IS_GAE, IS_MONGODB, _quote
 
 if IS_IMAP:
     from pydal.adapters import IMAPAdapter
     from pydal.contrib import mockimaplib
     IMAPAdapter.driver = mockimaplib
 elif IS_MONGODB:
-    from pydal.adapters import MongoDBAdapter
+    from pydal.adapters.mongo import Expansion
 elif IS_GAE:
     # setup GAE dummy database
     from google.appengine.ext import testbed
@@ -116,11 +117,15 @@ class TestMongo(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             db(db.tt.aa <= None).count()
         with self.assertRaises(NotImplementedError):
-            db._adapter.select(Query(db, db._adapter.AGGREGATE, db.tt.aa,
-                                     'UNKNOWN'), [db.tt.aa], {})
+            db._adapter.select(
+                Query(db, db._adapter.dialect.aggregate, db.tt.aa, 'UNKNOWN'),
+                [db.tt.aa], {})
         with self.assertRaises(NotImplementedError):
-            db._adapter.select(Expression(db, db._adapter.EXTRACT, db.tt.aa, 
-                                          'UNKNOWN', 'integer'), [db.tt.aa], {})
+            db._adapter.select(
+                Expression(
+                    db, db._adapter.dialect.extract, db.tt.aa, 'UNKNOWN',
+                    'integer'),
+                [db.tt.aa], {})
         drop(db.tt)
 
         db.define_table('tt', Field('aa', 'integer'))
@@ -143,7 +148,7 @@ class TestMongo(unittest.TestCase):
             db(db.tt.aa.contains(1.0)).count()
         with self.assertRaises(NotImplementedError):
             db().select(db.tt.aa.lower()[4:-1]).first()
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(NotOnNOSQLError):
             db(db.tt.aa.belongs(db()._select(db.tt.aa))).count()
         with self.assertRaises(RuntimeError):
             db(db.tt.aa.lower()).update(aa='bb')
@@ -152,16 +157,16 @@ class TestMongo(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             db().select()
         with self.assertRaises(RuntimeError):
-            MongoDBAdapter.Expanded(db._adapter, 'delete',
-                Query(db, db._adapter.EQ, db.tt.aa, 'x'), [True])
+            Expansion(db._adapter, 'delete',
+                Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'), [True])
         with self.assertRaises(RuntimeError):
-            MongoDBAdapter.Expanded(db._adapter, 'delete',
-                Query(db, db._adapter.EQ, db.tt.aa, 'x'), [True])
+            Expansion(db._adapter, 'delete',
+                Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'), [True])
         with self.assertRaises(RuntimeError):
-            expanded = MongoDBAdapter.Expanded(db._adapter, 'count',
-                Query(db, db._adapter.EQ, db.tt.aa, 'x'), [True])
-        expanded = MongoDBAdapter.Expanded(db._adapter, 'count',
-            Query(db, db._adapter.EQ, db.tt.aa, 'x'), [])
+            expanded = Expansion(db._adapter, 'count',
+                Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'), [True])
+        expanded = Expansion(db._adapter, 'count',
+            Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'), [])
         self.assertEqual(db._adapter.expand(expanded).query_dict, {'aa': 'x'})
 
         if db._adapter.server_version_major >= 2.6:
@@ -181,10 +186,10 @@ class TestMongo(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 db._adapter.delete('tt', 'x', safe=safe)
             self.assertEqual(db._adapter.delete(
-                'tt', Query(db, db._adapter.EQ, db.tt.aa, 'x'), safe=safe), 1)
+                'tt', Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'), safe=safe), 1)
             self.assertEqual(db(db.tt.aa=='x').count(), 0)
             self.assertEqual(db._adapter.update('tt',
-                    Query(db, db._adapter.EQ, db.tt.aa, 'x'),
+                    Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'),
                     db['tt']._listify({'aa':'x'}), safe=safe), 0)
             drop(db.tt)
             db.close()
@@ -195,13 +200,13 @@ class TestMongo(unittest.TestCase):
         i1 = db.tt.insert(aa=1)
         db.tt.insert(aa=4, b=i1)
         q = db.tt.b==db.tt.id
-        with self.assertRaises(MongoDBAdapter.NotOnNoSqlError):
+        with self.assertRaises(NotOnNOSQLError):
             db(db.tt).select(left=db.tt.on(q))
-        with self.assertRaises(MongoDBAdapter.NotOnNoSqlError):
+        with self.assertRaises(NotOnNOSQLError):
             db(db.tt).select(join=db.tt.on(q))
-        with self.assertRaises(MongoDBAdapter.NotOnNoSqlError):
+        with self.assertRaises(NotOnNOSQLError):
             db(db.tt).select(db.tt.on(q))
-        with self.assertRaises(SyntaxError):
+        with self.assertRaises(TypeError):
             db(db.tt).select(UNKNOWN=True)
         db(db.tt).select(for_update=True)
         self.assertEqual(db(db.tt).count(), 2)
@@ -223,7 +228,7 @@ class TestFields(unittest.TestCase):
             - not a python keyword
             - not starting with underscore or an integer
             - not containing dots
-        
+
         Basically, anything alphanumeric, no symbols, only underscore as
         punctuation
         """
@@ -253,8 +258,8 @@ class TestFields(unittest.TestCase):
             self.assertRaises(SyntaxError, Field, a, 'string')
 
         # Check that Field names don't allow a unicode string
-        non_valid_examples = non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ", 
-                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ', 
+        non_valid_examples = non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ",
+                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ',
                 u'ℊεᾔ℮яαт℮∂', u'♭ƴ', u'ᾔ☤ρℌℓ☺ḓ']
         for a in non_valid_examples:
             self.assertRaises(SyntaxError, Field, a, 'string')
@@ -392,7 +397,7 @@ class TestTables(unittest.TestCase):
             - not a python keyword
             - not starting with underscore or an integer
             - not containing dots
-        
+
         Basically, anything alphanumeric, no symbols, only underscore as
         punctuation
         """
@@ -422,8 +427,8 @@ class TestTables(unittest.TestCase):
             self.assertRaises(SyntaxError, Table, None, a)
 
         # Check that Table names don't allow a unicode string
-        non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ", 
-                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ', 
+        non_valid_examples = ["ℙƴ☂ℌøἤ", u"ℙƴ☂ℌøἤ",
+                u'àè', u'ṧøмℯ', u'тεṧт', u'♥αłüℯṧ',
                 u'ℊεᾔ℮яαт℮∂', u'♭ƴ', u'ᾔ☤ρℌℓ☺ḓ']
         for a in non_valid_examples:
             self.assertRaises(SyntaxError, Table, None, a)
@@ -563,7 +568,7 @@ class TestSelect(unittest.TestCase):
 
     def testListInteger(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', 
+        db.define_table('tt',
                         Field('aa', 'list:integer'))
         l=[0,1,2,3,4,5]
         db.tt.insert(aa=l)
@@ -573,7 +578,7 @@ class TestSelect(unittest.TestCase):
 
     def testListString(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', 
+        db.define_table('tt',
                         Field('aa', 'list:string'))
         l=['a', 'b', 'c']
         db.tt.insert(aa=l)
@@ -1013,7 +1018,7 @@ class TestDatetime(unittest.TestCase):
         db.tt.insert(aa=t0)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
         drop(db.tt)
-        
+
         db.define_table('tt', Field('aa', 'date'))
         t0 = datetime.date.today()
         db.tt.insert(aa=t0)
@@ -1033,7 +1038,7 @@ class TestExpressions(unittest.TestCase):
             )
         for dal_opt in DAL_OPTS:
             db = DAL(DEFAULT_URI, check_reserved=['all'], **dal_opt[1])
-            db.define_table('tt', Field('aa', 'integer'), 
+            db.define_table('tt', Field('aa', 'integer'),
                             Field('bb', 'integer', default=0), Field('cc'))
             self.assertEqual(isinstance(db.tt.insert(aa=1), long), dal_opt[0])
             self.assertEqual(isinstance(db.tt.insert(aa=2), long), dal_opt[0])
@@ -1146,7 +1151,7 @@ class TestExpressions(unittest.TestCase):
             )
 
         for uv in update_vals:
-            db.define_table('tt', Field('aa', 'integer', default=0), 
+            db.define_table('tt', Field('aa', 'integer', default=0),
                             Field('bb', uv[0]))
             self.assertTrue(isinstance(db.tt.insert(bb=uv[1]), long))
             self.assertEqual(db(db.tt.aa + 1 == 1).select(db.tt.bb)[0].bb, uv[1])
@@ -1366,7 +1371,8 @@ class TestReference(unittest.TestCase):
                 }
                 self.assertEqual(db(db.tt.name).count(), expected_count[ondelete])
                 if ondelete == 'SET NULL':
-                    self.assertEqual(db(db.tt.name == 'yyy').select()[0].aa, 0)
+                    self.assertEqual(
+                        db(db.tt.name == 'yyy').select()[0].aa, None)
             drop(db.tt)
             db.commit()
             db.close()
@@ -1664,7 +1670,7 @@ class TestRNameTable(unittest.TestCase):
     #tests for highly experimental rname attribute
     def testSelect(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.QUOTE_TEMPLATE % 'a very complicated tablename'
+        rname = _quote(db, 'a very complicated tablename')
         db.define_table(
             'easy_name',
             Field('a_field'),
@@ -1689,8 +1695,8 @@ class TestRNameTable(unittest.TestCase):
     @unittest.skip("JOIN queries are not supported")
     def testJoin(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.QUOTE_TEMPLATE % 'this is table t1'
-        rname2 = db._adapter.QUOTE_TEMPLATE % 'this is table t2'
+        rname = _quote(db, 'this is table t1')
+        rname2 = _quote(db, 'this is table t2')
         db.define_table('t1', Field('aa'), rname=rname)
         db.define_table('t2', Field('aa'), Field('b', db.t1), rname=rname2)
         i1 = db.t1.insert(aa='1')
@@ -1763,8 +1769,8 @@ class TestRNameFields(unittest.TestCase):
     # tests for highly experimental rname attribute
     def testSelect(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'a very complicated fieldname'
-        rname2 = db._adapter.__class__.QUOTE_TEMPLATE % 'rating from 1 to 10'
+        rname = _quote(db, 'a very complicated fieldname')
+        rname2 = _quote(db, 'rating from 1 to 10')
         db.define_table(
             'easy_name',
             Field('a_field', rname=rname),
@@ -1794,7 +1800,7 @@ class TestRNameFields(unittest.TestCase):
         rtn = db(db.easy_name.id > 0).select(avg)
         self.assertEqual(rtn[0][avg], 2)
 
-        rname = db._adapter.__class__.QUOTE_TEMPLATE % 'this is the person name'
+        rname = _quote(db, 'this is the person name')
         db.define_table(
             'person',
             Field('name', default="Michael", rname=rname),
@@ -1835,7 +1841,7 @@ class TestRNameFields(unittest.TestCase):
     @unittest.skipIf(IS_GAE, 'TODO: Datastore does not accept dict objects as json field input.')
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.QUOTE_TEMPLATE % 'a very complicated fieldname'
+        rname = _quote(db, 'a very complicated fieldname')
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
             db.define_table('tt', Field('aa', ft, default='', rname=rname))
             self.assertEqual(isinstance(db.tt.insert(aa='x'), long), True)
@@ -1906,7 +1912,7 @@ class TestRNameFields(unittest.TestCase):
 
     def testInsert(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.QUOTE_TEMPLATE % 'a very complicated fieldname'
+        rname = _quote(db, 'a very complicated fieldname')
         db.define_table('tt', Field('aa', rname=rname))
         self.assertEqual(isinstance(db.tt.insert(aa='1'), long), True)
         self.assertEqual(isinstance(db.tt.insert(aa='1'), long), True)
@@ -1925,8 +1931,8 @@ class TestRNameFields(unittest.TestCase):
     @unittest.skip("JOIN queries are not supported")
     def testJoin(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
-        rname = db._adapter.QUOTE_TEMPLATE % 'this is field aa'
-        rname2 = db._adapter.QUOTE_TEMPLATE % 'this is field b'
+        rname = _quote(db, 'this is field aa')
+        rname2 = _quote(db, 'this is field b')
         db.define_table('t1', Field('aa', rname=rname))
         db.define_table('t2', Field('aa', rname=rname), Field('b', db.t1, rname=rname2))
         i1 = db.t1.insert(aa='1')

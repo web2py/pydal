@@ -123,7 +123,6 @@ For more info::
 
 """
 
-import copy
 import glob
 import logging
 import socket
@@ -137,14 +136,14 @@ from ._compat import PY2, pickle, hashlib_md5, pjoin, copyreg, integer_types, \
     with_metaclass
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT
 from ._load import OrderedDict
-from .helpers.classes import Serializable, SQLCallableList, BasicStorage
+from .helpers.classes import Serializable, SQLCallableList, BasicStorage, \
+    RecordUpdater, RecordDeleter, TimingHandler
 from .helpers.methods import hide_password, smart_query, auto_validators, \
     auto_represent
-from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME, \
-    REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
+from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME
+from .helpers.rest import RestParser
 from .helpers.serializers import serializers
 from .objects import Table, Field, Row, Set
-from .adapters import ADAPTERS
 from .adapters.base import BaseAdapter
 
 long = integer_types[-1]
@@ -259,31 +258,38 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     Table = Table
     Row = Row
 
+    record_operators = {
+        'update_record': RecordUpdater,
+        'delete_record': RecordDeleter
+    }
+
+    execution_handlers = [TimingHandler]
+
     def __new__(cls, uri='sqlite://dummy.db', *args, **kwargs):
-        if not hasattr(THREAD_LOCAL, 'db_instances'):
-            THREAD_LOCAL.db_instances = {}
-        if not hasattr(THREAD_LOCAL, 'db_instances_zombie'):
-            THREAD_LOCAL.db_instances_zombie = {}
+        if not hasattr(THREAD_LOCAL, '_pydal_db_instances_'):
+            THREAD_LOCAL._pydal_db_instances_ = {}
+        if not hasattr(THREAD_LOCAL, '_pydal_db_instances_zombie_'):
+            THREAD_LOCAL._pydal_db_instances_zombie_ = {}
         if uri == '<zombie>':
             db_uid = kwargs['db_uid']  # a zombie must have a db_uid!
-            if db_uid in THREAD_LOCAL.db_instances:
-                db_group = THREAD_LOCAL.db_instances[db_uid]
+            if db_uid in THREAD_LOCAL._pydal_db_instances_:
+                db_group = THREAD_LOCAL._pydal_db_instances_[db_uid]
                 db = db_group[-1]
-            elif db_uid in THREAD_LOCAL.db_instances_zombie:
-                db = THREAD_LOCAL.db_instances_zombie[db_uid]
+            elif db_uid in THREAD_LOCAL._pydal_db_instances_zombie_:
+                db = THREAD_LOCAL._pydal_db_instances_zombie_[db_uid]
             else:
                 db = super(DAL, cls).__new__(cls)
-                THREAD_LOCAL.db_instances_zombie[db_uid] = db
+                THREAD_LOCAL._pydal_db_instances_zombie_[db_uid] = db
         else:
             db_uid = kwargs.get('db_uid', hashlib_md5(repr(uri)).hexdigest())
-            if db_uid in THREAD_LOCAL.db_instances_zombie:
-                db = THREAD_LOCAL.db_instances_zombie[db_uid]
-                del THREAD_LOCAL.db_instances_zombie[db_uid]
+            if db_uid in THREAD_LOCAL._pydal_db_instances_zombie_:
+                db = THREAD_LOCAL._pydal_db_instances_zombie_[db_uid]
+                del THREAD_LOCAL._pydal_db_instances_zombie_[db_uid]
             else:
                 db = super(DAL, cls).__new__(cls)
-            db_group = THREAD_LOCAL.db_instances.get(db_uid, [])
+            db_group = THREAD_LOCAL._pydal_db_instances_.get(db_uid, [])
             db_group.append(db)
-            THREAD_LOCAL.db_instances[db_uid] = db_group
+            THREAD_LOCAL._pydal_db_instances_[db_uid] = db_group
         db._db_uid = db_uid
         return db
 
@@ -309,7 +315,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             }
 
         """
-        dbs = getattr(THREAD_LOCAL, 'db_instances', {}).items()
+        dbs = getattr(THREAD_LOCAL, '_pydal_db_instances_', {}).items()
         infos = {}
         for db_uid, db_group in dbs:
             for db in db_group:
@@ -422,14 +428,10 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             for k in range(attempts):
                 for uri in uris:
                     try:
+                        from .adapters import adapters
                         if is_jdbc and not uri.startswith('jdbc:'):
                             uri = 'jdbc:'+uri
                         self._dbname = REGEX_DBNAME.match(uri).group()
-                        if self._dbname not in ADAPTERS:
-                            raise SyntaxError(
-                                "Error in URI '%s' or database not supported"
-                                % self._dbname
-                            )
                         # notice that driver args or {} else driver_args
                         # defaults to {} global, not correct
                         kwargs = dict(db=self,
@@ -443,17 +445,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                                       do_connect=do_connect,
                                       after_connection=after_connection,
                                       entity_quoting=entity_quoting)
-                        self._adapter = ADAPTERS[self._dbname](**kwargs)
-                        types = ADAPTERS[self._dbname].types
-                        # copy so multiple DAL() possible
-                        self._adapter.types = copy.copy(types)
-                        self._adapter.build_parsemap()
-                        self._adapter.ignore_field_case = ignore_field_case
+                        adapter = adapters.get_for(self._dbname)
+                        self._adapter = adapter(**kwargs)
+                        #self._adapter.ignore_field_case = ignore_field_case
                         if bigint_id:
-                            if 'big-id' in types and 'reference' in types:
-                                self._adapter.types['id'] = types['big-id']
-                                self._adapter.types['reference'] = \
-                                    types['big-reference']
+                            self._adapter.dialect._force_bigints()
                         connected = True
                         break
                     except SyntaxError:
@@ -535,266 +531,10 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 raise SyntaxError(
                     'invalid table/column name "%s" is a "%s" reserved SQL/NOSQL keyword' % (name, backend.upper()))
 
-    def parse_as_rest(self,patterns,args,vars,queries=None,nested_select=True):
-        """
-        Example:
-            Use as::
-
-                db.define_table('person',Field('name'),Field('info'))
-                db.define_table('pet',
-                    Field('ownedby',db.person),
-                    Field('name'),Field('info')
-                )
-
-                @request.restful()
-                def index():
-                    def GET(*args,**vars):
-                        patterns = [
-                            "/friends[person]",
-                            "/{person.name}/:field",
-                            "/{person.name}/pets[pet.ownedby]",
-                            "/{person.name}/pets[pet.ownedby]/{pet.name}",
-                            "/{person.name}/pets[pet.ownedby]/{pet.name}/:field",
-                            ("/dogs[pet]", db.pet.info=='dog'),
-                            ("/dogs[pet]/{pet.name.startswith}", db.pet.info=='dog'),
-                            ]
-                        parser = db.parse_as_rest(patterns,args,vars)
-                        if parser.status == 200:
-                            return dict(content=parser.response)
-                        else:
-                            raise HTTP(parser.status,parser.error)
-
-                    def POST(table_name,**vars):
-                        if table_name == 'person':
-                            return db.person.validate_and_insert(**vars)
-                        elif table_name == 'pet':
-                            return db.pet.validate_and_insert(**vars)
-                        else:
-                            raise HTTP(400)
-                    return locals()
-        """
-
-        db = self
-        re1 = REGEX_SEARCH_PATTERN
-        re2 = REGEX_SQUARE_BRACKETS
-
-        def auto_table(table,base='',depth=0):
-            patterns = []
-            for field in db[table].fields:
-                if base:
-                    tag = '%s/%s' % (base,field.replace('_','-'))
-                else:
-                    tag = '/%s/%s' % (table.replace('_','-'),field.replace('_','-'))
-                f = db[table][field]
-                if not f.readable: continue
-                if f.type=='id' or 'slug' in field or f.type.startswith('reference'):
-                    tag += '/{%s.%s}' % (table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                elif f.type.startswith('boolean'):
-                    tag += '/{%s.%s}' % (table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                elif f.type in ('float','double','integer','bigint'):
-                    tag += '/{%s.%s.ge}/{%s.%s.lt}' % (table,field,table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                elif f.type.startswith('list:'):
-                    tag += '/{%s.%s.contains}' % (table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                elif f.type in ('date','datetime'):
-                    tag+= '/{%s.%s.year}' % (table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                    tag+='/{%s.%s.month}' % (table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                    tag+='/{%s.%s.day}' % (table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                if f.type in ('datetime','time'):
-                    tag+= '/{%s.%s.hour}' % (table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                    tag+='/{%s.%s.minute}' % (table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                    tag+='/{%s.%s.second}' % (table,field)
-                    patterns.append(tag)
-                    patterns.append(tag+'/:field')
-                if depth>0:
-                    for f in db[table]._referenced_by:
-                        tag+='/%s[%s.%s]' % (table,f.tablename,f.name)
-                        patterns.append(tag)
-                        patterns += auto_table(table,base=tag,depth=depth-1)
-            return patterns
-
-        if patterns == 'auto':
-            patterns=[]
-            for table in db.tables:
-                if not table.startswith('auth_'):
-                    patterns.append('/%s[%s]' % (table,table))
-                    patterns += auto_table(table,base='',depth=1)
-        else:
-            i = 0
-            while i<len(patterns):
-                pattern = patterns[i]
-                if not isinstance(pattern,str):
-                    pattern = pattern[0]
-                tokens = pattern.split('/')
-                if tokens[-1].startswith(':auto') and re2.match(tokens[-1]):
-                    new_patterns = auto_table(tokens[-1][tokens[-1].find('[')+1:-1],
-                                              '/'.join(tokens[:-1]))
-                    patterns = patterns[:i]+new_patterns+patterns[i+1:]
-                    i += len(new_patterns)
-                else:
-                    i += 1
-        if '/'.join(args) == 'patterns':
-            return self.Row({'status':200,'pattern':'list',
-                        'error':None,'response':patterns})
-        for pattern in patterns:
-            basequery, exposedfields = None, []
-            if isinstance(pattern,tuple):
-                if len(pattern)==2:
-                    pattern, basequery = pattern
-                elif len(pattern)>2:
-                    pattern, basequery, exposedfields = pattern[0:3]
-            otable=table=None
-            if not isinstance(queries,dict):
-                dbset=db(queries)
-                if basequery is not None:
-                    dbset = dbset(basequery)
-            i=0
-            tags = pattern[1:].split('/')
-            if len(tags)!=len(args):
-                continue
-            for tag in tags:
-                if re1.match(tag):
-                    # print 're1:'+tag
-                    tokens = tag[1:-1].split('.')
-                    table, field = tokens[0], tokens[1]
-                    if not otable or table == otable:
-                        if len(tokens)==2 or tokens[2]=='eq':
-                            query = db[table][field]==args[i]
-                        elif tokens[2]=='ne':
-                            query = db[table][field]!=args[i]
-                        elif tokens[2]=='lt':
-                            query = db[table][field]<args[i]
-                        elif tokens[2]=='gt':
-                            query = db[table][field]>args[i]
-                        elif tokens[2]=='ge':
-                            query = db[table][field]>=args[i]
-                        elif tokens[2]=='le':
-                            query = db[table][field]<=args[i]
-                        elif tokens[2]=='year':
-                            query = db[table][field].year()==args[i]
-                        elif tokens[2]=='month':
-                            query = db[table][field].month()==args[i]
-                        elif tokens[2]=='day':
-                            query = db[table][field].day()==args[i]
-                        elif tokens[2]=='hour':
-                            query = db[table][field].hour()==args[i]
-                        elif tokens[2]=='minute':
-                            query = db[table][field].minutes()==args[i]
-                        elif tokens[2]=='second':
-                            query = db[table][field].seconds()==args[i]
-                        elif tokens[2]=='startswith':
-                            query = db[table][field].startswith(args[i])
-                        elif tokens[2]=='contains':
-                            query = db[table][field].contains(args[i])
-                        else:
-                            raise RuntimeError("invalid pattern: %s" % pattern)
-                        if len(tokens)==4 and tokens[3]=='not':
-                            query = ~query
-                        elif len(tokens)>=4:
-                            raise RuntimeError("invalid pattern: %s" % pattern)
-                        if not otable and isinstance(queries,dict):
-                            dbset = db(queries[table])
-                            if basequery is not None:
-                                dbset = dbset(basequery)
-                        dbset=dbset(query)
-                    else:
-                        raise RuntimeError("missing relation in pattern: %s" % pattern)
-                elif re2.match(tag) and args[i]==tag[:tag.find('[')]:
-                    ref = tag[tag.find('[')+1:-1]
-                    if '.' in ref and otable:
-                        table,field = ref.split('.')
-                        selfld = '_id'
-                        if db[table][field].type.startswith('reference '):
-                            refs = [ x.name for x in db[otable] if x.type == db[table][field].type ]
-                        else:
-                            refs = [ x.name for x in db[table]._referenced_by if x.tablename==otable ]
-                        if refs:
-                            selfld = refs[0]
-                        if nested_select:
-                            try:
-                                dbset=db(db[table][field].belongs(dbset._select(db[otable][selfld])))
-                            except ValueError:
-                                return self.Row({'status':400,'pattern':pattern,
-                                            'error':'invalid path','response':None})
-                        else:
-                            items = [item.id for item in dbset.select(db[otable][selfld])]
-                            dbset=db(db[table][field].belongs(items))
-                    else:
-                        table = ref
-                        if not otable and isinstance(queries,dict):
-                            dbset = db(queries[table])
-                        dbset=dbset(db[table])
-                elif tag==':field' and table:
-                    # print 're3:'+tag
-                    field = args[i]
-                    if not field in db[table]: break
-                    # hand-built patterns should respect .readable=False as well
-                    if not db[table][field].readable:
-                        return self.Row({'status':418,'pattern':pattern,
-                                    'error':'I\'m a teapot','response':None})
-                    try:
-                        distinct = vars.get('distinct', False) == 'True'
-                        offset = long(vars.get('offset',None) or 0)
-                        limits = (offset,long(vars.get('limit',None) or 1000)+offset)
-                    except ValueError:
-                        return self.Row({'status':400,'error':'invalid limits','response':None})
-                    items =  dbset.select(db[table][field], distinct=distinct, limitby=limits)
-                    if items:
-                        return self.Row({'status':200,'response':items,
-                                    'pattern':pattern})
-                    else:
-                        return self.Row({'status':404,'pattern':pattern,
-                                    'error':'no record found','response':None})
-                elif tag != args[i]:
-                    break
-                otable = table
-                i += 1
-                if i == len(tags) and table:
-                    if hasattr(db[table], '_id'):
-                        ofields = vars.get('order', db[table]._id.name).split('|')
-                    else:
-                        ofields = vars.get('order', db[table]._primarykey[0]).split('|')
-                    try:
-                        orderby = [db[table][f] if not f.startswith('~') else ~db[table][f[1:]] for f in ofields]
-                    except (KeyError, AttributeError):
-                        return self.Row({'status':400,'error':'invalid orderby','response':None})
-                    if exposedfields:
-                        fields = [field for field in db[table] if str(field).split('.')[-1] in exposedfields and field.readable]
-                    else:
-                        fields = [field for field in db[table] if field.readable]
-                    count = dbset.count()
-                    try:
-                        offset = long(vars.get('offset',None) or 0)
-                        limits = (offset,long(vars.get('limit',None) or 1000)+offset)
-                    except ValueError:
-                        return self.Row({'status':400,'error':'invalid limits','response':None})
-                    #if count > limits[1]-limits[0]:
-                    #    return self.Row({'status':400,'error':'too many records','response':None})
-                    try:
-                        response = dbset.select(limitby=limits,orderby=orderby,*fields)
-                    except ValueError:
-                        return self.Row({'status':400,'pattern':pattern,
-                                    'error':'invalid path','response':None})
-                    return self.Row({'status':200,'response':response,
-                                'pattern':pattern,'count':count})
-        return self.Row({'status':400,'error':'no matching pattern','response':None})
+    def parse_as_rest(self, patterns, args, vars, queries=None,
+                      nested_select=True):
+        return RestParser(self).parse(
+            patterns, args, vars, queries, nested_select)
 
     def define_table(
         self,
@@ -957,11 +697,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
 
     def close(self):
         self._adapter.close()
-        if self._db_uid in THREAD_LOCAL.db_instances:
-            db_group = THREAD_LOCAL.db_instances[self._db_uid]
+        if self._db_uid in THREAD_LOCAL._pydal_db_instances_:
+            db_group = THREAD_LOCAL._pydal_db_instances_[self._db_uid]
             db_group.remove(self)
             if not db_group:
-                del THREAD_LOCAL.db_instances[self._db_uid]
+                del THREAD_LOCAL._pydal_db_instances_[self._db_uid]
 
     def executesql(self, query, placeholders=None, as_dict=False,
                    fields=None, colnames=None, as_ordered_dict=False):
@@ -1035,7 +775,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                         fields[i] = fields[i].decode("utf8")
 
             # will hold our finished resultset in a list
-            data = adapter._fetchall()
+            data = adapter.fetchall()
             # convert the list for each row into a dictionary so it's
             # easier to work with. row['field_name'] rather than row[0]
             if as_ordered_dict:
@@ -1044,7 +784,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 _dict = dict
             return [_dict(zip(fields,row)) for row in data]
         try:
-            data = adapter._fetchall()
+            data = adapter.fetchall()
         except:
             return None
         if fields or colnames:
