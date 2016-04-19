@@ -136,6 +136,7 @@ class ConnectionPool(object):
 
         if not self.pool_size:
             self.connection = self.connector()
+            self.after_connection_hook()
         else:
             uri = self.uri
             POOLS = ConnectionPool.POOLS
