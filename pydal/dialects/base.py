@@ -146,13 +146,13 @@ class SQLDialect(CommonDialect):
     def where(self, query):
         return 'WHERE %s' % query
 
-    def update(self, tablename, values, where):
+    def update(self, tablename, values, where=None):
         whr = ''
         if where:
             whr = ' %s' % self.where(where)
         return 'UPDATE %s SET %s%s;' % (tablename, values, whr)
 
-    def delete(self, tablename, where):
+    def delete(self, tablename, where=None):
         whr = ''
         if where:
             whr = ' %s' % self.where(where)
