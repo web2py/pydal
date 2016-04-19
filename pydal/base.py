@@ -144,7 +144,7 @@ from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME
 from .helpers.rest import RestParser
 from .helpers.serializers import serializers
 from .objects import Table, Field, Row, Set
-from .adapters.base import BaseAdapter
+from .adapters.base import BaseAdapter, NullAdapter
 
 long = integer_types[-1]
 
@@ -469,7 +469,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     "Failure to connect, tried %d times:\n%s" % (attempts, tb)
                 )
         else:
-            self._adapter = BaseAdapter(
+            self._adapter = NullAdapter(
                 db=self, pool_size=0, uri='None', folder=folder,
                 db_codec=db_codec, after_connection=after_connection,
                 entity_quoting=entity_quoting)
