@@ -62,7 +62,7 @@ class BasicParser(Parser):
         return self.registered['integer'](value, 'bigint')
 
 
-class DateTimeParser(Parser):
+class DateParser(Parser):
     @for_type('date')
     def _date(self, value):
         if isinstance(value, datetime):
@@ -70,6 +70,8 @@ class DateTimeParser(Parser):
         (y, m, d) = map(int, str(value)[:10].strip().split('-'))
         return date(y, m, d)
 
+
+class TimeParser(Parser):
     @for_type('time')
     def _time(self, value):
         if isinstance(value, datetime):
@@ -81,6 +83,8 @@ class DateTimeParser(Parser):
             (h, mi, s) = time_items + [0]
         return time(h, mi, s)
 
+
+class DateTimeParser(Parser):
     @for_type('datetime')
     def _datetime(self, value):
         value = str(value)
@@ -88,11 +92,11 @@ class DateTimeParser(Parser):
         if '+' in timezone:
             ms, tz = timezone.split('+')
             h, m = tz.split(':')
-            dt = timedelta(seconds=3600*int(h)+60*int(m))
+            dt = timedelta(seconds=3600 * int(h) + 60 * int(m))
         elif '-' in timezone:
             ms, tz = timezone.split('-')
             h, m = tz.split(':')
-            dt = -timedelta(seconds=3600*int(h)+60*int(m))
+            dt = -timedelta(seconds=3600 * int(h) + 60 * int(m))
         else:
             ms = timezone.upper().split('Z')[0]
             dt = None
@@ -146,5 +150,8 @@ class ListsParser(BasicParser):
 
 
 @parsers.register_for(SQLAdapter)
-class Commonparser(ListsParser, DateTimeParser, DecimalParser, JSONParser):
+class Commonparser(
+    ListsParser, DateParser, TimeParser, DateTimeParser, DecimalParser,
+    JSONParser
+):
     pass

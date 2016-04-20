@@ -243,11 +243,12 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 new_column_name = self._regex_select_as_parser(colname)
                 if new_column_name is not None:
                     column_name = new_column_name.groups(0)
-                    setattr(new_row, column_name[0], value)
+                    new_row[column_name[0]] = value
         #: add extras if needed (eg. operations results)
         if extras:
             new_row['_extra'] = extras
         #: add virtuals
+        new_row = self.db.Row(**new_row)
         for tablename in fields_virtual.keys():
             for f, v in fields_virtual[tablename]:
                 try:
@@ -261,7 +262,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     )
                 except (AttributeError, KeyError):
                     pass  # not enough fields to define virtual field
-        return self.db.Row(**new_row)
+        return new_row
 
     def _parse_expand_colnames(self, colnames):
         """
