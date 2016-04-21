@@ -1,3 +1,4 @@
+from collections import defaultdict
 from .._compat import PY2, with_metaclass, iteritems, to_unicode
 from .._gae import gae
 from ..helpers._internals import Dispatcher
@@ -182,7 +183,7 @@ class Representer(with_metaclass(MetaRepresenter)):
         self._tbefore_registry_ = {}
         for name, obj in iteritems(self._declared_tbefore_):
             self._tbefore_registry_[obj.field_type] = obj.f
-        self.registered_t = {}
+        self.registered_t = defaultdict(lambda self=self: self._default)
         for name, obj in iteritems(self._declared_trepresenters_):
             if obj.field_type in self._tbefore_registry_:
                 self.registered_t[obj.field_type] = TReprMethodWrapper(
@@ -217,7 +218,7 @@ class Representer(with_metaclass(MetaRepresenter)):
 
     def get_representer_for_type(self, field_type):
         key = REGEX_TYPE.match(field_type).group(0)
-        return self.registered_t.get(key, self._default)
+        return self.registered_t[key]
 
     def adapt(self, value):
         if PY2:
