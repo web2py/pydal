@@ -174,6 +174,9 @@ class TestFields(unittest.TestCase):
         retr_content = retr_stream.read()
         self.assertEqual(retr_content, content)
 
+        # close streams!
+        retr_stream.close()
+
         # delete
         row.delete_record()
 
@@ -200,6 +203,10 @@ class TestFields(unittest.TestCase):
             # content should be the same
             retr_content = retr_stream.read()
             self.assertEqual(retr_content, content)
+
+            # close streams
+            retr_stream.close()
+            stream.close()
 
             # delete
             row.delete_record()
