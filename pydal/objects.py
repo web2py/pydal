@@ -1462,6 +1462,8 @@ class Field(Expression, Serializable):
         return field
 
     def store(self, file, filename=None, path=None):
+        # make sure filename is a str sequence
+        filename = "{}".format(filename)
         if self.custom_store:
             return self.custom_store(file, filename, path)
         if isinstance(file, cgi.FieldStorage):
@@ -1474,7 +1476,8 @@ class Field(Expression, Serializable):
         m = REGEX_STORE_PATTERN.search(filename)
         extension = m and m.group('e') or 'txt'
         uuid_key = self._db.uuid().replace('-', '')[-16:]
-        encoded_filename = base64.b16encode(filename).lower()
+        encoded_filename = base64.b16encode(
+            filename.encode('utf-8')).lower().decode('utf-8')
         newfilename = '%s.%s.%s.%s' % (
             self._tablename, self.name, uuid_key, encoded_filename)
         newfilename = newfilename[:(self.length - 1 - len(extension))] + \
@@ -1486,27 +1489,27 @@ class Field(Expression, Serializable):
                     blob_uploadfield_name: file.read()}
             self_uploadfield.table.insert(**keys)
         elif self_uploadfield is True:
-            if path:
-                pass
-            elif self.uploadfolder:
-                path = self.uploadfolder
-            elif self.db._adapter.folder:
-                path = pjoin(self.db._adapter.folder, '..', 'uploads')
-            else:
-                raise RuntimeError(
-                    "you must specify a Field(..., uploadfolder=...)")
-            if self.uploadseparate:
-                if self.uploadfs:
-                    raise RuntimeError("not supported")
-                path = pjoin(path, "%s.%s" % (
-                    self._tablename, self.name), uuid_key[:2]
-                )
-            if not exists(path):
-                os.makedirs(path)
-            pathfilename = pjoin(path, newfilename)
             if self.uploadfs:
                 dest_file = self.uploadfs.open(newfilename, 'wb')
             else:
+                if path:
+                    pass
+                elif self.uploadfolder:
+                    path = self.uploadfolder
+                elif self.db._adapter.folder:
+                    path = pjoin(self.db._adapter.folder, '..', 'uploads')
+                else:
+                    raise RuntimeError(
+                        "you must specify a Field(..., uploadfolder=...)")
+                if self.uploadseparate:
+                    if self.uploadfs:
+                        raise RuntimeError("not supported")
+                    path = pjoin(path, "%s.%s" % (
+                        self._tablename, self.name), uuid_key[:2]
+                    )
+                if not exists(path):
+                    os.makedirs(path)
+                pathfilename = pjoin(path, newfilename)
                 dest_file = open(pathfilename, 'wb')
             try:
                 shutil.copyfileobj(file, dest_file)
@@ -1563,7 +1566,7 @@ class Field(Expression, Serializable):
             return self.custom_retrieve_file_properties(name, path)
         if m.group('name'):
             try:
-                filename = base64.b16decode(m.group('name'), True)
+                filename = base64.b16decode(m.group('name'), True).decode('utf-8')
                 filename = REGEX_CLEANUP_FN.sub('_', filename)
             except (TypeError, AttributeError):
                 filename = name
