@@ -399,7 +399,8 @@ class SQLDialect(CommonDialect):
         return ''
 
     def coalesce(self, first, second):
-        expressions = [self.expand(first)]+[self.expand(e) for e in second]
+        expressions = [self.expand(first)] + \
+            [self.expand(val, first.type) for val in second]
         return 'COALESCE(%s)' % ','.join(expressions)
 
     def raw(self, val):
