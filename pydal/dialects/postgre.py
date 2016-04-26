@@ -2,7 +2,7 @@ from ..adapters.postgres import Postgre, PostgreNew
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
 from .base import SQLDialect
-from . import dialects, sqltype_for
+from . import dialects, sqltype_for, register_expression
 
 
 @dialects.register_for(Postgre)
@@ -168,6 +168,26 @@ class PostgreDialect(SQLDialect):
         return 'ST_DWithin(%s,%s,%s)' % (
             self.expand(first), self.expand(tup[0], first.type),
             self.expand(tup[1], 'double'))
+
+    @register_expression('doy')
+    def extract_doy(self, expr):
+        return Expression(expr.db, self.extract, expr, 'doy', 'integer')
+
+    @register_expression('dow')
+    def extract_dow(self, expr):
+        return Expression(expr.db, self.extract, expr, 'dow', 'integer')
+
+    @register_expression('isodow')
+    def extract_isodow(self, expr):
+        return Expression(expr.db, self.extract, expr, 'isodow', 'integer')
+
+    @register_expression('quarter')
+    def extract_quarter(self, expr):
+        return Expression(expr.db, self.extract, expr, 'quarter', 'integer')
+
+    @register_expression('week')
+    def extract_week(self, expr):
+        return Expression(expr.db, self.extract, expr, 'week', 'integer')
 
 
 class PostgreDialectJSON(PostgreDialect):

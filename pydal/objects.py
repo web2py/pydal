@@ -1017,23 +1017,28 @@ class Table(Serializable, BasicStorage):
         return Expression(self._db, self._db._adapter.dialect.on, self, query)
 
 
+def _expression_wrap(wrapper):
+    def wrap(self, *args, **kwargs):
+        return wrapper(self, *args, **kwargs)
+    return wrap
+
+
 class Expression(object):
+    _dialect_expressions_ = {}
 
-    def __init__(self,
-                 db,
-                 op,
-                 first=None,
-                 second=None,
-                 type=None,
-                 **optional_args
-                 ):
+    def __new__(cls, *args, **kwargs):
+        for name, wrapper in iteritems(cls._dialect_expressions_):
+            setattr(cls, name, _expression_wrap(wrapper))
+        new_cls = super(Expression, cls).__new__(cls)
+        return new_cls
 
+    def __init__(self, db, op, first=None, second=None, type=None,
+                 **optional_args):
         self.db = db
         self.op = op
         self.first = first
         self.second = second
         self._table = getattr(first, '_table', None)
-        ### self._tablename =  first._tablename ## CHECK
         if not type and first and hasattr(first, 'type'):
             self.type = first.type
         else:
