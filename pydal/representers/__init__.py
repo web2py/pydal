@@ -1,5 +1,6 @@
 from collections import defaultdict
-from .._compat import PY2, with_metaclass, iteritems, to_unicode, to_bytes
+from .._compat import PY2, with_metaclass, iteritems, to_unicode, to_bytes, \
+    string_types
 from .._gae import gae
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_TYPE
@@ -222,6 +223,8 @@ class Representer(with_metaclass(MetaRepresenter)):
 
     def adapt(self, value):
         if PY2:
+            if not isinstance(value, string_types):
+                value = str(value)
             value = to_bytes(value)
             try:
                 value.decode(self.adapter.db_codec)
