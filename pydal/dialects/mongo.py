@@ -436,9 +436,29 @@ class MongoDialect(NoSQLDialect):
             return {}
 
     def length(self, first):
-        """ https://jira.mongodb.org/browse/SERVER-5319
-            https://github.com/afchin/mongo/commit/f52105977e4d0ccb53bdddfb9c4528a3f3c40bdf
         """
+        Mongo has committed $strLenBytes, $strLenCP, and $substrCP to $project
+        aggregation stage in dev branch V3.3.4
+
+        https://jira.mongodb.org/browse/SERVER-14670
+        https://jira.mongodb.org/browse/SERVER-22580
+        db.coll.aggregate([{
+            $project: {
+                byteLength: {$strLenBytes: "$string"},
+                cpLength: {$strLenCP: "$string"}
+                byteSubstr: {$substrBytes: ["$string", 0, 4]},
+                cpSubstr: {$substrCP: ["$string", 0, 4]}
+            }
+        }])
+
+        https://jira.mongodb.org/browse/SERVER-5319
+        https://github.com/afchin/mongo/commit/f52105977e4d0ccb53bdddfb9c4528a3f3c40bdf
+        """
+        if self.adapter.server_version_major <= 3.2:
+            # $strLenBytes not supported by mongo before version 3.4
+            raise NotImplementedError()
+
+        # implement here  :-)
         raise NotImplementedError()
 
     @needs_aggregation_pipeline
@@ -451,8 +471,17 @@ class MongoDialect(NoSQLDialect):
     def random(self):
         """ ORDER BY RANDOM()
 
-            https://github.com/mongodb/cookbook/blob/master/content/patterns/random-attribute.txt
-            https://jira.mongodb.org/browse/SERVER-533
-            http://stackoverflow.com/questions/19412/how-to-request-a-random-row-in-sql
+        Mongo has released the '$sample' pipeline stage in V3.2
+        https://docs.mongodb.org/manual/reference/operator/aggregation/sample/
+
+        https://github.com/mongodb/cookbook/blob/master/content/patterns/random-attribute.txt
+        http://stackoverflow.com/questions/19412/how-to-request-a-random-row-in-sql
+        https://jira.mongodb.org/browse/SERVER-533
         """
+
+        if self.adapter.server_version_major <= 3.0:
+            # '$sample' not present until server version 3.2
+            raise NotImplementedError()
+
+        # implement here  :-)
         raise NotImplementedError()
