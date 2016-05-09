@@ -848,10 +848,10 @@ class Table(Serializable, BasicStorage):
             for f in self._after_insert]
         return ret
 
-    def _truncate(self, mode=None):
+    def _truncate(self, mode=''):
         return self._db._adapter.dialect.truncate(self, mode)
 
-    def truncate(self, mode=None):
+    def truncate(self, mode=''):
         return self._db._adapter.truncate(self, mode)
 
     def import_from_csv_file(self, csvfile, id_map=None, null='<NULL>',
