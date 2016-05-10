@@ -839,10 +839,11 @@ class Table(Serializable, BasicStorage):
 
     def import_from_csv_file(self,
                              csvfile,
-                             id_map=None,
-                             null='<NULL>',
-                             unique='uuid',
-                             id_offset=None,  # id_offset used only when id_map is None
+                             id_map = None,
+                             null = '<NULL>',
+                             unique = 'uuid',
+                             id_offset = None,  # id_offset used only when id_map is None
+                             transform = None,
                              *args, **kwargs
                              ):
         """
@@ -915,7 +916,7 @@ class Table(Serializable, BasicStorage):
                     value = id_offset[field.type[9:].strip()]+long(value)
                 except KeyError:
                     pass
-            return (field.name, value)
+            return value
 
         def is_id(colname):
             if colname in self:
@@ -927,31 +928,34 @@ class Table(Serializable, BasicStorage):
         unique_idx = None
         for lineno, line in enumerate(reader):
             if not line:
-                break
+                continue
             if not colnames:
                 # assume this is the first line of the input, contains colnames
                 colnames = [x.split('.', 1)[-1] for x in line][:len(line)]
-                cols, cid = [], None
+
+                cols, cid = {}, None
                 for i, colname in enumerate(colnames):
                     if is_id(colname):
-                        cid = i
+                        cid = colname
                     elif colname in self.fields:
-                        cols.append((i, self[colname]))
+                        cols[colname] = self[colname]
                     if colname == unique:
                         unique_idx = i
-            else:
+            elif len(line)==len(colnames):
                 # every other line contains instead data
-                items = []
-                for i, field in cols:
-                    try:
-                        items.append(fix(field, line[i], id_map, id_offset))
-                    except ValueError:
-                        raise RuntimeError("Unable to parse line:%s field:%s value:'%s'"
-                                           % (lineno+1, field, line[i]))
+                items = dict(zip(colnames, line))
+                if transform:
+                    items = transform(items)                    
 
+                ditems = dict()
+                for colname in cols:
+                    try:
+                        ditems[colname] = fix(cols[colname], items[colname], id_map, id_offset)
+                    except ValueError:
+                        raise RuntimeError("Unable to parse line:%s" % (lineno+1))
                 if not (id_map or cid is None or id_offset is None or unique_idx):
-                    csv_id = long(line[cid])
-                    curr_id = self.insert(**dict(items))
+                    csv_id = long(ditems[cid])
+                    curr_id = self.insert(**ditems)
                     if first:
                         first = False
                         # First curr_id is bigger than csv_id,
@@ -962,22 +966,24 @@ class Table(Serializable, BasicStorage):
                     # create new id until we get the same as old_id+offset
                     while curr_id < csv_id+id_offset[self._tablename]:
                         self._db(self._db[self][colnames[cid]] == curr_id).delete()
-                        curr_id = self.insert(**dict(items))
+                        curr_id = self.insert(**ditems)
                 # Validation. Check for duplicate of 'unique' &,
                 # if present, update instead of insert.
                 elif not unique_idx:
-                    new_id = self.insert(**dict(items))
+                    new_id = self.insert(**ditems)
                 else:
                     unique_value = line[unique_idx]
                     query = self._db[self][unique] == unique_value
                     record = self._db(query).select().first()
                     if record:
-                        record.update_record(**dict(items))
+                        record.update_record(**ditems)
                         new_id = record[self._id.name]
                     else:
-                        new_id = self.insert(**dict(items))
-                if id_map and cid is not None:
-                    id_map_self[long(line[cid])] = new_id
+                        new_id = self.insert(**ditems)
+                if id_map and cid is not None and cid in items:
+                    id_map_self[long(items[cid])] = new_id
+            if lineno % 1000 == 999: 
+                self._db.commit()
 
     def as_dict(self, flat=False, sanitize=True):
         table_as_dict = dict(
