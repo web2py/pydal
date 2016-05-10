@@ -1,3 +1,4 @@
+from collections import defaultdict
 from .._compat import with_metaclass, iteritems
 from .._gae import gae
 from ..helpers._internals import Dispatcher
@@ -82,7 +83,7 @@ class Parser(with_metaclass(MetaParser)):
         self._before_registry_ = {}
         for name, obj in iteritems(self._declared_before_):
             self._before_registry_[obj.field_type] = obj.f
-        self.registered = {}
+        self.registered = defaultdict(lambda self=self: self._default)
         for name, obj in iteritems(self._declared_parsers_):
             if obj.field_type in self._before_registry_:
                 self.registered[obj.field_type] = ParserMethodWrapper(
@@ -98,7 +99,7 @@ class Parser(with_metaclass(MetaParser)):
 
     def get_parser(self, field_type):
         key = REGEX_TYPE.match(field_type).group(0)
-        return self.registered.get(key, self._default)
+        return self.registered[key]
 
     def parse(self, value, field_type):
         return self.get_parser(field_type)(value, field_type)

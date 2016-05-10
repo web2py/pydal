@@ -1,13 +1,14 @@
 import copy
 import sys
 import types
+from collections import defaultdict
 from .._compat import PY2, with_metaclass, iterkeys, iteritems, hashlib_md5, \
     integer_types
 from .._globals import IDENTITY
 from ..connection import ConnectionPool
 from ..exceptions import NotOnNOSQLError
 from ..helpers.classes import Reference, ExecutionHandler, SQLCustomType, \
-    SQLALL, NullDriver, BasicStorage
+    SQLALL, NullDriver
 from ..helpers.methods import use_common_filters, xorify
 from ..helpers.regex import REGEX_SELECT_AS_PARSER
 from ..migrator import Migrator
@@ -210,8 +211,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
     def _parse(self, row, tmps, fields, colnames, blob_decode,
                cacheable, fields_virtual, fields_lazy):
-        new_row = self.db.Row(dict(
-            (tablename, self.db.Row()) for tablename in fields_virtual.keys()))
+        new_row = defaultdict(self.db.Row)
         extras = self.db.Row()
         #: let's loop over columns
         for (j, colname) in enumerate(colnames):
@@ -221,10 +221,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             #: do we have a real column?
             if tmp:
                 (tablename, fieldname, table, field, ft) = tmp
-                #: add table to row object if needed
-                colset = new_row.get(tablename, None)
-                if colset is None:
-                    colset = new_row[tablename] = self.db.Row()
+                colset = new_row[tablename]
                 #: parse value
                 value = self.parse_value(value, ft, blob_decode)
                 if field.filter_out:
@@ -246,11 +243,12 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 new_column_name = self._regex_select_as_parser(colname)
                 if new_column_name is not None:
                     column_name = new_column_name.groups(0)
-                    setattr(new_row, column_name[0], value)
+                    new_row[column_name[0]] = value
         #: add extras if needed (eg. operations results)
         if extras:
             new_row['_extra'] = extras
         #: add virtuals
+        new_row = self.db.Row(**new_row)
         for tablename in fields_virtual.keys():
             for f, v in fields_virtual[tablename]:
                 try:

@@ -28,6 +28,15 @@ class SQLiteDialect(SQLDialect):
         return '(%s REGEXP %s)' % (
             self.expand(first), self.expand(second, 'string'))
 
+    def select(self, fields, tables, where=None, groupby=None, having=None,
+               orderby=None, limitby=None, distinct=False, for_update=False):
+        if distinct and distinct is not True:
+            raise SyntaxError(
+                'DISTINCT ON is not supported by SQLite')
+        return super(SQLiteDialect, self).select(
+            fields, tables, where, groupby, having, orderby, limitby, distinct,
+            for_update)
+
     def truncate(self, table, mode=''):
         tablename = table._tablename
         return [

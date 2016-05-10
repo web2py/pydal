@@ -1026,23 +1026,28 @@ class Table(Serializable, BasicStorage):
         return Expression(self._db, self._db._adapter.dialect.on, self, query)
 
 
+def _expression_wrap(wrapper):
+    def wrap(self, *args, **kwargs):
+        return wrapper(self, *args, **kwargs)
+    return wrap
+
+
 class Expression(object):
+    _dialect_expressions_ = {}
 
-    def __init__(self,
-                 db,
-                 op,
-                 first=None,
-                 second=None,
-                 type=None,
-                 **optional_args
-                 ):
+    def __new__(cls, *args, **kwargs):
+        for name, wrapper in iteritems(cls._dialect_expressions_):
+            setattr(cls, name, _expression_wrap(wrapper))
+        new_cls = super(Expression, cls).__new__(cls)
+        return new_cls
 
+    def __init__(self, db, op, first=None, second=None, type=None,
+                 **optional_args):
         self.db = db
         self.op = op
         self.first = first
         self.second = second
         self._table = getattr(first, '_table', None)
-        ### self._tablename =  first._tablename ## CHECK
         if not type and first and hasattr(first, 'type'):
             self.type = first.type
         else:
@@ -1471,6 +1476,8 @@ class Field(Expression, Serializable):
         return field
 
     def store(self, file, filename=None, path=None):
+        # make sure filename is a str sequence
+        filename = "{}".format(filename)
         if self.custom_store:
             return self.custom_store(file, filename, path)
         if isinstance(file, cgi.FieldStorage):
@@ -1483,7 +1490,8 @@ class Field(Expression, Serializable):
         m = REGEX_STORE_PATTERN.search(filename)
         extension = m and m.group('e') or 'txt'
         uuid_key = self._db.uuid().replace('-', '')[-16:]
-        encoded_filename = base64.b16encode(filename).lower()
+        encoded_filename = base64.b16encode(
+            filename.encode('utf-8')).lower().decode('utf-8')
         newfilename = '%s.%s.%s.%s' % (
             self._tablename, self.name, uuid_key, encoded_filename)
         newfilename = newfilename[:(self.length - 1 - len(extension))] + \
@@ -1495,27 +1503,27 @@ class Field(Expression, Serializable):
                     blob_uploadfield_name: file.read()}
             self_uploadfield.table.insert(**keys)
         elif self_uploadfield is True:
-            if path:
-                pass
-            elif self.uploadfolder:
-                path = self.uploadfolder
-            elif self.db._adapter.folder:
-                path = pjoin(self.db._adapter.folder, '..', 'uploads')
-            else:
-                raise RuntimeError(
-                    "you must specify a Field(..., uploadfolder=...)")
-            if self.uploadseparate:
-                if self.uploadfs:
-                    raise RuntimeError("not supported")
-                path = pjoin(path, "%s.%s" % (
-                    self._tablename, self.name), uuid_key[:2]
-                )
-            if not exists(path):
-                os.makedirs(path)
-            pathfilename = pjoin(path, newfilename)
             if self.uploadfs:
                 dest_file = self.uploadfs.open(newfilename, 'wb')
             else:
+                if path:
+                    pass
+                elif self.uploadfolder:
+                    path = self.uploadfolder
+                elif self.db._adapter.folder:
+                    path = pjoin(self.db._adapter.folder, '..', 'uploads')
+                else:
+                    raise RuntimeError(
+                        "you must specify a Field(..., uploadfolder=...)")
+                if self.uploadseparate:
+                    if self.uploadfs:
+                        raise RuntimeError("not supported")
+                    path = pjoin(path, "%s.%s" % (
+                        self._tablename, self.name), uuid_key[:2]
+                    )
+                if not exists(path):
+                    os.makedirs(path)
+                pathfilename = pjoin(path, newfilename)
                 dest_file = open(pathfilename, 'wb')
             try:
                 shutil.copyfileobj(file, dest_file)
@@ -1572,7 +1580,7 @@ class Field(Expression, Serializable):
             return self.custom_retrieve_file_properties(name, path)
         if m.group('name'):
             try:
-                filename = base64.b16decode(m.group('name'), True)
+                filename = base64.b16decode(m.group('name'), True).decode('utf-8')
                 filename = REGEX_CLEANUP_FN.sub('_', filename)
             except (TypeError, AttributeError):
                 filename = name
