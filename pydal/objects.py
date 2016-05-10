@@ -636,10 +636,10 @@ class Table(Serializable, BasicStorage):
         return self._db._adapter.sqlsafe_table(self._tablename, self._ot)
 
     def _drop(self, mode=''):
-        return self._db._adapter.dialect.drop(self, mode)
+        return self._db._adapter.dialect.drop_table(self, mode)
 
     def drop(self, mode=''):
-        return self._db._adapter.drop(self, mode)
+        return self._db._adapter.drop_table(self, mode)
 
     def _listify(self, fields, update=False):
         new_fields = {}  # format: new_fields[name] = (field, value)
@@ -1030,6 +1030,12 @@ class Table(Serializable, BasicStorage):
 
     def on(self, query):
         return Expression(self._db, self._db._adapter.dialect.on, self, query)
+
+    def create_index(self, name, *fields):
+        self._db._adapter.create_index(self, name, *fields)
+
+    def drop_index(self, name):
+        self._db._adapter.drop_index(self, name)
 
 
 def _expression_wrap(wrapper):

@@ -75,8 +75,11 @@ class MySQLDialect(SQLDialect):
             second = 'CHAR'
         return 'CAST(%s AS %s)' % (first, second)
 
-    def drop(self, table, mode):
+    def drop_table(self, table, mode):
         # breaks db integrity but without this mysql does not drop table
         return [
             'SET FOREIGN_KEY_CHECKS=0;', 'DROP TABLE %s;' % table.sqlsafe,
             'SET FOREIGN_KEY_CHECKS=1;']
+
+    def drop_index(self, name, table):
+        return 'DROP INDEX %s ON %s;' % (self.quote(name), table.sqlsafe)

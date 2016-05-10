@@ -14,6 +14,7 @@ from ..helpers.regex import REGEX_SELECT_AS_PARSER, REGEX_TABLE_DOT_FIELD
 from ..migrator import Migrator
 from ..objects import Table, Field, Expression, Query, Rows, IterRows, \
     LazySet, LazyReferenceGetter, VirtualCommand
+from ..utils import deprecated
 from . import AdapterMeta, with_connection, with_connection_or_raise
 
 
@@ -330,13 +331,13 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             obj = obj()
         return self.representer.represent(obj, field_type)
 
-    def _drop_cleanup(self, table):
+    def _drop_table_cleanup(self, table):
         del self.db[table._tablename]
         del self.db.tables[self.db.tables.index(table._tablename)]
         self.db._remove_references_to(table)
 
-    def drop(self, table, mode=''):
-        self._drop_cleanup(table)
+    def drop_table(self, table, mode=''):
+        self._drop_table_cleanup(table)
 
     def rowslice(self, rows, minimum=0, maximum=None):
         return rows
@@ -765,20 +766,24 @@ class SQLAdapter(BaseAdapter):
     def create_table(self, *args, **kwargs):
         return self.migrator.create_table(*args, **kwargs)
 
-    def _drop_cleanup(self, table):
-        super(SQLAdapter, self)._drop_cleanup(table)
+    def _drop_table_cleanup(self, table):
+        super(SQLAdapter, self)._drop_table_cleanup(table)
         if table._dbt:
             self.migrator.file_delete(table._dbt)
             self.migrator.log('success!\n', table)
 
-    def drop(self, table, mode=''):
-        queries = self.dialect.drop(table, mode)
+    def drop_table(self, table, mode=''):
+        queries = self.dialect.drop_table(table, mode)
         for query in queries:
             if table._dbt:
                 self.migrator.log(query + '\n', table)
             self.execute(query)
         self.commit()
-        self._drop_cleanup(table)
+        self._drop_table_cleanup(table)
+
+    @deprecated('drop', 'drop_table', 'SQLAdapter')
+    def drop(self, table, mode=''):
+        return self.drop_table(table, mode='')
 
     def truncate(self, table, mode=''):
         # Prepare functions "write_to_logfile" and "close_logfile"
@@ -790,6 +795,19 @@ class SQLAdapter(BaseAdapter):
             self.migrator.log('success!\n', table)
         finally:
             pass
+
+    def create_index(self, table, index_name, *fields, **kwargs):
+        expressions = [
+            field.sqlsafe_name if isinstance(field, Field) else field
+            for field in fields]
+        sql = self.dialect.create_index(
+            index_name, table, expressions, **kwargs)
+        self.execute(sql)
+        self.commit()
+
+    def drop_index(self, table, index_name):
+        sql = self.dialect.drop_index(index_name, table)
+        self.execute(sql)
 
     def distributed_transaction_begin(self, key):
         pass
@@ -871,10 +889,14 @@ class NoSQLAdapter(BaseAdapter):
                 # this is unnecessary if the fields are indexed and unique
                 table._uniques.append(field_name)
 
-    def drop(self, table, mode=''):
+    def drop_table(self, table, mode=''):
         ctable = self.connection[table._tablename]
         ctable.drop()
-        self._drop_cleanup(table)
+        self._drop_table_cleanup(table)
+
+    @deprecated('drop', 'drop_table', 'SQLAdapter')
+    def drop(self, table, mode=''):
+        return self.drop_table(table, mode='')
 
     def _select(self, *args, **kwargs):
         raise NotOnNOSQLError(

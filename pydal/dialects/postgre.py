@@ -109,7 +109,7 @@ class PostgreDialect(SQLDialect):
         return "(%s ILIKE %s ESCAPE '%s')" % (
             self.expand(first), second, escape)
 
-    def drop(self, table, mode):
+    def drop_table(self, table, mode):
         if mode not in ['restrict', 'cascade', '']:
             raise ValueError('Invalid mode: %s' % mode)
         return ['DROP TABLE ' + table.sqlsafe + ' ' + mode + ';']
