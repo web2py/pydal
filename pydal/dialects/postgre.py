@@ -114,6 +114,15 @@ class PostgreDialect(SQLDialect):
             raise ValueError('Invalid mode: %s' % mode)
         return ['DROP TABLE ' + table.sqlsafe + ' ' + mode + ';']
 
+    def create_index(self, name, table, expressions, unique=False, where=None):
+        uniq = ' UNIQUE' if unique else ''
+        whr = ''
+        if where:
+            whr = ' %s' % self.where(where)
+        return 'CREATE%s INDEX %s ON %s (%s)%s;' % (
+            uniq, self.quote(name), table.sqlsafe, ','.join(
+                self.expand(field) for field in expressions), whr)
+
     def st_asgeojson(self, first, second):
         return 'ST_AsGeoJSON(%s,%s,%s,%s)' % (
             second['version'], self.expand(first), second['precision'],
