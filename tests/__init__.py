@@ -4,6 +4,7 @@ if NOSQL:
     from .nosql import *
 else:
     from .sql import *
+    from .indexes import *
 
 from .validation import *
 from .caching import TestCache
