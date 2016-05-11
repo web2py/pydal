@@ -804,10 +804,12 @@ class SQLAdapter(BaseAdapter):
             index_name, table, expressions, **kwargs)
         self.execute(sql)
         self.commit()
+        return True
 
     def drop_index(self, table, index_name):
         sql = self.dialect.drop_index(index_name, table)
         self.execute(sql)
+        return True
 
     def distributed_transaction_begin(self, key):
         pass
