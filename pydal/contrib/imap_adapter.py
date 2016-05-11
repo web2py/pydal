@@ -9,7 +9,7 @@ from ..connection import ConnectionPool
 from ..objects import Field, Query, Expression
 from ..helpers.classes import SQLALL
 from ..helpers.methods import use_common_filters
-from .base import NoSQLAdapter
+from ..adapters.base import NoSQLAdapter
 
 long = integer_types[-1]
 

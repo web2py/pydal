@@ -1,73 +1,87 @@
-# -*- coding: utf-8 -*-
+import re
 from .._gae import gae
-from .sqlite import SQLiteAdapter, SpatiaLiteAdapter, JDBCSQLiteAdapter
-from .mysql import MySQLAdapter
-from .postgres import PostgreSQLAdapter, NewPostgreSQLAdapter, \
-    JDBCPostgreSQLAdapter
-from .oracle import OracleAdapter
-from .mssql import MSSQLAdapter, MSSQL2Adapter, MSSQL3Adapter, MSSQL4Adapter, \
-    MSSQLNAdapter, MSSQL3NAdapter, MSSQL4NAdapter, VerticaAdapter, SybaseAdapter
-from .firebird import FireBirdAdapter
-from .informix import InformixAdapter, InformixSEAdapter
-from .db2 import DB2Adapter
-from .teradata import TeradataAdapter
-from .ingres import IngresAdapter, IngresUnicodeAdapter
-from .sapdb import SAPDBAdapter
-from .cubrid import CubridAdapter
-from .couchdb import CouchDBAdapter
-from .mongo import MongoDBAdapter
-from .imap import IMAPAdapter
+from ..helpers._internals import Dispatcher
+from ..helpers.regex import REGEX_NO_GREEDY_ENTITY_NAME
 
 
-ADAPTERS = {
-    'sqlite': SQLiteAdapter,
-    'spatialite': SpatiaLiteAdapter,
-    'sqlite:memory': SQLiteAdapter,
-    'spatialite:memory': SpatiaLiteAdapter,
-    'mysql': MySQLAdapter,
-    'postgres': PostgreSQLAdapter,
-    'postgres:psycopg2': PostgreSQLAdapter,
-    'postgres:pg8000': PostgreSQLAdapter,
-    'postgres2:psycopg2': NewPostgreSQLAdapter,
-    'postgres2:pg8000': NewPostgreSQLAdapter,
-    'oracle': OracleAdapter,
-    'mssql': MSSQLAdapter,
-    'mssql2': MSSQL2Adapter,
-    'mssql3': MSSQL3Adapter,
-    'mssql4': MSSQL4Adapter,
-    'mssqln' : MSSQLNAdapter,
-    'mssql3n' : MSSQL3NAdapter,
-    'mssql4n' : MSSQL4NAdapter,
-    'vertica': VerticaAdapter,
-    'sybase': SybaseAdapter,
-    'db2:ibm_db_dbi': DB2Adapter,
-    'db2:pyodbc': DB2Adapter,
-    'teradata': TeradataAdapter,
-    'informix': InformixAdapter,
-    'informix-se': InformixSEAdapter,
-    'firebird': FireBirdAdapter,
-    'firebird_embedded': FireBirdAdapter,
-    'ingres': IngresAdapter,
-    'ingresu': IngresUnicodeAdapter,
-    'sapdb': SAPDBAdapter,
-    'cubrid': CubridAdapter,
-    'jdbc:sqlite': JDBCSQLiteAdapter,
-    'jdbc:sqlite:memory': JDBCSQLiteAdapter,
-    'jdbc:postgres': JDBCPostgreSQLAdapter,
-    'couchdb': CouchDBAdapter,
-    'mongodb': MongoDBAdapter,
-    'imap': IMAPAdapter
-}
+class Adapters(Dispatcher):
+    def register_for(self, *uris):
+        def wrap(dispatch_class):
+            for uri in uris:
+                self._registry_[uri] = dispatch_class
+            return dispatch_class
+        return wrap
 
-#: load google adapters if needed
+    def get_for(self, uri):
+        try:
+            return self._registry_[uri]
+        except KeyError:
+            raise SyntaxError(
+                'Adapter not found for %s' % uri
+            )
+
+adapters = Adapters('adapters')
+
+
+class AdapterMeta(type):
+    """Metaclass to support manipulation of adapter classes.
+
+    At the moment is used to intercept `entity_quoting` argument passed to DAL.
+    """
+    def __call__(cls, *args, **kwargs):
+        uploads_in_blob = kwargs.get('adapter_args', {}).get(
+            'uploads_in_blob', cls.uploads_in_blob)
+        cls.uploads_in_blob = uploads_in_blob
+
+        entity_quoting = kwargs.get('entity_quoting', True)
+        if 'entity_quoting' in kwargs:
+            del kwargs['entity_quoting']
+
+        obj = super(AdapterMeta, cls).__call__(*args, **kwargs)
+        if not entity_quoting:
+            quot = obj.dialect.quote_template = '%s'
+            regex_ent = r'(\w+)'
+        else:
+            quot = obj.dialect.quote_template
+            regex_ent = REGEX_NO_GREEDY_ENTITY_NAME
+        obj.REGEX_TABLE_DOT_FIELD = re.compile(
+            r'^' + quot % regex_ent + r'\.' + quot % regex_ent + r'$')
+
+        return obj
+
+
+def with_connection(f):
+    def wrap(*args, **kwargs):
+        if args[0].connection:
+            return f(*args, **kwargs)
+        return None
+    return wrap
+
+
+def with_connection_or_raise(f):
+    def wrap(*args, **kwargs):
+        if not args[0].connection:
+            if len(args) > 1:
+                raise ValueError(args[1])
+            raise RuntimeError('no connection available')
+        return f(*args, **kwargs)
+    return wrap
+
+
+from .base import SQLAdapter, NoSQLAdapter
+from .sqlite import SQLite
+from .postgres import Postgre, PostgrePsyco, PostgrePG8000
+from .mysql import MySQL
+from .mssql import MSSQL
+from .mongo import Mongo
+from .db2 import DB2
+from .firebird import FireBird
+from .informix import Informix
+from .ingres import Ingres
+from .oracle import Oracle
+from .sap import SAPDB
+from .teradata import Teradata
+from .couchdb import CouchDB
+
 if gae is not None:
-    from .google_adapters import GoogleDatastoreAdapter, GoogleSQLAdapter
-    # discouraged, for backward compatibility
-    ADAPTERS['gae'] = GoogleDatastoreAdapter
-    # add gae adapters
-    ADAPTERS['google:datastore'] = GoogleDatastoreAdapter
-    ADAPTERS['google:datastore+ndb'] = GoogleDatastoreAdapter
-    ADAPTERS['google:sql'] = GoogleSQLAdapter
-else:
-    #: make the import available for BaseAdapter
-    GoogleDatastoreAdapter = None
+    from .google import GoogleSQL

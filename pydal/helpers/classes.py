@@ -2,6 +2,7 @@
 import copy
 import marshal
 import struct
+import time
 import traceback
 
 from .._compat import PY2, exists, copyreg, integer_types, implements_bool, \
@@ -228,11 +229,16 @@ class SQLCustomType(object):
         return self._class
 
 
-class RecordUpdater(object):
+class RecordOperator(object):
     def __init__(self, colset, table, id):
         self.colset, self.db, self.tablename, self.id = \
             colset, table._db, table._tablename, id
 
+    def __call__(self):
+        pass
+
+
+class RecordUpdater(RecordOperator):
     def __call__(self, **fields):
         colset, db, tablename, id = self.colset, self.db, self.tablename, \
             self.id
@@ -248,10 +254,7 @@ class RecordUpdater(object):
         return colset
 
 
-class RecordDeleter(object):
-    def __init__(self, table, id):
-        self.db, self.tablename, self.id = table._db, table._tablename, id
-
+class RecordDeleter(RecordOperator):
     def __call__(self):
         return self.db(self.db[self.tablename]._id == self.id).delete()
 
@@ -335,6 +338,30 @@ class NullDriver(FakeDriver):
         self._fake_cursor_ = NullCursor()
 
 
+class ExecutionHandler(object):
+    def __init__(self, adapter):
+        self.adapter = adapter
+
+    def before_execute(self, command):
+        pass
+
+    def after_execute(self, command):
+        pass
+
+
+class TimingHandler(ExecutionHandler):
+    MAXSTORAGE = 100
+    timings = []
+
+    def before_execute(self, command):
+        self.t = time.time()
+
+    def after_execute(self, command):
+        dt = time.time() - self.t
+        self.timings.append((command, dt))
+        del self.timings[:-self.MAXSTORAGE]
+
+
 class DatabaseStoredFile:
 
     web2py_filesystems = set()
@@ -412,6 +439,18 @@ class DatabaseStoredFile:
         self.close_connection()
 
     @staticmethod
+    def is_operational_error(db, error):
+        if not hasattr(db._adapter.driver, "OperationalError"):
+            return None
+        return isinstance(error, db._adapter.driver.OperationalError)
+
+    @staticmethod
+    def is_programming_error(db, error):
+        if not hasattr(db._adapter.driver, "ProgrammingError"):
+            return None
+        return isinstance(error, db._adapter.driver.ProgrammingError)
+
+    @staticmethod
     def exists(db, filename):
         if exists(filename):
             return True
@@ -423,27 +462,10 @@ class DatabaseStoredFile:
             if db.executesql(query):
                 return True
         except Exception as e:
-            if not (db._adapter.isOperationalError(e) or
-                    db._adapter.isProgrammingError(e)):
+            if not (DatabaseStoredFile.is_operational_error(db, e) or
+                    DatabaseStoredFile.is_programming_error(db, e)):
                 raise
             # no web2py_filesystem found?
             tb = traceback.format_exc()
             db.logger.error("Could not retrieve %s\n%s" % (filename, tb))
         return False
-
-
-class UseDatabaseStoredFile:
-
-    def file_exists(self, filename):
-        return DatabaseStoredFile.exists(self.db, filename)
-
-    def file_open(self, filename, mode='rb', lock=True):
-        return DatabaseStoredFile(self.db, filename, mode)
-
-    def file_close(self, fileobj):
-        fileobj.close_connection()
-
-    def file_delete(self, filename):
-        query = "DELETE FROM web2py_filesystem WHERE path='%s'" % filename
-        self.db.executesql(query)
-        self.db.commit()
