@@ -181,6 +181,10 @@ class PostgreDialect(SQLDialect):
     def extract_isodow(self, expr):
         return Expression(expr.db, self.extract, expr, 'isodow', 'integer')
 
+    @register_expression('isoyear')
+    def extract_isoyear(self, expr):
+        return Expression(expr.db, self.extract, expr, 'isoyear', 'integer')
+
     @register_expression('quarter')
     def extract_quarter(self, expr):
         return Expression(expr.db, self.extract, expr, 'quarter', 'integer')
@@ -188,6 +192,18 @@ class PostgreDialect(SQLDialect):
     @register_expression('week')
     def extract_week(self, expr):
         return Expression(expr.db, self.extract, expr, 'week', 'integer')
+
+    @register_expression('decade')
+    def extract_decade(self, expr):
+        return Expression(expr.db, self.extract, expr, 'decade', 'integer')
+
+    @register_expression('century')
+    def extract_century(self, expr):
+        return Expression(expr.db, self.extract, expr, 'century', 'integer')
+
+    @register_expression('millenium')
+    def extract_millenium(self, expr):
+        return Expression(expr.db, self.extract, expr, 'millenium', 'integer')
 
 
 class PostgreDialectJSON(PostgreDialect):
