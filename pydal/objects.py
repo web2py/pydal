@@ -1031,8 +1031,8 @@ class Table(Serializable, BasicStorage):
     def on(self, query):
         return Expression(self._db, self._db._adapter.dialect.on, self, query)
 
-    def create_index(self, name, *fields):
-        return self._db._adapter.create_index(self, name, *fields)
+    def create_index(self, name, *fields, **kwargs):
+        return self._db._adapter.create_index(self, name, *fields, **kwargs)
 
     def drop_index(self, name):
         return self._db._adapter.drop_index(self, name)
