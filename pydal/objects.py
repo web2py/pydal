@@ -945,7 +945,7 @@ class Table(Serializable, BasicStorage):
         unique_idx = None
         for lineno, line in enumerate(reader):
             if not line:
-                continue
+                return
             if not colnames:
                 # assume this is the first line of the input, contains colnames
                 colnames = [x.split('.', 1)[-1] for x in line][:len(line)]
@@ -965,13 +965,19 @@ class Table(Serializable, BasicStorage):
                     items = transform(items)                    
 
                 ditems = dict()
-                for colname in cols:
-                    try:
-                        ditems[colname] = fix(cols[colname], items[colname], id_map, id_offset)
-                    except ValueError:
-                        raise RuntimeError("Unable to parse line:%s" % (lineno+1))
-                if not (id_map or cid is None or id_offset is None or unique_idx):
-                    csv_id = long(ditems[cid])
+                csv_id = None
+                for field in self:
+                    fieldname = field.name
+                    if fieldname in items:
+                        try:
+                            value = fix(field, items[fieldname], id_map, id_offset)
+                            if field.type!='id':
+                                ditems[fieldname] = value
+                            else:
+                                csv_id = long(value)
+                        except ValueError:
+                            raise RuntimeError("Unable to parse line:%s" % (lineno+1))
+                if not (id_map or csv_id is None or id_offset is None or unique_idx):
                     curr_id = self.insert(**ditems)
                     if first:
                         first = False
@@ -982,7 +988,7 @@ class Table(Serializable, BasicStorage):
                             if curr_id > csv_id else 0
                     # create new id until we get the same as old_id+offset
                     while curr_id < csv_id+id_offset[self._tablename]:
-                        self._db(self._db[self][colnames[cid]] == curr_id).delete()
+                        self._db(self[cid] == curr_id).delete()
                         curr_id = self.insert(**ditems)
                 # Validation. Check for duplicate of 'unique' &,
                 # if present, update instead of insert.
@@ -990,15 +996,15 @@ class Table(Serializable, BasicStorage):
                     new_id = self.insert(**ditems)
                 else:
                     unique_value = line[unique_idx]
-                    query = self._db[self][unique] == unique_value
+                    query = self[unique] == unique_value
                     record = self._db(query).select().first()
                     if record:
                         record.update_record(**ditems)
                         new_id = record[self._id.name]
                     else:
                         new_id = self.insert(**ditems)
-                if id_map and cid is not None and cid in items:
-                    id_map_self[long(items[cid])] = new_id
+                if id_map and csv_id is not None:
+                    id_map_self[csv_id] = new_id
             if lineno % 1000 == 999: 
                 self._db.commit()
 
