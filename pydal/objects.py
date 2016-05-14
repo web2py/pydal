@@ -988,7 +988,7 @@ class Table(Serializable, BasicStorage):
                             if curr_id > csv_id else 0
                     # create new id until we get the same as old_id+offset
                     while curr_id < csv_id+id_offset[self._tablename]:
-                        self._db(self._db[self][csv_id] == curr_id).delete()
+                        self._db(self[cid] == curr_id).delete()
                         curr_id = self.insert(**ditems)
                 # Validation. Check for duplicate of 'unique' &,
                 # if present, update instead of insert.
@@ -996,7 +996,7 @@ class Table(Serializable, BasicStorage):
                     new_id = self.insert(**ditems)
                 else:
                     unique_value = line[unique_idx]
-                    query = self._db[self][unique] == unique_value
+                    query = self[unique] == unique_value
                     record = self._db(query).select().first()
                     if record:
                         record.update_record(**ditems)
