@@ -965,11 +965,13 @@ class Table(Serializable, BasicStorage):
                     items = transform(items)                    
 
                 ditems = dict()
-                for colname in cols:
-                    try:
-                        ditems[colname] = fix(cols[colname], items[colname], id_map, id_offset)
-                    except ValueError:
-                        raise RuntimeError("Unable to parse line:%s" % (lineno+1))
+                for field in self:
+                    fieldname = field.name
+                    if fieldname in items and not field.type == 'id': 
+                        try:
+                            ditems[fieldname] = fix(field, items[fieldname], id_map, id_offset)
+                        except ValueError:
+                            raise RuntimeError("Unable to parse line:%s" % (lineno+1))
                 if not (id_map or cid is None or id_offset is None or unique_idx):
                     csv_id = long(ditems[cid])
                     curr_id = self.insert(**ditems)
