@@ -33,8 +33,7 @@ class AdapterMeta(type):
             'uploads_in_blob', cls.uploads_in_blob)
         cls.uploads_in_blob = uploads_in_blob
 
-        ## TODO: avoid entity quoting disable
-        entity_quoting = kwargs.get('entity_quoting', False)
+        entity_quoting = kwargs.get('entity_quoting', True)
         if 'entity_quoting' in kwargs:
             del kwargs['entity_quoting']
 
