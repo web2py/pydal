@@ -967,7 +967,7 @@ class Table(Serializable, BasicStorage):
                 ditems = dict()
                 for field in self:
                     fieldname = field.name
-                    if fieldname in items and not field.type == 'id': 
+                    if fieldname in items:
                         try:
                             ditems[fieldname] = fix(field, items[fieldname], id_map, id_offset)
                         except ValueError:
