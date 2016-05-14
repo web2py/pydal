@@ -944,8 +944,9 @@ class Table(Serializable, BasicStorage):
         first = True
         unique_idx = None
         for lineno, line in enumerate(reader):
+            print lineno, line
             if not line:
-                continue
+                return
             if not colnames:
                 # assume this is the first line of the input, contains colnames
                 colnames = [x.split('.', 1)[-1] for x in line][:len(line)]
@@ -965,15 +966,19 @@ class Table(Serializable, BasicStorage):
                     items = transform(items)                    
 
                 ditems = dict()
+                csv_id = None
                 for field in self:
                     fieldname = field.name
                     if fieldname in items:
                         try:
-                            ditems[fieldname] = fix(field, items[fieldname], id_map, id_offset)
+                            value = fix(field, items[fieldname], id_map, id_offset)
+                            if field.type!='id':
+                                ditems[fieldname] = value
+                            else:
+                                csv_id = long(value)
                         except ValueError:
                             raise RuntimeError("Unable to parse line:%s" % (lineno+1))
                 if not (id_map or cid is None or id_offset is None or unique_idx):
-                    csv_id = long(ditems[cid])
                     curr_id = self.insert(**ditems)
                     if first:
                         first = False
