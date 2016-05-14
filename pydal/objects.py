@@ -944,7 +944,6 @@ class Table(Serializable, BasicStorage):
         first = True
         unique_idx = None
         for lineno, line in enumerate(reader):
-            print lineno, line
             if not line:
                 return
             if not colnames:
@@ -989,7 +988,7 @@ class Table(Serializable, BasicStorage):
                             if curr_id > csv_id else 0
                     # create new id until we get the same as old_id+offset
                     while curr_id < csv_id+id_offset[self._tablename]:
-                        self._db(self._db[self][colnames[cid]] == curr_id).delete()
+                        self._db(self._db[self][csv_id] == curr_id).delete()
                         curr_id = self.insert(**ditems)
                 # Validation. Check for duplicate of 'unique' &,
                 # if present, update instead of insert.
