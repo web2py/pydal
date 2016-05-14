@@ -977,7 +977,7 @@ class Table(Serializable, BasicStorage):
                                 csv_id = long(value)
                         except ValueError:
                             raise RuntimeError("Unable to parse line:%s" % (lineno+1))
-                if not (id_map or cid is None or id_offset is None or unique_idx):
+                if not (id_map or csv_id is None or id_offset is None or unique_idx):
                     curr_id = self.insert(**ditems)
                     if first:
                         first = False
@@ -1003,8 +1003,8 @@ class Table(Serializable, BasicStorage):
                         new_id = record[self._id.name]
                     else:
                         new_id = self.insert(**ditems)
-                if id_map and cid is not None and cid in items:
-                    id_map_self[long(items[cid])] = new_id
+                if id_map and csv_id is not None:
+                    id_map_self[csv_id] = new_id
             if lineno % 1000 == 999: 
                 self._db.commit()
 
