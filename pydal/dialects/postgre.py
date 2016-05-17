@@ -119,9 +119,11 @@ class PostgreDialect(SQLDialect):
         whr = ''
         if where:
             whr = ' %s' % self.where(where)
-        return 'CREATE%s INDEX %s ON %s (%s)%s;' % (
-            uniq, self.quote(name), table.sqlsafe, ','.join(
-                self.expand(field) for field in expressions), whr)
+        with self.adapter.index_expander():
+            rv = 'CREATE%s INDEX %s ON %s (%s)%s;' % (
+                uniq, self.quote(name), table.sqlsafe, ','.join(
+                    self.expand(field) for field in expressions), whr)
+        return rv
 
     def st_asgeojson(self, first, second):
         return 'ST_AsGeoJSON(%s,%s,%s,%s)' % (
@@ -253,7 +255,7 @@ class PostgreDialectArrays(PostgreDialect):
             args = (first, self.expand(second))
             return '(%s ILIKE %s)' % args
         return super(PostgreDialectArrays, self).ilike(
-                first, second, escape=escape)
+            first, second, escape=escape)
 
     def EQ(self, first, second=None):
         if first and 'type' not in first:

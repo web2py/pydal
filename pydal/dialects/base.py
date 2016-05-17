@@ -432,9 +432,11 @@ class SQLDialect(CommonDialect):
 
     def create_index(self, name, table, expressions, unique=False):
         uniq = ' UNIQUE' if unique else ''
-        return 'CREATE%s INDEX %s ON %s (%s);' % (
-            uniq, self.quote(name), table.sqlsafe, ','.join(
-                self.expand(field) for field in expressions))
+        with self.adapter.index_expander():
+            rv = 'CREATE%s INDEX %s ON %s (%s);' % (
+                uniq, self.quote(name), table.sqlsafe, ','.join(
+                    self.expand(field) for field in expressions))
+        return rv
 
     def drop_index(self, name, table):
         return 'DROP INDEX %s;' % self.quote(name)

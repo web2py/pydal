@@ -1740,8 +1740,7 @@ class Query(Serializable):
         return self.db._adapter.dialect
 
     def __repr__(self):
-        from .adapters.base import BaseAdapter
-        return '<Query %s>' % BaseAdapter.expand(self.db._adapter, self)
+        return '<Query %s>' % str(self)
 
     def __str__(self):
         return str(self.db._adapter.expand(self))
@@ -1871,8 +1870,7 @@ class Set(Serializable):
         self.query = query
 
     def __repr__(self):
-        from .adapters.base import BaseAdapter
-        return '<Set %s>' % BaseAdapter.expand(self.db._adapter, self.query)
+        return '<Set %s>' % str(self.query)
 
     def __call__(self, query, ignore_common_filters=False):
         return self.where(query, ignore_common_filters)

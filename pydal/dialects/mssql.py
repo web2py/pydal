@@ -168,6 +168,9 @@ class MSSQLDialect(SQLDialect):
     def concat_add(self, tablename):
         return '; ALTER TABLE %s ADD ' % tablename
 
+    def drop_index(self, name, table):
+        return 'DROP INDEX %s ON %s;' % (self.quote(name), table.sqlsafe)
+
     def st_astext(self, first):
         return '%s.STAsText()' % self.expand(first)
 
@@ -217,7 +220,7 @@ class MSSQLNDialect(MSSQLDialect):
             second = self.expand(second, 'string').lower()
             if escape is None:
                 escape = '\\'
-                second = second.replace(escape, escape*2)
+                second = second.replace(escape, escape * 2)
         if second.startswith("n'"):
             second = "N'" + second[2:]
         return "(%s LIKE %s ESCAPE '%s')" % (

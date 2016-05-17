@@ -2,6 +2,7 @@ import copy
 import sys
 import types
 from collections import defaultdict
+from contextlib import contextmanager
 from .._compat import PY2, with_metaclass, iterkeys, iteritems, hashlib_md5, \
     integer_types
 from .._globals import IDENTITY
@@ -42,6 +43,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.credential_decoder = credential_decoder
         self.driver_args = driver_args
         self.adapter_args = adapter_args
+        self.expand = self._expand
         self._after_connection = after_connection
         self.connection = None
         if do_connect:
@@ -150,7 +152,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                         query = query & newquery
         return query
 
-    def expand(self, expression, field_type=None, colnames=False):
+    def _expand(self, expression, field_type=None, colnames=False):
         return str(expression)
 
     def expand_all(self, fields, tablenames):
@@ -418,7 +420,7 @@ class SQLAdapter(BaseAdapter):
             handler.after_execute(command)
         return rv
 
-    def expand(self, expression, field_type=None, colnames=False):
+    def _expand(self, expression, field_type=None, colnames=False):
         if isinstance(expression, Field):
             et = expression.table
             if not colnames:
@@ -458,6 +460,17 @@ class SQLAdapter(BaseAdapter):
         else:
             rv = expression
         return str(rv)
+
+    def _expand_for_index(self, expression, field_type=None, colnames=False):
+        if isinstance(expression, Field):
+            return expression._rname or self.dialect.quote(expression.name)
+        return self._expand(expression, field_type, colnames)
+
+    @contextmanager
+    def index_expander(self):
+        self.expand = self._expand_for_index
+        yield
+        self.expand = self._expand
 
     def lastrowid(self, table):
         return self.cursor.lastrowid
@@ -802,13 +815,25 @@ class SQLAdapter(BaseAdapter):
             for field in fields]
         sql = self.dialect.create_index(
             index_name, table, expressions, **kwargs)
-        self.execute(sql)
-        self.commit()
+        try:
+            self.execute(sql)
+            self.commit()
+        except Exception as e:
+            self.rollback()
+            err = 'Error creating index %s\n  Driver error: %s\n' + \
+                '  SQL instruction: %s'
+            raise RuntimeError(err % (index_name, str(e), sql))
         return True
 
     def drop_index(self, table, index_name):
         sql = self.dialect.drop_index(index_name, table)
-        self.execute(sql)
+        try:
+            self.execute(sql)
+            self.commit()
+        except Exception as e:
+            self.rollback()
+            err = 'Error dropping index %s\n  Driver error: %s'
+            raise RuntimeError(err % (index_name, str(e)))
         return True
 
     def distributed_transaction_begin(self, key):

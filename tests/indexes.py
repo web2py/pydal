@@ -17,7 +17,7 @@ class TestIndexesBasic(unittest.TestCase):
         drop(db.tt)
 
 
-@unittest.skipUnless(IS_POSTGRESQL, 'Only on Postgre')
+@unittest.skipUnless(IS_POSTGRESQL, 'Expressions in indexes are not supported')
 class TestIndexesExpressions(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'], entity_quoting=True)
@@ -25,10 +25,12 @@ class TestIndexesExpressions(unittest.TestCase):
         sql = db._adapter.dialect.create_index(
             'idx_aa_and_bb', db.tt, [db.tt.aa, db.tt.bb.coalesce(None)]
         )
-        self.assertEqual(
-            sql,
-            'CREATE INDEX "idx_aa_and_bb" ON "tt" ("tt"."aa",COALESCE("tt"."bb",NULL));'
-        )
+        with db._adapter.index_expander():
+            coalesce_sql = str(db.tt.bb.coalesce(None))
+        expected_sql = 'CREATE INDEX %s ON %s (%s,%s);' % (
+            db._adapter.dialect.quote('idx_aa_and_bb'), db.tt.sqlsafe,
+            db.tt.aa.sqlsafe_name, coalesce_sql)
+        self.assertEqual(sql, expected_sql)
         rv = db.tt.create_index(
             'idx_aa_and_bb', db.tt.aa, db.tt.bb.coalesce(None))
         self.assertTrue(rv)
@@ -37,7 +39,7 @@ class TestIndexesExpressions(unittest.TestCase):
         drop(db.tt)
 
 
-@unittest.skipUnless(IS_POSTGRESQL, 'Only on Postgre')
+@unittest.skipUnless(IS_POSTGRESQL, 'Partial indexes are not supported')
 class TestIndexesWhere(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'], entity_quoting=True)
@@ -47,7 +49,7 @@ class TestIndexesWhere(unittest.TestCase):
         )
         self.assertEqual(
             sql,
-            'CREATE INDEX "idx_aa_f" ON "tt" ("tt"."aa") WHERE ("tt"."bb" = \'F\');'
+            'CREATE INDEX "idx_aa_f" ON "tt" ("aa") WHERE ("tt"."bb" = \'F\');'
         )
         rv = db.tt.create_index(
             'idx_aa_f', db.tt.aa, where=(db.tt.bb == False))
