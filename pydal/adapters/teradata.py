@@ -23,6 +23,6 @@ class Teradata(SQLAdapter):
     def lastrowid(self, table):
         # Teradata cannot retrieve the lastrowid for an IDENTITY Column
         # and they are not sequential anyway.  
-        # Similar to NullCursor class, return 1
+        # Similar to the NullCursor class, return 1
         return 1
         
