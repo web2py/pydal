@@ -10,7 +10,7 @@ from ..exceptions import NotOnNOSQLError
 from ..helpers.classes import Reference, ExecutionHandler, SQLCustomType, \
     SQLALL, NullDriver
 from ..helpers.methods import use_common_filters, xorify
-from ..helpers.regex import REGEX_SELECT_AS_PARSER
+from ..helpers.regex import REGEX_SELECT_AS_PARSER, REGEX_TABLE_DOT_FIELD
 from ..migrator import Migrator
 from ..objects import Table, Field, Expression, Query, Rows, IterRows, \
     LazySet, LazyReferenceGetter, VirtualCommand
@@ -159,7 +159,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             if isinstance(item, SQLALL):
                 new_fields += item._table
             elif isinstance(item, str):
-                m = self.REGEX_TABLE_DOT_FIELD.match(item)
+                m = REGEX_TABLE_DOT_FIELD.match(item)
                 if m:
                     tablename, fieldname = m.groups()
                     append(self.db[tablename][fieldname])
