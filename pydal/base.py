@@ -376,7 +376,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                  bigint_id=False, debug=False, lazy_tables=False,
                  db_uid=None, do_connect=True,
                  after_connection=None, tables=None, ignore_field_case=True,
-                 entity_quoting=False, table_hash=None):
+                 entity_quoting=True, table_hash=None):
 
         if uri == '<zombie>' and db_uid is not None:
             return
