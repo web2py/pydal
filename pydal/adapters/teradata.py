@@ -19,3 +19,10 @@ class Teradata(SQLAdapter):
         # leading to SQL_ACTIVE_STATEMENTS limit errors
         self.cursor.close()
         super(Teradata, self).close()
+
+    def lastrowid(self, table):
+        # Teradata cannot retrieve the lastrowid for an IDENTITY Column
+        # and they are not sequential anyway.  
+        # Similar to the NullCursor class, return 1
+        return 1
+        
