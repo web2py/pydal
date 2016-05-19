@@ -143,7 +143,7 @@ from .helpers.methods import hide_password, smart_query, auto_validators, \
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME
 from .helpers.rest import RestParser
 from .helpers.serializers import serializers
-from .objects import Table, Field, Row, Set
+from .objects import Table, Field, Rows, Row, Set
 from .adapters.base import BaseAdapter, NullAdapter
 
 long = integer_types[-1]
@@ -256,6 +256,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     logger = logging.getLogger("pyDAL")
 
     Table = Table
+    Rows = Rows
     Row = Row
 
     record_operators = {
@@ -381,6 +382,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         if uri == '<zombie>' and db_uid is not None:
             return
         super(DAL, self).__init__()
+
+        if not issubclass(self.Rows, Rows):
+            raise RuntimeError(
+                '`Rows` class must be a subclass of pydal.objects.Rows'
+            )
 
         if not issubclass(self.Row, Row):
             raise RuntimeError(
