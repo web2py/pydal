@@ -2589,6 +2589,12 @@ class Rows(BasicRows):
             return None
         return self[-1]
 
+    def append(self, row):
+        self.records.append(row)
+
+    def insert(self, position, row):
+        self.records.insert(position, row)
+
     def find(self, f, limitby=None):
         """
         Returns a new Rows object, a subset of the original object,
