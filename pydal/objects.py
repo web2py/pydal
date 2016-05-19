@@ -962,7 +962,7 @@ class Table(Serializable, BasicStorage):
                 # every other line contains instead data
                 items = dict(zip(colnames, line))
                 if transform:
-                    items = transform(items)                    
+                    items = transform(items)
 
                 ditems = dict()
                 csv_id = None
@@ -1005,7 +1005,7 @@ class Table(Serializable, BasicStorage):
                         new_id = self.insert(**ditems)
                 if id_map and csv_id is not None:
                     id_map_self[csv_id] = new_id
-            if lineno % 1000 == 999: 
+            if lineno % 1000 == 999:
                 self._db.commit()
 
     def as_dict(self, flat=False, sanitize=True):
@@ -2533,9 +2533,10 @@ class Rows(BasicRows):
     def __and__(self, other):
         if self.colnames != other.colnames:
             raise Exception('Cannot & incompatible Rows objects')
-        records = self.records+other.records
-        return Rows(self.db, records, self.colnames,
-                    compact=self.compact or other.compact)
+        records = self.records + other.records
+        return self.__class__(
+            self.db, records, self.colnames,
+            compact=self.compact or other.compact)
 
     def __or__(self, other):
         if self.colnames != other.colnames:
@@ -2543,15 +2544,16 @@ class Rows(BasicRows):
         records = [record for record in other.records
                    if record not in self.records]
         records = self.records + records
-        return Rows(self.db, records, self.colnames,
-                    compact=self.compact or other.compact)
+        return self.__class__(
+            self.db, records, self.colnames,
+            compact=self.compact or other.compact)
 
     def __len__(self):
         return len(self.records)
 
     def __getslice__(self, a, b):
-        return Rows(self.db, self.records[a:b], self.colnames,
-                    compact=self.compact)
+        return self.__class__(
+            self.db, self.records[a:b], self.colnames, compact=self.compact)
 
     def __getitem__(self, i):
         row = self.records[i]
@@ -2593,7 +2595,8 @@ class Rows(BasicRows):
         filtered by the function `f`
         """
         if not self:
-            return Rows(self.db, [], self.colnames, compact=self.compact)
+            return self.__class__(
+                self.db, [], self.colnames, compact=self.compact)
         records = []
         if limitby:
             a, b = limitby
@@ -2607,7 +2610,8 @@ class Rows(BasicRows):
                 k += 1
                 if k == b:
                     break
-        return Rows(self.db, records, self.colnames, compact=self.compact)
+        return self.__class__(
+            self.db, records, self.colnames, compact=self.compact)
 
     def exclude(self, f):
         """
@@ -2615,7 +2619,8 @@ class Rows(BasicRows):
         `f`, and returns a new Rows object containing the removed elements
         """
         if not self.records:
-            return Rows(self.db, [], self.colnames, compact=self.compact)
+            return self.__class__(
+                self.db, [], self.colnames, compact=self.compact)
         removed = []
         i = 0
         while i < len(self):
@@ -2625,13 +2630,14 @@ class Rows(BasicRows):
                 del self.records[i]
             else:
                 i += 1
-        return Rows(self.db, removed, self.colnames, compact=self.compact)
+        return self.__class__(
+            self.db, removed, self.colnames, compact=self.compact)
 
     def sort(self, f, reverse=False):
         """
         Returns a list of sorted elements (not sorted in place)
         """
-        rows = Rows(self.db, [], self.colnames, compact=self.compact)
+        rows = self.__class__(self.db, [], self.colnames, compact=self.compact)
         # When compact=True, iterating over self modifies each record,
         # so when sorting self, it is necessary to return a sorted
         # version of self.records rather than the sorted self directly.
@@ -2652,7 +2658,7 @@ class Rows(BasicRows):
             """
             helper function:
             """
-            if num > len(fields)-1:
+            if num > len(fields) - 1:
                 if one_result:
                     return row
                 else:
@@ -2662,15 +2668,16 @@ class Rows(BasicRows):
             value = row[key]
 
             if value not in groups:
-                groups[value] = build_fields_struct(row, fields, num+1, {})
+                groups[value] = build_fields_struct(row, fields, num + 1, {})
             else:
-                struct = build_fields_struct(row, fields, num+1, groups[value])
+                struct = build_fields_struct(
+                    row, fields, num + 1, groups[value])
 
                 # still have more grouping to do
-                if type(struct) == type(dict()):
+                if isinstance(struct, dict):
                     groups[value].update()
                 # no more grouping, first only is off
-                elif type(struct) == type(list()):
+                elif isinstance(struct, list):
                     groups[value] += struct
                 # no more grouping, first only on
                 else:
@@ -2719,8 +2726,7 @@ class Rows(BasicRows):
                     k for k in row[table].keys()
                     if (hasattr(self.db[table], k) and
                         isinstance(self.db[table][k], Field) and
-                        self.db[table][k].represent)
-                ]
+                        self.db[table][k].represent)]
             for field in repr_fields:
                 row[table][field] = self.db.represent(
                     'rows_render', self.db[table][field], row[table][field],
