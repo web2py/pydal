@@ -219,8 +219,6 @@ class IMAPAdapter(NoSQLAdapter):
             'attachments': None
             }
 
-        db['_lastsql'] = ''
-
         m = self.REGEX_URI.match(uri)
         user = m.group('user')
         password = m.group('password')
