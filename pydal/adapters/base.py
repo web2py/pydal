@@ -301,7 +301,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 fields_virtual, fields_lazy)
             for row in rows
         ]
-        rowsobj = Rows(self.db, new_rows, colnames, rawrows=rows)
+        rowsobj = self.db.Rows(self.db, new_rows, colnames, rawrows=rows)
         # Old style virtual fields
         for tablename in fields_virtual.keys():
             table = self.db[tablename]
