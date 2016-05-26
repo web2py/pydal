@@ -111,7 +111,7 @@ class OracleDialect(SQLDialect):
         return 'SELECT%s %s FROM %s%s%s%s%s%s%s;' % (
             dst, fields, tables, whr, grp, order, limit, offset, upd)
 
-    def drop(self, table, mode):
+    def drop_table(self, table, mode):
         sequence_name = table._sequence_name
         return [
             'DROP TABLE %s %s;' % (table.sqlsafe, mode),

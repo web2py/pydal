@@ -636,10 +636,10 @@ class Table(Serializable, BasicStorage):
         return self._db._adapter.sqlsafe_table(self._tablename, self._ot)
 
     def _drop(self, mode=''):
-        return self._db._adapter.dialect.drop(self, mode)
+        return self._db._adapter.dialect.drop_table(self, mode)
 
     def drop(self, mode=''):
-        return self._db._adapter.drop(self, mode)
+        return self._db._adapter.drop_table(self, mode)
 
     def _listify(self, fields, update=False):
         new_fields = {}  # format: new_fields[name] = (field, value)
@@ -1030,6 +1030,12 @@ class Table(Serializable, BasicStorage):
 
     def on(self, query):
         return Expression(self._db, self._db._adapter.dialect.on, self, query)
+
+    def create_index(self, name, *fields, **kwargs):
+        return self._db._adapter.create_index(self, name, *fields, **kwargs)
+
+    def drop_index(self, name):
+        return self._db._adapter.drop_index(self, name)
 
 
 def _expression_wrap(wrapper):
@@ -1734,8 +1740,7 @@ class Query(Serializable):
         return self.db._adapter.dialect
 
     def __repr__(self):
-        from .adapters.base import BaseAdapter
-        return '<Query %s>' % BaseAdapter.expand(self.db._adapter, self)
+        return '<Query %s>' % str(self)
 
     def __str__(self):
         return str(self.db._adapter.expand(self))
@@ -1865,8 +1870,7 @@ class Set(Serializable):
         self.query = query
 
     def __repr__(self):
-        from .adapters.base import BaseAdapter
-        return '<Set %s>' % BaseAdapter.expand(self.db._adapter, self.query)
+        return '<Set %s>' % str(self.query)
 
     def __call__(self, query, ignore_common_filters=False):
         return self.where(query, ignore_common_filters)

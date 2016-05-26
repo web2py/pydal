@@ -422,13 +422,24 @@ class SQLDialect(CommonDialect):
     def primary_key(self, key):
         return 'PRIMARY KEY(%s)' % key
 
-    def drop(self, table, mode):
+    def drop_table(self, table, mode):
         return ['DROP TABLE %s;' % table.sqlsafe]
 
     def truncate(self, table, mode=''):
         if mode:
             mode = " %s" % mode
         return ['TRUNCATE TABLE %s%s;' % (table.sqlsafe, mode)]
+
+    def create_index(self, name, table, expressions, unique=False):
+        uniq = ' UNIQUE' if unique else ''
+        with self.adapter.index_expander():
+            rv = 'CREATE%s INDEX %s ON %s (%s);' % (
+                uniq, self.quote(name), table.sqlsafe, ','.join(
+                    self.expand(field) for field in expressions))
+        return rv
+
+    def drop_index(self, name, table):
+        return 'DROP INDEX %s;' % self.quote(name)
 
     def constraint_name(self, table, fieldname):
         return '%s_%s__constraint' % (table, fieldname)
