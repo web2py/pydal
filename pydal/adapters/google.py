@@ -80,7 +80,6 @@ class GoogleSQL(MySQL):
         handlers = self._build_handlers_for_execution()
         for handler in handlers:
             handler.before_execute(command)
-        #self.db._lastsql = command
         rv = self.cursor.execute(command, *args[1:], **kwargs)
         for handler in handlers:
             handler.after_execute(command)

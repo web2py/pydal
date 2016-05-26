@@ -407,7 +407,6 @@ class Migrator(object):
                 self.log(
                     'timestamp: %s\n' % datetime.datetime.today().isoformat(),
                     table)
-                db['_lastsql'] = '\n'.join(query)
                 for sub_query in query:
                     self.log(sub_query + '\n', table)
                     if fake_migrate:

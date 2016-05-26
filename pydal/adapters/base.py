@@ -372,7 +372,6 @@ class SQLAdapter(BaseAdapter):
     def __init__(self, *args, **kwargs):
         super(SQLAdapter, self).__init__(*args, **kwargs)
         self.migrator = Migrator(self)
-        #if self.db._store_timings_on_execution:
         self.execution_handlers = list(self.db.execution_handlers)
         if self.db._debug:
             self.execution_handlers.insert(0, DebugHandler)
@@ -414,7 +413,6 @@ class SQLAdapter(BaseAdapter):
         handlers = self._build_handlers_for_execution()
         for handler in handlers:
             handler.before_execute(command)
-        #self.db._lastsql = command
         rv = self.cursor.execute(command, *args[1:], **kwargs)
         for handler in handlers:
             handler.after_execute(command)

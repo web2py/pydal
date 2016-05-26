@@ -7,6 +7,7 @@ import traceback
 
 from .._compat import PY2, exists, copyreg, integer_types, implements_bool, \
     iterkeys, itervalues, iteritems
+from .._globals import THREAD_LOCAL
 from .serializers import serializers
 
 
@@ -351,7 +352,15 @@ class ExecutionHandler(object):
 
 class TimingHandler(ExecutionHandler):
     MAXSTORAGE = 100
-    timings = []
+
+    def _timings(self):
+        THREAD_LOCAL._pydal_timings_ = getattr(
+            THREAD_LOCAL, '_pydal_timings_', [])
+        return THREAD_LOCAL._pydal_timings_
+
+    @property
+    def timings(self):
+        return self._timings()
 
     def before_execute(self, command):
         self.t = time.time()
