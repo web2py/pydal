@@ -151,7 +151,7 @@ class Mongo(NoSQLAdapter):
         except (AttributeError, TypeError):
             return None
 
-    def expand(self, expression, field_type=None):
+    def _expand(self, expression, field_type=None):
         if isinstance(expression, Field):
             if expression.type == 'id':
                 result = "_id"

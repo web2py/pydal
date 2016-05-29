@@ -99,7 +99,7 @@ class FireBirdDialect(SQLDialect):
         return 'SELECT%s%s%s %s FROM %s%s%s%s%s;' % (
             dst, limit, offset, fields, tables, whr, grp, order, upd)
 
-    def drop(self, table, mode):
+    def drop_table(self, table, mode):
         sequence_name = table._sequence_name
         return [
             'DROP TABLE %s %s;' % (table.sqlsafe, mode),

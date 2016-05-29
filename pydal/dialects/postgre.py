@@ -109,10 +109,21 @@ class PostgreDialect(SQLDialect):
         return "(%s ILIKE %s ESCAPE '%s')" % (
             self.expand(first), second, escape)
 
-    def drop(self, table, mode):
+    def drop_table(self, table, mode):
         if mode not in ['restrict', 'cascade', '']:
             raise ValueError('Invalid mode: %s' % mode)
         return ['DROP TABLE ' + table.sqlsafe + ' ' + mode + ';']
+
+    def create_index(self, name, table, expressions, unique=False, where=None):
+        uniq = ' UNIQUE' if unique else ''
+        whr = ''
+        if where:
+            whr = ' %s' % self.where(where)
+        with self.adapter.index_expander():
+            rv = 'CREATE%s INDEX %s ON %s (%s)%s;' % (
+                uniq, self.quote(name), table.sqlsafe, ','.join(
+                    self.expand(field) for field in expressions), whr)
+        return rv
 
     def st_asgeojson(self, first, second):
         return 'ST_AsGeoJSON(%s,%s,%s,%s)' % (
@@ -244,7 +255,7 @@ class PostgreDialectArrays(PostgreDialect):
             args = (first, self.expand(second))
             return '(%s ILIKE %s)' % args
         return super(PostgreDialectArrays, self).ilike(
-                first, second, escape=escape)
+            first, second, escape=escape)
 
     def EQ(self, first, second=None):
         if first and 'type' not in first:
