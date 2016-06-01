@@ -13,7 +13,7 @@ import types
 
 from ._compat import PY2, StringIO, pjoin, exists, hashlib_md5, \
     integer_types, basestring, iteritems, xrange, implements_iterator, \
-    implements_bool, copyreg, reduce
+    implements_bool, copyreg, reduce, string_types
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
@@ -700,7 +700,7 @@ class Table(Serializable, BasicStorage):
         for field in self:
             if field.type == 'upload' and field.name in fields:
                 value = fields[field.name]
-                if not (value is None or isinstance(value, str)):
+                if not (value is None or isinstance(value, string_types)):
                     if hasattr(value, 'file') and hasattr(value, 'filename'):
                         new_name = field.store(
                             value.file, filename=value.filename)
