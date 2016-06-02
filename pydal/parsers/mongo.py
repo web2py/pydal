@@ -1,5 +1,5 @@
 from datetime import datetime
-from .._compat import integer_types
+from .._compat import PY2, integer_types
 from ..adapters.mongo import Mongo, MongoBlob
 from ..helpers.classes import Reference
 from . import Parser, parsers, for_type, before_parse
@@ -17,7 +17,7 @@ class MongoParser(Parser):
 
     @for_type('blob')
     def _blob(self, value):
-        return MongoBlob.decode(value)
+        return MongoBlob.decode(value) if PY2 else value
 
     @before_parse('reference')
     def reference_extras(self, field_type):
