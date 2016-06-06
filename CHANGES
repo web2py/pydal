@@ -1,16 +1,15 @@
 pydal changelog
 ===============
 
-Next
-----
+Version 16.06
+-------------
 
-(Release date to be announced)
+Released on June 6th 2016
 
 - Major refactoring of the codebase
 - Improved Postgre adapter performance
 - [MSSQL] Fixed sql generation with `orderby` on MSSQL3 adapters
 - Connection and cursors are now thread safe
-- Removed `_lastsql` attribute in adapters
 - [Mongo] Empty values for `ObjectId` fields are now stored and parsed
   as `None` instead of a fake `ObjectId(0)`
 - Fixed multiple calls of initialization callbacks during connection
