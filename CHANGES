@@ -14,6 +14,10 @@ Next
 - [Mongo] Empty values for `ObjectId` fields are now stored and parsed
   as `None` instead of a fake `ObjectId(0)`
 - Fixed multiple calls of initialization callbacks during connection
+- [Postgre] Added more extraction helpers on fields
+- Enabled entity quoting as default behavior
+- Added indexes creation and drop support on SQL adapters
+- Several bugfixes
 
 
 Version 16.03
