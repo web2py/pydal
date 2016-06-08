@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 from ._compat import itervalues
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL
 from ._load import OrderedDict
@@ -10,8 +11,21 @@ class ConnectionPool(object):
     check_active_connection = True
 
     def __init__(self):
-        self._connection_thname_ = '_pydal_connection_'+str(id(self))+"_"
-        self._cursors_thname_ = '_pydal_cursors_'+str(id(self))+"_"
+        _iid_ = str(id(self))
+        self._connection_thname_ = '_pydal_connection_' + _iid_ + '_'
+        self._cursors_thname_ = '_pydal_cursors_' + _iid_ + '_'
+
+    @property
+    def _pid_(self):
+        return str(os.getpid())
+
+    @property
+    def _connection_uname_(self):
+        return self._connection_thname_ + self._pid_
+
+    @property
+    def _cursors_uname_(self):
+        return self._cursors_thname_ + self._pid_
 
     @staticmethod
     def set_folder(folder):
@@ -19,21 +33,21 @@ class ConnectionPool(object):
 
     @property
     def connection(self):
-        return getattr(THREAD_LOCAL, self._connection_thname_)
+        return getattr(THREAD_LOCAL, self._connection_uname_)
 
     @connection.setter
     def connection(self, val):
-        setattr(THREAD_LOCAL, self._connection_thname_, val)
+        setattr(THREAD_LOCAL, self._connection_uname_, val)
         self._clean_cursors()
         if val is not None:
             self._build_cursor()
 
     def _clean_cursors(self):
-        setattr(THREAD_LOCAL, self._cursors_thname_, OrderedDict())
+        setattr(THREAD_LOCAL, self._cursors_uname_, OrderedDict())
 
     @property
     def cursors(self):
-        return getattr(THREAD_LOCAL, self._cursors_thname_)
+        return getattr(THREAD_LOCAL, self._cursors_uname_)
 
     def _build_cursor(self):
         rv = Cursor(self.connection)
@@ -127,12 +141,8 @@ class ConnectionPool(object):
         if the connection is not active (closed by db server) it will loop
         if not `self.pool_size` or no active connections in pool makes a new one
         """
-        if getattr(THREAD_LOCAL, self._connection_thname_, None) is not None:
+        if getattr(THREAD_LOCAL, self._connection_uname_, None) is not None:
             return
-
-        # if not hasattr(self, "driver") or self.driver is None:
-        #     LOGGER.debug("Skipping connection since there's no driver")
-        #     return
 
         if not self.pool_size:
             self.connection = self.connector()
@@ -149,7 +159,6 @@ class ConnectionPool(object):
                     GLOBAL_LOCKER.release()
                     try:
                         if self.check_active_connection:
-                            #self.execute_test_query()
                             self.test_connection()
                         break
                     except:
@@ -159,5 +168,3 @@ class ConnectionPool(object):
                     self.connection = self.connector()
                     self.after_connection_hook()
                     break
-
-                    
