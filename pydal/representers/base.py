@@ -214,6 +214,10 @@ class NoSQLRepresenter(BaseRepresenter):
     def _string(self, value):
         return to_unicode(value)
 
+    @for_type('password')
+    def _password(self, value):
+        return to_unicode(value)
+
     @for_type('text')
     def _text(self, value):
         return to_unicode(value)

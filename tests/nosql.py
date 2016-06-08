@@ -10,7 +10,7 @@ import glob
 import datetime
 from ._compat import unittest
 
-from pydal._compat import PY2, basestring, StringIO, integer_types
+from pydal._compat import PY2, basestring, StringIO, integer_types, to_bytes
 
 long = integer_types[-1]
 
@@ -340,14 +340,17 @@ class TestFields(unittest.TestCase):
             self.assertTrue(isinstance(db.tt.insert(), long))
             self.assertTrue(isinstance(db.tt.insert(aa=iv[1]), long))
             self.assertTrue(isinstance(db.tt.insert(aa=None), long))
+            cv = iv[1]
+            if IS_MONGODB and not PY2 and iv[0] == 'blob':
+                cv = to_bytes(iv[1])
             self.assertEqual(db().select(db.tt.aa)[0].aa, default_return)
-            self.assertEqual(db().select(db.tt.aa)[1].aa, iv[1])
+            self.assertEqual(db().select(db.tt.aa)[1].aa, cv)
             self.assertEqual(db().select(db.tt.aa)[2].aa, None)
 
             if not IS_GAE:
                 ## field aliases
                 row = db().select(db.tt.aa.with_alias('zz'))[1]
-                self.assertEqual(row['zz'], iv[1])
+                self.assertEqual(row['zz'], cv)
 
             drop(db.tt)
 
@@ -1844,8 +1847,11 @@ class TestRNameFields(unittest.TestCase):
         rname = _quote(db, 'a very complicated fieldname')
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
             db.define_table('tt', Field('aa', ft, default='', rname=rname))
+            cv = 'x'
             self.assertEqual(isinstance(db.tt.insert(aa='x'), long), True)
-            self.assertEqual(db().select(db.tt.aa)[0].aa, 'x')
+            if IS_MONGODB and not PY2 and ft == 'blob':
+                cv = to_bytes(cv)
+            self.assertEqual(db().select(db.tt.aa)[0].aa, cv)
             drop(db.tt)
         db.define_table('tt', Field('aa', 'integer', default=1, rname=rname))
         self.assertEqual(isinstance(db.tt.insert(aa=3), long), True)

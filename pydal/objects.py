@@ -11,9 +11,9 @@ import shutil
 import sys
 import types
 
-from ._compat import PY2, StringIO, pjoin, exists, hashlib_md5, \
+from ._compat import PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, \
     integer_types, basestring, iteritems, xrange, implements_iterator, \
-    implements_bool, copyreg, reduce
+    implements_bool, copyreg, reduce, string_types, to_bytes, to_native
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
@@ -700,13 +700,13 @@ class Table(Serializable, BasicStorage):
         for field in self:
             if field.type == 'upload' and field.name in fields:
                 value = fields[field.name]
-                if not (value is None or isinstance(value, str)):
+                if not (value is None or isinstance(value, string_types)):
                     if hasattr(value, 'file') and hasattr(value, 'filename'):
                         new_name = field.store(
                             value.file, filename=value.filename)
                     elif isinstance(value, dict):
                         if 'data' in value and 'filename' in value:
-                            stream = StringIO(value['data'])
+                            stream = BytesIO(to_bytes(value['data']))
                             new_name = field.store(
                                 stream, filename=value['filename'])
                         else:
@@ -1502,8 +1502,8 @@ class Field(Expression, Serializable):
         m = REGEX_STORE_PATTERN.search(filename)
         extension = m and m.group('e') or 'txt'
         uuid_key = self._db.uuid().replace('-', '')[-16:]
-        encoded_filename = base64.b16encode(
-            filename.encode('utf-8')).lower().decode('utf-8')
+        encoded_filename = to_native(
+            base64.b16encode(to_bytes(filename)).lower())
         newfilename = '%s.%s.%s.%s' % (
             self._tablename, self.name, uuid_key, encoded_filename)
         newfilename = newfilename[:(self.length - 1 - len(extension))] + \
@@ -1564,12 +1564,12 @@ class Field(Expression, Serializable):
         file_properties = self.retrieve_file_properties(name, path)
         filename = file_properties['filename']
         if isinstance(self_uploadfield, str):  # ## if file is in DB
-            stream = StringIO(row[self_uploadfield] or '')
+            stream = BytesIO(to_bytes(row[self_uploadfield] or ''))
         elif isinstance(self_uploadfield, Field):
             blob_uploadfield_name = self_uploadfield.uploadfield
             query = self_uploadfield == name
             data = self_uploadfield.table(query)[blob_uploadfield_name]
-            stream = StringIO(data)
+            stream = BytesIO(to_bytes(data))
         elif self.uploadfs:
             # ## if file is on pyfilesystem
             stream = self.uploadfs.open(name, 'rb')
