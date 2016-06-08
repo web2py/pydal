@@ -1,4 +1,4 @@
-from ..adapters.postgres import Postgre, PostgreNew
+from ..adapters.postgres import Postgre, PostgreNew, PostgreBoolean
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
 from .base import SQLDialect
@@ -264,6 +264,19 @@ class PostgreDialectArrays(PostgreDialect):
 
 
 class PostgreDialectArraysJSON(PostgreDialectArrays):
+    @sqltype_for('json')
+    def type_json(self):
+        return 'JSON'
+
+
+@dialects.register_for(PostgreBoolean)
+class PostgreDialectBoolean(PostgreDialectArrays):
+    @sqltype_for('boolean')
+    def type_boolean(self):
+        return 'BOOLEAN'
+
+
+class PostgreDialectBooleanJSON(PostgreDialectBoolean):
     @sqltype_for('json')
     def type_json(self):
         return 'JSON'
