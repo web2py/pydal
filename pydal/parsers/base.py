@@ -30,8 +30,7 @@ class BasicParser(Parser):
 
     @for_type('boolean')
     def _boolean(self, value):
-        return value == self.dialect.true
-        # or str(value)[:1].lower() == 't'
+        return value == self.dialect.true or str(value)[:1].lower() == 't'
 
     @for_type('blob')
     def _blob(self, value):

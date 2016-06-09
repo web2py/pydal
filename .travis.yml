@@ -21,7 +21,8 @@ env:
     - ADAPTER=mysql
     - ADAPTER=postgres
     - ADAPTER=postgresPG8000
-    - ADAPTER=postgres2
+    - ADAPTER=postgres3
+    - ADAPTER=postgres3PG8000
     - ADAPTER=google
     - ADAPTER=mongo
 
@@ -30,7 +31,7 @@ matrix:
     - python: 'pypy'
       env: ADAPTER=postgres
     - python: 'pypy'
-      env: ADAPTER=postgres2
+      env: ADAPTER=postgres3
     - python: 'pypy'
       env: ADAPTER=google
     - python: '3.3'
