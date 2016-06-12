@@ -65,6 +65,7 @@ class MetaDialect(type):
         new_class._declared_sqltypes_ = declared_sqltypes
         for key, val in expressions:
             declared_expressions[key] = val
+        new_class._declared_expressions_ = declared_expressions
         #: get super declared attributes
         all_sqltypes = OrderedDict()
         all_expressions = OrderedDict()

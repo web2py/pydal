@@ -1,6 +1,16 @@
 pydal changelog
 ===============
 
+Version 16.06.09
+----------------
+
+Released on June 9th 2016
+
+- Fixed boolean parsing errors on Postgre introduced with 16.06
+- Fixed connection issues on multiprocessing environments with pre-fork
+- Added 'postgres3' adapter to use driver 'boolean' type on fields
+
+
 Version 16.06
 -------------
 

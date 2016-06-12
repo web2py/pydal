@@ -205,6 +205,27 @@ class PostgrePG8000New(PostgrePG8000):
     pass
 
 
+@adapters.register_for('postgres3')
+class PostgreBoolean(PostgreNew):
+    def _get_json_dialect(self):
+        from ..dialects.postgre import PostgreDialectBooleanJSON
+        return PostgreDialectBooleanJSON
+
+    def _get_json_parser(self):
+        from ..parsers.postgre import PostgreBooleanAutoJSONParser
+        return PostgreBooleanAutoJSONParser
+
+
+@adapters.register_for('postgres3:psycopg2')
+class PostgrePsycoBoolean(PostgrePsycoNew):
+    pass
+
+
+@adapters.register_for('postgres3:pg8000')
+class PostgrePG8000Boolean(PostgrePG8000New):
+    pass
+
+
 @adapters.register_for('jdbc:postgres')
 class JDBCPostgre(Postgre):
     drivers = ('zxJDBC',)
