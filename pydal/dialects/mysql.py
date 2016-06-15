@@ -8,6 +8,10 @@ from . import dialects, sqltype_for
 class MySQLDialect(SQLDialect):
     quote_template = '`%s`'
 
+    @sqltype_for('datetime')
+    def type_datetime(self):
+        return 'DATETIME'
+
     @sqltype_for('text')
     def type_text(self):
         return 'LONGTEXT'
