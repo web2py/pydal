@@ -157,8 +157,8 @@ class TestFields(unittest.TestCase):
         stream.write(content)
         # rewind before inserting
         stream.seek(0)
-        
-        
+
+
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('fileobj', 'upload',
                                     uploadfolder=tempfile.gettempdir(),
@@ -182,7 +182,7 @@ class TestFields(unittest.TestCase):
 
         # drop
         db.tt.drop()
-        
+
         # this part is triggered only if fs (AKA pyfilesystem) module is installed
         try:
             from fs.memoryfs import MemoryFS
@@ -308,6 +308,15 @@ class TestFields(unittest.TestCase):
         self.assertEqual(db.tt.insert(aa=t0), 1)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
         db.tt.drop()
+
+        # aggregation type detection
+        db.define_table('tt', Field('aa', 'datetime',
+                        default=datetime.datetime.today()))
+        t0 = datetime.datetime(1971, 12, 21, 10, 30, 55, 0)
+        self.assertEqual(db.tt.insert(aa=t0), 1)
+        self.assertEqual(db().select(db.tt.aa.min())[0][db.tt.aa.min()], t0)
+        db.tt.drop()
+
         db.close()
 
 
