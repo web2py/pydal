@@ -201,13 +201,13 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         if table._db._lazy_tables:
             row['__get_lazy_reference__'] = LazyReferenceGetter(table, rid)
 
-    def _add_reference_sets_to_parsed_row(self, table, tablename, row):
+    def _add_reference_sets_to_parsed_row(self, rid, table, tablename, row):
         for rfield in table._referenced_by:
             referee_link = self.db._referee_name and self.db._referee_name % \
                 dict(table=rfield.tablename, field=rfield.name)
             if referee_link and referee_link not in row and \
                referee_link != tablename:
-                row[referee_link] = LazySet(rfield, id)
+                row[referee_link] = LazySet(rfield, rid)
 
     def _regex_select_as_parser(self, colname):
         return REGEX_SELECT_AS_PARSER.search(colname)
@@ -238,7 +238,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 if ft == 'id' and not cacheable:
                     self._add_operators_to_parsed_row(value, table, colset)
                     self._add_reference_sets_to_parsed_row(
-                        table, tablename, colset)
+                        value, table, tablename, colset)
             #: otherwise we set the value in extras
             else:
                 value = self.parse_value(value, fields[j].type, blob_decode)
