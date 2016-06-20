@@ -339,7 +339,7 @@ class Migrator(object):
                     query = [sql_fields[key]['sql']]
                 else:
                     query = ['ALTER TABLE %s ADD %s %s;' % (
-                        table.sqlsafe, key,
+                        table.sqlsafe, self.dialect.quote(key),
                         sql_fields_aux[key]['sql'].replace(', ', new_add))]
                 metadata_change = True
             elif self.dbengine in ('sqlite', 'spatialite'):
