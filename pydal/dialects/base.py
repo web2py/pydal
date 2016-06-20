@@ -9,8 +9,7 @@ long = integer_types[-1]
 
 
 class CommonDialect(Dialect):
-
-    quote_template = '"%s"'
+    quote_template = '%s'
 
     def _force_bigints(self):
         if 'big-id' in self.types and 'reference' in self.types:
@@ -452,8 +451,6 @@ class SQLDialect(CommonDialect):
 
 
 class NoSQLDialect(CommonDialect):
-    quote_template = '%s'
-
     @sqltype_for('string')
     def type_string(self):
         return str
