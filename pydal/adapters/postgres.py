@@ -148,8 +148,8 @@ class PostgrePsyco(Postgre):
             self.connection.server_version >= 90200
         if use_json:
             self.dialect = self._get_json_dialect()(self)
-        if self.driver.__version__ >= '2.5.0':
-            self.parser = self._get_json_parser()(self)
+            if self.driver.__version__ >= '2.5.0':
+                self.parser = self._get_json_parser()(self)
 
     def adapt(self, obj):
         adapted = psycopg2_adapt(obj)
@@ -170,8 +170,8 @@ class PostgrePG8000(Postgre):
     def _config_json(self):
         if self.connection._server_version >= "9.2.0":
             self.dialect = self._get_json_dialect()(self)
-        if self.driver.__version__ >= '1.10.2':
-            self.parser = self._get_json_parser()(self)
+            if self.driver.__version__ >= '1.10.2':
+                self.parser = self._get_json_parser()(self)
 
     def adapt(self, obj):
         return "'%s'" % obj.replace("%", "%%").replace("'", "''")
