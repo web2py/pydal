@@ -19,7 +19,7 @@ from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
     REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
-    REGEX_CLEANUP_FN, REGEX_VALID_TB_FLD
+    REGEX_CLEANUP_FN, REGEX_VALID_TB_FLD, REGEX_TYPE
 from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL, \
     Serializable, BasicStorage
 from .helpers.methods import list_represent, bar_decode_integer, \
@@ -1372,7 +1372,7 @@ class FieldMethod(object):
     def __init__(self, name, f=None, handler=None):
         # for backward compatibility
         (self.name, self.f) = (name, f) if f else ('unknown', name)
-        self.handler = handler
+        self.handler = handler or VirtualCommand
 
 
 @implements_bool
@@ -1475,6 +1475,7 @@ class Field(Expression, Serializable):
         self.requires = requires if requires is not None else []
         self.map_none = map_none
         self._rname = rname
+        self._itype = REGEX_TYPE.match(self.type).group(0)
 
     def set_attributes(self, *args, **attributes):
         self.__dict__.update(*args, **attributes)
