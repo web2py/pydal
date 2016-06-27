@@ -1064,6 +1064,8 @@ class Expression(object):
             self.type = first.type
         else:
             self.type = type
+        self._itype = \
+            REGEX_TYPE.match(self.type).group(0) if self.type else None
         self.optional_args = optional_args
 
     @property
