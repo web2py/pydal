@@ -105,7 +105,7 @@ class TestParseDateTime(unittest.TestCase):
         if db._adapter.parser.registered.get('datetime') is None:
             return
 
-        parse = lambda v: db._adapter.parser.parse(v, 'datetime')
+        parse = lambda v: db._adapter.parser.parse(v, 'datetime', 'datetime')
 
         dt = parse('2015-09-04t12:33:36.223245')
         self.assertEqual(dt.microsecond, 223245)
