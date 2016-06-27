@@ -21,7 +21,7 @@ from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
     REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
     REGEX_CLEANUP_FN, REGEX_VALID_TB_FLD, REGEX_TYPE
 from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL, \
-    Serializable, BasicStorage
+    Serializable, BasicStorage, SQLCustomType
 from .helpers.methods import list_represent, bar_decode_integer, \
     bar_decode_string, bar_encode, archive_record, cleanup, \
     use_common_filters, pluralize
@@ -1064,8 +1064,10 @@ class Expression(object):
             self.type = first.type
         else:
             self.type = type
-        self._itype = \
-            REGEX_TYPE.match(self.type).group(0) if self.type else None
+        if isinstance(self.type, str):
+            self._itype = REGEX_TYPE.match(self.type).group(0)
+        else:
+            self._itype = None
         self.optional_args = optional_args
 
     @property
@@ -1477,7 +1479,10 @@ class Field(Expression, Serializable):
         self.requires = requires if requires is not None else []
         self.map_none = map_none
         self._rname = rname
-        self._itype = REGEX_TYPE.match(self.type).group(0)
+        stype = self.type
+        if isinstance(self.type, SQLCustomType):
+            stype = self.type.type
+        self._itype = REGEX_TYPE.match(stype).group(0) if stype else None
 
     def set_attributes(self, *args, **attributes):
         self.__dict__.update(*args, **attributes)
