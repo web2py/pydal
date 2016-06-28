@@ -1,6 +1,15 @@
 pydal changelog
 ===============
 
+Version 16.06.28
+----------------
+
+Released on June 28th 2016
+
+- Fixed bugs on MSSQL and Postgre adapters introduced with 16.06
+- Improved parsing performance
+
+
 Version 16.06.20
 ----------------
 
