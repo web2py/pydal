@@ -148,10 +148,10 @@ class TestChainedJoinUNIQUE(unittest.TestCase):
         db.commit()
         rows = db(db.aa).select()
         rows.join('bb_items',lambda ids:db.bb.aa.belongs(ids), fields=[db.bb.name], orderby=[db.bb.name])
+        self.assertEqual(rows[2].bb_items[0].name, 'zu')
+        self.assertEqual(rows[2].bb_items[1].name, 'zv')
         self.assertEqual(rows[2].bb_items[2].name, 'zw')
         rows_json = rows.as_json()
-        expected_json = '[{"name": "x", "bb_items": [{"name": "xu"}, {"name": "xv"}, {"name": "xw"}], "id": 1}, {"name": "y", "bb_items": [{"name": "yu"}, {"name": "yv"}, {"name": "yw"}], "id": 2}, {"name": "z", "bb_items": [{"name": "zu"}, {"name": "zv"}, {"name": "zw"}], "id": 3}]'
-        self.assertEqual(rows_json, expected_json)
         drop(db.aa)
         drop(db.bb)
         db.close()
