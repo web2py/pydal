@@ -2664,6 +2664,30 @@ class Rows(BasicRows):
                                                reverse=reverse)]
         return rows
 
+    def join(self, name, func, filter=None, fields=[], orderby=None):
+        db = self.db
+        ids = []
+        maps = {}
+        for row in self:
+            ids.append(row.id)
+        field = query = func(ids)
+        while not isinstance(field, Field): field = field.first
+        name = name or field._tablename
+        for row in self:
+            maps[row.id] = row
+            row[name] = []
+        tmp = not field.name in [f.name for f in fields]
+        if tmp:
+            fields.append(field)
+        if filter:
+            query =  query & filter
+        other = db(query).select(*fields, orderby=orderby)
+        for row in other:
+            maps[row[field.name]][name].append(row)
+            if tmp: del row[field.name]
+        return self
+    
+
     def group_by_value(self, *fields, **args):
         """
         Regroups the rows, by one of the fields
