@@ -152,6 +152,6 @@ class TestChainedJoinUNIQUE(unittest.TestCase):
         self.assertEqual(rows[2].bb_items[1].name, 'zv')
         self.assertEqual(rows[2].bb_items[2].name, 'zw')
         rows_json = rows.as_json()
-        drop(db.aa)
         drop(db.bb)
+        drop(db.aa)
         db.close()
