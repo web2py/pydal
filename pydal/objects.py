@@ -2664,20 +2664,26 @@ class Rows(BasicRows):
                                                reverse=reverse)]
         return rows
 
-    def join(self, field, name=None, filter=None, fields=[], orderby=None):
+    def join(self, field, name=None, constraint=None, fields=[], orderby=None):
+        if len(self) == 0: return
         mode = 'referencing' if field.type == 'id' else 'referenced'
         func = lambda ids: field.belongs(ids)
         db, ids, maps = self.db, [], {}
         if mode == 'referencing':
-            if name: names = [name]
-            else: names = [f.name for f in field._table._referenced_by]
-            ids = reduce(lambda a,b: a+b, [[row[name] for row in self] for name in names])
+            # try all refernced field names
+            names = [name] if name else list(set(
+                    f.name for f in field._table._referenced_by if f.name in self[0]))
+            # get all the ids
+            ids = [row.get(name) for row in self for name in names]
+            # filter out the invalid ids
+            ids = filter(lambda id: str(id).isdigit(), ids)
+            # build the query
             query = func(ids)
-            if filter: query = query & filter
+            if constraint: query = query & constraint
             tmp = not field.name in [f.name for f in fields]
             if tmp:
                 fields.append(field)
-            other = db(query).select(*fields, orderby=orderby)
+            other = db(query).select(*fields, orderby=orderby, cacheable=True)
             for row in other:
                 id = row[field.name]
                 maps[id] = row
@@ -2687,13 +2693,14 @@ class Rows(BasicRows):
         if mode == 'referenced':
             if not name:
                 name = field._tablename
-            query = func([row.id for row in self])        
-            if filter: query = query & filter
+            # build the query
+            query = func([row.id for row in self])                    
+            if constraint: query = query & constraint
             name = name or field._tablename
             tmp = not field.name in [f.name for f in fields]
             if tmp:
                 fields.append(field)
-            other = db(query).select(*fields, orderby=orderby)
+            other = db(query).select(*fields, orderby=orderby, cacheable=True)
             for row in other:
                 id = row[field.name]
                 if not id in maps: maps[id] = []
