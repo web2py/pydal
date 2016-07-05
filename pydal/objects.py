@@ -2664,27 +2664,42 @@ class Rows(BasicRows):
                                                reverse=reverse)]
         return rows
 
-    def join(self, name, func, filter=None, fields=[], orderby=None):
-        db = self.db
-        ids = []
-        maps = {}
-        for row in self:
-            ids.append(row.id)
-        field = query = func(ids)
-        while not isinstance(field, Field): field = field.first
-        name = name or field._tablename
-        for row in self:
-            maps[row.id] = row
-            row[name] = []
-        tmp = not field.name in [f.name for f in fields]
-        if tmp:
-            fields.append(field)
-        if filter:
-            query =  query & filter
-        other = db(query).select(*fields, orderby=orderby)
-        for row in other:
-            maps[row[field.name]][name].append(row)
-            if tmp: del row[field.name]
+    def join(self, field, name=None, filter=None, fields=[], orderby=None):
+        mode = 'referencing' if field.type == 'id' else 'referenced'
+        func = lambda ids: field.belongs(ids)
+        db, ids, maps = self.db, [], {}
+        if mode == 'referencing':
+            if name: names = [name]
+            else: names = [f.name for f in field._table._referenced_by]
+            ids = reduce(lambda a,b: a+b, [[row[name] for row in self] for name in names])
+            query = func(ids)
+            if filter: query = query & filter
+            tmp = not field.name in [f.name for f in fields]
+            if tmp:
+                fields.append(field)
+            other = db(query).select(*fields, orderby=orderby)
+            for row in other:
+                id = row[field.name]
+                maps[id] = row
+            for row in self:
+                for name in names:
+                    row[name] = maps.get(row[name])
+        if mode == 'referenced':
+            if not name:
+                name = field._tablename
+            query = func([row.id for row in self])        
+            if filter: query = query & filter
+            name = name or field._tablename
+            tmp = not field.name in [f.name for f in fields]
+            if tmp:
+                fields.append(field)
+            other = db(query).select(*fields, orderby=orderby)
+            for row in other:
+                id = row[field.name]
+                if not id in maps: maps[id] = []
+                maps[id].append(row)
+            for row in self:
+                row[name] = maps.get(row.id, [])
         return self
     
 
