@@ -2686,7 +2686,7 @@ class Rows(BasicRows):
             if tmp:
                 fields.append(field)
             other = db(query).select(*fields, orderby=orderby, cacheable=True)
-            for row in other:
+            for row in other:                
                 id = row[field.name]
                 maps[id] = row
             for row in self:
@@ -2704,8 +2704,16 @@ class Rows(BasicRows):
                 fields.append(field)
             other = db(query).select(*fields, orderby=orderby, cacheable=True)
             for row in other:
-                id = row[field.name]
+                id = row[field]
                 if not id in maps: maps[id] = []
+                if tmp:
+                    try:
+                        del row[field.name]
+                    except:
+                        del row[field.tablename][field.name]
+                        if not row[field.tablename] and len(row.keys())==2:
+                            del row[field.tablename]
+                            row = row[row.keys()[0]]
                 maps[id].append(row)
             for row in self:
                 row[name] = maps.get(row.id, [])
