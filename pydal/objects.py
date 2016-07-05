@@ -2669,6 +2669,8 @@ class Rows(BasicRows):
         mode = 'referencing' if field.type == 'id' else 'referenced'
         func = lambda ids: field.belongs(ids)
         db, ids, maps = self.db, [], {}
+        if not fields:
+            fields = [f for f in field._table]
         if mode == 'referencing':
             # try all refernced field names
             names = [name] if name else list(set(
