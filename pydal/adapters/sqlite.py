@@ -15,6 +15,7 @@ class SQLite(SQLAdapter):
     drivers = ('sqlite2', 'sqlite3')
 
     def _initialize_(self, do_connect):
+        self.pool_size = 0
         super(SQLite, self)._initialize_(do_connect)
         path_encoding = sys.getfilesystemencoding() \
             or locale.getdefaultlocale()[1] or 'utf8'

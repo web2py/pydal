@@ -143,7 +143,7 @@ class ConnectionPool(object):
         """
         if getattr(THREAD_LOCAL, self._connection_uname_, None) is not None:
             return
-
+        
         if not self.pool_size:
             self.connection = self.connector()
             self.after_connection_hook()
