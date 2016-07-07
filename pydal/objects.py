@@ -2665,12 +2665,12 @@ class Rows(BasicRows):
         return rows
 
     def join(self, field, name=None, constraint=None, fields=[], orderby=None):
-        if len(self) == 0: return
+        if len(self) == 0: return self
         mode = 'referencing' if field.type == 'id' else 'referenced'
         func = lambda ids: field.belongs(ids)
         db, ids, maps = self.db, [], {}
         if not fields:
-            fields = [f for f in field._table]
+            fields = [f for f in field._table if f.readable]
         if mode == 'referencing':
             # try all refernced field names
             names = [name] if name else list(set(
