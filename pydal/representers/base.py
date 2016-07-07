@@ -70,7 +70,7 @@ class BaseRepresenter(Representer):
     def _list_integer(self, value):
         values = self._ensure_list(value)
         values = list(map(int, [val for val in values if val != '']))
-        return bar_encode(value)
+        return bar_encode(values)
         
     @for_type('list:double')
     def _list_double(self, value):
