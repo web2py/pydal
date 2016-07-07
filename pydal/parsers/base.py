@@ -136,6 +136,10 @@ class ListsParser(BasicParser):
     @for_type('list:integer')
     def _list_integers(self, value):
         return bar_decode_integer(value)
+        
+    @for_type('list:double')
+    def _list_doubles(self, value):
+        return bar_decode_double(value)
 
     @for_type('list:string')
     def _list_strings(self, value):
