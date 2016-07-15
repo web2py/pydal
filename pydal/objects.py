@@ -1701,6 +1701,9 @@ class Field(Expression, Serializable):
         except:
             return '<no table>.%s' % self.name
 
+    def __hash__(self):
+        return id(self)
+
     @property
     def sqlsafe(self):
         if self._table:
