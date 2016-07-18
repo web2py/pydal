@@ -39,6 +39,8 @@ matrix:
       env: ADAPTER=google
     - python: '3.4'
       env: ADAPTER=google
+    - python: '3.5'
+      env: ADAPTER=google
 
 before_script:
   - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install codecov; fi
