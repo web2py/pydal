@@ -794,7 +794,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 _dict = OrderedDict
             else:
                 _dict = dict
-            return [_dict(zip(fields,row)) for row in data]
+            return [_dict(zip(fields, row)) for row in data]
         try:
             data = adapter.fetchall()
         except:
@@ -810,8 +810,16 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 else:
                     extracted_fields.append(field)
             if not colnames:
-                colnames = ['%s.%s' % (f.tablename, f.name)
-                            for f in extracted_fields]
+                colnames = [f.sqlsafe for f in extracted_fields]
+            else:
+                newcolnames = []
+                for tf in colnames:
+                    if '.' in tf:
+                        newcolnames.append('.'.join(adapter.dialect.quote(f)
+                                                    for f in tf.split('.')))
+                    else:
+                        newcolnames.append(tf)
+                colnames = newcolnames
             data = adapter.parse(
                 data, fields=extracted_fields, colnames=colnames)
         return data

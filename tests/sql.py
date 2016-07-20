@@ -1559,6 +1559,38 @@ class TestSelectAsDict(unittest.TestCase):
         db.close()
 
 
+class TestExecuteSQL(unittest.TestCase):
+
+    def testSelect(self):
+        db = DAL('sqlite://storage.db', check_reserved=['all'], entity_quoting=False)
+        db.define_table(
+            'a_table',
+            Field('b_field'),
+            Field('a_field'),
+            )
+        db.a_table.insert(a_field="aa1", b_field="bb1")
+        rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_dict=True)
+        self.assertEqual(rtn[0]['b_field'], 'bb1')
+        rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_ordered_dict=True)
+        self.assertEqual(rtn[0]['b_field'], 'bb1')
+        self.assertEqual(rtn[0]['b_field'], 'bb1')
+        self.assertEqual(list(rtn[0].keys()), ['id', 'b_field', 'a_field'])
+
+        rtn = db.executesql("select id, b_field, a_field from a_table", fields=db.a_table)
+        self.assertTrue(all(x in rtn[0].keys() for x in ['id', 'b_field', 'a_field']))
+        self.assertEqual(rtn[0].b_field, 'bb1')
+
+        rtn = db.executesql("select id, b_field, a_field from a_table", fields=db.a_table,
+                            colnames=['a_table.id', 'a_table.b_field', 'a_table.a_field'])
+
+        self.assertTrue(all(x in rtn[0].keys() for x in ['id', 'b_field', 'a_field']))
+        self.assertEqual(rtn[0].b_field, 'bb1')
+        rtn = db.executesql("select COUNT(*) from a_table", fields=[db.a_table.id.count()], colnames=['foo'])
+        self.assertEqual(rtn[0].foo, 1)
+
+        db.a_table.drop()
+        db.close()
+
 class TestRNameTable(unittest.TestCase):
     #tests for highly experimental rname attribute
 
