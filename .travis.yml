@@ -7,7 +7,6 @@ cache: pip
 python:
   - '2.7'
   - 'pypy'
-  - '3.3'
   - '3.4'
   - '3.5'
 
@@ -34,8 +33,6 @@ matrix:
     - python: 'pypy'
       env: ADAPTER=postgres3
     - python: 'pypy'
-      env: ADAPTER=google
-    - python: '3.3'
       env: ADAPTER=google
     - python: '3.4'
       env: ADAPTER=google
