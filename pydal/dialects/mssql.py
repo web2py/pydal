@@ -244,9 +244,10 @@ class MSSQL3Dialect(MSSQLDialect):
         f_iproxy = ', '.join([
             self._as(o, n) for (o, n) in zip(f_inner, f_outer)])
         f_oproxy = ', '.join(f_outer)
-        return 'SELECT%s %s FROM (' + \
+        interp = 'SELECT%s %s FROM (' + \
             'SELECT%s ROW_NUMBER() OVER (%s) AS w_row, %s FROM %s%s%s)' + \
-            ' TMP WHERE w_row BETWEEN %i and %i;' % (
+            ' TMP WHERE w_row BETWEEN %i and %i;'
+        return interp % (
                 dst, f_oproxy, dst, order, f_iproxy, tables, whr, grp,
                 lmin, lmax
             )

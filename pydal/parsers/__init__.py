@@ -97,12 +97,8 @@ class Parser(with_metaclass(MetaParser)):
     def _default(self, value, field_type):
         return value
 
-    def get_parser(self, field_type):
-        key = REGEX_TYPE.match(field_type).group(0)
-        return self.registered[key]
-
-    def parse(self, value, field_type):
-        return self.get_parser(field_type)(value, field_type)
+    def parse(self, value, field_itype, field_type):
+        return self.registered[field_itype](value, field_type)
 
 
 from .base import BasicParser

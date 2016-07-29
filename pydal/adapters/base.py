@@ -177,7 +177,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     append(field)
         return new_fields
 
-    def parse_value(self, value, field_type, blob_decode=True):
+    def parse_value(self, value, field_itype, field_type, blob_decode=True):
         #[Note - gi0baro] I think next if block can be (should be?) avoided
         if field_type != 'blob' and isinstance(value, str):
             try:
@@ -193,7 +193,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         elif field_type == 'blob' and not blob_decode:
             return value
         else:
-            return self.parser.parse(value, field_type)
+            return self.parser.parse(value, field_itype, field_type)
 
     def _add_operators_to_parsed_row(self, rid, table, row):
         for key, record_operator in iteritems(self.db.record_operators):
@@ -201,13 +201,13 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         if table._db._lazy_tables:
             row['__get_lazy_reference__'] = LazyReferenceGetter(table, rid)
 
-    def _add_reference_sets_to_parsed_row(self, table, tablename, row):
+    def _add_reference_sets_to_parsed_row(self, rid, table, tablename, row):
         for rfield in table._referenced_by:
             referee_link = self.db._referee_name and self.db._referee_name % \
                 dict(table=rfield.tablename, field=rfield.name)
             if referee_link and referee_link not in row and \
                referee_link != tablename:
-                row[referee_link] = LazySet(rfield, id)
+                row[referee_link] = LazySet(rfield, rid)
 
     def _regex_select_as_parser(self, colname):
         return REGEX_SELECT_AS_PARSER.search(colname)
@@ -223,10 +223,10 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             tablename = None
             #: do we have a real column?
             if tmp:
-                (tablename, fieldname, table, field, ft) = tmp
+                (tablename, fieldname, table, field, ft, fit) = tmp
                 colset = new_row[tablename]
                 #: parse value
-                value = self.parse_value(value, ft, blob_decode)
+                value = self.parse_value(value, fit, ft, blob_decode)
                 if field.filter_out:
                     value = field.filter_out(value)
                 colset[fieldname] = value
@@ -238,10 +238,11 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 if ft == 'id' and not cacheable:
                     self._add_operators_to_parsed_row(value, table, colset)
                     self._add_reference_sets_to_parsed_row(
-                        table, tablename, colset)
+                        value, table, tablename, colset)
             #: otherwise we set the value in extras
             else:
-                value = self.parse_value(value, fields[j].type, blob_decode)
+                value = self.parse_value(
+                    value, fields[j]._itype, fields[j].type, blob_decode)
                 extras[colname] = value
                 new_column_name = self._regex_select_as_parser(colname)
                 if new_column_name is not None:
@@ -260,9 +261,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     pass  # not enough fields to define virtual field
             for f, v in fields_lazy[tablename]:
                 try:
-                    new_row[tablename][f] = (v.handler or VirtualCommand)(
-                        v.f, new_row
-                    )
+                    new_row[tablename][f] = v.handler(v.f, new_row)
                 except (AttributeError, KeyError):
                     pass  # not enough fields to define virtual field
         return new_row
@@ -285,7 +284,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             table = self.db[tablename]
             field = table[fieldname]
             ft = field.type
-            tmps.append((tablename, fieldname, table, field, ft))
+            fit = field._itype
+            tmps.append((tablename, fieldname, table, field, ft, fit))
             if tablename not in fields_virtual:
                 fields_virtual[tablename] = [
                     (f.name, f) for f in table._virtual_fields

@@ -105,7 +105,7 @@ class TestParseDateTime(unittest.TestCase):
         if db._adapter.parser.registered.get('datetime') is None:
             return
 
-        parse = lambda v: db._adapter.parser.parse(v, 'datetime')
+        parse = lambda v: db._adapter.parser.parse(v, 'datetime', 'datetime')
 
         dt = parse('2015-09-04t12:33:36.223245')
         self.assertEqual(dt.microsecond, 223245)
@@ -131,4 +131,47 @@ class TestParseDateTime(unittest.TestCase):
 
         dt = parse('2015-09-04t12:33:36.1234567890')
         self.assertEqual(dt.microsecond, 123456)
+        db.close()
+
+@unittest.skipIf(IS_IMAP, "chained join unsupported on IMAP")
+class TestChainedJoinUNIQUE(unittest.TestCase):
+    # 1:1 relation
+
+    def testRun(self):
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('aa',Field('name'))
+        db.define_table('bb',Field('aa','reference aa'),Field('name'))
+        for k in ('x','y','z'):
+            i = db.aa.insert(name=k)
+            for j in ('u','v','w'):
+                db.bb.insert(aa=i,name=k+j)
+        db.commit()
+        rows = db(db.aa).select()
+        rows.join(db.bb.aa, fields=[db.bb.name], orderby=[db.bb.name])
+        self.assertEqual(rows[0].bb[0].name, 'xu')
+        self.assertEqual(rows[0].bb[1].name, 'xv')
+        self.assertEqual(rows[0].bb[2].name, 'xw')
+        self.assertEqual(rows[1].bb[0].name, 'yu')
+        self.assertEqual(rows[1].bb[1].name, 'yv')
+        self.assertEqual(rows[1].bb[2].name, 'yw')
+        self.assertEqual(rows[2].bb[0].name, 'zu')
+        self.assertEqual(rows[2].bb[1].name, 'zv')
+        self.assertEqual(rows[2].bb[2].name, 'zw')
+
+        rows = db(db.bb).select()
+        rows.join(db.aa.id, fields=[db.aa.name])
+        
+        self.assertEqual(rows[0].aa.name, 'x')
+        self.assertEqual(rows[1].aa.name, 'x')
+        self.assertEqual(rows[2].aa.name, 'x')
+        self.assertEqual(rows[3].aa.name, 'y')
+        self.assertEqual(rows[4].aa.name, 'y')
+        self.assertEqual(rows[5].aa.name, 'y')
+        self.assertEqual(rows[6].aa.name, 'z')
+        self.assertEqual(rows[7].aa.name, 'z')
+        self.assertEqual(rows[8].aa.name, 'z')
+
+        rows_json = rows.as_json()
+        drop(db.bb)
+        drop(db.aa)
         db.close()

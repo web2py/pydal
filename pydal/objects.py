@@ -19,9 +19,9 @@ from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
     REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
-    REGEX_CLEANUP_FN, REGEX_VALID_TB_FLD
+    REGEX_CLEANUP_FN, REGEX_VALID_TB_FLD, REGEX_TYPE
 from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL, \
-    Serializable, BasicStorage
+    Serializable, BasicStorage, SQLCustomType
 from .helpers.methods import list_represent, bar_decode_integer, \
     bar_decode_string, bar_encode, archive_record, cleanup, \
     use_common_filters, pluralize
@@ -1064,6 +1064,10 @@ class Expression(object):
             self.type = first.type
         else:
             self.type = type
+        if isinstance(self.type, str):
+            self._itype = REGEX_TYPE.match(self.type).group(0)
+        else:
+            self._itype = None
         self.optional_args = optional_args
 
     @property
@@ -1372,7 +1376,7 @@ class FieldMethod(object):
     def __init__(self, name, f=None, handler=None):
         # for backward compatibility
         (self.name, self.f) = (name, f) if f else ('unknown', name)
-        self.handler = handler
+        self.handler = handler or VirtualCommand
 
 
 @implements_bool
@@ -1475,6 +1479,10 @@ class Field(Expression, Serializable):
         self.requires = requires if requires is not None else []
         self.map_none = map_none
         self._rname = rname
+        stype = self.type
+        if isinstance(self.type, SQLCustomType):
+            stype = self.type.type
+        self._itype = REGEX_TYPE.match(stype).group(0) if stype else None
 
     def set_attributes(self, *args, **attributes):
         self.__dict__.update(*args, **attributes)
@@ -1692,6 +1700,9 @@ class Field(Expression, Serializable):
             return '%s.%s' % (self.tablename, self.name)
         except:
             return '<no table>.%s' % self.name
+
+    def __hash__(self):
+        return id(self)
 
     @property
     def sqlsafe(self):
@@ -2655,6 +2666,62 @@ class Rows(BasicRows):
                                                key=lambda r: f(r[1]),
                                                reverse=reverse)]
         return rows
+
+    def join(self, field, name=None, constraint=None, fields=[], orderby=None):
+        if len(self) == 0: return self
+        mode = 'referencing' if field.type == 'id' else 'referenced'
+        func = lambda ids: field.belongs(ids)
+        db, ids, maps = self.db, [], {}
+        if not fields:
+            fields = [f for f in field._table if f.readable]
+        if mode == 'referencing':
+            # try all refernced field names
+            names = [name] if name else list(set(
+                    f.name for f in field._table._referenced_by if f.name in self[0]))
+            # get all the ids
+            ids = [row.get(name) for row in self for name in names]
+            # filter out the invalid ids
+            ids = filter(lambda id: str(id).isdigit(), ids)
+            # build the query
+            query = func(ids)
+            if constraint: query = query & constraint
+            tmp = not field.name in [f.name for f in fields]
+            if tmp:
+                fields.append(field)
+            other = db(query).select(*fields, orderby=orderby, cacheable=True)
+            for row in other:                
+                id = row[field.name]
+                maps[id] = row
+            for row in self:
+                for name in names:
+                    row[name] = maps.get(row[name])
+        if mode == 'referenced':
+            if not name:
+                name = field._tablename
+            # build the query
+            query = func([row.id for row in self])                    
+            if constraint: query = query & constraint
+            name = name or field._tablename
+            tmp = not field.name in [f.name for f in fields]
+            if tmp:
+                fields.append(field)
+            other = db(query).select(*fields, orderby=orderby, cacheable=True)
+            for row in other:
+                id = row[field]
+                if not id in maps: maps[id] = []
+                if tmp:
+                    try:
+                        del row[field.name]
+                    except:
+                        del row[field.tablename][field.name]
+                        if not row[field.tablename] and len(row.keys())==2:
+                            del row[field.tablename]
+                            row = row[row.keys()[0]]
+                maps[id].append(row)
+            for row in self:
+                row[name] = maps.get(row.id, [])
+        return self
+    
 
     def group_by_value(self, *fields, **args):
         """

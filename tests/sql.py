@@ -157,8 +157,8 @@ class TestFields(unittest.TestCase):
         stream.write(content)
         # rewind before inserting
         stream.seek(0)
-        
-        
+
+
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('fileobj', 'upload',
                                     uploadfolder=tempfile.gettempdir(),
@@ -182,7 +182,7 @@ class TestFields(unittest.TestCase):
 
         # drop
         db.tt.drop()
-        
+
         # this part is triggered only if fs (AKA pyfilesystem) module is installed
         try:
             from fs.memoryfs import MemoryFS
@@ -308,6 +308,15 @@ class TestFields(unittest.TestCase):
         self.assertEqual(db.tt.insert(aa=t0), 1)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
         db.tt.drop()
+
+        # aggregation type detection
+        db.define_table('tt', Field('aa', 'datetime',
+                        default=datetime.datetime.today()))
+        t0 = datetime.datetime(1971, 12, 21, 10, 30, 55, 0)
+        self.assertEqual(db.tt.insert(aa=t0), 1)
+        self.assertEqual(db().select(db.tt.aa.min())[0][db.tt.aa.min()], t0)
+        db.tt.drop()
+
         db.close()
 
 
@@ -1549,6 +1558,38 @@ class TestSelectAsDict(unittest.TestCase):
         db.a_table.drop()
         db.close()
 
+
+class TestExecuteSQL(unittest.TestCase):
+
+    def testSelect(self):
+        db = DAL('sqlite://storage.db', check_reserved=['all'], entity_quoting=False)
+        db.define_table(
+            'a_table',
+            Field('b_field'),
+            Field('a_field'),
+            )
+        db.a_table.insert(a_field="aa1", b_field="bb1")
+        rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_dict=True)
+        self.assertEqual(rtn[0]['b_field'], 'bb1')
+        rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_ordered_dict=True)
+        self.assertEqual(rtn[0]['b_field'], 'bb1')
+        self.assertEqual(rtn[0]['b_field'], 'bb1')
+        self.assertEqual(list(rtn[0].keys()), ['id', 'b_field', 'a_field'])
+
+        rtn = db.executesql("select id, b_field, a_field from a_table", fields=db.a_table)
+        self.assertTrue(all(x in rtn[0].keys() for x in ['id', 'b_field', 'a_field']))
+        self.assertEqual(rtn[0].b_field, 'bb1')
+
+        rtn = db.executesql("select id, b_field, a_field from a_table", fields=db.a_table,
+                            colnames=['a_table.id', 'a_table.b_field', 'a_table.a_field'])
+
+        self.assertTrue(all(x in rtn[0].keys() for x in ['id', 'b_field', 'a_field']))
+        self.assertEqual(rtn[0].b_field, 'bb1')
+        rtn = db.executesql("select COUNT(*) from a_table", fields=[db.a_table.id.count()], colnames=['foo'])
+        self.assertEqual(rtn[0].foo, 1)
+
+        db.a_table.drop()
+        db.close()
 
 class TestRNameTable(unittest.TestCase):
     #tests for highly experimental rname attribute

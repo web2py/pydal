@@ -7,8 +7,8 @@ cache: pip
 python:
   - '2.7'
   - 'pypy'
-  - '3.3'
   - '3.4'
+  - '3.5'
 
 install:
   - pip install tox>=1.8
@@ -34,9 +34,9 @@ matrix:
       env: ADAPTER=postgres3
     - python: 'pypy'
       env: ADAPTER=google
-    - python: '3.3'
-      env: ADAPTER=google
     - python: '3.4'
+      env: ADAPTER=google
+    - python: '3.5'
       env: ADAPTER=google
 
 before_script:
