@@ -1,12 +1,9 @@
 import re
 import sys
-from .._compat import integer_types
+from .._compat import integer_types, long
 from ..helpers.classes import Reference
 from .base import SQLAdapter
 from . import adapters, with_connection_or_raise
-
-long = integer_types[-1]
-
 
 @adapters.register_for('')
 class Oracle(SQLAdapter):

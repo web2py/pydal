@@ -13,7 +13,7 @@ import types
 
 from ._compat import PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, \
     integer_types, basestring, iteritems, xrange, implements_iterator, \
-    implements_bool, copyreg, reduce, string_types, to_bytes, to_native
+    implements_bool, copyreg, reduce, string_types, to_bytes, to_native, long
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
@@ -27,7 +27,6 @@ from .helpers.methods import list_represent, bar_decode_integer, \
     use_common_filters, pluralize
 from .helpers.serializers import serializers
 
-long = integer_types[-1]
 
 DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
                  'blob': 2**31}

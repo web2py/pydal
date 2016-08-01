@@ -1,5 +1,5 @@
 import re
-from .._compat import PY2, with_metaclass, iterkeys, to_unicode
+from .._compat import PY2, with_metaclass, iterkeys, to_unicode, long
 from .._globals import IDENTITY, THREAD_LOCAL
 from ..drivers import psycopg2_adapt
 from .base import SQLAdapter

@@ -105,3 +105,4 @@ def to_unicode(obj, charset='utf-8', errors='strict'):
 # shortcuts
 pjoin = os.path.join
 exists = os.path.exists
+long = long if PY2 else int

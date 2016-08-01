@@ -133,7 +133,7 @@ import urllib
 from uuid import uuid4
 
 from ._compat import PY2, pickle, hashlib_md5, pjoin, copyreg, integer_types, \
-    with_metaclass
+    with_metaclass, long
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT
 from ._load import OrderedDict
 from .helpers.classes import Serializable, SQLCallableList, BasicStorage, \
@@ -145,9 +145,6 @@ from .helpers.rest import RestParser
 from .helpers.serializers import serializers
 from .objects import Table, Field, Rows, Row, Set
 from .adapters.base import BaseAdapter, NullAdapter
-
-long = integer_types[-1]
-
 
 TABLE_ARGS = set(
     ('migrate', 'primarykey', 'fake_migrate', 'format', 'redefine',

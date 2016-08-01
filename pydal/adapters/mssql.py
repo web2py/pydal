@@ -1,11 +1,8 @@
 import re
-from .._compat import PY2, iteritems, integer_types, to_unicode
+from .._compat import PY2, iteritems, integer_types, to_unicode, long
 from .._globals import IDENTITY
 from .base import SQLAdapter
 from . import adapters, with_connection_or_raise
-
-long = integer_types[-1]
-
 
 class Slicer(object):
     def rowslice(self, rows, minimum=0, maximum=None):
