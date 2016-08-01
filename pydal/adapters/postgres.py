@@ -106,11 +106,10 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
         self.execute("SET standard_conforming_strings=on;")
         self._config_json()
 
-    def lastrowid(self, table=None):
-        if self._last_insert:
-            return int(self.cursor.fetchone()[0])
-        self.execute("select lastval()")
-        return int(self.cursor.fetchone()[0])
+    def lastrowid(self, table):
+        sequence_name = table._sequence_name
+        self.execute("SELECT currval('%s');" % sequence_name)
+        return long(self.cursor.fetchone()[0])
 
     def _insert(self, table, fields):
         self._last_insert = None
