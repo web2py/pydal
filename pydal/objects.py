@@ -700,6 +700,8 @@ class Table(Serializable, BasicStorage):
             if field.type == 'upload' and field.name in fields:
                 value = fields[field.name]
                 if not (value is None or isinstance(value, string_types)):
+                    if not PY2 and isinstance(value, bytes):
+                        continue
                     if hasattr(value, 'file') and hasattr(value, 'filename'):
                         new_name = field.store(
                             value.file, filename=value.filename)
@@ -2688,7 +2690,7 @@ class Rows(BasicRows):
             if tmp:
                 fields.append(field)
             other = db(query).select(*fields, orderby=orderby, cacheable=True)
-            for row in other:                
+            for row in other:
                 id = row[field.name]
                 maps[id] = row
             for row in self:
@@ -2698,7 +2700,7 @@ class Rows(BasicRows):
             if not name:
                 name = field._tablename
             # build the query
-            query = func([row.id for row in self])                    
+            query = func([row.id for row in self])
             if constraint: query = query & constraint
             name = name or field._tablename
             tmp = not field.name in [f.name for f in fields]
@@ -2720,7 +2722,7 @@ class Rows(BasicRows):
             for row in self:
                 row[name] = maps.get(row.id, [])
         return self
-    
+
 
     def group_by_value(self, *fields, **args):
         """
