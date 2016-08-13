@@ -10,27 +10,6 @@ if PY2:
     import cPickle as pickle
     from cStringIO import StringIO
     import copy_reg as copyreg
-    from HTMLParser import HTMLParser
-    import urlparse
-    from htmlentitydefs import entitydefs, name2codepoint
-    import __builtin__ as builtin
-    import thread
-    import Cookie
-    import urllib2
-    import Queue
-    import ConfigParser as configparser
-    from email.MIMEBase import MIMEBase
-    from email.Header import Header
-    from email import Encoders, Charset
-    from email.MIMEMultipart import MIMEMultipart
-    from email.MIMEText import MIMEText
-    from email.Charset import add_charset, QP as charset_QP
-    from urllib import FancyURLopener, urlencode, urlopen
-    from urllib import quote as urllib_quote, unquote as urllib_unquote
-    from string import maketrans
-    from types import ClassType
-    import cgi
-    import cookielib
     BytesIO = StringIO
     reduce = reduce
     hashlib_md5 = hashlib.md5
@@ -41,19 +20,17 @@ if PY2:
     string_types = (str, unicode)
     text_type = unicode
     basestring = basestring
-    xrange = xrange
     long = long
-    unichr = unichr
-    unicodeT = unicode
-
-    def implements_bool(cls):
-        cls.__nonzero__ = cls.__bool__
-        del cls.__bool__
-        return cls
+    xrange = xrange
 
     def implements_iterator(cls):
         cls.next = cls.__next__
         del cls.__next__
+        return cls
+
+    def implements_bool(cls):
+        cls.__nonzero__ = cls.__bool__
+        del cls.__bool__
         return cls
 
     def to_bytes(obj, charset='utf-8', errors='strict'):
@@ -69,32 +46,11 @@ if PY2:
         if obj is None or isinstance(obj, str):
             return obj
         return obj.encode(charset, errors)
-
-
 else:
     import pickle
     from io import StringIO, BytesIO
     import copyreg
     from functools import reduce
-    from html.parser import HTMLParser
-    from http import cookies as Cookie
-    from urllib import parse as urlparse
-    from urllib import request as urllib2
-    from html.entities import entitydefs, name2codepoint
-    import builtins as builtin
-    import _thread as thread
-    import configparser
-    import queue as Queue
-    from email.mime.base import MIMEBase
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-    from email import encoders as Encoders
-    from email.header import Header
-    from email.charset import Charset, add_charset, QP as charset_QP
-    from urllib.request import FancyURLopener, urlopen
-    from urllib.parse import quote as urllib_quote, unquote as urllib_unquote, urlencode
-    from http import cookiejar as cookielib
-    import html # warning, this is the python3 module and not the web2py html module
     hashlib_md5 = lambda s: hashlib.md5(bytes(s, 'utf8'))
     iterkeys = lambda d: iter(d.keys())
     itervalues = lambda d: iter(d.values())
@@ -103,12 +59,8 @@ else:
     string_types = (str,)
     text_type = str
     basestring = str
-    xrange = range
     long = int
-    unichr = chr
-    unicodeT = str
-    maketrans = str.maketrans
-    ClassType = type
+    xrange = range
 
     implements_iterator = _identity
     implements_bool = _identity
