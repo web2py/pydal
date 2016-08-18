@@ -1,10 +1,7 @@
 import re
-from .._compat import integer_types
+from .._compat import integer_types, long
 from .base import SQLAdapter
 from . import adapters
-
-long = integer_types[-1]
-
 
 @adapters.register_for('sapdb')
 class SAPDB(SQLAdapter):

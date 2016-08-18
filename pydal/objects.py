@@ -13,7 +13,7 @@ import types
 
 from ._compat import PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, \
     integer_types, basestring, iteritems, xrange, implements_iterator, \
-    implements_bool, copyreg, reduce, string_types, to_bytes, to_native
+    implements_bool, copyreg, reduce, string_types, to_bytes, to_native, long
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
@@ -27,7 +27,6 @@ from .helpers.methods import list_represent, bar_decode_integer, \
     use_common_filters, pluralize
 from .helpers.serializers import serializers
 
-long = integer_types[-1]
 
 DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
                  'blob': 2**31}
@@ -701,6 +700,8 @@ class Table(Serializable, BasicStorage):
             if field.type == 'upload' and field.name in fields:
                 value = fields[field.name]
                 if not (value is None or isinstance(value, string_types)):
+                    if not PY2 and isinstance(value, bytes):
+                        continue
                     if hasattr(value, 'file') and hasattr(value, 'filename'):
                         new_name = field.store(
                             value.file, filename=value.filename)
@@ -2689,7 +2690,7 @@ class Rows(BasicRows):
             if tmp:
                 fields.append(field)
             other = db(query).select(*fields, orderby=orderby, cacheable=True)
-            for row in other:                
+            for row in other:
                 id = row[field.name]
                 maps[id] = row
             for row in self:
@@ -2699,7 +2700,7 @@ class Rows(BasicRows):
             if not name:
                 name = field._tablename
             # build the query
-            query = func([row.id for row in self])                    
+            query = func([row.id for row in self])
             if constraint: query = query & constraint
             name = name or field._tablename
             tmp = not field.name in [f.name for f in fields]
@@ -2721,7 +2722,7 @@ class Rows(BasicRows):
             for row in self:
                 row[name] = maps.get(row.id, [])
         return self
-    
+
 
     def group_by_value(self, *fields, **args):
         """

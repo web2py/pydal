@@ -20,6 +20,7 @@ if PY2:
     string_types = (str, unicode)
     text_type = unicode
     basestring = basestring
+    long = long
     xrange = xrange
 
     def implements_iterator(cls):
@@ -58,6 +59,7 @@ else:
     string_types = (str,)
     text_type = str
     basestring = str
+    long = int
     xrange = range
 
     implements_iterator = _identity

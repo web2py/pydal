@@ -1,7 +1,7 @@
 import copy
 import random
 from datetime import datetime
-from .._compat import integer_types, basestring
+from .._compat import integer_types, basestring, long
 from ..exceptions import NotOnNOSQLError
 from ..helpers.classes import FakeCursor, Reference, SQLALL
 from ..helpers.methods import use_common_filters, xorify
@@ -16,9 +16,6 @@ except:
     class Binary(object):
         pass
     USER_DEFINED_SUBTYPE = 0
-
-long = integer_types[-1]
-
 
 @adapters.register_for('mongodb')
 class Mongo(NoSQLAdapter):

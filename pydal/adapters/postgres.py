@@ -1,5 +1,5 @@
 import re
-from .._compat import PY2, with_metaclass, iterkeys, to_unicode
+from .._compat import PY2, with_metaclass, iterkeys, to_unicode, long
 from .._globals import IDENTITY, THREAD_LOCAL
 from ..drivers import psycopg2_adapt
 from .base import SQLAdapter
@@ -106,11 +106,12 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
         self.execute("SET standard_conforming_strings=on;")
         self._config_json()
 
-    def lastrowid(self, table=None):
+    def lastrowid(self, table):
         if self._last_insert:
-            return int(self.cursor.fetchone()[0])
-        self.execute("select lastval()")
-        return int(self.cursor.fetchone()[0])
+            return long(self.cursor.fetchone()[0])
+        sequence_name = table._sequence_name
+        self.execute("SELECT currval(%s);" % self.adapt(sequence_name))
+        return long(self.cursor.fetchone()[0])
 
     def _insert(self, table, fields):
         self._last_insert = None
