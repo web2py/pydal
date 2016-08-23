@@ -4,7 +4,7 @@ import types
 from collections import defaultdict
 from contextlib import contextmanager
 from .._compat import PY2, with_metaclass, iterkeys, iteritems, hashlib_md5, \
-    integer_types
+    integer_types, basestring
 from .._globals import IDENTITY
 from ..connection import ConnectionPool
 from ..exceptions import NotOnNOSQLError
@@ -14,7 +14,7 @@ from ..helpers.methods import use_common_filters, xorify
 from ..helpers.regex import REGEX_SELECT_AS_PARSER, REGEX_TABLE_DOT_FIELD
 from ..migrator import Migrator
 from ..objects import Table, Field, Expression, Query, Rows, IterRows, \
-    LazySet, LazyReferenceGetter, VirtualCommand
+    LazySet, LazyReferenceGetter, VirtualCommand, Select
 from ..utils import deprecated
 from . import AdapterMeta, with_connection, with_connection_or_raise
 
@@ -113,31 +113,33 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return rv
 
     def tables(self, *queries):
-        tables = set()
+        tables = dict()
+        # FIXME: check for name conflicts
         for query in queries:
             if isinstance(query, Field):
-                tables.add(query.tablename)
+                tables[query.tablename] = query.table
             elif isinstance(query, (Expression, Query)):
                 if query.first is not None:
-                    tables = tables.union(self.tables(query.first))
+                    tables.update(self.tables(query.first))
                 if query.second is not None:
-                    tables = tables.union(self.tables(query.second))
-        return list(tables)
+                    tables.update(self.tables(query.second))
+        return tables
 
     def get_table(self, *queries):
         tablenames = self.tables(*queries)
         if len(tablenames) == 1:
-            return tablenames[0]
+            return tablenames.popitem()[0]
         elif len(tablenames) < 1:
             raise RuntimeError("No table selected")
         else:
             raise RuntimeError(
                 "Too many tables selected (%s)" % str(tablenames))
 
-    def common_filter(self, query, tablenames):
+    def common_filter(self, query, tablist):
         tenant_fieldname = self.db._request_tenant
-        for tablename in tablenames:
-            table = self.db[tablename]
+        for table in tablist:
+            if isinstance(table, basestring):
+                table = self.db[table]
             # deal with user provided filters
             if table._common_filter is not None:
                 query = query & table._common_filter(query)
@@ -155,7 +157,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     def _expand(self, expression, field_type=None, colnames=False):
         return str(expression)
 
-    def expand_all(self, fields, tablenames):
+    def expand_all(self, fields, tabledict):
         new_fields = []
         append = new_fields.append
         for item in fields:
@@ -172,8 +174,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 append(item)
         # ## if no fields specified take them all from the requested tables
         if not new_fields:
-            for table in tablenames:
-                for field in self.db[table]:
+            for table in tabledict.values():
+                for field in table:
                     append(field)
         return new_fields
 
@@ -254,19 +256,19 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         #: add virtuals
         new_row = self.db.Row(**new_row)
         for tablename in fields_virtual.keys():
-            for f, v in fields_virtual[tablename]:
+            for f, v in fields_virtual[tablename][1]:
                 try:
                     new_row[tablename][f] = v.f(new_row)
                 except (AttributeError, KeyError):
                     pass  # not enough fields to define virtual field
-            for f, v in fields_lazy[tablename]:
+            for f, v in fields_lazy[tablename][1]:
                 try:
                     new_row[tablename][f] = v.handler(v.f, new_row)
                 except (AttributeError, KeyError):
                     pass  # not enough fields to define virtual field
         return new_row
 
-    def _parse_expand_colnames(self, colnames):
+    def _parse_expand_colnames(self, fieldlist):
         """
         - Expand a list of colnames into a list of
           (tablename, fieldname, table_obj, field_obj, field_type)
@@ -275,39 +277,38 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         fields_virtual = {}
         fields_lazy = {}
         tmps = []
-        for colname in colnames:
-            col_m = self.REGEX_TABLE_DOT_FIELD.match(colname)
-            if not col_m:
+        for field in fieldlist:
+            if not isinstance(field, Field):
                 tmps.append(None)
                 continue
-            tablename, fieldname = col_m.groups()
-            table = self.db[tablename]
-            field = table[fieldname]
+            table = field.table
+            tablename, fieldname = table._tablename, field.name
             ft = field.type
             fit = field._itype
             tmps.append((tablename, fieldname, table, field, ft, fit))
             if tablename not in fields_virtual:
-                fields_virtual[tablename] = [
+                fields_virtual[tablename] = (table, [
                     (f.name, f) for f in table._virtual_fields
-                ]
-                fields_lazy[tablename] = [
+                ])
+                fields_lazy[tablename] = (table, [
                     (f.name, f) for f in table._virtual_methods
-                ]
+                ])
         return (fields_virtual, fields_lazy, tmps)
 
     def parse(self, rows, fields, colnames, blob_decode=True, cacheable=False):
         (fields_virtual, fields_lazy, tmps) = \
-            self._parse_expand_colnames(colnames)
+            self._parse_expand_colnames(fields)
         new_rows = [
             self._parse(
                 row, tmps, fields, colnames, blob_decode, cacheable,
                 fields_virtual, fields_lazy)
             for row in rows
         ]
-        rowsobj = self.db.Rows(self.db, new_rows, colnames, rawrows=rows)
+        rowsobj = self.db.Rows(self.db, new_rows, colnames, rawrows=rows,
+                fields=fields)
         # Old style virtual fields
-        for tablename in fields_virtual.keys():
-            table = self.db[tablename]
+        for tablename, tmp in fields_virtual.items():
+            table = tmp[0]
             ### old style virtual fields
             for item in table.virtualfields:
                 try:
@@ -422,8 +423,7 @@ class SQLAdapter(BaseAdapter):
         if isinstance(expression, Field):
             et = expression.table
             if not colnames:
-                table_rname = et._ot and self.dialect.quote(et._tablename) \
-                    or et._rname or self.dialect.quote(et._tablename)
+                table_rname = et.query_alias
                 rv = '%s.%s' % (table_rname, expression._rname or
                                 (self.dialect.quote(expression.name)))
             else:
@@ -561,13 +561,19 @@ class SQLAdapter(BaseAdapter):
     def _build_joins_for_select(self, tablenames, param):
         if not isinstance(param, (tuple, list)):
             param = [param]
+        tablemap = {}
+        for item in param:
+            if isinstance(item, Expression):
+                item = item.first
+            tablemap[item._tablename] = item
         join_tables = [
             t._tablename for t in param if not isinstance(t, Expression)
         ]
         join_on = [t for t in param if isinstance(t, Expression)]
         tables_to_merge = {}
         for t in join_on:
-            tables_to_merge.update(dict.fromkeys(self.tables(t)))
+            # FIXME: check for name conflicts
+            tables_to_merge.update(self.tables(t))
         join_on_tables = [t.first._tablename for t in join_on]
         for t in join_on_tables:
             if t in tables_to_merge:
@@ -579,7 +585,7 @@ class SQLAdapter(BaseAdapter):
         ]
         return (
             join_tables, join_on, tables_to_merge, join_on_tables,
-            important_tablenames, excluded
+            important_tablenames, excluded, tablemap
         )
 
     def _select_wcols(self, query, fields, left=False, join=False,
@@ -587,9 +593,9 @@ class SQLAdapter(BaseAdapter):
                       having=False, limitby=False, orderby_on_limitby=True,
                       for_update=False, outer_scoped=[], required=None,
                       cache=None, cacheable=None, processor=None):
-        #: parse tablenames
-        tablenames = self.tables(query)
-        tablenames_for_common_filters = tablenames
+        #: parse tablemap
+        tablemap = self.tables(query)
+        tablenames_for_common_filters = tablemap
         #: apply common filters if needed
         if use_common_filters(query):
             query = self.common_filter(query, tablenames_for_common_filters)
@@ -598,16 +604,16 @@ class SQLAdapter(BaseAdapter):
             query = self.expand(query)
         #: auto-adjust tables
         for field in fields:
-            for tablename in self.tables(field):
-                if tablename not in tablenames:
-                    tablenames.append(tablename)
-        if len(tablenames) < 1:
+            # FIXME: check for name conflicts
+            tablemap.update(self.tables(field))
+        if len(tablemap) < 1:
             raise SyntaxError('Set: no tables selected')
         #: remove outer scoped tables if needed
-        if outer_scoped:
-            tablenames = [
-                name for name in tablenames if name not in outer_scoped]
+        for item in outer_scoped:
+            # FIXME: check for name conflicts
+            tablemap.pop(item, None)
         #: prepare columns and expand fields
+        query_tables = list(tablemap)
         colnames = list(map(self._colexpand, fields))
         sql_fields = ', '.join(map(self._geoexpand, fields))
         #: check for_update argument
@@ -618,49 +624,60 @@ class SQLAdapter(BaseAdapter):
         #: build joins (inner, left outer) and table names
         if join:
             (
+                # FIXME? ijoin_tables is never used
                 ijoin_tables, ijoin_on, itables_to_merge, ijoin_on_tables,
-                iimportant_tablenames, iexcluded
-            ) = self._build_joins_for_select(tablenames, join)
+                iimportant_tablenames, iexcluded, itablemap
+            ) = self._build_joins_for_select(tablemap, join)
+            # FIXME: check for name conflicts
+            tablemap.update(itablemap)
         if left:
             (
                 join_tables, join_on, tables_to_merge, join_on_tables,
-                important_tablenames, excluded
-            ) = self._build_joins_for_select(tablenames, left)
+                important_tablenames, excluded, jtablemap
+            ) = self._build_joins_for_select(tablemap, left)
+            # FIXME: check for name conflicts
+            tablemap.update(jtablemap)
+        current_scope = outer_scoped + list(tablemap)
+        table_alias = lambda name: tablemap[name].query_name(current_scope)[0]
         if join and not left:
             cross_joins = iexcluded + list(itables_to_merge)
-            sql_t = '%s' % self.table_alias(cross_joins[0])
-            for t in cross_joins[1:]:
-                sql_t += ' %s' % self.dialect.cross_join(self.table_alias(t))
-            for t in ijoin_on:
-                sql_t += ' %s' % self.dialect.join(t)
+            tokens = [table_alias(cross_joins[0])]
+            tokens += [self.dialect.cross_join(table_alias(t))
+                    for t in cross_joins[1:]]
+            # FIXME: properly expand subqueries in the ON() expressions
+            tokens += [self.dialect.join(t) for t in ijoin_on]
+            sql_t = ' '.join(tokens)
         elif not join and left:
             cross_joins = excluded + list(tables_to_merge)
-            sql_t = '%s' % self.table_alias(cross_joins[0])
-            for t in cross_joins[1:]:
-                sql_t += ' %s' % self.dialect.cross_join(self.table_alias(t))
+            tokens = [table_alias(cross_joins[0])]
+            tokens += [self.dialect.cross_join(table_alias(t))
+                    for t in cross_joins[1:]]
+            # FIXME: WTF? This is not correct syntax at least on PostgreSQL
             if join_tables:
-                sql_t += ' %s' % \
-                    self.dialect.left_join(','.join([t for t in join_tables]))
-            for t in join_on:
-                sql_t += ' %s' % self.dialect.left_join(t)
+                tokens.append(self.dialect.left_join(','.join([table_alias(t)
+                        for t in join_tables])))
+            # FIXME: properly expand subqueries in the ON() expressions
+            tokens += [self.dialect.left_join(t) for t in join_on]
+            sql_t = ' '.join(tokens)
         elif join and left:
             all_tables_in_query = set(
-                important_tablenames + iimportant_tablenames + tablenames)
+                important_tablenames + iimportant_tablenames + query_tables)
             tables_in_joinon = set(join_on_tables + ijoin_on_tables)
             tables_not_in_joinon = \
                 list(all_tables_in_query.difference(tables_in_joinon))
-            sql_t = '%s' % self.table_alias(tables_not_in_joinon[0])
-            for t in tables_not_in_joinon[1:]:
-                sql_t += ' %s' % self.dialect.cross_join(self.table_alias(t))
-            for t in ijoin_on:
-                sql_t += ' %s' % self.dialect.join(t)
+            tokens = [table_alias(tables_not_in_joinon[0])]
+            tokens += [self.dialect.cross_join(table_alias(t))
+                    for t in tables_not_in_joinon[1:]]
+            tokens += [self.dialect.join(t) for t in ijoin_on]
+            # FIXME: WTF? This is not correct syntax at least on PostgreSQL
             if join_tables:
-                sql_t += ' %s' % \
-                    self.dialect.left_join(','.join([t for t in join_tables]))
-            for t in join_on:
-                sql_t += ' %s' % self.dialect.left_join(t)
+                tokens.append(self.dialect.left_join(','.join([table_alias(t)
+                        for t in join_tables])))
+            # FIXME: properly expand subqueries in the ON() expressions
+            tokens += [self.dialect.left_join(t) for t in join_on]
+            sql_t = ' '.join(tokens)
         else:
-            sql_t = ', '.join(self.table_alias(t) for t in tablenames)
+            sql_t = ', '.join(table_alias(t) for t in query_tables)
         #: groupby
         sql_grp = groupby
         if groupby:
@@ -677,13 +694,13 @@ class SQLAdapter(BaseAdapter):
             else:
                 sql_ord = self.expand(orderby)
         #: set default orderby if missing
-        if (limitby and not groupby and tablenames and orderby_on_limitby and
+        if (limitby and not groupby and query_tables and orderby_on_limitby and
            not orderby):
             sql_ord = ', '.join([
-                self.db[t].sqlsafe + '.' + self.db[t][x].sqlsafe_name
-                for t in tablenames
-                for x in (hasattr(self.db[t], '_primarykey') and
-                          self.db[t]._primarykey or ['_id'])
+                tablemap[t].sqlsafe + '.' + tablemap[t][x].sqlsafe_name
+                for t in query_tables if not isinstance(tablemap[t], Select)
+                for x in (hasattr(tablemap[t], '_primarykey') and
+                          tablemap[t]._primarykey or ['_id'])
             ])
         #: build sql using dialect
         return colnames, self.dialect.select(
@@ -692,7 +709,7 @@ class SQLAdapter(BaseAdapter):
         )
 
     def _select(self, query, fields, attributes):
-        return self._select_wcols(query, fields, **attributes)[1]
+        return Select(self.db, query, fields, attributes)
 
     def _select_aux_execute(self, sql):
         self.execute(sql)

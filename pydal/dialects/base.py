@@ -2,7 +2,7 @@ import datetime
 from .._compat import integer_types
 from ..adapters.base import SQLAdapter
 from ..helpers.methods import use_common_filters
-from ..objects import Expression, Field
+from ..objects import Expression, Field, Select
 from . import Dialect, dialects, sqltype_for
 
 long = integer_types[-1]
@@ -219,6 +219,10 @@ class SQLDialect(CommonDialect):
     def belongs(self, first, second):
         if isinstance(second, str):
             return '(%s IN (%s))' % (self.expand(first), second[:-1])
+        elif isinstance(second, Select):
+            # FIXME: pass outer-scoped tables in
+            sub = second._compile()[1][:-1]
+            return '(%s IN (%s))' % (self.expand(first), sub)
         if not second:
             return '(1=0)'
         items = ','.join(self.expand(item, first.type) for item in second)
@@ -369,10 +373,11 @@ class SQLDialect(CommonDialect):
             self.expand(first), self.expand(second, first.type))
 
     def on(self, first, second):
-        table_rname = self.adapter.table_alias(first)
+        # FIXME: pass tables in parent scope
+        table_rname = first.query_name()[0]
         if use_common_filters(second):
-            second = self.adapter.common_filter(second, [first._tablename])
-        return ('%s ON %s') % (self.expand(table_rname), self.expand(second))
+            second = self.adapter.common_filter(second, [first])
+        return ('%s ON %s') % (table_rname, self.expand(second))
 
     def invert(self, first):
         return '%s DESC' % self.expand(first)
