@@ -78,6 +78,12 @@ def bar_decode_integer(value):
     if not hasattr(value, 'split') and hasattr(value, 'read'):
         value = value.read()
     return [long(x) for x in value.split('|') if x.strip()]
+    
+    
+def bar_decode_double(value):
+    if not hasattr(value, 'split') and hasattr(value, 'read'):
+        value = value.read()
+    return [float(x) for x in value.split('|') if x.strip()]
 
 
 def bar_decode_string(value):

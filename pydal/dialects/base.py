@@ -113,6 +113,10 @@ class SQLDialect(CommonDialect):
     @sqltype_for('list:integer')
     def type_list_integer(self):
         return self.types['text']
+        
+    @sqltype_for('list:double')
+    def type_list_double(self):
+        return self.types['text']
 
     @sqltype_for('list:string')
     def type_list_string(self):
@@ -517,6 +521,10 @@ class NoSQLDialect(CommonDialect):
 
     @sqltype_for('list:integer')
     def type_list_integer(self):
+        return list
+        
+    @sqltype_for('list:double')
+    def type_list_double(self):
         return list
 
     @sqltype_for('list:string')
