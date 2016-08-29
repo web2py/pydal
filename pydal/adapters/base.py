@@ -709,7 +709,7 @@ class SQLAdapter(BaseAdapter):
         )
 
     def _select(self, query, fields, attributes):
-        return Select(self.db, query, fields, attributes)
+        return self._select_wcols(query, fields, **attributes)[1]
 
     def _select_aux_execute(self, sql):
         self.execute(sql)

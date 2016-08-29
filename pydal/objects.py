@@ -2202,7 +2202,14 @@ class Set(Serializable):
         return adapter.iterselect(self.query, fields, attributes)
 
     def nested_select(self, *fields, **attributes):
-        return Expression(self.db, self._select(*fields, **attributes))
+        adapter = self.db._adapter
+        tablenames = adapter.tables(self.query,
+                                    attributes.get('join', None),
+                                    attributes.get('left', None),
+                                    attributes.get('orderby', None),
+                                    attributes.get('groupby', None))
+        fields = adapter.expand_all(fields, tablenames)
+        return Select(self.db, self.query, fields, attributes)
 
     def delete(self):
         db = self.db
