@@ -393,9 +393,9 @@ class Table(Serializable, BasicStorage):
                 lambda qset: qset.update(is_active=False))
             newquery = lambda query, t=self, name=self._tablename: reduce(
                 AND, [
-                    db[tn].is_active == True
-                    for tn in db._adapter.tables(query)
-                    if tn == name or getattr(db[tn], '_ot', None) == name]
+                    tab.is_active == True
+                    for tab in db._adapter.tables(query).values()
+                    if tab.real_name == self.real_name]
                 )
             query = self._common_filter
             if query:
@@ -642,6 +642,11 @@ class Table(Serializable, BasicStorage):
         if self._rname and not self._ot:
             return self._rname
         return self._db._adapter.dialect.quote(self._tablename)
+
+    @property
+    def real_name(self):
+        """Backend name of the table"""
+        return self._rname or self._ot or self.sqlsafe
 
     def _drop(self, mode=''):
         return self._db._adapter.dialect.drop_table(self, mode)
@@ -1180,6 +1185,10 @@ class Select(BasicStorage):
         if self._tablename is None:
             raise SyntaxError("Subselect must be aliased for use in a JOIN")
         return self._db._adapter.dialect.quote(self._tablename)
+
+    @property
+    def real_name(self):
+        return None
 
     def _filter_fields(self, record, id=False):
         return dict([(k, v) for (k, v) in iteritems(record) if k
