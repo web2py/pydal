@@ -768,13 +768,15 @@ class SQLAdapter(BaseAdapter):
         return self.iterparse(sql, fields, colnames, cacheable=cacheable)
 
     def _count(self, query, distinct=None):
-        tablenames = self.tables(query)
+        tablemap = self.tables(query)
+        tablenames = list(tablemap)
+        tables = tablemap.values()
         sql_q = ''
         if query:
             if use_common_filters(query):
-                query = self.common_filter(query, tablenames)
+                query = self.common_filter(query, tables)
             sql_q = self.expand(query)
-        sql_t = ','.join(self.table_alias(t) for t in tablenames)
+        sql_t = ','.join(self.table_alias(t, tablenames) for t in tables)
         sql_fields = '*'
         if distinct:
             if isinstance(distinct, (list, tuple)):
@@ -885,10 +887,10 @@ class SQLAdapter(BaseAdapter):
     def sqlsafe_field(self, fieldname):
         return self.dialect.quote(fieldname)
 
-    def table_alias(self, tbl):
-        if not isinstance(tbl, Table):
+    def table_alias(self, tbl, current_scope=[]):
+        if isinstance(tbl, basestring):
             tbl = self.db[tbl]
-        return tbl.sqlsafe_alias
+        return tbl.query_name(current_scope)[0]
 
     def id_query(self, table):
         pkeys = getattr(table, '_primarykey', None)
