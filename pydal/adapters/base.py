@@ -595,10 +595,9 @@ class SQLAdapter(BaseAdapter):
                       cache=None, cacheable=None, processor=None):
         #: parse tablemap
         tablemap = self.tables(query)
-        tablenames_for_common_filters = tablemap
         #: apply common filters if needed
         if use_common_filters(query):
-            query = self.common_filter(query, tablenames_for_common_filters)
+            query = self.common_filter(query, list(tablemap.values()))
         #: expand query if needed
         if query:
             query = self.expand(query)
