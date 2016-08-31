@@ -126,14 +126,14 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return tables
 
     def get_table(self, *queries):
-        tablenames = self.tables(*queries)
-        if len(tablenames) == 1:
-            return tablenames.popitem()[0]
-        elif len(tablenames) < 1:
+        tablemap = self.tables(*queries)
+        if len(tablemap) == 1:
+            return tablemap.popitem()[1]
+        elif len(tablemap) < 1:
             raise RuntimeError("No table selected")
         else:
             raise RuntimeError(
-                "Too many tables selected (%s)" % str(tablenames))
+                "Too many tables selected (%s)" % str(list(tablemap)))
 
     def common_filter(self, query, tablist):
         tenant_fieldname = self.db._request_tenant

@@ -67,7 +67,7 @@ class CouchDB(NoSQLAdapter):
                 new_fields.append(item)
 
         fields = new_fields
-        tablename = self.get_table(query)
+        tablename = self.get_table(query)._tablename
         fieldnames = [f.name for f in (fields or self.db[tablename])]
         colnames = [
             '%s.%s' % (tablename, fieldname) for fieldname in fieldnames]
@@ -105,7 +105,7 @@ class CouchDB(NoSQLAdapter):
                 return 1
             except couchdb.http.ResourceNotFound:
                 return 0
-        tablename = self.get_table(query)
+        tablename = self.get_table(query)._tablename
         rows = self.select(query, [self.db[tablename]._id], {})
         ctable = self.connection[tablename]
         table = self.db[tablename]
@@ -121,7 +121,7 @@ class CouchDB(NoSQLAdapter):
             raise RuntimeError("COUNT DISTINCT not supported")
         if not isinstance(query, Query):
             raise SyntaxError("Not Supported")
-        tablename = self.get_table(query)
+        tablename = self.get_table(query)._tablename
         rows = self.select(query, [self.db[tablename]._id], {})
         return len(rows)
 
@@ -139,7 +139,7 @@ class CouchDB(NoSQLAdapter):
                 return 1
             except couchdb.http.ResourceNotFound:
                 return 0
-        tablename = self.get_table(query)
+        tablename = self.get_table(query)._tablename
         rows = self.select(query, [self.db[tablename]._id], {})
         ctable = self.connection[tablename]
         for row in rows:

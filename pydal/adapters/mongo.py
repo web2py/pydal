@@ -240,7 +240,7 @@ class Mongo(NoSQLAdapter):
             else:
                 new_fields.append(item)
         fields = new_fields
-        tablename = self.get_table(query, *fields)
+        tablename = self.get_table(query, *fields)._tablename
 
         if for_update:
             self.db.logger.warning(
@@ -607,7 +607,8 @@ class Expansion(object):
             self.fields = [self.annotate_expression(f)
                            for f in (fields or [])]
 
-        self.tablename = tablename or adapter.get_table(query, *self.fields)
+        self.tablename = (tablename or
+                adapter.get_table(query, *self.fields)._tablename)
         if use_common_filters(query):
             query = adapter.common_filter(query, [self.tablename])
         self.query = self.annotate_expression(query)

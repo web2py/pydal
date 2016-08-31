@@ -2074,12 +2074,12 @@ class Set(Serializable):
 
     def _delete(self):
         db = self.db
-        tablename = db._adapter.get_table(self.query)
+        tablename = db._adapter.get_table(self.query)._tablename
         return db._adapter._delete(tablename, self.query)
 
     def _update(self, **update_fields):
         db = self.db
-        tablename = db._adapter.get_table(self.query)
+        tablename = db._adapter.get_table(self.query)._tablename
         fields = db[tablename]._listify(update_fields, update=True)
         return db._adapter._update(tablename, self.query, fields)
 
@@ -2222,7 +2222,7 @@ class Set(Serializable):
 
     def delete(self):
         db = self.db
-        tablename = db._adapter.get_table(self.query)
+        tablename = db._adapter.get_table(self.query)._tablename
         table = db[tablename]
         if any(f(self) for f in table._before_delete):
             return 0
@@ -2232,7 +2232,7 @@ class Set(Serializable):
 
     def update(self, **update_fields):
         db = self.db
-        tablename = db._adapter.get_table(self.query)
+        tablename = db._adapter.get_table(self.query)._tablename
         table = db[tablename]
         table._attempt_upload(update_fields)
         if any(f(self, update_fields) for f in table._before_update):
@@ -2248,7 +2248,7 @@ class Set(Serializable):
         """
         Same as update but does not call table._before_update and _after_update
         """
-        tablename = self.db._adapter.get_table(self.query)
+        tablename = self.db._adapter.get_table(self.query)._tablename
         table = self.db[tablename]
         fields = table._listify(update_fields, update=True)
         if not fields:
@@ -2258,7 +2258,7 @@ class Set(Serializable):
         return ret
 
     def validate_and_update(self, **update_fields):
-        tablename = self.db._adapter.get_table(self.query)
+        tablename = self.db._adapter.get_table(self.query)._tablename
         response = Row()
         response.errors = Row()
         new_fields = copy.copy(update_fields)
