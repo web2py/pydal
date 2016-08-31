@@ -2961,19 +2961,13 @@ class Rows(BasicRows):
                                representer in DAL instance")
         row = copy.deepcopy(self.records[i])
         keys = list(row.keys())
-        tables = [f.tablename for f in fields] if fields \
-            else [k for k in keys if k != '_extra']
-        for table in tables:
-            repr_fields = [f.name for f in fields if f.tablename == table] \
-                if fields else [
-                    k for k in row[table].keys()
-                    if (hasattr(self.db[table], k) and
-                        isinstance(self.db[table][k], Field) and
-                        self.db[table][k].represent)]
-            for field in repr_fields:
-                row[table][field] = self.db.represent(
-                    'rows_render', self.db[table][field], row[table][field],
-                    row[table])
+        if not fields:
+            fields = [f for f in self.fields
+                    if isinstance(f, Field) and f.represent]
+        for field in fields:
+            row[field._tablename][field.name] = self.db.represent(
+                'rows_render', field, row[field._tablename][field.name],
+                row[field._tablename])
 
         if self.compact and len(keys) == 1 and keys[0] != '_extra':
             return row[keys[0]]
