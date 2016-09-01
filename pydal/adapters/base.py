@@ -10,7 +10,7 @@ from ..connection import ConnectionPool
 from ..exceptions import NotOnNOSQLError
 from ..helpers.classes import Reference, ExecutionHandler, SQLCustomType, \
     SQLALL, NullDriver
-from ..helpers.methods import use_common_filters, xorify
+from ..helpers.methods import use_common_filters, xorify, merge_tablemaps
 from ..helpers.regex import REGEX_SELECT_AS_PARSER, REGEX_TABLE_DOT_FIELD
 from ..migrator import Migrator
 from ..objects import Table, Field, Expression, Query, Rows, IterRows, \
@@ -114,15 +114,15 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
     def tables(self, *queries):
         tables = dict()
-        # FIXME: check for name conflicts
         for query in queries:
             if isinstance(query, Field):
-                tables[query.tablename] = query.table
+                key = query.tablename
+                if tables.get(key, query.table) is not query.table:
+                    raise ValueError('Name conflict in table list: %s' % key)
+                tables[key] = query.table
             elif isinstance(query, (Expression, Query)):
-                if query.first is not None:
-                    tables.update(self.tables(query.first))
-                if query.second is not None:
-                    tables.update(self.tables(query.second))
+                tmp = [x for x in (query.first, query.second) if x is not None]
+                tables = merge_tablemaps(tables, self.tables(*tmp))
         return tables
 
     def get_table(self, *queries):
@@ -565,15 +565,17 @@ class SQLAdapter(BaseAdapter):
         for item in param:
             if isinstance(item, Expression):
                 item = item.first
-            tablemap[item._tablename] = item
+            key = item._tablename
+            if tablemap.get(key, item) is not item:
+                raise ValueError('Name conflict in table list: %s' % key)
+            tablemap[key] = item
         join_tables = [
             t._tablename for t in param if not isinstance(t, Expression)
         ]
         join_on = [t for t in param if isinstance(t, Expression)]
         tables_to_merge = {}
         for t in join_on:
-            # FIXME: check for name conflicts
-            tables_to_merge.update(self.tables(t))
+            tables_to_merge = merge_tablemaps(tables_to_merge, self.tables(t))
         join_on_tables = [t.first._tablename for t in join_on]
         for t in join_on_tables:
             if t in tables_to_merge:
@@ -603,8 +605,7 @@ class SQLAdapter(BaseAdapter):
             query = self.expand(query)
         #: auto-adjust tables
         for field in fields:
-            # FIXME: check for name conflicts
-            tablemap.update(self.tables(field))
+            tablemap = merge_tablemaps(tablemap, self.tables(field))
         if len(tablemap) < 1:
             raise SyntaxError('Set: no tables selected')
         #: remove outer scoped tables if needed
@@ -627,15 +628,13 @@ class SQLAdapter(BaseAdapter):
                 ijoin_tables, ijoin_on, itables_to_merge, ijoin_on_tables,
                 iimportant_tablenames, iexcluded, itablemap
             ) = self._build_joins_for_select(tablemap, join)
-            # FIXME: check for name conflicts
-            tablemap.update(itablemap)
+            tablemap = merge_tablemaps(tablemap, itablemap)
         if left:
             (
                 join_tables, join_on, tables_to_merge, join_on_tables,
                 important_tablenames, excluded, jtablemap
             ) = self._build_joins_for_select(tablemap, left)
-            # FIXME: check for name conflicts
-            tablemap.update(jtablemap)
+            tablemap = merge_tablemaps(tablemap, jtablemap)
         current_scope = outer_scoped + list(tablemap)
         table_alias = lambda name: tablemap[name].query_name(current_scope)[0]
         if join and not left:
