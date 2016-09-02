@@ -1059,6 +1059,8 @@ class Select(BasicStorage):
         self._tablename = None # alias will be stored here
         self._common_filter = None
         self._query = query
+        # if false, the subquery will never reference tables from parent scope
+        self._correlated = attributes.pop('correlated', True)
         self._attributes = attributes
         self._qfields = list(fields)
         self._fields = SQLCallableList()
@@ -1153,6 +1155,8 @@ class Select(BasicStorage):
         return Expression(self._db, self._db._adapter.dialect.on, self, query)
 
     def _compile(self, outer_scoped=[], with_alias=False):
+        if not self._correlated:
+            outer_scoped = []
         if outer_scoped or not self._sql_cache:
             adapter = self._db._adapter
             attributes = self._attributes.copy()
