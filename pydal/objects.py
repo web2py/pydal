@@ -1153,7 +1153,7 @@ class Select(BasicStorage):
         return Expression(self._db, self._db._adapter.dialect.on, self, query)
 
     def _compile(self, outer_scoped=[], with_alias=False):
-        if not self._sql_cache:
+        if outer_scoped or not self._sql_cache:
             adapter = self._db._adapter
             attributes = self._attributes.copy()
             attributes['outer_scoped'] = outer_scoped
