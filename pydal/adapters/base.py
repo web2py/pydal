@@ -604,8 +604,7 @@ class SQLAdapter(BaseAdapter):
         if query:
             query = self.expand(query)
         #: auto-adjust tables
-        for field in fields:
-            tablemap = merge_tablemaps(tablemap, self.tables(field))
+        tablemap = merge_tablemaps(tablemap, self.tables(*fields))
         if len(tablemap) < 1:
             raise SyntaxError('Set: no tables selected')
         #: remove outer scoped tables if needed
