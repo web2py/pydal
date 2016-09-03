@@ -154,7 +154,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                         query = query & newquery
         return query
 
-    def _expand(self, expression, field_type=None, colnames=False):
+    def _expand(self, expression, field_type=None, colnames=False,
+        query_env={}):
         return str(expression)
 
     def expand_all(self, fields, tabledict):
@@ -419,7 +420,8 @@ class SQLAdapter(BaseAdapter):
             handler.after_execute(command)
         return rv
 
-    def _expand(self, expression, field_type=None, colnames=False):
+    def _expand(self, expression, field_type=None, colnames=False,
+        query_env={}):
         if isinstance(expression, Field):
             et = expression.table
             if not colnames:
@@ -431,12 +433,13 @@ class SQLAdapter(BaseAdapter):
                                 self.dialect.quote(expression.name))
             if field_type == 'string' and expression.type not in (
                     'string', 'text', 'json', 'password'):
-                rv = self.dialect.cast(rv, self.types['text'])
+                rv = self.dialect.cast(rv, self.types['text'], query_env)
         elif isinstance(expression, (Expression, Query)):
             first = expression.first
             second = expression.second
             op = expression.op
             optional_args = expression.optional_args or {}
+            optional_args['query_env'] = query_env
             if second is not None:
                 rv = op(first, second, **optional_args)
             elif first is not None:
@@ -459,10 +462,11 @@ class SQLAdapter(BaseAdapter):
             rv = expression
         return str(rv)
 
-    def _expand_for_index(self, expression, field_type=None, colnames=False):
+    def _expand_for_index(self, expression, field_type=None, colnames=False,
+        query_env={}):
         if isinstance(expression, Field):
             return expression._rname or self.dialect.quote(expression.name)
-        return self._expand(expression, field_type, colnames)
+        return self._expand(expression, field_type, colnames, query_env)
 
     @contextmanager
     def index_expander(self):
@@ -549,14 +553,14 @@ class SQLAdapter(BaseAdapter):
         except:
             return None
 
-    def _colexpand(self, field):
-        return self.expand(field, colnames=True)
+    def _colexpand(self, field, query_env):
+        return self.expand(field, colnames=True, query_env=query_env)
 
-    def _geoexpand(self, field):
+    def _geoexpand(self, field, query_env):
         if isinstance(field.type, str) and field.type.startswith('geo') and \
            isinstance(field, Field):
             field = field.st_astext()
-        return self.expand(field)
+        return self.expand(field, query_env=query_env)
 
     def _build_joins_for_select(self, tablenames, param):
         if not isinstance(param, (tuple, list)):
@@ -600,21 +604,15 @@ class SQLAdapter(BaseAdapter):
         #: apply common filters if needed
         if use_common_filters(query):
             query = self.common_filter(query, list(tablemap.values()))
-        #: expand query if needed
-        if query:
-            query = self.expand(query)
         #: auto-adjust tables
         tablemap = merge_tablemaps(tablemap, self.tables(*fields))
-        if len(tablemap) < 1:
-            raise SyntaxError('Set: no tables selected')
         #: remove outer scoped tables if needed
         for item in outer_scoped:
             # FIXME: check for name conflicts
             tablemap.pop(item, None)
-        #: prepare columns and expand fields
+        if len(tablemap) < 1:
+            raise SyntaxError('Set: no tables selected')
         query_tables = list(tablemap)
-        colnames = list(map(self._colexpand, fields))
-        sql_fields = ', '.join(map(self._geoexpand, fields))
         #: check for_update argument
         # [Note - gi0baro] I think this should be removed since useless?
         #                  should affect only NoSQL?
@@ -635,26 +633,29 @@ class SQLAdapter(BaseAdapter):
             ) = self._build_joins_for_select(tablemap, left)
             tablemap = merge_tablemaps(tablemap, jtablemap)
         current_scope = outer_scoped + list(tablemap)
-        table_alias = lambda name: tablemap[name].query_name(current_scope)[0]
+        query_env = dict(current_scope=current_scope,
+            parent_scope=outer_scoped)
+        #: prepare columns and expand fields
+        colnames = [self._colexpand(x, query_env) for x in fields]
+        sql_fields = ', '.join(self._geoexpand(x, query_env) for x in fields)
+        table_alias = lambda name: tablemap[name].query_name(outer_scoped)[0]
         if join and not left:
             cross_joins = iexcluded + list(itables_to_merge)
             tokens = [table_alias(cross_joins[0])]
-            tokens += [self.dialect.cross_join(table_alias(t))
+            tokens += [self.dialect.cross_join(table_alias(t), query_env)
                     for t in cross_joins[1:]]
-            # FIXME: properly expand subqueries in the ON() expressions
-            tokens += [self.dialect.join(t) for t in ijoin_on]
+            tokens += [self.dialect.join(t, query_env) for t in ijoin_on]
             sql_t = ' '.join(tokens)
         elif not join and left:
             cross_joins = excluded + list(tables_to_merge)
             tokens = [table_alias(cross_joins[0])]
-            tokens += [self.dialect.cross_join(table_alias(t))
+            tokens += [self.dialect.cross_join(table_alias(t), query_env)
                     for t in cross_joins[1:]]
             # FIXME: WTF? This is not correct syntax at least on PostgreSQL
             if join_tables:
                 tokens.append(self.dialect.left_join(','.join([table_alias(t)
-                        for t in join_tables])))
-            # FIXME: properly expand subqueries in the ON() expressions
-            tokens += [self.dialect.left_join(t) for t in join_on]
+                        for t in join_tables]), query_env))
+            tokens += [self.dialect.left_join(t, query_env) for t in join_on]
             sql_t = ' '.join(tokens)
         elif join and left:
             all_tables_in_query = set(
@@ -663,24 +664,28 @@ class SQLAdapter(BaseAdapter):
             tables_not_in_joinon = \
                 list(all_tables_in_query.difference(tables_in_joinon))
             tokens = [table_alias(tables_not_in_joinon[0])]
-            tokens += [self.dialect.cross_join(table_alias(t))
+            tokens += [self.dialect.cross_join(table_alias(t), query_env)
                     for t in tables_not_in_joinon[1:]]
-            tokens += [self.dialect.join(t) for t in ijoin_on]
+            tokens += [self.dialect.join(t, query_env) for t in ijoin_on]
             # FIXME: WTF? This is not correct syntax at least on PostgreSQL
             if join_tables:
                 tokens.append(self.dialect.left_join(','.join([table_alias(t)
-                        for t in join_tables])))
-            # FIXME: properly expand subqueries in the ON() expressions
-            tokens += [self.dialect.left_join(t) for t in join_on]
+                        for t in join_tables]), query_env))
+            tokens += [self.dialect.left_join(t, query_env) for t in join_on]
             sql_t = ' '.join(tokens)
         else:
             sql_t = ', '.join(table_alias(t) for t in query_tables)
+        #: expand query if needed
+        if query:
+            query = self.expand(query, query_env=query_env)
+        if having:
+            having = self.expand(having, query_env=query_env)
         #: groupby
         sql_grp = groupby
         if groupby:
             if isinstance(groupby, (list, tuple)):
                 groupby = xorify(groupby)
-            sql_grp = self.expand(groupby)
+            sql_grp = self.expand(groupby, query_env=query_env)
         #: orderby
         sql_ord = False
         if orderby:
@@ -689,7 +694,7 @@ class SQLAdapter(BaseAdapter):
             if str(orderby) == '<random>':
                 sql_ord = self.dialect.random
             else:
-                sql_ord = self.expand(orderby)
+                sql_ord = self.expand(orderby, query_env=query_env)
         #: set default orderby if missing
         if (limitby and not groupby and query_tables and orderby_on_limitby and
            not orderby):

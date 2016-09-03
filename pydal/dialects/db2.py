@@ -1,3 +1,4 @@
+from .._compat import basestring
 from ..adapters.db2 import DB2
 from .base import SQLDialect
 from . import dialects, sqltype_for
@@ -51,7 +52,10 @@ class DB2Dialect(SQLDialect):
             '(%(field_name)s) REFERENCES %(foreign_table)s' + \
             '(%(foreign_key)s) ON DELETE %(on_delete_action)s'
 
-    def left_join(self, val):
+    def left_join(self, val, query_env={}):
+        # Left join must always have an ON clause
+        if not isinstance(val, basestring):
+            val = self.expand(val, query_env=query_env)
         return 'LEFT OUTER JOIN %s' % val
 
     @property

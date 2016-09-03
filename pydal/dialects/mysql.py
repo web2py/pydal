@@ -60,21 +60,25 @@ class MySQLDialect(SQLDialect):
     def random(self):
         return 'RAND()'
 
-    def substring(self, field, parameters):
+    def substring(self, field, parameters, query_env={}):
         return 'SUBSTRING(%s,%s,%s)' % (
-            self.expand(field), parameters[0], parameters[1])
+            self.expand(field, query_env=query_env), parameters[0],
+                parameters[1])
 
-    def epoch(self, first):
-        return "UNIX_TIMESTAMP(%s)" % self.expand(first)
+    def epoch(self, first, query_env={}):
+        return "UNIX_TIMESTAMP(%s)" % self.expand(first, query_env=query_env)
 
-    def concat(self, *items):
-        return 'CONCAT(%s)' % ','.join(self.expand(x, 'string') for x in items)
+    def concat(self, *items, **kwargs):
+        query_env = kwargs.get('query_env', {})
+        tmp = (self.expand(x, 'string', query_env=query_env) for x in items)
+        return 'CONCAT(%s)' % ','.join(tmp)
 
-    def regexp(self, first, second):
+    def regexp(self, first, second, query_env={}):
         return '(%s REGEXP %s)' % (
-            self.expand(first), self.expand(second, 'string'))
+            self.expand(first, query_env=query_env),
+            self.expand(second, 'string', query_env=query_env))
 
-    def cast(self, first, second):
+    def cast(self, first, second, query_env={}):
         if second == 'LONGTEXT':
             second = 'CHAR'
         return 'CAST(%s AS %s)' % (first, second)

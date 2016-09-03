@@ -172,7 +172,7 @@ class GoogleDatastore(NoSQLAdapter):
                 "polymodel must be None, True, a table or a tablename")
         return None
 
-    def _expand(self, expression, field_type=None):
+    def _expand(self, expression, field_type=None, query_env={}):
         if expression is None:
             return None
         elif isinstance(expression, Field):
@@ -182,9 +182,10 @@ class GoogleDatastore(NoSQLAdapter):
             return expression.name
         elif isinstance(expression, (Expression, Query)):
             if expression.second is not None:
-                return expression.op(expression.first, expression.second)
+                return expression.op(expression.first, expression.second,
+                    query_env=query_env)
             elif expression.first is not None:
-                return expression.op(expression.first)
+                return expression.op(expression.first, query_env=query_env)
             else:
                 return expression.op()
         elif field_type:

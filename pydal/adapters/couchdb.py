@@ -34,11 +34,12 @@ class CouchDB(NoSQLAdapter):
         super(CouchDB, self).create_table(
             table, migrate, fake_migrate, polymodel)
 
-    def _expand(self, expression, field_type=None):
+    def _expand(self, expression, field_type=None, query_env={}):
         if isinstance(expression, Field):
             if expression.type == 'id':
                 return "%s._id" % expression.tablename
-        return SQLAdapter._expand(self, expression, field_type)
+        return SQLAdapter._expand(self, expression, field_type,
+            query_env=query_env)
 
     def insert(self, table, fields):
         rid = uuid2int(self.db.uuid())

@@ -76,9 +76,10 @@ class OracleDialect(SQLDialect):
         return 'DEFAULT %s NOT NULL' % \
             self.adapter.represent(default, field_type)
 
-    def regexp(self, first, second):
+    def regexp(self, first, second, query_env={}):
         return 'REGEXP_LIKE(%s, %s)' % (
-            self.expand(first), self.expand(second, 'string'))
+            self.expand(first, query_env=query_env),
+            self.expand(second, 'string', query_env=query_env))
 
     def select(self, fields, tables, where=None, groupby=None, having=None,
                orderby=None, limitby=None, distinct=False, for_update=False):

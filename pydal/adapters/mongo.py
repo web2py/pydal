@@ -148,7 +148,7 @@ class Mongo(NoSQLAdapter):
         except (AttributeError, TypeError):
             return None
 
-    def _expand(self, expression, field_type=None):
+    def _expand(self, expression, field_type=None, query_env={}):
         if isinstance(expression, Field):
             if expression.type == 'id':
                 result = "_id"
@@ -169,6 +169,7 @@ class Mongo(NoSQLAdapter):
                     second = self.object_id(expression.second)
             op = expression.op
             optional_args = expression.optional_args or {}
+            optional_args['query_env'] = query_env
             if second is not None:
                 result = op(first, second, **optional_args)
             elif first is not None:
@@ -178,7 +179,8 @@ class Mongo(NoSQLAdapter):
             else:
                 result = op(**optional_args)
         elif isinstance(expression, Expansion):
-            expression.query = (self.expand(expression.query, field_type))
+            expression.query = (self.expand(expression.query, field_type,
+                query_env=query_env))
             result = expression
         elif isinstance(expression, (list, tuple)):
             raise NotImplementedError("How did you reach this line of code???")

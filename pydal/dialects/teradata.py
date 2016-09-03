@@ -1,3 +1,4 @@
+from .._compat import basestring
 from ..adapters.teradata import Teradata
 from .base import SQLDialect
 from . import dialects, sqltype_for
@@ -66,7 +67,10 @@ class TeradataDialect(SQLDialect):
         return ' FOREIGN KEY (%(field_name)s) REFERENCES %(foreign_table)s' + \
             ' (%(foreign_key)s)'
 
-    def left_join(self, val):
+    def left_join(self, val, query_env={}):
+        # Left join must always have an ON clause
+        if not isinstance(val, basestring):
+            val = self.expand(val, query_env=query_env)
         return 'LEFT OUTER JOIN %s' % val
 
     def select(self, fields, tables, where=None, groupby=None, having=None,

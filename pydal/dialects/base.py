@@ -1,8 +1,8 @@
 import datetime
-from .._compat import integer_types
+from .._compat import integer_types, basestring
 from ..adapters.base import SQLAdapter
 from ..helpers.methods import use_common_filters
-from ..objects import Expression, Field, Select
+from ..objects import Expression, Field, Table, Select
 from . import Dialect, dialects, sqltype_for
 
 long = integer_types[-1]
@@ -28,8 +28,8 @@ class CommonDialect(Dialect):
     def trigger_name(self, tablename):
         return '%s_sequence' % tablename
 
-    def coalesce_zero(self, val):
-        return self.coalesce(val, [0])
+    def coalesce_zero(self, val, query_env={}):
+        return self.coalesce(val, [0], query_env)
 
 
 @dialects.register_for(SQLAdapter)
@@ -184,82 +184,97 @@ class SQLDialect(CommonDialect):
         return 'SELECT%s %s FROM %s%s%s%s%s%s%s;' % (
             dst, fields, tables, whr, grp, order, limit, offset, upd)
 
-    def count(self, val, distinct=None):
+    def count(self, val, distinct=None, query_env={}):
         return ('count(%s)' if not distinct else 'count(DISTINCT %s)') % \
-            self.expand(val)
+            self.expand(val, query_env=query_env)
 
-    def join(self, val):
+    def join(self, val, query_env={}):
+        if isinstance(val, (Table, Select)):
+            val = val.query_name(query_env.get('parent_scope', []))
+        elif not isinstance(val, basestring):
+            val = self.expand(val, query_env=query_env)
         return 'JOIN %s' % val
 
-    def left_join(self, val):
+    def left_join(self, val, query_env={}):
+        # Left join must always have an ON clause
+        if not isinstance(val, basestring):
+            val = self.expand(val, query_env=query_env)
         return 'LEFT JOIN %s' % val
 
-    def cross_join(self, val):
+    def cross_join(self, val, query_env={}):
+        if isinstance(val, (Table, Select)):
+            val = val.query_name(query_env.get('parent_scope', []))
+        elif not isinstance(val, basestring):
+            val = self.expand(val, query_env=query_env)
         return 'CROSS JOIN %s' % val
 
     @property
     def random(self):
         return 'Random()'
 
-    def _as(self, first, second):
-        return '%s AS %s' % (self.expand(first), second)
+    def _as(self, first, second, query_env={}):
+        return '%s AS %s' % (self.expand(first, query_env=query_env), second)
 
-    def cast(self, first, second):
-        return 'CAST(%s)' % self._as(first, second)
+    def cast(self, first, second, query_env={}):
+        return 'CAST(%s)' % self._as(first, second, query_env)
 
-    def _not(self, val):
-        return '(NOT %s)' % self.expand(val)
+    def _not(self, val, query_env={}):
+        return '(NOT %s)' % self.expand(val, query_env=query_env)
 
-    def _and(self, first, second):
-        return '(%s AND %s)' % (self.expand(first), self.expand(second))
+    def _and(self, first, second, query_env={}):
+        return '(%s AND %s)' % (self.expand(first, query_env=query_env),
+            self.expand(second, query_env=query_env))
 
-    def _or(self, first, second):
-        return '(%s OR %s)' % (self.expand(first), self.expand(second))
+    def _or(self, first, second, query_env={}):
+        return '(%s OR %s)' % (self.expand(first, query_env=query_env),
+            self.expand(second, query_env=query_env))
 
-    def belongs(self, first, second):
+    def belongs(self, first, second, query_env={}):
+        ftype = first.type
+        first = self.expand(first, query_env=query_env)
         if isinstance(second, str):
-            return '(%s IN (%s))' % (self.expand(first), second[:-1])
+            return '(%s IN (%s))' % (first, second[:-1])
         elif isinstance(second, Select):
-            # FIXME: pass outer-scoped tables in
-            sub = second._compile()[1][:-1]
-            return '(%s IN (%s))' % (self.expand(first), sub)
+            sub = second._compile(query_env.get('current_scope', []))[1][:-1]
+            return '(%s IN (%s))' % (first, sub)
         if not second:
             return '(1=0)'
-        items = ','.join(self.expand(item, first.type) for item in second)
-        return '(%s IN (%s))' % (self.expand(first), items)
+        items = ','.join(self.expand(item, ftype, query_env=query_env)
+                for item in second)
+        return '(%s IN (%s))' % (first, items)
 
     # def regexp(self, first, second):
     #     raise NotImplementedError
 
-    def lower(self, val):
-        return 'LOWER(%s)' % self.expand(val)
+    def lower(self, val, query_env={}):
+        return 'LOWER(%s)' % self.expand(val, query_env=query_env)
 
-    def upper(self, first):
-        return 'UPPER(%s)' % self.expand(first)
+    def upper(self, first, query_env={}):
+        return 'UPPER(%s)' % self.expand(first, query_env=query_env)
 
-    def like(self, first, second, escape=None):
+    def like(self, first, second, escape=None, query_env={}):
         """Case sensitive like operator"""
         if isinstance(second, Expression):
-            second = self.expand(second, 'string')
+            second = self.expand(second, 'string', query_env=query_env)
         else:
-            second = self.expand(second, 'string')
+            second = self.expand(second, 'string', query_env=query_env)
             if escape is None:
                 escape = '\\'
                 second = second.replace(escape, escape * 2)
         return "(%s LIKE %s ESCAPE '%s')" % (
-            self.expand(first), second, escape)
+            self.expand(first, query_env=query_env), second, escape)
 
-    def ilike(self, first, second, escape=None):
+    def ilike(self, first, second, escape=None, query_env={}):
         """Case insensitive like operator"""
         if isinstance(second, Expression):
-            second = self.expand(second, 'string')
+            second = self.expand(second, 'string', query_env=query_env)
         else:
-            second = self.expand(second, 'string').lower()
+            second = self.expand(second, 'string', query_env=query_env).lower()
             if escape is None:
                 escape = '\\'
                 second = second.replace(escape, escape*2)
         return "(%s LIKE %s ESCAPE '%s')" % (
-            self.lower(first), second, escape)
+            self.lower(first, query_env=query_env), second, escape)
 
     def _like_escaper_default(self, term):
         if isinstance(term, Expression):
@@ -268,32 +283,38 @@ class SQLDialect(CommonDialect):
         term = term.replace('%', '\%').replace('_', '\_')
         return term
 
-    def startswith(self, first, second):
+    def startswith(self, first, second, query_env={}):
         return "(%s LIKE %s ESCAPE '\\')" % (
-            self.expand(first),
-            self.expand(self._like_escaper_default(second)+'%', 'string'))
+            self.expand(first, query_env=query_env),
+            self.expand(self._like_escaper_default(second)+'%', 'string',
+                query_env=query_env))
 
-    def endswith(self, first, second):
+    def endswith(self, first, second, query_env={}):
         return "(%s LIKE %s ESCAPE '\\')" % (
-            self.expand(first),
-            self.expand('%'+self._like_escaper_default(second), 'string'))
+            self.expand(first, query_env=query_env),
+            self.expand('%'+self._like_escaper_default(second), 'string',
+                query_env=query_env))
 
-    def replace(self, first, tup):
+    def replace(self, first, tup, query_env={}):
         second, third = tup
         return 'REPLACE(%s,%s,%s)' % (
-            self.expand(first, 'string'), self.expand(second, 'string'),
-            self.expand(third, 'string'))
+            self.expand(first, 'string', query_env=query_env),
+            self.expand(second, 'string', query_env=query_env),
+            self.expand(third, 'string', query_env=query_env))
 
-    def concat(self, *items):
-        return '(%s)' % ' || '.join(self.expand(x, 'string') for x in items)
+    def concat(self, *items, **kwargs):
+        query_env = kwargs.get('query_env', {})
+        tmp = (self.expand(x, 'string', query_env=query_env) for x in items)
+        return '(%s)' % ' || '.join(tmp)
 
-    def contains(self, first, second, case_sensitive=True):
+    def contains(self, first, second, case_sensitive=True, query_env={}):
         if first.type in ('string', 'text', 'json'):
             if isinstance(second, Expression):
                 second = Expression(
                     second.db,
                     self.concat('%', Expression(
-                        second.db, self.replace(second, ('%', '\%'))), '%'))
+                        second.db, self.replace(second, ('%', '\%'),
+                            query_env=query_env)), '%'))
             else:
                 second = '%'+self._like_escaper_default(str(second))+'%'
         elif first.type.startswith('list:'):
@@ -302,100 +323,114 @@ class SQLDialect(CommonDialect):
                     second.db, self.concat('%|', Expression(
                         second.db, self.replace(Expression(
                             second.db, self.replace(
-                                second, ('%', '\%'))), ('|', '||'))), '|%'))
+                                second, ('%', '\%'), query_env)),
+                                ('|', '||'))), '|%'))
             else:
                 second = str(second).replace('|', '||')
                 second = '%|'+self._like_escaper_default(second)+'|%'
         op = case_sensitive and self.like or self.ilike
-        return op(first, second, escape='\\')
+        return op(first, second, escape='\\', query_env=query_env)
 
-    def eq(self, first, second=None):
+    def eq(self, first, second=None, query_env={}):
         if second is None:
-            return '(%s IS NULL)' % self.expand(first)
+            return '(%s IS NULL)' % self.expand(first, query_env=query_env)
         return '(%s = %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def ne(self, first, second=None):
+    def ne(self, first, second=None, query_env={}):
         if second is None:
-            return '(%s IS NOT NULL)' % self.expand(first)
+            return '(%s IS NOT NULL)' % self.expand(first, query_env=query_env)
         return '(%s <> %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def lt(self, first, second=None):
+    def lt(self, first, second=None, query_env={}):
         if second is None:
             raise RuntimeError("Cannot compare %s < None" % first)
         return '(%s < %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def lte(self, first, second=None):
+    def lte(self, first, second=None, query_env={}):
         if second is None:
             raise RuntimeError("Cannot compare %s <= None" % first)
         return '(%s <= %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def gt(self, first, second=None):
+    def gt(self, first, second=None, query_env={}):
         if second is None:
             raise RuntimeError("Cannot compare %s > None" % first)
         return '(%s > %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def gte(self, first, second=None):
+    def gte(self, first, second=None, query_env={}):
         if second is None:
             raise RuntimeError("Cannot compare %s >= None" % first)
         return '(%s >= %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
     def _is_numerical(self, field_type):
         return field_type in ('integer', 'boolean', 'double', 'bigint') or \
             field_type.startswith('decimal')
 
-    def add(self, first, second):
+    def add(self, first, second, query_env={}):
         if self._is_numerical(first.type) or isinstance(first.type, Field):
             return '(%s + %s)' % (
-                self.expand(first), self.expand(second, first.type))
+                self.expand(first, query_env=query_env),
+                self.expand(second, first.type, query_env=query_env))
         else:
-            return self.concat(first, second)
+            return self.concat(first, second, query_env=query_env)
 
-    def sub(self, first, second):
+    def sub(self, first, second, query_env={}):
         return '(%s - %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def mul(self, first, second):
+    def mul(self, first, second, query_env={}):
         return '(%s * %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def div(self, first, second):
+    def div(self, first, second, query_env={}):
         return '(%s / %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def mod(self, first, second):
+    def mod(self, first, second, query_env={}):
         return '(%s %% %s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def on(self, first, second):
-        # FIXME: pass tables in parent scope
-        table_rname = first.query_name()[0]
+    def on(self, first, second, query_env={}):
+        table_rname = first.query_name(query_env.get('parent_scope', []))[0]
         if use_common_filters(second):
             second = self.adapter.common_filter(second, [first])
-        return ('%s ON %s') % (table_rname, self.expand(second))
+        return ('%s ON %s') % (table_rname,
+            self.expand(second, query_env=query_env))
 
-    def invert(self, first):
-        return '%s DESC' % self.expand(first)
+    def invert(self, first, query_env={}):
+        return '%s DESC' % self.expand(first, query_env=query_env)
 
-    def comma(self, first, second):
-        return '%s, %s' % (self.expand(first), self.expand(second))
+    def comma(self, first, second, query_env={}):
+        return '%s, %s' % (self.expand(first, query_env=query_env),
+            self.expand(second, query_env=query_env))
 
-    def extract(self, first, what):
-        return "EXTRACT(%s FROM %s)" % (what, self.expand(first))
+    def extract(self, first, what, query_env={}):
+        return "EXTRACT(%s FROM %s)" % (what,
+            self.expand(first, query_env=query_env))
 
-    def epoch(self, val):
-        return self.extract(val, 'epoch')
+    def epoch(self, val, query_env={}):
+        return self.extract(val, 'epoch', query_env)
 
-    def length(self, val):
-        return "LENGTH(%s)" % self.expand(val)
+    def length(self, val, query_env={}):
+        return "LENGTH(%s)" % self.expand(val, query_env=query_env)
 
-    def aggregate(self, first, what):
-        return "%s(%s)" % (what, self.expand(first))
+    def aggregate(self, first, what, query_env={}):
+        return "%s(%s)" % (what, self.expand(first, query_env=query_env))
 
     def not_null(self, default, field_type):
         return 'NOT NULL DEFAULT %s' % \
@@ -405,22 +440,24 @@ class SQLDialect(CommonDialect):
     def allow_null(self):
         return ''
 
-    def coalesce(self, first, second):
-        expressions = [self.expand(first)] + \
-            [self.expand(val, first.type) for val in second]
+    def coalesce(self, first, second, query_env={}):
+        expressions = [self.expand(first, query_env=query_env)] + \
+            [self.expand(val, first.type, query_env=query_env)
+                for val in second]
         return 'COALESCE(%s)' % ','.join(expressions)
 
-    def raw(self, val):
+    def raw(self, val, query_env={}):
         return val
 
-    def substring(self, field, parameters):
+    def substring(self, field, parameters, query_env={}):
         return 'SUBSTR(%s,%s,%s)' % (
-            self.expand(field), parameters[0], parameters[1])
+            self.expand(field, query_env=query_env), parameters[0],
+            parameters[1])
 
-    def case(self, query, true_false):
+    def case(self, query, true_false, query_env={}):
         _types = {bool: 'boolean', int: 'integer', float: 'double'}
         return 'CASE WHEN %s THEN %s ELSE %s END' % (
-            self.expand(query),
+            self.expand(query, query_env=query_env),
             self.adapter.represent(
                 true_false[0], _types.get(type(true_false[0]), 'string')),
             self.adapter.represent(
