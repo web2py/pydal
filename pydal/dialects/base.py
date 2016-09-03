@@ -235,6 +235,9 @@ class SQLDialect(CommonDialect):
         if isinstance(second, str):
             return '(%s IN (%s))' % (first, second[:-1])
         elif isinstance(second, Select):
+            if len(second._qfields) != 1:
+                raise ValueError(
+                    'Subquery in belongs() must select exactly 1 column')
             sub = second._compile(query_env.get('current_scope', []))[1][:-1]
             return '(%s IN (%s))' % (first, sub)
         if not second:
