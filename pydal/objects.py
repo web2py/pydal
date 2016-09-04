@@ -2078,14 +2078,14 @@ class Set(Serializable):
 
     def _delete(self):
         db = self.db
-        tablename = db._adapter.get_table(self.query)._tablename
-        return db._adapter._delete(tablename, self.query)
+        table = db._adapter.get_table(self.query)
+        return db._adapter._delete(table, self.query)
 
     def _update(self, **update_fields):
         db = self.db
-        tablename = db._adapter.get_table(self.query)._tablename
-        fields = db[tablename]._listify(update_fields, update=True)
-        return db._adapter._update(tablename, self.query, fields)
+        table = db._adapter.get_table(self.query)
+        fields = table._listify(update_fields, update=True)
+        return db._adapter._update(table, self.query, fields)
 
     def as_dict(self, flat=False, sanitize=True):
         if flat:
@@ -2226,25 +2226,23 @@ class Set(Serializable):
 
     def delete(self):
         db = self.db
-        tablename = db._adapter.get_table(self.query)._tablename
-        table = db[tablename]
+        table = db._adapter.get_table(self.query)
         if any(f(self) for f in table._before_delete):
             return 0
-        ret = db._adapter.delete(tablename, self.query)
+        ret = db._adapter.delete(table, self.query)
         ret and [f(self) for f in table._after_delete]
         return ret
 
     def update(self, **update_fields):
         db = self.db
-        tablename = db._adapter.get_table(self.query)._tablename
-        table = db[tablename]
+        table = db._adapter.get_table(self.query)
         table._attempt_upload(update_fields)
         if any(f(self, update_fields) for f in table._before_update):
             return 0
         fields = table._listify(update_fields, update=True)
         if not fields:
             raise SyntaxError("No fields to update")
-        ret = db._adapter.update("%s" % table._tablename, self.query, fields)
+        ret = db._adapter.update(table, self.query, fields)
         ret and [f(self, update_fields) for f in table._after_update]
         return ret
 
@@ -2252,27 +2250,25 @@ class Set(Serializable):
         """
         Same as update but does not call table._before_update and _after_update
         """
-        tablename = self.db._adapter.get_table(self.query)._tablename
-        table = self.db[tablename]
+        table = self.db._adapter.get_table(self.query)
         fields = table._listify(update_fields, update=True)
         if not fields:
             raise SyntaxError("No fields to update")
 
-        ret = self.db._adapter.update("%s" % table, self.query, fields)
+        ret = self.db._adapter.update(table, self.query, fields)
         return ret
 
     def validate_and_update(self, **update_fields):
-        tablename = self.db._adapter.get_table(self.query)._tablename
+        table = self.db._adapter.get_table(self.query)
         response = Row()
         response.errors = Row()
         new_fields = copy.copy(update_fields)
         for key, value in iteritems(update_fields):
-            value, error = self.db[tablename][key].validate(value)
+            value, error = table[key].validate(value)
             if error:
                 response.errors[key] = '%s' % error
             else:
                 new_fields[key] = value
-        table = self.db[tablename]
         if response.errors:
             response.updated = None
         else:
@@ -2281,7 +2277,7 @@ class Set(Serializable):
                 fields = table._listify(new_fields, update=True)
                 if not fields:
                     raise SyntaxError("No fields to update")
-                ret = self.db._adapter.update(tablename, self.query, fields)
+                ret = self.db._adapter.update(table, self.query, fields)
                 ret and [f(self, new_fields) for f in table._after_update]
             else:
                 ret = 0

@@ -89,7 +89,7 @@ class CouchDB(NoSQLAdapter):
         processor = attributes.get('processor', self.parse)
         return processor(rows, fields, colnames, False)
 
-    def update(self, tablename, query, fields):
+    def update(self, table, query, fields):
         from ..drivers import couchdb
         if not isinstance(query, Query):
             raise SyntaxError("Not Supported")
@@ -126,7 +126,7 @@ class CouchDB(NoSQLAdapter):
         rows = self.select(query, [self.db[tablename]._id], {})
         return len(rows)
 
-    def delete(self, tablename, query):
+    def delete(self, table, query):
         from ..drivers import couchdb
         if not isinstance(query, Query):
             raise SyntaxError("Not Supported")

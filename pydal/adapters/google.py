@@ -384,7 +384,7 @@ class GoogleDatastore(NoSQLAdapter):
         items, table, fields = self.select_raw(query, count_only=True)
         return items[0]
 
-    def delete(self, tablename, query):
+    def delete(self, table, query):
         """
         This function was changed on 2010-05-04 because according to
         http://code.google.com/p/googleappengine/issues/detail?id=3119
@@ -406,7 +406,7 @@ class GoogleDatastore(NoSQLAdapter):
             ndb.delete_multi([item.key for item in items])
         return counter
 
-    def update(self, tablename, query, update_fields):
+    def update(self, table, query, update_fields):
         items, table, fields = self.select_raw(query)
         counter = 0
         for item in items:

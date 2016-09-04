@@ -429,7 +429,7 @@ class Mongo(NoSQLAdapter):
         else:
             return None
 
-    def update(self, tablename, query, fields, safe=None):
+    def update(self, table, query, fields, safe=None):
         # return amount of adjusted rows or zero, but no exceptions
         # @ related not finding the result
         if not isinstance(query, Query):
@@ -468,7 +468,7 @@ class Mongo(NoSQLAdapter):
             raise RuntimeError(
                 "uncaught exception when updating rows: %s" % e)
 
-    def delete(self, tablename, query, safe=None):
+    def delete(self, table, query, safe=None):
         if not isinstance(query, Query):
             raise RuntimeError("query type %s is not supported" % type(query))
 
@@ -482,11 +482,10 @@ class Mongo(NoSQLAdapter):
 
         # find references to deleted items
         db = self.db
-        table = db[tablename]
         cascade = []
         set_null = []
         for field in table._referenced_by:
-            if field.type == 'reference ' + tablename:
+            if field.type == 'reference ' + table._tablename:
                 if field.ondelete == 'CASCADE':
                     cascade.append(field)
                 if field.ondelete == 'SET NULL':
@@ -494,7 +493,7 @@ class Mongo(NoSQLAdapter):
         cascade_list = []
         set_null_list = []
         for field in table._referenced_by_list:
-            if field.type == 'list:reference ' + tablename:
+            if field.type == 'list:reference ' + table._tablename:
                 if field.ondelete == 'CASCADE':
                     cascade_list.append(field)
                 if field.ondelete == 'SET NULL':

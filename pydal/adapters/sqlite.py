@@ -81,14 +81,13 @@ class SQLite(SQLAdapter):
             self.execute('BEGIN IMMEDIATE TRANSACTION;')
         return super(SQLite, self).select(query, fields, attributes)
 
-    def delete(self, tablename, query):
+    def delete(self, table, query):
         db = self.db
-        table = db[tablename]
         deleted = [x[table._id.name] for x in db(query).select(table._id)]
-        counter = super(SQLite, self).delete(tablename, query)
+        counter = super(SQLite, self).delete(table, query)
         if counter:
             for field in table._referenced_by:
-                if field.type == 'reference ' + tablename \
+                if field.type == 'reference ' + table._tablename \
                    and field.ondelete == 'CASCADE':
                     db(field.belongs(deleted)).delete()
         return counter

@@ -509,25 +509,26 @@ class SQLAdapter(BaseAdapter):
         (rid._table, rid._record) = (table, None)
         return rid
 
-    def _update(self, tablename, query, fields):
+    def _update(self, table, query, fields):
         sql_q = ''
+        tablename = table.sqlsafe
+        query_env = dict(current_scope=[tablename])
         if query:
             if use_common_filters(query):
-                query = self.common_filter(query, [tablename])
-            sql_q = self.expand(query)
+                query = self.common_filter(query, [table])
+            sql_q = self.expand(query, query_env=query_env)
         sql_v = ','.join([
-            '%s=%s' % (field.sqlsafe_name, self.expand(value, field.type))
+            '%s=%s' % (field.sqlsafe_name,
+                self.expand(value, field.type, query_env=query_env))
             for (field, value) in fields])
-        tablename = self.db[tablename].sqlsafe
         return self.dialect.update(tablename, sql_v, sql_q)
 
-    def update(self, tablename, query, fields):
-        sql = self._update(tablename, query, fields)
+    def update(self, table, query, fields):
+        sql = self._update(table, query, fields)
         try:
             self.execute(sql)
         except:
             e = sys.exc_info()[1]
-            table = self.db[tablename]
             if hasattr(table, '_on_update_error'):
                 return table._on_update_error(table, query, fields, e)
             raise e
@@ -536,17 +537,18 @@ class SQLAdapter(BaseAdapter):
         except:
             return None
 
-    def _delete(self, tablename, query):
+    def _delete(self, table, query):
         sql_q = ''
+        tablename = table.sqlsafe
+        query_env = dict(current_scope=[tablename])
         if query:
             if use_common_filters(query):
-                query = self.common_filter(query, [tablename])
-            sql_q = self.expand(query)
-        tablename = self.db[tablename].sqlsafe
+                query = self.common_filter(query, [table])
+            sql_q = self.expand(query, query_env=query_env)
         return self.dialect.delete(tablename, sql_q)
 
-    def delete(self, tablename, query):
-        sql = self._delete(tablename, query)
+    def delete(self, table, query):
+        sql = self._delete(table, query)
         self.execute(sql)
         try:
             return self.cursor.rowcount
@@ -772,18 +774,19 @@ class SQLAdapter(BaseAdapter):
     def _count(self, query, distinct=None):
         tablemap = self.tables(query)
         tablenames = list(tablemap)
-        tables = tablemap.values()
+        tables = list(tablemap.values())
+        query_env = dict(current_scope=tablenames)
         sql_q = ''
         if query:
             if use_common_filters(query):
                 query = self.common_filter(query, tables)
-            sql_q = self.expand(query)
-        sql_t = ','.join(self.table_alias(t, tablenames) for t in tables)
+            sql_q = self.expand(query, query_env=query_env)
+        sql_t = ','.join(self.table_alias(t, []) for t in tables)
         sql_fields = '*'
         if distinct:
             if isinstance(distinct, (list, tuple)):
                 distinct = xorify(distinct)
-            sql_fields = self.expand(distinct)
+            sql_fields = self.expand(distinct, query_env=query_env)
         return self.dialect.select(
             self.dialect.count(sql_fields, distinct), sql_t, sql_q
         )
