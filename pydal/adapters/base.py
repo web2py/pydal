@@ -715,6 +715,9 @@ class SQLAdapter(BaseAdapter):
     def _select(self, query, fields, attributes):
         return self._select_wcols(query, fields, **attributes)[1]
 
+    def nested_select(self, query, fields, attributes):
+        return Select(self.db, query, fields, attributes)
+
     def _select_aux_execute(self, sql):
         self.execute(sql)
         return self.cursor.fetchall()
@@ -948,6 +951,10 @@ class NoSQLAdapter(BaseAdapter):
         return self.drop_table(table, mode='')
 
     def _select(self, *args, **kwargs):
+        raise NotOnNOSQLError(
+            "Nested queries are not supported on NoSQL databases")
+
+    def nested_select(self, *args, **kwargs):
         raise NotOnNOSQLError(
             "Nested queries are not supported on NoSQL databases")
 

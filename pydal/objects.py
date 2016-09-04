@@ -2222,7 +2222,7 @@ class Set(Serializable):
                                     attributes.get('orderby', None),
                                     attributes.get('groupby', None))
         fields = adapter.expand_all(fields, tablenames)
-        return Select(self.db, self.query, fields, attributes)
+        return adapter.nested_select(self.query, fields, attributes)
 
     def delete(self):
         db = self.db
