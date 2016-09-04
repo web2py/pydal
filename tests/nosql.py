@@ -184,11 +184,11 @@ class TestMongo(unittest.TestCase):
             db.define_table('tt', Field('aa'))
             self.assertEqual(isinstance(db.tt.insert(aa='x'), long), True)
             with self.assertRaises(RuntimeError):
-                db._adapter.delete('tt', 'x', safe=safe)
+                db._adapter.delete(db['tt'], 'x', safe=safe)
             self.assertEqual(db._adapter.delete(
-                'tt', Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'), safe=safe), 1)
+                db['tt'], Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'), safe=safe), 1)
             self.assertEqual(db(db.tt.aa=='x').count(), 0)
-            self.assertEqual(db._adapter.update('tt',
+            self.assertEqual(db._adapter.update(db['tt'],
                     Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'),
                     db['tt']._listify({'aa':'x'}), safe=safe), 0)
             drop(db.tt)
