@@ -615,6 +615,8 @@ class TestSelect(unittest.TestCase):
                 db(db.tt).select(db.tt.t0_id).last()[db.tt.t0_id], ref3)
 
             if IS_MONGODB:
+                self.assertEqual(db(db.tt.t0_id == ref3).count(), 1)
+
                 self.assertEqual(db(db.tt.t0_id.contains(id_a1)).count(), 2)
                 self.assertEqual(db(db.tt.t0_id.contains(id_a2)).count(), 2)
                 db(db.t0.aa == 'test1').delete()
