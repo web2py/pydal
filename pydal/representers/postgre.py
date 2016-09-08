@@ -33,4 +33,4 @@ class PostgreRepresenter(SQLRepresenter, JSONRepresenter):
 @representers.register_for(PostgreNew)
 class PostgreArraysRepresenter(PostgreRepresenter):
     def _listify_elements(self, elements):
-        return "{" + ",".join(elements) + "}"
+        return "{" + ",".join(str(el) for el in elements) + "}"
