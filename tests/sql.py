@@ -517,6 +517,8 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(
             db(db.tt).select(db.tt.t0_id).last()[db.tt.t0_id], ref3)
 
+        self.assertEqual(db(db.tt.t0_id == ref3).count(), 1)
+
         db.tt.drop()
         db.t0.drop()
         db.close()

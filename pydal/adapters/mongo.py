@@ -181,7 +181,6 @@ class Mongo(NoSQLAdapter):
             expression.query = (self.expand(expression.query, field_type))
             result = expression
         elif isinstance(expression, (list, tuple)):
-            raise NotImplementedError("How did you reach this line of code???")
             result = [self.represent(item, field_type) for item in expression]
         elif field_type:
             result = self.represent(expression, field_type)
