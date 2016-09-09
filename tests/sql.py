@@ -16,6 +16,7 @@ from pydal.objects import Table
 from ._compat import unittest
 from ._adapt import (
     DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, _quote)
+from ._helpers import DALtest
 
 long = integer_types[-1]
 
@@ -68,7 +69,7 @@ def tearDownModule():
         os.unlink(a)
 
 
-class TestFields(unittest.TestCase):
+class TestFields(DALtest):
 
     def testFieldName(self):
         """
@@ -159,7 +160,7 @@ class TestFields(unittest.TestCase):
         stream.seek(0)
 
 
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('fileobj', 'upload',
                                     uploadfolder=tempfile.gettempdir(),
                                     autodelete=True))
@@ -219,7 +220,7 @@ class TestFields(unittest.TestCase):
 
     def testRun(self):
         """Test all field types and their return values"""
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
             db.define_table('tt', Field('aa', ft, default=''))
             self.assertEqual(db.tt.insert(aa='x'), 1)
@@ -317,8 +318,6 @@ class TestFields(unittest.TestCase):
         self.assertEqual(db().select(db.tt.aa.min())[0][db.tt.aa.min()], t0)
         db.tt.drop()
 
-        db.close()
-
 
 class TestTables(unittest.TestCase):
 
@@ -378,7 +377,7 @@ class TestAll(unittest.TestCase):
         self.assertEqual(str(SQLALL(self.pt)), ans)
 
 
-class TestTable(unittest.TestCase):
+class TestTable(DALtest):
 
     def testTableCreation(self):
 
@@ -401,7 +400,7 @@ class TestTable(unittest.TestCase):
                       in str(persons.ALL))
 
     def testTableAlias(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         persons = Table(db, 'persons', Field('firstname',
                            'string'), Field('lastname', 'string'))
         aliens = persons.with_alias('aliens')
@@ -410,7 +409,6 @@ class TestTable(unittest.TestCase):
 
         self.assertTrue(persons is not aliens)
         self.assertTrue(set(persons.fields) == set(aliens.fields))
-        db.close()
 
     def testTableInheritance(self):
         persons = Table(None, 'persons', Field('firstname',
@@ -422,10 +420,10 @@ class TestTable(unittest.TestCase):
             ['items_purchased', 'firstname', 'lastname'])))
 
 
-class TestInsert(unittest.TestCase):
+class TestInsert(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa'))
         self.assertEqual(db.tt.insert(aa='1'), 1)
         self.assertEqual(db.tt.insert(aa='1'), 2)
@@ -437,14 +435,12 @@ class TestInsert(unittest.TestCase):
         self.assertEqual(db(db.tt.aa == '2').isempty(), False)
         self.assertEqual(db(db.tt.aa == '2').delete(), 3)
         self.assertEqual(db(db.tt.aa == '2').isempty(), True)
-        db.tt.drop()
-        db.close()
 
 
-class TestSelect(unittest.TestCase):
+class TestSelect(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa'))
         self.assertEqual(db.tt.insert(aa='1'), 1)
         self.assertEqual(db.tt.insert(aa='2'), 2)
@@ -470,36 +466,29 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db(~(db.tt.aa > '1') & (db.tt.aa > '2')).count(), 0)
         # Test for REGEX_TABLE_DOT_FIELD
         self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa], '1')
-        db.tt.drop()
-        db.close()
 
     def testTestQuery(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db._adapter.test_connection()
-        db.close()
 
     def testListInteger(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt',
                         Field('aa', 'list:integer'))
         l=[1,2,3,4,5]
         db.tt.insert(aa=l)
         self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa],l)
-        db.tt.drop()
-        db.close()
 
     def testListString(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt',
                         Field('aa', 'list:string'))
         l=['a', 'b', 'c']
         db.tt.insert(aa=l)
         self.assertEqual(db(db.tt).select('tt.aa').first()[db.tt.aa],l)
-        db.tt.drop()
-        db.close()
 
     def testListReference(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('t0', Field('aa', 'string'))
         db.define_table('tt', Field('t0_id', 'list:reference t0'))
         id_a1=db.t0.insert(aa='test1')
@@ -519,12 +508,8 @@ class TestSelect(unittest.TestCase):
 
         self.assertEqual(db(db.tt.t0_id == ref3).count(), 1)
 
-        db.tt.drop()
-        db.t0.drop()
-        db.close()
-
     def testGroupByAndDistinct(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt',
                         Field('aa'),
                         Field('bb', 'integer'),
@@ -597,11 +582,8 @@ class TestSelect(unittest.TestCase):
         result = db(db.tt).select(count, sum)
         self.assertEqual(tuple(result.response[0]), (4, 23))
 
-        db.tt.drop()
-        db.close()
-
     def testCoalesce(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa'), Field('bb'), Field('cc'), Field('dd'))
         db.tt.insert(aa='xx')
         db.tt.insert(aa='xx', bb='yy')
@@ -621,14 +603,11 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(result.response[0][0], 0)
         self.assertEqual(result.response[1][0], 1)
 
-        db.tt.drop()
-        db.close()
 
-
-class TestAddMethod(unittest.TestCase):
+class TestAddMethod(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa'))
         @db.tt.add_method.all
         def select_all(table,orderby=None):
@@ -637,14 +616,12 @@ class TestAddMethod(unittest.TestCase):
         self.assertEqual(db.tt.insert(aa='2'), 2)
         self.assertEqual(db.tt.insert(aa='3'), 3)
         self.assertEqual(len(db.tt.all()), 3)
-        db.tt.drop()
-        db.close()
 
 
-class TestBelongs(unittest.TestCase):
+class TestBelongs(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa'))
         self.assertEqual(db.tt.insert(aa='1'), 1)
         self.assertEqual(db.tt.insert(aa='2'), 2)
@@ -659,13 +636,11 @@ class TestBelongs(unittest.TestCase):
                          (db.tt.aa.belongs(('1', '3')))._select(db.tt.aa)))._select(
                          db.tt.aa))).count(),
                          2)
-        db.tt.drop()
-        db.close()
 
 
-class TestContains(unittest.TestCase):
+class TestContains(DALtest):
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa', 'list:string'), Field('bb','string'))
         self.assertEqual(db.tt.insert(aa=['aaa','bbb'],bb='aaa'), 1)
         self.assertEqual(db.tt.insert(aa=['bbb','ddd'],bb='abb'), 2)
@@ -719,23 +694,15 @@ class TestContains(unittest.TestCase):
         db.tt.insert(aa='underyscore')
         self.assertEqual(db(db.tt.aa.contains('perc%ent')).count(), 1)
         self.assertEqual(db(db.tt.aa.contains('under_score')).count(), 1)
-        db.tt.drop()
-        db.close()
 
 
-class TestLike(unittest.TestCase):
+class TestLike(DALtest):
 
     def setUp(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa'))
         self.assertEqual(isinstance(db.tt.insert(aa='abc'), long), True)
         self.db = db
-
-    def tearDown(self):
-        db = self.db
-        db.tt.drop()
-        db.close()
-        self.db = None
 
     def testRun(self):
         db = self.db
@@ -845,10 +812,10 @@ class TestLike(unittest.TestCase):
         self.assertEqual(db(db.tt.aa.like('%45%')).count(), 1)
         self.assertEqual(db(db.tt.aa.like('%54%')).count(), 0)
 
-class TestDatetime(unittest.TestCase):
+class TestDatetime(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa', 'datetime'))
         self.assertEqual(db.tt.insert(aa=datetime.datetime(1971, 12, 21,
                          11, 30)), 1)
@@ -877,15 +844,13 @@ class TestDatetime(unittest.TestCase):
         t0 = datetime.date.today()
         db.tt.insert(aa=t0)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
-        db.tt.drop()
-        db.close()
 
 
-class TestExpressions(unittest.TestCase):
+class TestExpressions(DALtest):
 
     @unittest.skipIf(IS_POSTGRESQL, "PG8000 does not like these")
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa', 'integer'),
                         Field('bb', 'integer'), Field('cc'))
         self.assertEqual(db.tt.insert(aa=1, bb=0), 1)
@@ -968,12 +933,8 @@ class TestExpressions(unittest.TestCase):
         self.assertEqual(db(db.tt.aa + 1 >= 4).delete(), 1)
         self.assertEqual(db(db.tt.aa).count(), 2)
 
-        #cleanup
-        db.tt.drop()
-        db.close()
-
     def testUpdate(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
 
         # some db's only support seconds
         datetime_datetime_today = datetime.datetime.today()
@@ -1006,10 +967,9 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(db(db.tt.aa + 1 == 1).update(bb=uv[2]), 1)
             self.assertEqual(db(db.tt.aa / 3 == 0).select(db.tt.bb)[0].bb, uv[2])
             db.tt.drop()
-        db.close()
 
     def testSubstring(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         t0 = db.define_table('t0', Field('name'))
         input_name = "web2py"
         t0.insert(name=input_name)
@@ -1024,11 +984,9 @@ class TestExpressions(unittest.TestCase):
         self.assertEqual(out[exp_slice_no_max], input_name[4:])
         self.assertEqual(out[exp_slice_neg_max], input_name[2:-2])
         self.assertEqual(out[exp_slice_neg_start], input_name[-2:])
-        t0.drop()
-        db.close()
 
     def testOps(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         t0 = db.define_table('t0', Field('vv', 'integer'))
         self.assertEqual(db.t0.insert(vv=1), 1)
         self.assertEqual(db.t0.insert(vv=2), 2)
@@ -1048,14 +1006,12 @@ class TestExpressions(unittest.TestCase):
         count=db.t0.vv.count().with_alias('c')
         op = sum/count
         #self.assertEqual(db(t0).select(op).first()[op], 2)
-        t0.drop()
-        db.close()
 
 
-class TestJoin(unittest.TestCase):
+class TestJoin(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('t1', Field('aa'))
         db.define_table('t2', Field('aa'), Field('b', db.t1))
         i1 = db.t1.insert(aa='1')
@@ -1118,14 +1074,12 @@ class TestJoin(unittest.TestCase):
         self.assertEqual(row['person.name'],'max')
         db.dog.drop()
         self.assertEqual(len(db.person._referenced_by),0)
-        db.person.drop()
-        db.close()
 
 
-class TestMinMaxSumAvg(unittest.TestCase):
+class TestMinMaxSumAvg(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa', 'integer'))
         self.assertEqual(db.tt.insert(aa=1), 1)
         self.assertEqual(db.tt.insert(aa=2), 2)
@@ -1142,8 +1096,6 @@ class TestMinMaxSumAvg(unittest.TestCase):
         self.assertEqual(db().select(s).first()[s], 3)
         s = db.tt.aa.avg()
         self.assertEqual(db().select(s).first()[s], 2)
-        db.tt.drop()
-        db.close()
 
 
 class TestMigrations(unittest.TestCase):
@@ -1176,7 +1128,7 @@ class TestMigrations(unittest.TestCase):
             os.unlink('.storage.table')
 
 
-class TestReference(unittest.TestCase):
+class TestReference(DALtest):
 
     def testRun(self):
         scenarios = (
@@ -1185,7 +1137,7 @@ class TestReference(unittest.TestCase):
             (False, 'SET NULL'),
         )
         for (b, ondelete) in scenarios:
-            db = DAL(DEFAULT_URI, check_reserved=['all'], bigint_id=b)
+            db = self.connect(bigint_id=b)
             if DEFAULT_URI.startswith('mssql'):
                 #multiple cascade gotcha
                 for key in ['reference','reference FK']:
@@ -1219,15 +1171,13 @@ class TestReference(unittest.TestCase):
                 if ondelete == 'SET NULL':
                     self.assertEqual(db(db.tt.name == 'yyy').select()[0].aa, None)
 
-            db.tt.drop()
-            db.commit()
-            db.close()
+            self.tearDown()
 
 
-class TestClientLevelOps(unittest.TestCase):
+class TestClientLevelOps(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa'))
         db.commit()
         db.tt.insert(aa="test")
@@ -1296,15 +1246,11 @@ class TestClientLevelOps(unittest.TestCase):
         self.assertNotIn('id', row)
         self.assertNotIn('bb', row)
 
-        db.tt.drop()
-        db.commit()
-        db.close()
 
-
-class TestVirtualFields(unittest.TestCase):
+class TestVirtualFields(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('aa'))
         db.commit()
         db.tt.insert(aa="test")
@@ -1312,15 +1258,12 @@ class TestVirtualFields(unittest.TestCase):
             def a_upper(row): return row.tt.aa.upper()
         db.tt.virtualfields.append(Compute())
         assert db(db.tt.id>0).select().first().a_upper == 'TEST'
-        db.tt.drop()
-        db.commit()
-        db.close()
 
 
-class TestComputedFields(unittest.TestCase):
+class TestComputedFields(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt',
                         Field('aa'),
                         Field('bb',default='x'),
@@ -1340,15 +1283,12 @@ class TestComputedFields(unittest.TestCase):
         db.commit()
         id = db.tt.insert(aa="z")
         self.assertEqual(db.tt[id].dd,'xzx')
-        db.tt.drop()
-        db.commit()
-        db.close()
 
 
-class TestCommonFilters(unittest.TestCase):
+class TestCommonFilters(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('t1', Field('aa', 'integer'))
         db.define_table('t2', Field('aa', 'integer'), Field('b', db.t1))
         i1 = db.t1.insert(aa=1)
@@ -1383,15 +1323,12 @@ class TestCommonFilters(unittest.TestCase):
         self.assertEqual(db(db.t2).count(),0)
         db.t2._common_filter = None
         self.assertEqual(db(db.t2).count(),3)
-        db.t2.drop()
-        db.t1.drop()
-        db.close()
 
 
-class TestImportExportFields(unittest.TestCase):
+class TestImportExportFields(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('person', Field('name'))
         db.define_table('pet',Field('friend',db.person),Field('name'))
         for n in range(2):
@@ -1408,16 +1345,12 @@ class TestImportExportFields(unittest.TestCase):
         stream = StringIO(stream.getvalue())
         db.import_from_csv_file(stream)
         assert db(db.person.id==db.pet.friend)(db.person.name==db.pet.name).count()==10
-        db.pet.drop()
-        db.person.drop()
-        db.commit()
-        db.close()
 
 
-class TestImportExportUuidFields(unittest.TestCase):
+class TestImportExportUuidFields(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('person', Field('name'),Field('uuid'))
         db.define_table('pet',Field('friend',db.person),Field('name'))
         for n in range(2):
@@ -1433,10 +1366,6 @@ class TestImportExportUuidFields(unittest.TestCase):
         db.import_from_csv_file(stream)
         assert db(db.person).count()==10
         assert db(db.person.id==db.pet.friend)(db.person.name==db.pet.name).count()==20
-        db.pet.drop()
-        db.person.drop()
-        db.commit()
-        db.close()
 
 
 class TestDALDictImportExport(unittest.TestCase):
@@ -1542,10 +1471,10 @@ class TestDALDictImportExport(unittest.TestCase):
         db6.close()
 
 
-class TestSelectAsDict(unittest.TestCase):
+class TestSelectAsDict(DALtest):
 
     def testSelect(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table(
             'a_table',
             Field('b_field'),
@@ -1557,14 +1486,12 @@ class TestSelectAsDict(unittest.TestCase):
         rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_ordered_dict=True)
         self.assertEqual(rtn[0]['b_field'], 'bb1')
         self.assertEqual(list(rtn[0].keys()), ['id', 'b_field', 'a_field'])
-        db.a_table.drop()
-        db.close()
 
 
-class TestExecuteSQL(unittest.TestCase):
+class TestExecuteSQL(DALtest):
 
     def testSelect(self):
-        db = DAL('sqlite://storage.db', check_reserved=['all'], entity_quoting=False)
+        db = self.connect('sqlite://storage.db', entity_quoting=False)
         db.define_table(
             'a_table',
             Field('b_field'),
@@ -1590,14 +1517,11 @@ class TestExecuteSQL(unittest.TestCase):
         rtn = db.executesql("select COUNT(*) from a_table", fields=[db.a_table.id.count()], colnames=['foo'])
         self.assertEqual(rtn[0].foo, 1)
 
-        db.a_table.drop()
-        db.close()
-
-class TestRNameTable(unittest.TestCase):
+class TestRNameTable(DALtest):
     #tests for highly experimental rname attribute
 
     def testSelect(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         rname = _quote(db, 'a very complicated tablename')
         db.define_table(
             'easy_name',
@@ -1742,15 +1666,8 @@ class TestRNameTable(unittest.TestCase):
         self.assertEqual(rtn[2].father.name, 'Osbert')
         self.assertEqual(rtn[2].mother.name, 'Minali')
 
-        #clean up
-        db.pet_farm.drop()
-        db.pet.drop()
-        db.person.drop()
-        db.easy_name.drop()
-        db.close()
-
     def testJoin(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         rname = _quote(db, 'this is table t1')
         rname2 = _quote(db, 'this is table t2')
         db.define_table('t1', Field('aa'), rname=rname)
@@ -1815,14 +1732,12 @@ class TestRNameTable(unittest.TestCase):
         self.assertEqual(row['person.name'],'max')
         db.dog.drop()
         self.assertEqual(len(db.person._referenced_by),0)
-        db.person.drop()
-        db.close()
 
 
-class TestRNameFields(unittest.TestCase):
+class TestRNameFields(DALtest):
     # tests for highly experimental rname attribute
     def testSelect(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         rname = _quote(db, 'a very complicated fieldname')
         rname2 = _quote(db, 'rrating from 1 to 10')
         db.define_table(
@@ -1970,15 +1885,8 @@ class TestRNameFields(unittest.TestCase):
         self.assertEqual(rtn[2].father.name, 'Osbert')
         self.assertEqual(rtn[2].mother.name, 'Minali')
 
-        #clean up
-        db.pet_farm.drop()
-        db.pet.drop()
-        db.person.drop()
-        db.easy_name.drop()
-        db.close()
-
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         rname = _quote(db, 'a very complicated fieldname')
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
             db.define_table('tt', Field('aa', ft, default='', rname=rname))
@@ -2049,11 +1957,9 @@ class TestRNameFields(unittest.TestCase):
         t0 = datetime.time(10, 30, 55)
         self.assertEqual(db.tt.insert(aa=t0), 1)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
-        db.tt.drop()
-        db.close()
 
     def testInsert(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         rname = _quote(db, 'a very complicated fieldname')
         db.define_table('tt', Field('aa', rname=rname))
         self.assertEqual(db.tt.insert(aa='1'), 1)
@@ -2066,11 +1972,9 @@ class TestRNameFields(unittest.TestCase):
         self.assertEqual(db(db.tt.aa == '2').isempty(), False)
         self.assertEqual(db(db.tt.aa == '2').delete(), 3)
         self.assertEqual(db(db.tt.aa == '2').isempty(), True)
-        db.tt.drop()
-        db.close()
 
     def testJoin(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         rname = _quote(db, 'this is field aa')
         rname2 = _quote(db, 'this is field b')
         db.define_table('t1', Field('aa', rname=rname))
@@ -2135,15 +2039,13 @@ class TestRNameFields(unittest.TestCase):
         self.assertEqual(row['person.name'],'max')
         db.dog.drop()
         self.assertEqual(len(db.person._referenced_by),0)
-        db.person.drop()
-        db.close()
 
 
-class TestQuoting(unittest.TestCase):
+class TestQuoting(DALtest):
 
     # tests for case sensitivity
     def testCase(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'], ignore_field_case=False, entity_quoting=True)
+        db = self.connect(ignore_field_case=False, entity_quoting=True)
         if DEFAULT_URI.startswith('mssql'):
             #multiple cascade gotcha
             for key in ['reference','reference FK']:
@@ -2188,14 +2090,11 @@ class TestQuoting(unittest.TestCase):
         self.assertEqual(t0[1].a_a, 'a_a')
         self.assertEqual(t0[1].a_A, 'a_A')
 
-        t0.drop()
-        db.close()
-
     def testPKFK(self):
 
         # test primary keys
 
-        db = DAL(DEFAULT_URI, check_reserved=['all'], ignore_field_case=False)
+        db = self.connect(ignore_field_case=False)
         if DEFAULT_URI.startswith('mssql'):
             #multiple cascade gotcha
             for key in ['reference','reference FK']:
@@ -2226,7 +2125,6 @@ class TestQuoting(unittest.TestCase):
             t2.drop()
             t3.drop()
             t4.drop()
-        db.close()
 
 
 class TestTableAndFieldCase(unittest.TestCase):
@@ -2246,12 +2144,12 @@ class TestQuotesByDefault(unittest.TestCase):
     def testme(self):
         return
 
-class TestGis(unittest.TestCase):
+class TestGis(DALtest):
 
     def testGeometry(self):
         from pydal import geoPoint, geoLine, geoPolygon
         if not IS_POSTGRESQL: return
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         t0 = db.define_table('t0', Field('point', 'geometry()'))
         t1 = db.define_table('t1', Field('line', 'geometry(public, 4326, 2)'))
         t2 = db.define_table('t2', Field('polygon', 'geometry(public, 4326, 2)'))
@@ -2275,20 +2173,14 @@ class TestGis(unittest.TestCase):
         point = db(t0.id).select(x, y).first()
         self.assertEqual(point[x], 1)
         self.assertEqual(point[y], 1)
-        t0.drop()
-        t1.drop()
-        t2.drop()
-        db.close()
 
     def testGeometryCase(self):
         from pydal import geoPoint, geoLine, geoPolygon
         if not IS_POSTGRESQL: return
-        db = DAL(DEFAULT_URI, check_reserved=['all'], ignore_field_case=False)
+        db = self.connect(ignore_field_case=False)
         t0 = db.define_table('t0', Field('point', 'geometry()'), Field('Point', 'geometry()'))
         t0.insert(point=geoPoint(1,1))
         t0.insert(Point=geoPoint(2,2))
-        t0.drop()
-        db.close()
 
     def testGisMigration(self):
         if not IS_POSTGRESQL: return
@@ -2304,10 +2196,10 @@ class TestGis(unittest.TestCase):
             db.close()
 
 
-class TestSQLCustomType(unittest.TestCase):
+class TestSQLCustomType(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         from pydal.helpers.classes import SQLCustomType
         native_double = "double"
         native_string = "string"
@@ -2337,23 +2229,19 @@ class TestSQLCustomType(unittest.TestCase):
         #r_id=t1.insert(cdata="car")
         #row=db(t1.id == r_id).select(t1.ALL).first()
         #self.assertEqual(row['cdata'], "'car'")
-        t1.drop()
-        db.close()
 
 
-class TestLazy(unittest.TestCase):
+class TestLazy(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'], lazy_tables=True)
+        db = self.connect(lazy_tables=True)
         t0 = db.define_table('t0', Field('name'))
         self.assertTrue(('t0' in db._LAZY_TABLES.keys()))
         db.t0.insert(name='1')
         self.assertFalse(('t0' in db._LAZY_TABLES.keys()))
-        db.t0.drop()
-        db.close()
 
     def testLazyGetter(self):
-        db=DAL(DEFAULT_URI, lazy_tables=True)
+        db = self.connect(check_reserved=None, lazy_tables=True)
         db.define_table('tt',  Field('value', 'integer'))
         db.define_table('ttt',
             Field('value', 'integer'),
@@ -2363,12 +2251,9 @@ class TestLazy(unittest.TestCase):
         db.ttt.value.writable=False
         idd=db.tt.insert(value=0)
         db.ttt.insert(tt_id=idd)
-        db.ttt.drop()
-        db.tt.drop()
-        db.close()
 
     def testRowNone(self):
-        db=DAL(DEFAULT_URI, lazy_tables=True)
+        db = self.connect(check_reserved=None, lazy_tables=True)
         tt = db.define_table('tt',  Field('value', 'integer'))
         db.tt.insert(value=None)
         row = db(db.tt).select(db.tt.ALL).first()
@@ -2378,17 +2263,13 @@ class TestLazy(unittest.TestCase):
         self.assertEqual(row.get('tt.value'), None)
         self.assertEqual(row['value'], None)
         self.assertEqual(row.get('value'), None)
-        db.tt.drop()
-        db.close()
 
     def testRowExtra(self):
-        db=DAL(DEFAULT_URI, lazy_tables=True)
+        db = self.connect(check_reserved=None, lazy_tables=True)
         tt = db.define_table('tt',  Field('value', 'integer'))
         db.tt.insert(value=1)
         row = db(db.tt).select('value').first()
         self.assertEqual(row.value, 1)
-        db.tt.drop()
-        db.close()
 
 class TestRedefine(unittest.TestCase):
 
@@ -2405,10 +2286,10 @@ class TestRedefine(unittest.TestCase):
         db.close()
 
 
-class TestUpdateInsert(unittest.TestCase):
+class TestUpdateInsert(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         t0 = db.define_table('t0', Field('name'))
         i_id = t0.update_or_insert((t0.id == 1), name='web2py')
         u_id = t0.update_or_insert((t0.id == i_id), name='web2py2')
@@ -2417,14 +2298,12 @@ class TestUpdateInsert(unittest.TestCase):
         self.assertTrue(db(t0).count() == 1)
         self.assertTrue(db(t0.name == 'web2py').count() == 0)
         self.assertTrue(db(t0.name == 'web2py2').count() == 1)
-        db.t0.drop()
-        db.close()
 
 
-class TestBulkInsert(unittest.TestCase):
+class TestBulkInsert(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         t0 = db.define_table('t0', Field('name'))
         global ctr
         ctr = 0
@@ -2440,14 +2319,12 @@ class TestBulkInsert(unittest.TestCase):
         for pos in range(0, 10, 1):
             self.assertTrue(db(t0.name == 'web2py_%s' % pos).count() == 1)
         self.assertTrue(ctr == len(items))
-        db.t0.drop()
-        db.close()
 
 
-class TestRecordVersioning(unittest.TestCase):
+class TestRecordVersioning(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('t0', Field('name'), Field('is_active', writable=False,readable=False,default=True))
         db.t0._enable_record_versioning(archive_name='t0_archive')
         self.assertTrue('t0_archive' in db)
@@ -2461,9 +2338,6 @@ class TestRecordVersioning(unittest.TestCase):
         self.assertEqual(db(db.t0).count(), 1)
         self.assertEqual(len(db(db.t0_archive).select()), 2)
         self.assertEqual(db(db.t0_archive).count(), 2)
-        db.t0_archive.drop()
-        db.t0.drop()
-        db.close()
 
 
 @unittest.skipIf(IS_SQLITE, "Skip sqlite")
@@ -2505,21 +2379,19 @@ class TestConnection(unittest.TestCase):
             db4.close()
         self.assertEqual(len(db4._adapter.POOLS[DEFAULT_URI]), 0)
 
-class TestSerializers(unittest.TestCase):
+class TestSerializers(DALtest):
 
     def testAsJson(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('date_field', 'datetime'))
         db.tt.insert(date_field=datetime.datetime.now())
         rows = db().select(db.tt.ALL)
         j=rows.as_json()
         import json #standard library
         json.loads(j)
-        db.tt.drop()
-        db.close()
 
     def testSelectIterselect(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         db.define_table('tt', Field('tt'))
         db.tt.insert(tt='pydal')
         methods = ['as_dict', 'as_csv', 'as_json', 'as_xml', 'as_list']
@@ -2529,14 +2401,12 @@ class TestSerializers(unittest.TestCase):
             self.assertEqual(getattr(rows, method)(),
                              getattr(rowsI, method)(),
                              'failed %s' % method)
-        db.tt.drop()
-        db.close()
 
 
-class TestIterselect(unittest.TestCase):
+class TestIterselect(DALtest):
 
     def testRun(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         t0 = db.define_table('t0', Field('name'))
         names = ['web2py', 'pydal', 'Massimo']
         for n in names:
@@ -2589,15 +2459,11 @@ class TestIterselect(unittest.TestCase):
         for n in names:
             self.assertEqual(next(rows).t0.name, n)
 
-        t0.drop()
-        db.close()
-        return
-
     @unittest.skipIf(IS_MSSQL, "Skip mssql")
     def testMultiSelect(self):
         # Iterselect holds the cursors until all elemets have been evaluated
         # inner queries use new cursors
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         t0 = db.define_table('t0', Field('name'), Field('name_copy'))
         db(db.t0).delete()
         db.commit()
@@ -2620,13 +2486,10 @@ class TestIterselect(unittest.TestCase):
         self.assertEqual(c, len(names)*len(names))
         self.assertEqual(db(db.t0).count(), len(names))
         db._adapter.test_connection()
-        t0.drop()
-        db.close()
-        return
 
     @unittest.skipIf(IS_SQLITE | IS_MSSQL, "Skip sqlite & ms sql")
     def testMultiSelectWithCommit(self):
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db = self.connect()
         t0 = db.define_table('t0', Field('nn', 'integer'))
         for n in xrange(1, 100, 1):
             t0.insert(nn=n)
@@ -2643,9 +2506,6 @@ class TestIterselect(unittest.TestCase):
         self.assertEqual(tot * 2, db(db.t0).select(s).first()[s])
 
         db._adapter.test_connection()
-        t0.drop()
-        db.close()
-        return
 
 if __name__ == '__main__':
     unittest.main()
