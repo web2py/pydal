@@ -42,7 +42,7 @@ ALLOWED_DATATYPES = [
 
 
 def setUpModule():
-    if IS_MYSQL:
+    if IS_MYSQL or IS_TERADATA:
         db = DAL(DEFAULT_URI, check_reserved=['all'])
 
         def clean_table(db, tablename):
