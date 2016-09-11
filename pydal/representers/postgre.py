@@ -1,4 +1,4 @@
-from ..adapters.postgres import Postgre
+from ..adapters.postgres import Postgre, PostgreNew
 from .base import SQLRepresenter, JSONRepresenter
 from . import representers, before_type, for_type
 
@@ -28,3 +28,9 @@ class PostgreRepresenter(SQLRepresenter, JSONRepresenter):
     @for_type('geography', adapt=False)
     def _geography(self, value, srid):
         return "ST_GeogFromText('SRID=%s;%s')" % (srid, value)
+
+
+@representers.register_for(PostgreNew)
+class PostgreArraysRepresenter(PostgreRepresenter):
+    def _listify_elements(self, elements):
+        return "{" + ",".join(str(el) for el in elements) + "}"

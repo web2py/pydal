@@ -257,7 +257,7 @@ class PostgreDialectArrays(PostgreDialect):
         return super(PostgreDialectArrays, self).ilike(
             first, second, escape=escape)
 
-    def EQ(self, first, second=None):
+    def eq(self, first, second=None):
         if first and 'type' not in first:
             return '(%s = %s)' % (first, self.expand(second))
         return super(PostgreDialectArrays, self).eq(first, second)
