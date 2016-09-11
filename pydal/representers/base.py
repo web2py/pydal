@@ -66,11 +66,14 @@ class BaseRepresenter(Representer):
             value = [value]
         return value
 
+    def _listify_elements(self, elements):
+        return bar_encode(elements)
+
     @for_type('list:integer')
     def _list_integer(self, value):
         values = self._ensure_list(value)
         values = list(map(int, [val for val in values if val != '']))
-        return bar_encode(value)
+        return self._listify_elements(value)
 
     @for_type('list:string')
     def _list_string(self, value):
@@ -83,7 +86,7 @@ class BaseRepresenter(Representer):
                     lambda x: unicode(x).encode(self.adapter.db_codec), value)
         else:
             value = list(map(str, value))
-        return bar_encode(value)
+        return self._listify_elements(value)
 
     @for_type('list:reference', adapt=False)
     def _list_reference(self, value):

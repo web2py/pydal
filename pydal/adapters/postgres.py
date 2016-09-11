@@ -8,7 +8,7 @@ from . import AdapterMeta, adapters, with_connection, with_connection_or_raise
 
 class PostgreMeta(AdapterMeta):
     def __call__(cls, *args, **kwargs):
-        if cls != Postgre:
+        if cls not in [Postgre, PostgreNew, PostgreBoolean]:
             return AdapterMeta.__call__(cls, *args, **kwargs)
         available_drivers = [
             driver for driver in cls.drivers
@@ -20,10 +20,7 @@ class PostgreMeta(AdapterMeta):
         else:
             driver = available_drivers[0] if available_drivers else \
                 cls.drivers[0]
-        if driver == 'psycopg2':
-            cls = PostgrePsyco
-        else:
-            cls = PostgrePG8000
+        cls = adapters._registry_[uri_items[0] + ":" + driver]
         return AdapterMeta.__call__(cls, *args, **kwargs)
 
 
@@ -197,12 +194,12 @@ class PostgreNew(Postgre):
 
 
 @adapters.register_for('postgres2:psycopg2')
-class PostgrePsycoNew(PostgrePsyco):
+class PostgrePsycoNew(PostgrePsyco, PostgreNew):
     pass
 
 
 @adapters.register_for('postgres2:pg8000')
-class PostgrePG8000New(PostgrePG8000):
+class PostgrePG8000New(PostgrePG8000, PostgreNew):
     pass
 
 
@@ -218,12 +215,12 @@ class PostgreBoolean(PostgreNew):
 
 
 @adapters.register_for('postgres3:psycopg2')
-class PostgrePsycoBoolean(PostgrePsycoNew):
+class PostgrePsycoBoolean(PostgrePsycoNew, PostgreBoolean):
     pass
 
 
 @adapters.register_for('postgres3:pg8000')
-class PostgrePG8000Boolean(PostgrePG8000New):
+class PostgrePG8000Boolean(PostgrePG8000New, PostgreBoolean):
     pass
 
 
