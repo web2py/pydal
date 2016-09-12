@@ -15,7 +15,7 @@ from pydal.helpers.classes import SQLALL
 from pydal.objects import Table
 from ._compat import unittest
 from ._adapt import (
-    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, _quote)
+    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA, _quote)
 from ._helpers import DALtest
 
 long = integer_types[-1]
@@ -43,7 +43,7 @@ ALLOWED_DATATYPES = [
 
 
 def setUpModule():
-    if IS_MYSQL:
+    if IS_MYSQL or IS_TERADATA:
         db = DAL(DEFAULT_URI, check_reserved=['all'])
 
         def clean_table(db, tablename):
@@ -613,8 +613,12 @@ class TestAddMethod(DALtest):
         def select_all(table,orderby=None):
             return table._db(table).select(orderby=orderby)
         self.assertEqual(db.tt.insert(aa='1'), 1)
-        self.assertEqual(db.tt.insert(aa='2'), 2)
-        self.assertEqual(db.tt.insert(aa='3'), 3)
+        if not IS_TERADATA:
+            self.assertEqual(db.tt.insert(aa='1'), 2)
+            self.assertEqual(db.tt.insert(aa='1'), 3)
+        else:
+            self.assertEqual(db.tt.insert(aa='1'), 1)
+            self.assertEqual(db.tt.insert(aa='1'), 1)            
         self.assertEqual(len(db.tt.all()), 3)
 
 
