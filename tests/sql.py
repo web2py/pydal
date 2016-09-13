@@ -651,8 +651,12 @@ class TestBelongs(unittest.TestCase):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'))
         self.assertEqual(db.tt.insert(aa='1'), 1)
-        self.assertEqual(db.tt.insert(aa='2'), 2)
-        self.assertEqual(db.tt.insert(aa='3'), 3)
+        if not IS_TERADATA:
+            self.assertEqual(db.tt.insert(aa='2'), 2)
+            self.assertEqual(db.tt.insert(aa='3'), 3)
+        else:
+            self.assertEqual(db.tt.insert(aa='2'), 1)
+            self.assertEqual(db.tt.insert(aa='3'), 1)   
         self.assertEqual(db(db.tt.aa.belongs(('1', '3'))).count(),
                          2)
         self.assertEqual(db(db.tt.aa.belongs(db(db.tt.id
