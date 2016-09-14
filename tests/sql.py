@@ -426,8 +426,13 @@ class TestInsert(DALtest):
         db = self.connect()
         db.define_table('tt', Field('aa'))
         self.assertEqual(db.tt.insert(aa='1'), 1)
-        self.assertEqual(db.tt.insert(aa='1'), 2)
-        self.assertEqual(db.tt.insert(aa='1'), 3)
+        if not IS_TERADATA:
+            self.assertEqual(db.tt.insert(aa='1'), 2)
+            self.assertEqual(db.tt.insert(aa='1'), 3)
+        else:
+            self.assertEqual(db.tt.insert(aa='1'), 1)
+            self.assertEqual(db.tt.insert(aa='1'), 1)
+
         self.assertEqual(db(db.tt.aa == '1').count(), 3)
         self.assertEqual(db(db.tt.aa == '2').isempty(), True)
         self.assertEqual(db(db.tt.aa == '1').update(aa='2'), 3)
@@ -443,8 +448,12 @@ class TestSelect(DALtest):
         db = self.connect()
         db.define_table('tt', Field('aa'))
         self.assertEqual(db.tt.insert(aa='1'), 1)
-        self.assertEqual(db.tt.insert(aa='2'), 2)
-        self.assertEqual(db.tt.insert(aa='3'), 3)
+        if not IS_TERADATA:
+            self.assertEqual(db.tt.insert(aa='2'), 2)
+            self.assertEqual(db.tt.insert(aa='3'), 3)
+        else:
+            self.assertEqual(db.tt.insert(aa='2'), 1)
+            self.assertEqual(db.tt.insert(aa='3'), 1)
         self.assertEqual(db(db.tt.id > 0).count(), 3)
         self.assertEqual(db(db.tt.id > 0).select(orderby=~db.tt.aa
                           | db.tt.id)[0].aa, '3')
@@ -628,8 +637,12 @@ class TestBelongs(DALtest):
         db = self.connect()
         db.define_table('tt', Field('aa'))
         self.assertEqual(db.tt.insert(aa='1'), 1)
-        self.assertEqual(db.tt.insert(aa='2'), 2)
-        self.assertEqual(db.tt.insert(aa='3'), 3)
+        if not IS_TERADATA:
+            self.assertEqual(db.tt.insert(aa='2'), 2)
+            self.assertEqual(db.tt.insert(aa='3'), 3)
+        else:
+            self.assertEqual(db.tt.insert(aa='2'), 1)
+            self.assertEqual(db.tt.insert(aa='3'), 1)   
         self.assertEqual(db(db.tt.aa.belongs(('1', '3'))).count(),
                          2)
         self.assertEqual(db(db.tt.aa.belongs(db(db.tt.id
@@ -647,8 +660,12 @@ class TestContains(DALtest):
         db = self.connect()
         db.define_table('tt', Field('aa', 'list:string'), Field('bb','string'))
         self.assertEqual(db.tt.insert(aa=['aaa','bbb'],bb='aaa'), 1)
-        self.assertEqual(db.tt.insert(aa=['bbb','ddd'],bb='abb'), 2)
-        self.assertEqual(db.tt.insert(aa=['eee','aaa'],bb='acc'), 3)
+        if not IS_TERADATA:
+            self.assertEqual(db.tt.insert(aa=['bbb','ddd'],bb='abb'), 2)
+            self.assertEqual(db.tt.insert(aa=['eee','aaa'],bb='acc'), 3)
+        else:
+            self.assertEqual(db.tt.insert(aa=['bbb','ddd'],bb='abb'), 1)
+            self.assertEqual(db.tt.insert(aa=['eee','aaa'],bb='acc'), 1)
         self.assertEqual(db(db.tt.aa.contains('aaa')).count(), 2)
         self.assertEqual(db(db.tt.aa.contains('bbb')).count(), 2)
         self.assertEqual(db(db.tt.aa.contains('aa')).count(), 0)
@@ -671,8 +688,12 @@ class TestContains(DALtest):
         # integers in string fields
         db.define_table('tt', Field('aa', 'list:string'), Field('bb','string'), Field('cc','integer'))
         self.assertEqual(db.tt.insert(aa=['123','456'],bb='123', cc=12), 1)
-        self.assertEqual(db.tt.insert(aa=['124','456'],bb='123', cc=123), 2)
-        self.assertEqual(db.tt.insert(aa=['125','457'],bb='23', cc=125),  3)
+        if not IS_TERADATA:
+            self.assertEqual(db.tt.insert(aa=['124','456'],bb='123', cc=123), 2)
+            self.assertEqual(db.tt.insert(aa=['125','457'],bb='23', cc=125),  3)
+        else:
+            self.assertEqual(db.tt.insert(aa=['124','456'],bb='123', cc=123), 1)
+            self.assertEqual(db.tt.insert(aa=['125','457'],bb='23', cc=125),  1)
         self.assertEqual(db(db.tt.aa.contains(123)).count(), 1)
         self.assertEqual(db(db.tt.aa.contains(23)).count(), 0)
         self.assertEqual(db(db.tt.aa.contains(db.tt.cc)).count(), 1)
