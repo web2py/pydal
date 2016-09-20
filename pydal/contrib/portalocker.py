@@ -58,7 +58,7 @@ Web2py Changes
 import sys
 import logging
 
-PY2 = sys.version_info[2] == 2
+PY2 = sys.version_info[0] == 2
 
 logger = logging.getLogger("pydal")
 
