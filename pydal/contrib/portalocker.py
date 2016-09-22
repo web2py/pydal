@@ -55,9 +55,13 @@ Web2py Changes
      solution
 
 """
-
+import sys
 import logging
-logger = logging.getLogger("web2py")
+
+PY2 = sys.version_info[0] == 2
+
+logger = logging.getLogger("pydal")
+
 
 os_locking = None
 try:
@@ -161,16 +165,24 @@ else:
         pass
 
 
+def open_file(filename, mode):
+    if PY2 or 'b' in mode:
+        f = open(filename, mode)
+    else:
+        f = open(filename, mode, encoding='utf8')
+    return f
+
+
 class LockedFile(object):
     def __init__(self, filename, mode='rb'):
         self.filename = filename
         self.mode = mode
         self.file = None
         if 'r' in mode:
-            self.file = open(filename, mode)
+            self.file = open_file(filename, mode)
             lock(self.file, LOCK_SH)
         elif 'w' in mode or 'a' in mode:
-            self.file = open(filename, mode.replace('w', 'a'))
+            self.file = open_file(filename, mode.replace('w', 'a'))
             lock(self.file, LOCK_EX)
             if 'a' not in mode:
                 self.file.seek(0)

@@ -8,6 +8,7 @@ import sys
 import os
 import glob
 import datetime
+import json
 
 from pydal._compat import PY2, basestring, StringIO, integer_types, xrange
 from pydal import DAL, Field
@@ -1417,24 +1418,14 @@ class TestDALDictImportExport(unittest.TestCase):
 
         db2.commit()
 
-        have_serializers = True
-        try:
-            import serializers
-            dbjson = db.as_json(sanitize=False)
-            assert isinstance(dbjson, basestring) and len(dbjson) > 0
-
-            unicode_keys = True
-            if sys.version < "2.6.5":
-                unicode_keys = False
-            db3 = DAL(**serializers.loads_json(dbjson,
-                          unicode_keys=unicode_keys))
-            assert hasattr(db3, "person") and hasattr(db3.person, "uuid") and\
-            db3.person.uuid.type == db.person.uuid.type
-            db3.person.drop()
-            db3.commit()
-            db3.close()
-        except ImportError:
-            pass
+        dbjson = db.as_json(sanitize=False)
+        assert isinstance(dbjson, basestring) and len(dbjson) > 0
+        db3 = DAL(**json.loads(dbjson))
+        assert hasattr(db3, "person") and hasattr(db3.person, "uuid")
+        assert db3.person.uuid.type == db.person.uuid.type
+        db3.person.drop()
+        db3.commit()
+        db3.close()
 
         mpfc = "Monty Python's Flying Circus"
         dbdict4 = {"uri": DEFAULT_URI,
@@ -1516,7 +1507,7 @@ class TestSelectAsDict(DALtest):
 class TestExecuteSQL(DALtest):
 
     def testSelect(self):
-        db = self.connect('sqlite://storage.db', entity_quoting=False)
+        db = self.connect(DEFAULT_URI, entity_quoting=False)
         db.define_table(
             'a_table',
             Field('b_field'),
