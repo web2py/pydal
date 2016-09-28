@@ -1,6 +1,16 @@
 pydal changelog
 ===============
 
+Version 16.09
+-------------
+
+Released on September 28th 2016
+
+- [MongoDB] Enabled query(field==list:reference)
+- [PostgreSQL] Several bugfixes
+- Improved portalocker behaviour on py3
+
+
 Version 16.08
 -------------
 
