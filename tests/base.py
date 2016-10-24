@@ -134,6 +134,7 @@ class TestParseDateTime(unittest.TestCase):
         db.close()
 
 @unittest.skipIf(IS_IMAP, "chained join unsupported on IMAP")
+@unittest.skipIf(IS_TERADATA, "chained join unsupported on TERADATA")
 class TestChainedJoinUNIQUE(unittest.TestCase):
     # 1:1 relation
 
