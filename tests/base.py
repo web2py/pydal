@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from ._compat import unittest
-from ._adapt import DEFAULT_URI, drop, IS_MSSQL, IS_IMAP, IS_GAE
+from ._adapt import DEFAULT_URI, drop, IS_MSSQL, IS_IMAP, IS_GAE, IS_TERADATA
 from pydal import DAL, Field
 from pydal._compat import PY2
 
@@ -134,6 +134,7 @@ class TestParseDateTime(unittest.TestCase):
         db.close()
 
 @unittest.skipIf(IS_IMAP, "chained join unsupported on IMAP")
+@unittest.skipIf(IS_TERADATA, "chained join unsupported on TERADATA")
 class TestChainedJoinUNIQUE(unittest.TestCase):
     # 1:1 relation
 

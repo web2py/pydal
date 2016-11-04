@@ -270,7 +270,7 @@ class PostgreDialectArrays(PostgreDialect):
         return super(PostgreDialectArrays, self).ilike(
             first, second, escape=escape, query_env=query_env)
 
-    def EQ(self, first, second=None, query_env={}):
+    def eq(self, first, second=None, query_env={}):
         if first and 'type' not in first:
             return '(%s = %s)' % (first,
                 self.expand(second, query_env=query_env))
