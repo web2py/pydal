@@ -13,7 +13,7 @@ import json
 from pydal._compat import PY2, basestring, StringIO, integer_types, xrange
 from pydal import DAL, Field
 from pydal.helpers.classes import SQLALL
-from pydal.objects import Table, Expression
+from pydal.objects import Table, Expression, Row
 from ._compat import unittest
 from ._adapt import (
     DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA, _quote)
@@ -612,6 +612,28 @@ class TestSelect(DALtest):
         result = db(db.tt).select(db.tt.aa.coalesce_zero())
         self.assertEqual(result.response[0][0], 0)
         self.assertEqual(result.response[1][0], 1)
+
+    def testTableAliasCollisions(self):
+        db = self.connect()
+        db.define_table('t1', Field('aa'))
+        db.define_table('t2', Field('bb'))
+        t1, t2 = db.t1, db.t2
+        t1.with_alias('t2')
+        t2.with_alias('t1')
+
+        # Passing tables by name will result in exception
+        t1.insert(aa='test')
+        t2.insert(bb='foo')
+        db(t1.id > 0).update(aa='bar')
+        having = (t1.aa != None)
+        join = [t2.on(t1.aa == t2.bb)]
+        db(t1.aa == t2.bb).select(t1.aa, groupby=t1.aa, having=having,
+            orderby=t1.aa)
+        db(t1.aa).select(t1.aa, join=join, groupby=t1.aa, having=having,
+            orderby=t1.aa)
+        db(t1.aa).select(t1.aa, left=join, groupby=t1.aa, having=having,
+            orderby=t1.aa)
+        db(t1.id > 0).delete()
 
 
 class TestSubselect(DALtest):
@@ -1409,9 +1431,10 @@ class TestClientLevelOps(DALtest):
 
     def testRun(self):
         db = self.connect()
-        db.define_table('tt', Field('aa'))
+        db.define_table('tt', Field('aa', represent=lambda x,r:'x'+x),
+            Field('bb', type='integer', represent=lambda x,r:'y'+str(x)))
         db.commit()
-        db.tt.insert(aa="test")
+        db.tt.insert(aa="test", bb=1)
         rows1 = db(db.tt.id<0).select()
         rows2 = db(db.tt.id>0).select()
         self.assertNotEqual(rows1, rows2)
@@ -1429,13 +1452,29 @@ class TestClientLevelOps(DALtest):
         rows7 = rows5.sort(lambda row: row.aa)
         self.assertEqual(len(rows7), 1)
         def represent(f, v, r):
-            return str(v)
+            return 'z' + str(v)
 
         db.representers = {
             'rows_render': represent,
         }
+        db.tt.insert(aa="foo", bb=2)
         rows = db(db.tt.id>0).select()
-        rows.render(i=0)
+        exp1 = [Row(aa='ztest', bb='z1', id=rows[0]['id']),
+            Row(aa='zfoo', bb='z2', id=rows[1]['id'])]
+        exp2 = [Row(aa='ztest', bb=1, id=rows[0]['id']),
+            Row(aa='zfoo', bb=2, id=rows[1]['id'])]
+        exp3 = [Row(aa='test', bb='z1', id=rows[0]['id']),
+            Row(aa='foo', bb='z2', id=rows[1]['id'])]
+        self.assertEqual(rows.render(i=0), exp1[0])
+        self.assertEqual(rows.render(i=0, fields=[db.tt.aa, db.tt.bb]),
+            exp1[0])
+        self.assertEqual(rows.render(i=0, fields=[db.tt.aa]), exp2[0])
+        self.assertEqual(rows.render(i=0, fields=[db.tt.bb]), exp3[0])
+        self.assertEqual(list(rows.render()), exp1)
+        self.assertEqual(list(rows.render(fields=[db.tt.aa, db.tt.bb])), exp1)
+        self.assertEqual(list(rows.render(fields=[db.tt.aa])), exp2)
+        self.assertEqual(list(rows.render(fields=[db.tt.bb])), exp3)
+        ret = rows.render(i=0)
         rows = db(db.tt.id>0).select()
         rows.compact=False
         row = rows[0]
