@@ -1,6 +1,14 @@
 pydal changelog
 ===============
 
+Version 16.11
+-------------
+
+Released on November 11th 2016
+
+- Avoid possible memory leaks on DAL instance deletion
+
+
 Version 16.09
 -------------
 

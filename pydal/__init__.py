@@ -1,4 +1,4 @@
-__version__ = '16.10-dev'
+__version__ = '16.11'
 
 from .base import DAL
 from .objects import Field
