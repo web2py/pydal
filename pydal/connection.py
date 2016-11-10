@@ -74,6 +74,10 @@ class ConnectionPool(object):
         cursor.close()
         del self.cursors[id(cursor)]
 
+    def _clean_tlocals(self):
+        delattr(THREAD_LOCAL, self._cursors_uname_)
+        delattr(THREAD_LOCAL, self._connection_uname_)
+
     def close(self, action='commit', really=True):
         #: if we have an action (commit, rollback), try to execute it
         succeeded = True
@@ -143,7 +147,7 @@ class ConnectionPool(object):
         """
         if getattr(THREAD_LOCAL, self._connection_uname_, None) is not None:
             return
-        
+
         if not self.pool_size:
             self.connection = self.connector()
             self.after_connection_hook()

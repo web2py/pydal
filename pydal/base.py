@@ -711,6 +711,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             db_group.remove(self)
             if not db_group:
                 del THREAD_LOCAL._pydal_db_instances_[self._db_uid]
+        self._adapter._clean_tlocals()
 
     def executesql(self, query, placeholders=None, as_dict=False,
                    fields=None, colnames=None, as_ordered_dict=False):
