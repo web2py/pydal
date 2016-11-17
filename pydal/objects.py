@@ -612,11 +612,7 @@ class Table(Serializable, BasicStorage):
 
     def __str__(self):
         if self._ot is not None:
-            ot = self._ot
-            if 'Oracle' in str(type(self._db._adapter)):
-                return '%s %s' % (ot, self._tablename)
-            return '%s AS %s' % (ot, self._tablename)
-
+            return self._db._adapter.dialect._as(self._ot, self._tablename)
         return self._tablename
 
     @property
@@ -1169,11 +1165,8 @@ class Select(BasicStorage):
         else:
             colnames, sql = self._colnames_cache, self._sql_cache
         if with_alias and self._tablename is not None:
-            alias = self._db._adapter.dialect.quote(self._tablename)
-            if 'Oracle' in str(type(self._db._adapter)):
-                sql = '(%s) %s' % (sql[:-1], alias)
-            else:
-                sql = '(%s) AS %s' % (sql[:-1], alias)
+            sql = '(%s)' % sql[:-1]
+            sql = self._db._adapter.dialect.alias(sql, self._tablename)
         return colnames, sql
 
     def query_name(self, outer_scoped=[]):
