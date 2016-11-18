@@ -741,7 +741,8 @@ class TestSubselect(DALtest):
 
     def testCorrelated(self):
         db = self.connect()
-        db.define_table('t1', Field('aa', 'integer'), Field('bb'))
+        db.define_table('t1', Field('aa', 'integer'), Field('bb'),
+            Field('mark', 'integer'))
         db.define_table('t2', Field('aa', 'integer'), Field('cc'))
         db.define_table('t3', Field('aa', 'integer'))
         data_t1 = [
@@ -789,6 +790,25 @@ class TestSubselect(DALtest):
             self.assertEqual(result[idx]['t3']['aa'], val[0])
             self.assertEqual(result[idx]['t1']['bb'], val[1])
 
+        order = db.t1.aa | db.t1.bb
+        db(db.t1.bb.belongs(sub)).update(mark=1)
+        result = db(db.t1.mark == 1).select(db.t1.aa, db.t1.bb, orderby=order)
+        self.assertEqual(len(result), len(expected_cor))
+        for idx, val in enumerate(expected_cor):
+            self.assertEqual(result[idx]['aa'], val[0])
+            self.assertEqual(result[idx]['bb'], val[1])
+
+        db(~db.t1.bb.belongs(sub)).delete()
+        result = db(db.t1.id > 0).select(db.t1.aa, db.t1.bb, orderby=order)
+        self.assertEqual(len(result), len(expected_cor))
+        for idx, val in enumerate(expected_cor):
+            self.assertEqual(result[idx]['aa'], val[0])
+            self.assertEqual(result[idx]['bb'], val[1])
+
+        db(db.t1.id > 0).delete()
+        for item in data_t1:
+            db.t1.insert(**item)
+
         # Uncorrelated subqueries
         kwargs = dict(correlated=False)
         sub = db(subquery).nested_select(*subfields, **kwargs)
@@ -814,6 +834,8 @@ class TestSubselect(DALtest):
         for idx, val in enumerate(expected_uncor):
             self.assertEqual(result[idx]['t3']['aa'], val[0])
             self.assertEqual(result[idx]['t1']['bb'], val[1])
+        # MySQL does not support subqueries with uncorrelated references
+        # to target table
 
         # Correlation prevented by alias in parent select
         tmp = db.t1.with_alias('tmp')
@@ -840,6 +862,9 @@ class TestSubselect(DALtest):
         for idx, val in enumerate(expected_uncor):
             self.assertEqual(result[idx]['t3']['aa'], val[0])
             self.assertEqual(result[idx]['tmp']['bb'], val[1])
+        # SQLite does not support aliasing target table in UPDATE/DELETE
+        # MySQL does not support subqueries with uncorrelated references
+        # to target table
 
 class TestAddMethod(DALtest):
 

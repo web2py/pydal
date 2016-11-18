@@ -512,7 +512,7 @@ class SQLAdapter(BaseAdapter):
     def _update(self, table, query, fields):
         sql_q = ''
         tablename = table.sqlsafe
-        query_env = dict(current_scope=[tablename])
+        query_env = dict(current_scope=[table._tablename])
         if query:
             if use_common_filters(query):
                 query = self.common_filter(query, [table])
@@ -540,7 +540,7 @@ class SQLAdapter(BaseAdapter):
     def _delete(self, table, query):
         sql_q = ''
         tablename = table.sqlsafe
-        query_env = dict(current_scope=[tablename])
+        query_env = dict(current_scope=[table._tablename])
         if query:
             if use_common_filters(query):
                 query = self.common_filter(query, [table])
