@@ -2127,7 +2127,14 @@ class Set(Serializable):
         if upload_fields:
             fields = list(upload_fields)
             # Explicitly add compute upload fields (ex: thumbnail)
-            fields += [f for f in table.fields if table[f].compute is not None]
+            computed_fields = [f for f in table.fields if table[f].compute is not None]
+            fields += computed_fields
+            row = Row(upload_fields)
+            for f in computed_fields:
+                try:
+                    upload_fields[f] = table[f].compute(row)
+                except:
+                    pass
         else:
             fields = table.fields
         fields = [f for f in fields if table[f].type == 'upload' and
