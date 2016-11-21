@@ -2141,24 +2141,23 @@ class Set(Serializable):
                 oldname = record.get(fieldname, None)
                 if not oldname:
                     continue
-                if upload_fields and fieldname in upload_fields and \
-                   oldname == upload_fields[fieldname]:
-                    continue
-                if field.custom_delete:
-                    field.custom_delete(oldname)
-                else:
-                    uploadfolder = field.uploadfolder
-                    if not uploadfolder:
-                        uploadfolder = pjoin(
-                            self.db._adapter.folder, '..', 'uploads')
-                    if field.uploadseparate:
-                        items = oldname.split('.')
-                        uploadfolder = pjoin(
-                            uploadfolder, "%s.%s" %
-                            (items[0], items[1]), items[2][:2])
-                    oldpath = pjoin(uploadfolder, oldname)
-                    if exists(oldpath):
-                        os.unlink(oldpath)
+                if upload_fields is None or (fieldname in upload_fields and
+                                            oldname != upload_fields[fieldname]):
+                    if field.custom_delete:
+                        field.custom_delete(oldname)
+                    else:
+                        uploadfolder = field.uploadfolder
+                        if not uploadfolder:
+                            uploadfolder = pjoin(
+                                self.db._adapter.folder, '..', 'uploads')
+                        if field.uploadseparate:
+                            items = oldname.split('.')
+                            uploadfolder = pjoin(
+                                uploadfolder, "%s.%s" %
+                                (items[0], items[1]), items[2][:2])
+                        oldpath = pjoin(uploadfolder, oldname)
+                        if exists(oldpath):
+                            os.unlink(oldpath)
         return False
 
 
