@@ -15,7 +15,7 @@ from pydal._compat import PY2, basestring, StringIO, integer_types, to_bytes
 long = integer_types[-1]
 
 from pydal import DAL, Field
-from pydal.objects import Table, Query, Expression
+from pydal.objects import Table, Query, Expression, Row
 from pydal.helpers.classes import SQLALL
 from pydal.exceptions import NotOnNOSQLError
 from ._adapt import DEFAULT_URI, IS_IMAP, drop, IS_GAE, IS_MONGODB, _quote
@@ -188,9 +188,13 @@ class TestMongo(unittest.TestCase):
             self.assertEqual(db._adapter.delete(
                 db['tt'], Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'), safe=safe), 1)
             self.assertEqual(db(db.tt.aa=='x').count(), 0)
-            self.assertEqual(db._adapter.update(db['tt'],
+            self.assertEqual(
+                db._adapter.update(
+                    db['tt'],
                     Query(db, db._adapter.dialect.eq, db.tt.aa, 'x'),
-                    db['tt']._listify({'aa':'x'}), safe=safe), 0)
+                    db['tt']._fields_and_values_for_update({'aa':'x'})[1],
+                    safe=safe
+                ), 0)
             drop(db.tt)
             db.close()
 
@@ -2292,7 +2296,7 @@ class TestBulkInsert(unittest.TestCase):
         global ctr
         ctr = 0
         def test_after_insert(i, r):
-            self.assertIsInstance(i, dict)
+            self.assertIsInstance(i, Row)
             global ctr
             ctr += 1
             return True

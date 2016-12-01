@@ -10,7 +10,7 @@ import os
 import shutil
 import sys
 import types
-
+from collections import OrderedDict
 from ._compat import PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, \
     integer_types, basestring, iteritems, xrange, implements_iterator, \
     implements_bool, copyreg, reduce, string_types, to_bytes, to_native, long
@@ -650,60 +650,71 @@ class Table(Serializable, BasicStorage):
     def drop(self, mode=''):
         return self._db._adapter.drop_table(self, mode)
 
-    def _listify(self, fields, update=False):
+    def _filter_fields_for_operation(self, fields):
         new_fields = {}  # format: new_fields[name] = (field, value)
+        input_fieldnames = set(fields)
+        table_fieldnames = set(self.fields)
+        empty_fieldnames = OrderedDict((name, name) for name in self.fields)
+        for name in list(input_fieldnames & table_fieldnames):
+            field = self[name]
+            value = field.filter_in(fields[name]) \
+                if field.filter_in else fields[name]
+            new_fields[name] = (field, value)
+            del empty_fieldnames[name]
+        return list(empty_fieldnames), new_fields
 
-        # store all fields passed as input in new_fields
-        for name in fields:
-            if name not in self.fields:
-                if name != 'id':
-                    raise SyntaxError(
-                        'Field %s does not belong to the table' % name)
-            else:
-                field = self[name]
-                value = fields[name]
-                if field.filter_in:
-                    value = field.filter_in(value)
-                new_fields[name] = (field, value)
-
-        # check all fields that should be in the table but are not passed
-        to_compute = []
-        for ofield in self:
-            name = ofield.name
-            if name not in new_fields:
-                # if field is supposed to be computed, compute it!
-                if ofield.compute:  # save those to compute for later
-                    to_compute.append((name, ofield))
-                # if field is required, check its default value
-                elif not update and ofield.default is not None:
-                    value = ofield.default
-                    fields[name] = value
-                    new_fields[name] = (ofield, value)
-                # if this is an update, user the update field instead
-                elif update and ofield.update is not None:
-                    value = ofield.update
-                    fields[name] = value
-                    new_fields[name] = (ofield, value)
-                # if the field is still not there but it should, error
-                elif not update and ofield.required:
+    def _compute_fields_for_operation(self, fields, to_compute):
+        row = Row()
+        for name, tup in iteritems(fields):
+            field, value = tup
+            if isinstance(
+                value, (
+                    types.LambdaType, types.FunctionType, types.MethodType,
+                    types.BuiltinFunctionType, types.BuiltinMethodType
+                )
+            ):
+                value = value()
+            fields[name] = (field, value)
+            row[name] = value
+        for name, field in to_compute:
+            try:
+                row[name] = field.compute(row)
+                fields[name] = (field, row[name])
+            except (KeyError, AttributeError):
+                # error silently unless field is required!
+                if field.required and name not in fields:
                     raise RuntimeError(
-                        'Table: missing required field: %s' % name)
-        # now deal with fields that are supposed to be computed
-        if to_compute:
-            row = Row(fields)
-            for name, ofield in to_compute:
-                # try compute it
-                try:
-                    row[name] = new_value = ofield.compute(row)
-                    new_fields[name] = (ofield, new_value)
-                except (KeyError, AttributeError):
-                    # error silently unless field is required!
-                    if ofield.required:
-                        raise SyntaxError('unable to compute field: %s' % name)
-                    elif ofield.default is not None:
-                        row[name] = new_value = ofield.default
-                        new_fields[name] = (ofield, new_value)
-        return list(new_fields.values())
+                        'unable to compute required field: %s' % name)
+        return row, list(fields.values())
+
+    def _fields_and_values_for_insert(self, fields):
+        empty_fieldnames, new_fields = \
+            self._filter_fields_for_operation(fields)
+        to_compute = []
+        for name in empty_fieldnames:
+            field = self[name]
+            if field.compute:
+                to_compute.append((name, field))
+            if field.default is not None:
+                new_fields[name] = (field, field.default)
+            elif field.required:
+                raise RuntimeError(
+                    'Table: missing required field: %s' % name)
+        return self._compute_fields_for_operation(
+            new_fields, to_compute)
+
+    def _fields_and_values_for_update(self, fields):
+        empty_fieldnames, new_fields = \
+            self._filter_fields_for_operation(fields)
+        to_compute = []
+        for name in empty_fieldnames:
+            field = self[name]
+            if field.compute:
+                to_compute.append((name, field))
+            if field.update is not None:
+                new_fields[name] = (field, field.update)
+        return self._compute_fields_for_operation(
+            new_fields, to_compute)
 
     def _attempt_upload(self, fields):
         for field in self:
@@ -728,30 +739,19 @@ class Table(Serializable, BasicStorage):
                         raise RuntimeError("Unable to handle upload")
                     fields[field.name] = new_name
 
-    def _defaults(self, fields):
-        """If there are no fields/values specified, return table defaults"""
-        fields = copy.copy(fields)
-        for field in self:
-            if (field.name not in fields and
-                    field.type != "id" and
-                    field.compute is None and
-                    field.default is not None):
-                fields[field.name] = field.default
-        return fields
-
     def _insert(self, **fields):
-        fields = self._defaults(fields)
-        return self._db._adapter._insert(self, self._listify(fields))
+        row, op_values = self._fields_and_values_for_insert(fields)
+        return self._db._adapter._insert(self, op_values)
 
     def insert(self, **fields):
-        fields = self._defaults(fields)
         self._attempt_upload(fields)
-        if any(f(fields) for f in self._before_insert):
+        row, op_values = self._fields_and_values_for_insert(fields)
+        if any(f(row) for f in self._before_insert):
             return 0
-        ret = self._db._adapter.insert(self, self._listify(fields))
+        ret = self._db._adapter.insert(self, op_values)
         if ret and self._after_insert:
-            fields = Row(fields)
-            [f(fields, ret) for f in self._after_insert]
+            for f in self._after_insert:
+                f(row, ret)
         return ret
 
     def _validate_fields(self, fields, defattr='default'):
@@ -850,12 +850,12 @@ class Table(Serializable, BasicStorage):
         """
         here items is a list of dictionaries
         """
-        listify_items = [self._listify(item) for item in items]
-        if any(f(item) for item in items for f in self._before_insert):
+        data = [self._fields_and_values_for_insert(item) for item in items]
+        if any(f(el[0]) for el in data for f in self._before_insert):
             return 0
-        ret = self._db._adapter.bulk_insert(self, listify_items)
+        ret = self._db._adapter.bulk_insert(self, [el[1] for el in data])
         ret and [
-            [f(item, ret[k]) for k, item in enumerate(items)]
+            [f(el[0], ret[k]) for k, el in enumerate(data)]
             for f in self._after_insert]
         return ret
 
@@ -2077,8 +2077,8 @@ class Set(Serializable):
     def _update(self, **update_fields):
         db = self.db
         table = db._adapter.get_table(self.query)
-        fields = table._listify(update_fields, update=True)
-        return db._adapter._update(table, self.query, fields)
+        row, op_values = table._fields_and_values_for_update(update_fields)
+        return db._adapter._update(table, self.query, op_values)
 
     def as_dict(self, flat=False, sanitize=True):
         if flat:
@@ -2230,13 +2230,13 @@ class Set(Serializable):
         db = self.db
         table = db._adapter.get_table(self.query)
         table._attempt_upload(update_fields)
-        if any(f(self, update_fields) for f in table._before_update):
+        row, op_values = table._fields_and_values_for_update(update_fields)
+        if not op_values:
+            raise ValueError("No fields to update")
+        if any(f(self, row) for f in table._before_update):
             return 0
-        fields = table._listify(update_fields, update=True)
-        if not fields:
-            raise SyntaxError("No fields to update")
-        ret = db._adapter.update(table, self.query, fields)
-        ret and [f(self, update_fields) for f in table._after_update]
+        ret = db._adapter.update(table, self.query, op_values)
+        ret and [f(self, row) for f in table._after_update]
         return ret
 
     def update_naive(self, **update_fields):
@@ -2244,11 +2244,10 @@ class Set(Serializable):
         Same as update but does not call table._before_update and _after_update
         """
         table = self.db._adapter.get_table(self.query)
-        fields = table._listify(update_fields, update=True)
-        if not fields:
-            raise SyntaxError("No fields to update")
-
-        ret = self.db._adapter.update(table, self.query, fields)
+        row, op_values = table._fields_and_values_for_update(update_fields)
+        if not op_values:
+            raise ValueError("No fields to update")
+        ret = self.db._adapter.update(table, self.query, op_values)
         return ret
 
     def validate_and_update(self, **update_fields):
@@ -2265,15 +2264,15 @@ class Set(Serializable):
         if response.errors:
             response.updated = None
         else:
-            if not any(f(self, new_fields) for f in table._before_update):
-                table._attempt_upload(new_fields)
-                fields = table._listify(new_fields, update=True)
-                if not fields:
-                    raise SyntaxError("No fields to update")
-                ret = self.db._adapter.update(table, self.query, fields)
-                ret and [f(self, new_fields) for f in table._after_update]
-            else:
+            table._attempt_upload(new_fields)
+            row, op_values = table._fields_and_values_for_update(new_fields)
+            if not op_values:
+                raise ValueError("No fields to update")
+            if any(f(self, row) for f in table._before_update):
                 ret = 0
+            else:
+                ret = self.db._adapter.update(table, self.query, op_values)
+                ret and [f(self, new_fields) for f in table._after_update]
             response.updated = ret
         return response
 
