@@ -34,11 +34,12 @@ class CouchDB(NoSQLAdapter):
         super(CouchDB, self).create_table(
             table, migrate, fake_migrate, polymodel)
 
-    def _expand(self, expression, field_type=None):
+    def _expand(self, expression, field_type=None, query_env={}):
         if isinstance(expression, Field):
             if expression.type == 'id':
                 return "%s._id" % expression.tablename
-        return SQLAdapter._expand(self, expression, field_type)
+        return SQLAdapter._expand(self, expression, field_type,
+            query_env=query_env)
 
     def insert(self, table, fields):
         rid = uuid2int(self.db.uuid())
@@ -67,7 +68,7 @@ class CouchDB(NoSQLAdapter):
                 new_fields.append(item)
 
         fields = new_fields
-        tablename = self.get_table(query)
+        tablename = self.get_table(query)._tablename
         fieldnames = [f.name for f in (fields or self.db[tablename])]
         colnames = [
             '%s.%s' % (tablename, fieldname) for fieldname in fieldnames]
@@ -88,7 +89,7 @@ class CouchDB(NoSQLAdapter):
         processor = attributes.get('processor', self.parse)
         return processor(rows, fields, colnames, False)
 
-    def update(self, tablename, query, fields):
+    def update(self, table, query, fields):
         from ..drivers import couchdb
         if not isinstance(query, Query):
             raise SyntaxError("Not Supported")
@@ -105,7 +106,7 @@ class CouchDB(NoSQLAdapter):
                 return 1
             except couchdb.http.ResourceNotFound:
                 return 0
-        tablename = self.get_table(query)
+        tablename = self.get_table(query)._tablename
         rows = self.select(query, [self.db[tablename]._id], {})
         ctable = self.connection[tablename]
         table = self.db[tablename]
@@ -121,11 +122,11 @@ class CouchDB(NoSQLAdapter):
             raise RuntimeError("COUNT DISTINCT not supported")
         if not isinstance(query, Query):
             raise SyntaxError("Not Supported")
-        tablename = self.get_table(query)
+        tablename = self.get_table(query)._tablename
         rows = self.select(query, [self.db[tablename]._id], {})
         return len(rows)
 
-    def delete(self, tablename, query):
+    def delete(self, table, query):
         from ..drivers import couchdb
         if not isinstance(query, Query):
             raise SyntaxError("Not Supported")
@@ -139,7 +140,7 @@ class CouchDB(NoSQLAdapter):
                 return 1
             except couchdb.http.ResourceNotFound:
                 return 0
-        tablename = self.get_table(query)
+        tablename = self.get_table(query)._tablename
         rows = self.select(query, [self.db[tablename]._id], {})
         ctable = self.connection[tablename]
         for row in rows:

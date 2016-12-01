@@ -73,11 +73,11 @@ class MongoDialect(NoSQLDialect):
         except AttributeError:
             return False
 
-    def invert(self, first):
-        return '-%s' % self.expand(first)
+    def invert(self, first, query_env={}):
+        return '-%s' % self.expand(first, query_env=query_env)
 
-    def _not(self, val):
-        op = self.expand(val)
+    def _not(self, val, query_env={}):
+        op = self.expand(val, query_env=query_env)
         op_k = list(op)[0]
         op_body = op[op_k]
         rv = None
@@ -86,7 +86,8 @@ class MongoDialect(NoSQLDialect):
             # not(A and B) -> not(A) or not(B)
             # not(A or B)  -> not(A) and not(B)
             not_op = '$and' if op_k == '$or' else '$or'
-            rv = {not_op: [self._not(val.first), self._not(val.second)]}
+            rv = {not_op: [self._not(val.first, query_env),
+                self._not(val.second, query_env)]}
         else:
             try:
                 sub_ops = list(op_body.keys())
@@ -98,80 +99,96 @@ class MongoDialect(NoSQLDialect):
                 rv = {op_k: {'$not': op_body}}
         return rv
 
-    def _and(self, first, second):
+    def _and(self, first, second, query_env={}):
         # pymongo expects: .find({'$and': [{'x':'1'}, {'y':'2'}]})
         if isinstance(second, bool):
             if second:
-                return self.expand(first)
+                return self.expand(first, query_env=query_env)
             return self.ne(first, first)
-        return {'$and': [self.expand(first), self.expand(second)]}
+        return {'$and': [self.expand(first, query_env=query_env),
+            self.expand(second, query_env=query_env)]}
 
-    def _or(self, first, second):
+    def _or(self, first, second, query_env={}):
         # pymongo expects: .find({'$or': [{'name':'1'}, {'name':'2'}]})
         if isinstance(second, bool):
             if not second:
-                return self.expand(first)
+                return self.expand(first, query_env=query_env)
             return True
-        return {'$or': [self.expand(first), self.expand(second)]}
+        return {'$or': [self.expand(first, query_env=query_env),
+            self.expand(second, query_env=query_env)]}
 
-    def belongs(self, first, second):
+    def belongs(self, first, second, query_env={}):
         if isinstance(second, str):
             # this is broken, the only way second is a string is if it has
             # been converted to SQL. This no worky. This might be made to
             # work if adapter._select did not return SQL.
             raise RuntimeError("nested queries not supported")
-        items = [self.expand(item, first.type) for item in second]
-        return {self.expand(first): {"$in": items}}
+        items = [self.expand(item, first.type, query_env=query_env)
+            for item in second]
+        return {self.expand(first, query_env=query_env): {"$in": items}}
 
-    def _cmp_ops_aggregation_pipeline(self, op, first, second):
+    def _cmp_ops_aggregation_pipeline(self, op, first, second, query_env={}):
         try:
             type = first.type
         except:
             type = None
-        return {op: [self.expand(first), self.expand(second, type)]}
+        return {op: [self.expand(first, query_env=query_env),
+            self.expand(second, type, query_env=query_env)]}
 
     @check_fields_for_cmp
-    def eq(self, first, second=None, pipeline=False):
+    def eq(self, first, second=None, pipeline=False, query_env={}):
         if pipeline:
-            return self._cmp_ops_aggregation_pipeline('$eq', first, second)
-        return {self.expand(first): self.expand(second, first.type)}
+            return self._cmp_ops_aggregation_pipeline('$eq', first, second,
+                query_env)
+        return {self.expand(first, query_env=query_env):
+            self.expand(second, first.type, query_env=query_env)}
 
     @check_fields_for_cmp
-    def ne(self, first, second=None, pipeline=False):
+    def ne(self, first, second=None, pipeline=False, query_env={}):
         if pipeline:
-            return self._cmp_ops_aggregation_pipeline('$ne', first, second)
-        return {self.expand(first): {'$ne': self.expand(second, first.type)}}
-
-    @validate_second
-    @check_fields_for_cmp
-    def lt(self, first, second=None, pipeline=False):
-        if pipeline:
-            return self._cmp_ops_aggregation_pipeline('$lt', first, second)
-        return {self.expand(first): {'$lt': self.expand(second, first.type)}}
+            return self._cmp_ops_aggregation_pipeline('$ne', first, second,
+                query_env)
+        return {self.expand(first, query_env=query_env):
+            {'$ne': self.expand(second, first.type, query_env=query_env)}}
 
     @validate_second
     @check_fields_for_cmp
-    def lte(self, first, second=None, pipeline=False):
+    def lt(self, first, second=None, pipeline=False, query_env={}):
         if pipeline:
-            return self._cmp_ops_aggregation_pipeline('$lte', first, second)
-        return {self.expand(first): {'$lte': self.expand(second, first.type)}}
+            return self._cmp_ops_aggregation_pipeline('$lt', first, second,
+                query_env)
+        return {self.expand(first, query_env=query_env):
+            {'$lt': self.expand(second, first.type, query_env=query_env)}}
 
     @validate_second
     @check_fields_for_cmp
-    def gt(self, first, second=None, pipeline=False):
+    def lte(self, first, second=None, pipeline=False, query_env={}):
         if pipeline:
-            return self._cmp_ops_aggregation_pipeline('$gt', first, second)
-        return {self.expand(first): {'$gt': self.expand(second, first.type)}}
+            return self._cmp_ops_aggregation_pipeline('$lte', first, second,
+                query_env)
+        return {self.expand(first, query_env=query_env):
+            {'$lte': self.expand(second, first.type, query_env=query_env)}}
 
     @validate_second
     @check_fields_for_cmp
-    def gte(self, first, second=None, pipeline=False):
+    def gt(self, first, second=None, pipeline=False, query_env={}):
         if pipeline:
-            return self._cmp_ops_aggregation_pipeline('$gte', first, second)
-        return {self.expand(first): {'$gte': self.expand(second, first.type)}}
+            return self._cmp_ops_aggregation_pipeline('$gt', first, second,
+                query_env)
+        return {self.expand(first, query_env=query_env):
+            {'$gt': self.expand(second, first.type, query_env=query_env)}}
+
+    @validate_second
+    @check_fields_for_cmp
+    def gte(self, first, second=None, pipeline=False, query_env={}):
+        if pipeline:
+            return self._cmp_ops_aggregation_pipeline('$gte', first, second,
+                query_env)
+        return {self.expand(first, query_env=query_env):
+            {'$gte': self.expand(second, first.type, query_env=query_env)}}
 
     @needs_aggregation_pipeline
-    def add(self, first, second):
+    def add(self, first, second, query_env={}):
         op_code = '$add'
         for field in [first, second]:
             try:
@@ -180,38 +197,44 @@ class MongoDialect(NoSQLDialect):
                     break
             except:
                 pass
-        return {op_code: [self.expand(first), self.expand(second, first.type)]}
+        return {op_code: [self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env)]}
 
     @needs_aggregation_pipeline
-    def sub(self, first, second):
+    def sub(self, first, second, query_env={}):
         return {'$subtract': [
-            self.expand(first), self.expand(second, first.type)]}
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env)]}
 
     @needs_aggregation_pipeline
-    def mul(self, first, second):
+    def mul(self, first, second, query_env={}):
         return {'$multiply': [
-            self.expand(first), self.expand(second, first.type)]}
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env)]}
 
     @needs_aggregation_pipeline
-    def div(self, first, second):
+    def div(self, first, second, query_env={}):
         return {'$divide': [
-            self.expand(first), self.expand(second, first.type)]}
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env)]}
 
     @needs_aggregation_pipeline
-    def mod(self, first, second):
+    def mod(self, first, second, query_env={}):
         return {'$mod': [
-            self.expand(first), self.expand(second, first.type)]}
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env)]}
 
     @needs_aggregation_pipeline
-    def aggregate(self, first, what):
+    def aggregate(self, first, what, query_env={}):
         if what == 'ABS':
             return {
                 "$cond": [
-                    {"$lt": [self.expand(first), 0]},
-                    {"$subtract": [0, self.expand(first)]},
-                    self.expand(first)]}
+                    {"$lt": [self.expand(first, query_env=query_env), 0]},
+                    {"$subtract": [0, self.expand(first, query_env=query_env)]},
+                    self.expand(first, query_env=query_env)]}
         try:
-            expanded = {_aggregate_map[what]: self.expand(first)}
+            expanded = {_aggregate_map[what]:
+                self.expand(first, query_env=query_env)}
         except KeyError:
             raise NotImplementedError("'%s' not implemented" % what)
 
@@ -219,10 +242,11 @@ class MongoDialect(NoSQLDialect):
         return {self.GROUP_MARK: expanded}
 
     @needs_aggregation_pipeline
-    def count(self, first, distinct=None):
+    def count(self, first, distinct=None, query_env={}):
         self.adapter._parse_data(first, 'need_group', True)
         if distinct:
-            ret = {self.GROUP_MARK: {"$addToSet": self.expand(first)}}
+            ret = {self.GROUP_MARK: {"$addToSet":
+                self.expand(first, query_env=query_env)}}
             if self.adapter.server_version_major >= 2.6:
                 # '$size' not present in server versions < 2.6
                 ret = {'$size': ret}
@@ -230,49 +254,54 @@ class MongoDialect(NoSQLDialect):
         return {self.GROUP_MARK: {"$sum": 1}}
 
     @needs_aggregation_pipeline
-    def extract(self, first, what):
+    def extract(self, first, what, query_env={}):
         try:
-            return {_extract_map[what]: self.expand(first)}
+            return {_extract_map[what]: self.expand(first, query_env=query_env)}
         except KeyError:
             raise NotImplementedError("EXTRACT(%s) not implemented" % what)
 
     @needs_aggregation_pipeline
-    def epoch(self, first):
+    def epoch(self, first, query_env={}):
         return {"$divide": [
-            {"$subtract": [self.expand(first), self.adapter.epoch]}, 1000]}
+            {"$subtract": [self.expand(first, query_env=query_env),
+                self.adapter.epoch]}, 1000]}
 
     @needs_aggregation_pipeline
-    def case(self, query, true_false):
+    def case(self, query, true_false, query_env={}):
         return {"$cond": [
-            self.expand(query), self.expand(true_false[0]),
-            self.expand(true_false[1])]}
+            self.expand(query, query_env=query_env),
+            self.expand(true_false[0], query_env=query_env),
+            self.expand(true_false[1], query_env=query_env)]}
 
     @needs_aggregation_pipeline
-    def _as(self, first, second):
+    def _as(self, first, second, query_env={}):
         # put the AS_MARK into the structure.  The 'AS' name will be parsed
         # later from the string of the field name.
         if isinstance(first, Field):
-            return [{self.AS_MARK: second}, self.expand(first)]
+            return [{self.AS_MARK: second},
+                self.expand(first, query_env=query_env)]
         else:
-            result = self.expand(first)
+            result = self.expand(first, query_env=query_env)
             result[self.AS_MARK] = second
         return result
 
     # We could implement an option that simulates a full featured SQL
     # database. But I think the option should be set explicit or
     # implemented as another library.
-    def on(self, first, second):
+    def on(self, first, second, query_env={}):
         raise NotOnNOSQLError()
 
-    def comma(self, first, second):
+    def comma(self, first, second, query_env={}):
         # returns field name lists, to be separated via split(',')
-        return '%s,%s' % (self.expand(first), self.expand(second))
+        return '%s,%s' % (self.expand(first, query_env=query_env),
+            self.expand(second, query_env=query_env))
 
     # TODO verify full compatibilty with official SQL Like operator
     def _build_like_regex(self, first, second, case_sensitive=True,
                           escape=None, ends_with=False, starts_with=False,
-                          whole_string=True, like_wildcards=False):
-        base = self.expand(second, 'string')
+                          whole_string=True, like_wildcards=False,
+                          query_env={}):
+        base = self.expand(second, 'string', query_env=query_env)
         need_regex = (whole_string or not case_sensitive or starts_with or
                       ends_with or like_wildcards and
                       ('_' in base or '%' in base))
@@ -312,26 +341,30 @@ class MongoDialect(NoSQLDialect):
             pattern = '^%s$'
         else:
             pattern = '%s'
-        return self.regexp(first, pattern % expr, case_sensitive)
+        return self.regexp(first, pattern % expr, case_sensitive, query_env)
 
-    def like(self, first, second, case_sensitive=True, escape=None):
+    def like(self, first, second, case_sensitive=True, escape=None,
+        query_env={}):
         return self._build_like_regex(
             first, second, case_sensitive=case_sensitive, escape=escape,
-            like_wildcards=True)
+            like_wildcards=True, query_env=query_env)
 
-    def ilike(self, first, second, escape=None):
-        return self.like(first, second, case_sensitive=False, escape=escape)
+    def ilike(self, first, second, escape=None, query_env={}):
+        return self.like(first, second, case_sensitive=False, escape=escape,
+            query_env=query_env)
 
-    def startswith(self, first, second):
-        return self._build_like_regex(first, second, starts_with=True)
+    def startswith(self, first, second, query_env={}):
+        return self._build_like_regex(first, second, starts_with=True,
+            query_env=query_env)
 
-    def endswith(self, first, second):
-        return self._build_like_regex(first, second, ends_with=True)
+    def endswith(self, first, second, query_env={}):
+        return self._build_like_regex(first, second, ends_with=True,
+            query_env=query_env)
 
     # TODO verify full compatibilty with official oracle contains operator
-    def contains(self, first, second, case_sensitive=True):
+    def contains(self, first, second, case_sensitive=True, query_env={}):
         if isinstance(second, self.adapter.ObjectId):
-            ret = {self.expand(first): second}
+            ret = {self.expand(first, query_env=query_env): second}
         elif isinstance(second, Field):
             if second.type in ['string', 'text']:
                 if isinstance(first, Field):
@@ -360,7 +393,7 @@ class MongoDialect(NoSQLDialect):
                 first.type == 'list:string'
             ret = self._build_like_regex(
                 first, second, case_sensitive=case_sensitive,
-                whole_string=whole_string)
+                whole_string=whole_string, query_env=query_env)
             # first.type in ('string', 'text', 'json', 'upload')
             # or first.type.startswith('list:'):
         else:
@@ -369,7 +402,7 @@ class MongoDialect(NoSQLDialect):
         return ret
 
     @needs_aggregation_pipeline
-    def substring(self, field, parameters):
+    def substring(self, field, parameters, query_env={}):
         def parse_parameters(pos0, length):
             """
             The expression object can return these as string based expressions.
@@ -399,17 +432,18 @@ class MongoDialect(NoSQLDialect):
             return (pos0 - 1, -1)
 
         parameters = parse_parameters(*parameters)
-        return {'$substr': [self.expand(field), parameters[0], parameters[1]]}
+        return {'$substr': [self.expand(field, query_env=query_env),
+            parameters[0], parameters[1]]}
 
     @needs_aggregation_pipeline
-    def lower(self, first):
-        return {'$toLower': self.expand(first)}
+    def lower(self, first, query_env={}):
+        return {'$toLower': self.expand(first, query_env=query_env)}
 
     @needs_aggregation_pipeline
-    def upper(self, first):
-        return {'$toUpper': self.expand(first)}
+    def upper(self, first, query_env={}):
+        return {'$toUpper': self.expand(first, query_env=query_env)}
 
-    def regexp(self, first, second, case_sensitive=True):
+    def regexp(self, first, second, case_sensitive=True, query_env={}):
         """ MongoDB provides regular expression capabilities for pattern
             matching strings in queries. MongoDB uses Perl compatible
             regular expressions (i.e. 'PCRE') version 8.36 with UTF-8 support.
@@ -418,9 +452,11 @@ class MongoDialect(NoSQLDialect):
                 first.type in ['integer', 'bigint', 'float', 'double']):
             return {
                 '$where': "RegExp('%s').test(this.%s + '')" % (
-                    self.expand(second, 'string'), first.name)}
-        expanded_first = self.expand(first)
-        regex_second = {'$regex': self.expand(second, 'string')}
+                    self.expand(second, 'string', query_env=query_env),
+                    first.name)}
+        expanded_first = self.expand(first, query_env=query_env)
+        regex_second = {'$regex': self.expand(second, 'string',
+            query_env=query_env)}
         if not case_sensitive:
             regex_second['$options'] = 'i'
         if (self.adapter._parse_data((first, second), 'pipeline')):
@@ -435,7 +471,7 @@ class MongoDialect(NoSQLDialect):
             self.adapter._parse_data((first, second), 'pipeline', True)
             return {}
 
-    def length(self, first):
+    def length(self, first, query_env={}):
         """
         Mongo has committed $strLenBytes, $strLenCP, and $substrCP to $project
         aggregation stage in dev branch V3.3.4
@@ -462,10 +498,11 @@ class MongoDialect(NoSQLDialect):
         raise NotImplementedError()
 
     @needs_aggregation_pipeline
-    def coalesce(self, first, second):
+    def coalesce(self, first, second, query_env={}):
         if len(second) > 1:
             second = [self.coalesce(second[0], second[1:])]
-        return {"$ifNull": [self.expand(first), self.expand(second[0])]}
+        return {"$ifNull": [self.expand(first, query_env=query_env),
+            self.expand(second[0], query_env=query_env)]}
 
     @property
     def random(self):

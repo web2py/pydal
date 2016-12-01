@@ -393,9 +393,9 @@ class Table(Serializable, BasicStorage):
                 lambda qset: qset.update(is_active=False))
             newquery = lambda query, t=self, name=self._tablename: reduce(
                 AND, [
-                    db[tn].is_active == True
-                    for tn in db._adapter.tables(query)
-                    if tn == name or getattr(db[tn], '_ot', None) == name]
+                    tab.is_active == True
+                    for tab in db._adapter.tables(query).values()
+                    if tab.real_name == self.real_name]
                 )
             query = self._common_filter
             if query:
@@ -612,11 +612,7 @@ class Table(Serializable, BasicStorage):
 
     def __str__(self):
         if self._ot is not None:
-            ot = self._ot
-            if 'Oracle' in str(type(self._db._adapter)):
-                return '%s %s' % (ot, self._tablename)
-            return '%s AS %s' % (ot, self._tablename)
-
+            return self._db._adapter.dialect._as(self._ot, self._tablename)
         return self._tablename
 
     @property
@@ -633,6 +629,20 @@ class Table(Serializable, BasicStorage):
         if rname and not ot:
             return rname
         return self._db._adapter.sqlsafe_table(self._tablename, self._ot)
+
+    def query_name(self, *args, **kwargs):
+        return (self.sqlsafe_alias,)
+
+    @property
+    def query_alias(self):
+        if self._rname and not self._ot:
+            return self._rname
+        return self._db._adapter.dialect.quote(self._tablename)
+
+    @property
+    def real_name(self):
+        """Backend name of the table"""
+        return self._rname or self._ot or self.sqlsafe
 
     def _drop(self, mode=''):
         return self._db._adapter.dialect.drop_table(self, mode)
@@ -1039,6 +1049,149 @@ class Table(Serializable, BasicStorage):
         return self._db._adapter.drop_index(self, name)
 
 
+class Select(BasicStorage):
+    def __init__(self, db, query, fields, attributes):
+        self._db = db
+        self._tablename = None # alias will be stored here
+        self._common_filter = None
+        self._query = query
+        # if false, the subquery will never reference tables from parent scope
+        self._correlated = attributes.pop('correlated', True)
+        self._attributes = attributes
+        self._qfields = list(fields)
+        self._fields = SQLCallableList()
+        self._virtual_fields = []
+        self._virtual_methods = []
+        self.virtualfields = []
+        self._sql_cache = None
+        self._colnames_cache = None
+        fieldcheck = set()
+
+        for item in fields:
+            if isinstance(item, Field):
+                checkname = item.name
+                field = item.clone()
+            elif isinstance(item, Expression):
+                if item.op != item._dialect._as:
+                    continue
+                checkname = item.second
+                field = Field(item.second, type=item.type)
+            else:
+                raise SyntaxError('Invalid field in Select')
+            if db and db._ignore_field_case:
+                checkname = checkname.lower()
+            if checkname in fieldcheck:
+                raise SyntaxError("duplicate field %s in select query" %
+                        field.name)
+            fieldcheck.add(checkname)
+            field.tablename = field._tablename = self._tablename
+            field.table = field._table = self
+            field.db = field._db = db
+            self.fields.append(field.name)
+            self[field.name] = field
+        self.ALL = SQLALL(self)
+
+    @property
+    def fields(self):
+        return self._fields
+
+    def update(self, *args, **kwargs):
+        raise RuntimeError("update() method not supported")
+
+    def __getitem__(self, key):
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(key)
+
+    def __setitem__(self, key, value):
+        self.__dict__[str(key)] = value
+
+    def __call__(self):
+        adapter = self._db._adapter
+        colnames, sql = self._compile()
+        cache = self._attributes.get('cache', None)
+        if cache and self._attributes.get('cacheable', False):
+            return adapter._cached_select(cache, sql, self._fields,
+                self._attributes, colnames)
+        return adapter._select_aux(sql, self._qfields, self._attributes,
+            colnames)
+
+    def __setattr__(self, key, value):
+        if key[:1] != '_' and key in self:
+            raise SyntaxError(
+                'Object exists and cannot be redefined: %s' % key)
+        self[key] = value
+
+    def __iter__(self):
+        for fieldname in self.fields:
+            yield self[fieldname]
+
+    def __repr__(self):
+        return '<Select (%s)>' % ', '.join(map(str, self._qfields))
+
+    def __str__(self):
+        return self._compile(with_alias=(self._tablename is not None))[1]
+
+    def with_alias(self, alias):
+        other = copy.copy(self)
+        other['ALL'] = SQLALL(other)
+        other['_tablename'] = alias
+        for fieldname in other.fields:
+            other[fieldname] = copy.copy(other[fieldname])
+            other[fieldname]._tablename = alias
+            other[fieldname].tablename = alias
+            other[fieldname]._table = other
+            other[fieldname].table = other
+        return other
+
+    def on(self, query):
+        if not self._tablename:
+            raise SyntaxError("Subselect must be aliased for use in a JOIN")
+        return Expression(self._db, self._db._adapter.dialect.on, self, query)
+
+    def _compile(self, outer_scoped=[], with_alias=False):
+        if not self._correlated:
+            outer_scoped = []
+        if outer_scoped or not self._sql_cache:
+            adapter = self._db._adapter
+            attributes = self._attributes.copy()
+            attributes['outer_scoped'] = outer_scoped
+            colnames, sql = adapter._select_wcols(self._query, self._qfields,
+                **attributes)
+            # Do not cache when the query may depend on external tables
+            if not outer_scoped:
+                self._colnames_cache, self._sql_cache = colnames, sql
+        else:
+            colnames, sql = self._colnames_cache, self._sql_cache
+        if with_alias and self._tablename is not None:
+            sql = '(%s)' % sql[:-1]
+            sql = self._db._adapter.dialect.alias(sql, self._tablename)
+        return colnames, sql
+
+    def query_name(self, outer_scoped=[]):
+        if self._tablename is None:
+            raise SyntaxError("Subselect must be aliased for use in a JOIN")
+        colnames, sql = self._compile(outer_scoped, True)
+        # This method should also return list of placeholder values
+        # in the future
+        return (sql,)
+
+    @property
+    def query_alias(self):
+        if self._tablename is None:
+            raise SyntaxError("Subselect must be aliased for use in a JOIN")
+        return self._db._adapter.dialect.quote(self._tablename)
+
+    @property
+    def real_name(self):
+        return None
+
+    def _filter_fields(self, record, id=False):
+        return dict([(k, v) for (k, v) in iteritems(record) if k
+                     in self.fields and (self[k].type != 'id' or id)])
+
+
 def _expression_wrap(wrapper):
     def wrap(self, *args, **kwargs):
         return wrapper(self, *args, **kwargs)
@@ -1258,7 +1411,7 @@ class Expression(object):
             value = value[0]
         if isinstance(value, Query):
             value = db(value)._select(value.first._table._id)
-        elif not isinstance(value, basestring):
+        elif not isinstance(value, (Select, basestring)):
             value = set(value)
             if kwattr.get('null') and None in value:
                 value.remove(None)
@@ -1918,14 +2071,14 @@ class Set(Serializable):
 
     def _delete(self):
         db = self.db
-        tablename = db._adapter.get_table(self.query)
-        return db._adapter._delete(tablename, self.query)
+        table = db._adapter.get_table(self.query)
+        return db._adapter._delete(table, self.query)
 
     def _update(self, **update_fields):
         db = self.db
-        tablename = db._adapter.get_table(self.query)
-        fields = db[tablename]._listify(update_fields, update=True)
-        return db._adapter._update(tablename, self.query, fields)
+        table = db._adapter.get_table(self.query)
+        fields = table._listify(update_fields, update=True)
+        return db._adapter._update(table, self.query, fields)
 
     def as_dict(self, flat=False, sanitize=True):
         if flat:
@@ -2055,29 +2208,34 @@ class Set(Serializable):
         return adapter.iterselect(self.query, fields, attributes)
 
     def nested_select(self, *fields, **attributes):
-        return Expression(self.db, self._select(*fields, **attributes))
+        adapter = self.db._adapter
+        tablenames = adapter.tables(self.query,
+                                    attributes.get('join', None),
+                                    attributes.get('left', None),
+                                    attributes.get('orderby', None),
+                                    attributes.get('groupby', None))
+        fields = adapter.expand_all(fields, tablenames)
+        return adapter.nested_select(self.query, fields, attributes)
 
     def delete(self):
         db = self.db
-        tablename = db._adapter.get_table(self.query)
-        table = db[tablename]
+        table = db._adapter.get_table(self.query)
         if any(f(self) for f in table._before_delete):
             return 0
-        ret = db._adapter.delete(tablename, self.query)
+        ret = db._adapter.delete(table, self.query)
         ret and [f(self) for f in table._after_delete]
         return ret
 
     def update(self, **update_fields):
         db = self.db
-        tablename = db._adapter.get_table(self.query)
-        table = db[tablename]
+        table = db._adapter.get_table(self.query)
         table._attempt_upload(update_fields)
         if any(f(self, update_fields) for f in table._before_update):
             return 0
         fields = table._listify(update_fields, update=True)
         if not fields:
             raise SyntaxError("No fields to update")
-        ret = db._adapter.update("%s" % table._tablename, self.query, fields)
+        ret = db._adapter.update(table, self.query, fields)
         ret and [f(self, update_fields) for f in table._after_update]
         return ret
 
@@ -2085,27 +2243,25 @@ class Set(Serializable):
         """
         Same as update but does not call table._before_update and _after_update
         """
-        tablename = self.db._adapter.get_table(self.query)
-        table = self.db[tablename]
+        table = self.db._adapter.get_table(self.query)
         fields = table._listify(update_fields, update=True)
         if not fields:
             raise SyntaxError("No fields to update")
 
-        ret = self.db._adapter.update("%s" % table, self.query, fields)
+        ret = self.db._adapter.update(table, self.query, fields)
         return ret
 
     def validate_and_update(self, **update_fields):
-        tablename = self.db._adapter.get_table(self.query)
+        table = self.db._adapter.get_table(self.query)
         response = Row()
         response.errors = Row()
         new_fields = copy.copy(update_fields)
         for key, value in iteritems(update_fields):
-            value, error = self.db[tablename][key].validate(value)
+            value, error = table[key].validate(value)
             if error:
                 response.errors[key] = '%s' % error
             else:
                 new_fields[key] = value
-        table = self.db[tablename]
         if response.errors:
             response.updated = None
         else:
@@ -2114,7 +2270,7 @@ class Set(Serializable):
                 fields = table._listify(new_fields, update=True)
                 if not fields:
                     raise SyntaxError("No fields to update")
-                ret = self.db._adapter.update(tablename, self.query, fields)
+                ret = self.db._adapter.update(table, self.query, fields)
                 ret and [f(self, new_fields) for f in table._after_update]
             else:
                 ret = 0
@@ -2122,7 +2278,7 @@ class Set(Serializable):
         return response
 
     def delete_uploaded_files(self, upload_fields=None):
-        table = self.db[self.db._adapter.tables(self.query)[0]]
+        table = self.db._adapter.tables(self.query).popitem()[1]
         # ## mind uploadfield==True means file is not in DB
         if upload_fields:
             fields = list(upload_fields)
@@ -2450,15 +2606,16 @@ class BasicRows(object):
             return value
 
         repr_cache = {}
+        fieldlist = [f if isinstance(f, Field) else None for f in self.fields]
+        fieldmap = dict(zip(self.colnames, fieldlist))
         for record in self:
             row = []
             for col in colnames:
-                m = self.db._adapter.REGEX_TABLE_DOT_FIELD.match(col)
-                if not m:
+                field = fieldmap[col]
+                if field is None:
                     row.append(record._extra[col])
                 else:
-                    (t, f) = m.groups()
-                    field = self.db[t][f]
+                    t, f = field._tablename, field.name
                     if isinstance(record.get(t, None), (Row, dict)):
                         value = record[t][f]
                     else:
@@ -2493,9 +2650,10 @@ class Rows(BasicRows):
     # ## TODO: this class still needs some work to care for ID/OID
 
     def __init__(self, db=None, records=[], colnames=[], compact=True,
-                 rawrows=None):
+                 rawrows=None, fields=[]):
         self.db = db
         self.records = records
+        self.fields = fields
         self.colnames = colnames
         self.compact = compact
         self.response = rawrows
@@ -2796,19 +2954,13 @@ class Rows(BasicRows):
                                representer in DAL instance")
         row = copy.deepcopy(self.records[i])
         keys = list(row.keys())
-        tables = [f.tablename for f in fields] if fields \
-            else [k for k in keys if k != '_extra']
-        for table in tables:
-            repr_fields = [f.name for f in fields if f.tablename == table] \
-                if fields else [
-                    k for k in row[table].keys()
-                    if (hasattr(self.db[table], k) and
-                        isinstance(self.db[table][k], Field) and
-                        self.db[table][k].represent)]
-            for field in repr_fields:
-                row[table][field] = self.db.represent(
-                    'rows_render', self.db[table][field], row[table][field],
-                    row[table])
+        if not fields:
+            fields = [f for f in self.fields
+                    if isinstance(f, Field) and f.represent]
+        for field in fields:
+            row[field._tablename][field.name] = self.db.represent(
+                'rows_render', field, row[field._tablename][field.name],
+                row[field._tablename])
 
         if self.compact and len(keys) == 1 and keys[0] != '_extra':
             return row[keys[0]]
@@ -2824,7 +2976,7 @@ class IterRows(BasicRows):
         self.blob_decode = blob_decode
         self.cacheable = cacheable
         (self.fields_virtual, self.fields_lazy, self.tmps) = \
-            self.db._adapter._parse_expand_colnames(colnames)
+            self.db._adapter._parse_expand_colnames(fields)
         self.cursor = self.db._adapter.cursor
         self.db._adapter.execute(sql)
         self.db._adapter.lock_cursor(self.cursor)

@@ -21,12 +21,14 @@ class SQLiteDialect(SQLDialect):
     def type_decimal(self):
         return self.types['float']
 
-    def extract(self, field, what):
-        return "web2py_extract('%s', %s)" % (what, self.expand(field))
+    def extract(self, field, what, query_env={}):
+        return "web2py_extract('%s', %s)" % (what,
+            self.expand(field, query_env=query_env))
 
-    def regexp(self, first, second):
+    def regexp(self, first, second, query_env={}):
         return '(%s REGEXP %s)' % (
-            self.expand(first), self.expand(second, 'string'))
+            self.expand(first, query_env=query_env),
+            self.expand(second, 'string', query_env=query_env))
 
     def select(self, fields, tables, where=None, groupby=None, having=None,
                orderby=None, limitby=None, distinct=False, for_update=False):
@@ -50,41 +52,50 @@ class SpatialiteDialect(SQLiteDialect):
     def type_geometry(self):
         return 'GEOMETRY'
 
-    def st_asgeojson(self, first, second):
+    def st_asgeojson(self, first, second, query_env={}):
         return 'AsGeoJSON(%s,%s,%s)' % (
-            self.expand(first), second['precision'], second['options'])
+            self.expand(first, query_env=query_env), second['precision'],
+            second['options'])
 
-    def st_astext(self, first):
-        return 'AsText(%s)' % self.expand(first)
+    def st_astext(self, first, query_env={}):
+        return 'AsText(%s)' % self.expand(first, query_env=query_env)
 
-    def st_contains(self, first, second):
+    def st_contains(self, first, second, query_env={}):
         return 'Contains(%s,%s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def st_distance(self, first, second):
+    def st_distance(self, first, second, query_env={}):
         return 'Distance(%s,%s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def st_equals(self, first, second):
+    def st_equals(self, first, second, query_env={}):
         return 'Equals(%s,%s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def st_intersects(self, first, second):
+    def st_intersects(self, first, second, query_env={}):
         return 'Intersects(%s,%s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def st_overlaps(self, first, second):
+    def st_overlaps(self, first, second, query_env={}):
         return 'Overlaps(%s,%s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def st_simplify(self, first, second):
+    def st_simplify(self, first, second, query_env={}):
         return 'Simplify(%s,%s)' % (
-            self.expand(first), self.expand(second, 'double'))
+            self.expand(first, query_env=query_env),
+            self.expand(second, 'double', query_env=query_env))
 
-    def st_touches(self, first, second):
+    def st_touches(self, first, second, query_env={}):
         return 'Touches(%s,%s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))
 
-    def st_within(self, first, second):
+    def st_within(self, first, second, query_env={}):
         return 'Within(%s,%s)' % (
-            self.expand(first), self.expand(second, first.type))
+            self.expand(first, query_env=query_env),
+            self.expand(second, first.type, query_env=query_env))

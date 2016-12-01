@@ -13,7 +13,7 @@ import json
 from pydal._compat import PY2, basestring, StringIO, integer_types, xrange
 from pydal import DAL, Field
 from pydal.helpers.classes import SQLALL
-from pydal.objects import Table
+from pydal.objects import Table, Expression, Row
 from ._compat import unittest
 from ._adapt import (
     DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA, _quote)
@@ -613,6 +613,258 @@ class TestSelect(DALtest):
         self.assertEqual(result.response[0][0], 0)
         self.assertEqual(result.response[1][0], 1)
 
+    def testTableAliasCollisions(self):
+        db = self.connect()
+        db.define_table('t1', Field('aa'))
+        db.define_table('t2', Field('bb'))
+        t1, t2 = db.t1, db.t2
+        t1.with_alias('t2')
+        t2.with_alias('t1')
+
+        # Passing tables by name will result in exception
+        t1.insert(aa='test')
+        t2.insert(bb='foo')
+        db(t1.id > 0).update(aa='bar')
+        having = (t1.aa != None)
+        join = [t2.on(t1.aa == t2.bb)]
+        db(t1.aa == t2.bb).select(t1.aa, groupby=t1.aa, having=having,
+            orderby=t1.aa)
+        db(t1.aa).select(t1.aa, join=join, groupby=t1.aa, having=having,
+            orderby=t1.aa)
+        db(t1.aa).select(t1.aa, left=join, groupby=t1.aa, having=having,
+            orderby=t1.aa)
+        db(t1.id > 0).delete()
+
+
+class TestSubselect(DALtest):
+
+    def testMethods(self):
+        db = self.connect()
+        db.define_table('tt', Field('aa', 'integer'), Field('bb'))
+        data = [
+            dict(aa=1, bb='foo'), dict(aa=1, bb='bar'), dict(aa=2, bb='foo')
+        ]
+        for item in data:
+            db.tt.insert(**item)
+        fields = [db.tt.aa, db.tt.bb, db.tt.aa+2,
+            (db.tt.aa+1).with_alias('exp')]
+        sub = db(db.tt).nested_select(*fields, orderby=db.tt.id)
+        # Check the fields provided by the object
+        self.assertEqual(sorted(['aa', 'bb', 'exp']), sorted(list(sub.fields)))
+        for name in sub.fields:
+            self.assertIsInstance(sub[name], Field)
+        for item in sub:
+            self.assertIsInstance(item, Field)
+        self.assertEqual(len(list(sub)), len(sub.fields))
+        for key, val in zip(sub.fields, sub):
+            self.assertIs(sub[key], val)
+            self.assertIs(getattr(sub, key), val)
+        tmp = sub._filter_fields(dict(aa=1, exp=2, foo=3))
+        self.assertEqual(tmp, dict(aa=1, exp=2))
+        # Check result from executing the query
+        result = sub()
+        self.assertEqual(len(result), len(data))
+        for idx, row in enumerate(data):
+            self.assertEqual(result[idx]['tt'].as_dict(), row)
+            self.assertEqual(result[idx]['exp'], row['aa']+1)
+        result = db.executesql(str(sub))
+        for idx, row in enumerate(data):
+            tmp = [row['aa'], row['bb'], row['aa']+2, row['aa']+1]
+            self.assertEqual(list(result[idx]), tmp)
+        # Check that query expansion methods don't work without alias
+        self.assertEqual(sub.real_name, None)
+        with self.assertRaises(SyntaxError):
+            sub.query_name()
+        with self.assertRaises(SyntaxError):
+            sub.query_alias
+        with self.assertRaises(SyntaxError):
+            sub.on(sub.aa != None)
+        # Alias checks
+        sub = sub.with_alias('foo')
+        result = sub()
+        for idx, row in enumerate(data):
+            self.assertEqual(result[idx]['tt'].as_dict(), row)
+            self.assertEqual(result[idx]['exp'], row['aa']+1)
+        # Check query expansion methods again
+        self.assertEqual(sub.real_name, None)
+        self.assertEqual(sub.query_name()[0], str(sub))
+        self.assertEqual(sub.query_alias, db._adapter.dialect.quote('foo'))
+        self.assertIsInstance(sub.on(sub.aa != None), Expression)
+
+    def testSelectArguments(self):
+        db = self.connect()
+        db.define_table('tt', Field('aa', 'integer'), Field('bb'))
+        data = [
+            dict(aa=1, bb='foo'), dict(aa=1, bb='bar'), dict(aa=2, bb='foo'),
+            dict(aa=3, bb='foo'), dict(aa=3, bb='baz')
+        ]
+        expected = [(1, None, 0), (2, 2, 2), (2, 2, 2), (3, 4, 3), (3, 8, 6)]
+        for item in data:
+            db.tt.insert(**item)
+
+        # Check that select clauses work as expected in stand-alone query
+        t1 = db.tt.with_alias('t1')
+        t2 = db.tt.with_alias('t2')
+        fields = [t1.aa, t2.aa.sum().with_alias('total'),
+            t2.aa.count().with_alias('cnt')]
+        join = t1.on(db.tt.bb != t1.bb)
+        left = t2.on(t1.aa > t2.aa)
+        group = db.tt.bb | t1.aa
+        having = db.tt.aa.count() > 1
+        order = t1.aa | t2.aa.count()
+        limit = (1,6)
+        sub = db(db.tt.aa != 2).nested_select(*fields, join=join, left=left,
+            orderby=order, groupby=group, having=having, limitby=limit)
+        result = sub()
+        self.assertEqual(len(result), len(expected))
+        for idx, val in enumerate(expected):
+            self.assertEqual(result[idx]['t1']['aa'], val[0])
+            self.assertEqual(result[idx]['total'], val[1])
+            self.assertEqual(result[idx]['cnt'], val[2])
+
+        # Check again when nested inside another query
+        # Also check that the alias will not conflict with existing table
+        t3 = db.tt.with_alias('t3')
+        sub = sub.with_alias('tt')
+        query = (t3.bb == 'foo') & (t3.aa == sub.aa)
+        order = t3.aa | sub.cnt
+        result = db(query).select(t3.aa, sub.total, sub.cnt, orderby=order)
+        for idx, val in enumerate(expected):
+            self.assertEqual(result[idx]['t3']['aa'], val[0])
+            self.assertEqual(result[idx]['tt']['total'], val[1])
+            self.assertEqual(result[idx]['tt']['cnt'], val[2])
+
+        # Check "distinct" modifier separately
+        sub = db(db.tt.aa != 2).nested_select(db.tt.aa, distinct=True)
+        result = sub().as_list()
+        self.assertEqual(result, [dict(aa=1), dict(aa=3)])
+
+    def testCorrelated(self):
+        db = self.connect()
+        db.define_table('t1', Field('aa', 'integer'), Field('bb'),
+            Field('mark', 'integer'))
+        db.define_table('t2', Field('aa', 'integer'), Field('cc'))
+        db.define_table('t3', Field('aa', 'integer'))
+        data_t1 = [
+            dict(aa=1, bb='bar'), dict(aa=1, bb='foo'), dict(aa=2, bb='foo'),
+            dict(aa=2, bb='test'), dict(aa=3, bb='baz'), dict(aa=3, bb='foo')
+        ]
+        data_t2 = [
+            dict(aa=1, cc='foo'), dict(aa=2, cc='bar'), dict(aa=3, cc='baz')
+        ]
+        expected_cor = [(1, 'foo'), (3, 'baz')]
+        expected_leftcor = [(1, 'foo'), (2, None), (3, 'baz')]
+        expected_uncor = [
+            (1, 'bar'), (1, 'foo'), (2, 'foo'), (3, 'baz'), (3, 'foo')
+        ]
+        for item in data_t1:
+            db.t1.insert(**item)
+        for item in data_t2:
+            db.t2.insert(**item)
+            db.t3.insert(aa=item['aa'])
+
+        # Correlated subqueries
+        subquery = db.t1.aa == db.t2.aa
+        subfields = [db.t2.cc]
+        sub = db(subquery).nested_select(*subfields).with_alias('sub')
+        query = db.t1.bb.belongs(sub)
+        order = db.t1.aa | db.t1.bb
+        result = db(query).select(db.t1.aa, db.t1.bb, orderby=order)
+        self.assertEqual(len(result), len(expected_cor))
+        for idx, val in enumerate(expected_cor):
+            self.assertEqual(result[idx]['aa'], val[0])
+            self.assertEqual(result[idx]['bb'], val[1])
+
+        join = [db.t1.on((db.t3.aa == db.t1.aa) & db.t1.bb.belongs(sub))]
+        order = db.t3.aa | db.t1.bb
+        result = db(db.t3).select(db.t3.aa, db.t1.bb, join=join, orderby=order)
+        self.assertEqual(len(result), len(expected_cor))
+        for idx, val in enumerate(expected_cor):
+            self.assertEqual(result[idx]['t3']['aa'], val[0])
+            self.assertEqual(result[idx]['t1']['bb'], val[1])
+
+        left = [db.t1.on((db.t3.aa == db.t1.aa) & db.t1.bb.belongs(sub))]
+        result = db(db.t3).select(db.t3.aa, db.t1.bb, left=left, orderby=order)
+        self.assertEqual(len(result), len(expected_leftcor))
+        for idx, val in enumerate(expected_leftcor):
+            self.assertEqual(result[idx]['t3']['aa'], val[0])
+            self.assertEqual(result[idx]['t1']['bb'], val[1])
+
+        order = db.t1.aa | db.t1.bb
+        db(db.t1.bb.belongs(sub)).update(mark=1)
+        result = db(db.t1.mark == 1).select(db.t1.aa, db.t1.bb, orderby=order)
+        self.assertEqual(len(result), len(expected_cor))
+        for idx, val in enumerate(expected_cor):
+            self.assertEqual(result[idx]['aa'], val[0])
+            self.assertEqual(result[idx]['bb'], val[1])
+
+        db(~db.t1.bb.belongs(sub)).delete()
+        result = db(db.t1.id > 0).select(db.t1.aa, db.t1.bb, orderby=order)
+        self.assertEqual(len(result), len(expected_cor))
+        for idx, val in enumerate(expected_cor):
+            self.assertEqual(result[idx]['aa'], val[0])
+            self.assertEqual(result[idx]['bb'], val[1])
+
+        db(db.t1.id > 0).delete()
+        for item in data_t1:
+            db.t1.insert(**item)
+
+        # Uncorrelated subqueries
+        kwargs = dict(correlated=False)
+        sub = db(subquery).nested_select(*subfields, **kwargs)
+        query = db.t1.bb.belongs(sub)
+        order = db.t1.aa | db.t1.bb
+        result = db(query).select(db.t1.aa, db.t1.bb, orderby=order)
+        self.assertEqual(len(result), len(expected_uncor))
+        for idx, val in enumerate(expected_uncor):
+            self.assertEqual(result[idx]['aa'], val[0])
+            self.assertEqual(result[idx]['bb'], val[1])
+
+        join = [db.t1.on((db.t3.aa == db.t1.aa) & db.t1.bb.belongs(sub))]
+        order = db.t3.aa | db.t1.bb
+        result = db(db.t3).select(db.t3.aa, db.t1.bb, join=join, orderby=order)
+        self.assertEqual(len(result), len(expected_uncor))
+        for idx, val in enumerate(expected_uncor):
+            self.assertEqual(result[idx]['t3']['aa'], val[0])
+            self.assertEqual(result[idx]['t1']['bb'], val[1])
+
+        left = [db.t1.on((db.t3.aa == db.t1.aa) & db.t1.bb.belongs(sub))]
+        result = db(db.t3).select(db.t3.aa, db.t1.bb, left=left, orderby=order)
+        self.assertEqual(len(result), len(expected_uncor))
+        for idx, val in enumerate(expected_uncor):
+            self.assertEqual(result[idx]['t3']['aa'], val[0])
+            self.assertEqual(result[idx]['t1']['bb'], val[1])
+        # MySQL does not support subqueries with uncorrelated references
+        # to target table
+
+        # Correlation prevented by alias in parent select
+        tmp = db.t1.with_alias('tmp')
+        sub = db(subquery).nested_select(*subfields)
+        query = tmp.bb.belongs(sub)
+        order = tmp.aa | tmp.bb
+        result = db(query).select(tmp.aa, tmp.bb, orderby=order)
+        self.assertEqual(len(result), len(expected_uncor))
+        for idx, val in enumerate(expected_uncor):
+            self.assertEqual(result[idx]['aa'], val[0])
+            self.assertEqual(result[idx]['bb'], val[1])
+
+        join = [tmp.on((db.t3.aa == tmp.aa) & tmp.bb.belongs(sub))]
+        order = db.t3.aa | tmp.bb
+        result = db(db.t3).select(db.t3.aa, tmp.bb, join=join, orderby=order)
+        self.assertEqual(len(result), len(expected_uncor))
+        for idx, val in enumerate(expected_uncor):
+            self.assertEqual(result[idx]['t3']['aa'], val[0])
+            self.assertEqual(result[idx]['tmp']['bb'], val[1])
+
+        left = [tmp.on((db.t3.aa == tmp.aa) & tmp.bb.belongs(sub))]
+        result = db(db.t3).select(db.t3.aa, tmp.bb, left=left, orderby=order)
+        self.assertEqual(len(result), len(expected_uncor))
+        for idx, val in enumerate(expected_uncor):
+            self.assertEqual(result[idx]['t3']['aa'], val[0])
+            self.assertEqual(result[idx]['tmp']['bb'], val[1])
+        # SQLite does not support aliasing target table in UPDATE/DELETE
+        # MySQL does not support subqueries with uncorrelated references
+        # to target table
 
 class TestAddMethod(DALtest):
 
@@ -1204,9 +1456,10 @@ class TestClientLevelOps(DALtest):
 
     def testRun(self):
         db = self.connect()
-        db.define_table('tt', Field('aa'))
+        db.define_table('tt', Field('aa', represent=lambda x,r:'x'+x),
+            Field('bb', type='integer', represent=lambda x,r:'y'+str(x)))
         db.commit()
-        db.tt.insert(aa="test")
+        db.tt.insert(aa="test", bb=1)
         rows1 = db(db.tt.id<0).select()
         rows2 = db(db.tt.id>0).select()
         self.assertNotEqual(rows1, rows2)
@@ -1224,13 +1477,29 @@ class TestClientLevelOps(DALtest):
         rows7 = rows5.sort(lambda row: row.aa)
         self.assertEqual(len(rows7), 1)
         def represent(f, v, r):
-            return str(v)
+            return 'z' + str(v)
 
         db.representers = {
             'rows_render': represent,
         }
+        db.tt.insert(aa="foo", bb=2)
         rows = db(db.tt.id>0).select()
-        rows.render(i=0)
+        exp1 = [Row(aa='ztest', bb='z1', id=rows[0]['id']),
+            Row(aa='zfoo', bb='z2', id=rows[1]['id'])]
+        exp2 = [Row(aa='ztest', bb=1, id=rows[0]['id']),
+            Row(aa='zfoo', bb=2, id=rows[1]['id'])]
+        exp3 = [Row(aa='test', bb='z1', id=rows[0]['id']),
+            Row(aa='foo', bb='z2', id=rows[1]['id'])]
+        self.assertEqual(rows.render(i=0), exp1[0])
+        self.assertEqual(rows.render(i=0, fields=[db.tt.aa, db.tt.bb]),
+            exp1[0])
+        self.assertEqual(rows.render(i=0, fields=[db.tt.aa]), exp2[0])
+        self.assertEqual(rows.render(i=0, fields=[db.tt.bb]), exp3[0])
+        self.assertEqual(list(rows.render()), exp1)
+        self.assertEqual(list(rows.render(fields=[db.tt.aa, db.tt.bb])), exp1)
+        self.assertEqual(list(rows.render(fields=[db.tt.aa])), exp2)
+        self.assertEqual(list(rows.render(fields=[db.tt.bb])), exp3)
+        ret = rows.render(i=0)
         rows = db(db.tt.id>0).select()
         rows.compact=False
         row = rows[0]

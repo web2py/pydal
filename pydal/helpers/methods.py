@@ -65,6 +65,25 @@ def use_common_filters(query):
             not query.ignore_common_filters)
 
 
+def merge_tablemaps(*maplist):
+    """Merge arguments into a single dict, check for name collisions.
+    Arguments may be modified in the process."""
+    ret = maplist[0]
+    for item in maplist[1:]:
+        if len(ret) > len(item):
+            big, small = ret, item
+        else:
+            big, small = item, ret
+        # Check for name collisions
+        for key, val in small.items():
+            if big.get(key, val) is not val:
+                raise ValueError('Name conflict in table list: %s' % key)
+        # Merge
+        big.update(small)
+        ret = big
+    return ret
+
+
 def bar_escape(item):
     return str(item).replace('|', '||')
 

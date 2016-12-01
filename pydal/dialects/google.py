@@ -100,17 +100,17 @@ class GoogleDatastoreDialect(NoSQLDialect):
         return (lambda **kwargs: ndb.IntegerProperty(
             repeated=True, default=None, **kwargs))
 
-    def _and(self, first, second):
-        first = self.expand(first)
-        second = self.expand(second)
+    def _and(self, first, second, query_env={}):
+        first = self.expand(first, query_env=query_env)
+        second = self.expand(second, query_env=query_env)
         # none means lack of query (true)
         if first == None:
             return second
         return ndb.AND(first, second)
 
-    def _or(self, first, second):
-        first = self.expand(first)
-        second = self.expand(second)
+    def _or(self, first, second, query_env={}):
+        first = self.expand(first, query_env=query_env)
+        second = self.expand(second, query_env=query_env)
         # none means lack of query (true)
         if first == None or second == None:
             return None
@@ -124,31 +124,31 @@ class GoogleDatastoreDialect(NoSQLDialect):
         value = self.adapter.represent(second, first.type, first._tablename)
         return self.FILTER_OPTIONS[op](field, value)
 
-    def eq(self, first, second=None):
+    def eq(self, first, second=None, query_env={}):
         return self.__gaef(first, '=', second)
 
-    def ne(self, first, second=None):
+    def ne(self, first, second=None, query_env={}):
         return self.__gaef(first, '!=', second)
 
-    def lt(self, first, second=None):
+    def lt(self, first, second=None, query_env={}):
         return self.__gaef(first, '<', second)
 
-    def lte(self, first, second=None):
+    def lte(self, first, second=None, query_env={}):
         return self.__gaef(first, '<=', second)
 
-    def gt(self, first, second=None):
+    def gt(self, first, second=None, query_env={}):
         return self.__gaef(first, '>', second)
 
-    def gte(self, first, second=None):
+    def gte(self, first, second=None, query_env={}):
         return self.__gaef(first, '>=', second)
 
-    def invert(self, first):
+    def invert(self, first, query_env={}):
         return '-%s' % first.name
 
-    def comma(self, first, second):
+    def comma(self, first, second, query_env={}):
         return '%s,%s' % (first, second)
 
-    def belongs(self, first, second):
+    def belongs(self, first, second, query_env={}):
         if not isinstance(second, (list, tuple, set)):
             raise SyntaxError("Not supported")
         if not isinstance(second, list):
@@ -160,13 +160,13 @@ class GoogleDatastoreDialect(NoSQLDialect):
             return f
         return self.__gaef(first, 'in', second)
 
-    def contains(self, first, second, case_sensitive=True):
+    def contains(self, first, second, case_sensitive=True, query_env={}):
         # silently ignoring: GAE can only do case sensitive matches!
         if not first.type.startswith('list:'):
             raise SyntaxError("Not supported")
         return self.__gaef(first, '=', second)
 
-    def _not(self, val):
+    def _not(self, val, query_env={}):
         op, f, s = val.op, val.first, val.second
         if op in [self._or, self._and]:
             not_op = self._and if op == self._or else self._or

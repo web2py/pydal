@@ -172,7 +172,7 @@ class GoogleDatastore(NoSQLAdapter):
                 "polymodel must be None, True, a table or a tablename")
         return None
 
-    def _expand(self, expression, field_type=None):
+    def _expand(self, expression, field_type=None, query_env={}):
         if expression is None:
             return None
         elif isinstance(expression, Field):
@@ -182,9 +182,10 @@ class GoogleDatastore(NoSQLAdapter):
             return expression.name
         elif isinstance(expression, (Expression, Query)):
             if expression.second is not None:
-                return expression.op(expression.first, expression.second)
+                return expression.op(expression.first, expression.second,
+                    query_env=query_env)
             elif expression.first is not None:
-                return expression.op(expression.first)
+                return expression.op(expression.first, query_env=query_env)
             else:
                 return expression.op()
         elif field_type:
@@ -243,24 +244,24 @@ class GoogleDatastore(NoSQLAdapter):
 
         fields = new_fields
         if query:
-            tablename = self.get_table(query)
+            table = self.get_table(query)
         elif fields:
-            tablename = fields[0].tablename
+            table = fields[0].table
             query = db._adapter.id_query(fields[0].table)
         else:
-            raise SyntaxError("Unable to determine a tablename")
+            raise SyntaxError("Unable to determine the table")
 
         if query:
             if use_common_filters(query):
-                query = self.common_filter(query, [tablename])
+                query = self.common_filter(query, [table])
 
         #tableobj is a GAE/NDB Model class (or subclass)
-        tableobj = db[tablename]._tableobj
+        tableobj = table._tableobj
         filters = self.expand(query)
 
         ## DETERMINE PROJECTION
         projection = None
-        if len(db[tablename].fields) == len(fields):
+        if len(table.fields) == len(fields):
             # getting all fields, not a projection query
             projection = None
         elif args_get('projection') == True:
@@ -271,18 +272,18 @@ class GoogleDatastore(NoSQLAdapter):
                         "text and blob field types not allowed in " +
                         "projection queries")
                 else:
-                    projection.append(f.name)
+                    projection.append(f)
 
         elif args_get('filterfields') is True:
             projection = []
             for f in fields:
-                projection.append(f.name)
+                projection.append(f)
 
         # real projection's can't include 'id'.
         # it will be added to the result later
         if projection and args_get('projection') == True:
-            query_projection = filter(lambda p: p != db[tablename]._id.name,
-                                      projection)
+            query_projection = [f.name for f in projection
+                    if f.name != table._id.name]
         else:
             query_projection = None
         ## DONE WITH PROJECTION
@@ -339,7 +340,7 @@ class GoogleDatastore(NoSQLAdapter):
                 # didn't return all results
                 if args_get('reusecursor'):
                     db['_lastcursor'] = cursor
-        return (items, tablename, projection or db[tablename].fields)
+        return (items, table, projection or [f for f in table])
 
     def select(self, query, fields, attributes):
         """
@@ -366,30 +367,30 @@ class GoogleDatastore(NoSQLAdapter):
           https://developers.google.com/appengine/docs/python/datastore/queries#Query_Cursors
         """
 
-        items, tablename, fields = self.select_raw(query, fields, attributes)
+        items, table, fields = self.select_raw(query, fields, attributes)
         rows = [
             [
-                (t == self.db[tablename]._id.name and item) or
-                (t == 'nativeRef' and item) or getattr(item, t)
+                (t.name == table._id.name and item) or
+                (t.name == 'nativeRef' and item) or getattr(item, t.name)
                 for t in fields
             ] for item in items]
-        colnames = ['%s.%s' % (tablename, t) for t in fields]
+        colnames = ['%s.%s' % (table._tablename, t.name) for t in fields]
         processor = attributes.get('processor', self.parse)
         return processor(rows, fields, colnames, False)
 
     def count(self, query, distinct=None, limit=None):
         if distinct:
             raise RuntimeError("COUNT DISTINCT not supported")
-        items, tablename, fields = self.select_raw(query, count_only=True)
+        items, table, fields = self.select_raw(query, count_only=True)
         return items[0]
 
-    def delete(self, tablename, query):
+    def delete(self, table, query):
         """
         This function was changed on 2010-05-04 because according to
         http://code.google.com/p/googleappengine/issues/detail?id=3119
         GAE no longer supports deleting more than 1000 records.
         """
-        items, tablename, fields = self.select_raw(query)
+        items, table, fields = self.select_raw(query)
         # items can be one item or a query
         if not isinstance(items, list):
             # use a keys_only query to ensure that this runs as a datastore
@@ -405,8 +406,8 @@ class GoogleDatastore(NoSQLAdapter):
             ndb.delete_multi([item.key for item in items])
         return counter
 
-    def update(self, tablename, query, update_fields):
-        items, tablename, fields = self.select_raw(query)
+    def update(self, table, query, update_fields):
+        items, table, fields = self.select_raw(query)
         counter = 0
         for item in items:
             for field, value in update_fields:
