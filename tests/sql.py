@@ -4,19 +4,19 @@
 """
 
 from __future__ import print_function
-import sys
 import os
 import glob
 import datetime
 import json
 
-from pydal._compat import PY2, basestring, StringIO, integer_types, xrange
+from pydal._compat import basestring, StringIO, integer_types, xrange
 from pydal import DAL, Field
-from pydal.helpers.classes import SQLALL
+from pydal.helpers.classes import SQLALL, OpRow
 from pydal.objects import Table, Expression, Row
 from ._compat import unittest
 from ._adapt import (
-    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA, _quote)
+    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA,
+    _quote)
 from ._helpers import DALtest
 
 long = integer_types[-1]
@@ -2593,7 +2593,7 @@ class TestBulkInsert(DALtest):
         global ctr
         ctr = 0
         def test_after_insert(i, r):
-            self.assertIsInstance(i, Row)
+            self.assertIsInstance(i, OpRow)
             global ctr
             ctr += 1
             return True

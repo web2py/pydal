@@ -26,7 +26,7 @@ from .helpers.regex import (
 )
 from .helpers.classes import (
     Reference, MethodAdder, SQLCallableList, SQLALL, Serializable,
-    BasicStorage, SQLCustomType, cachedprop
+    BasicStorage, SQLCustomType, OpRow, cachedprop
 )
 from .helpers.methods import (
     list_represent, bar_decode_integer, bar_decode_string, bar_encode,
@@ -677,7 +677,7 @@ class Table(Serializable, BasicStorage):
         return list(empty_fieldnames), new_fields
 
     def _compute_fields_for_operation(self, fields, to_compute):
-        row = Row()
+        row = OpRow(self)
         for name, tup in iteritems(fields):
             field, value = tup
             if isinstance(
@@ -687,18 +687,16 @@ class Table(Serializable, BasicStorage):
                 )
             ):
                 value = value()
-            fields[name] = (field, value)
-            row[name] = value
+            row.set_value(name, value, field)
         for name, field in to_compute:
             try:
-                row[name] = field.compute(row)
-                fields[name] = (field, row[name])
+                row.set_value(name, field.compute(row), field)
             except (KeyError, AttributeError):
                 # error silently unless field is required!
                 if field.required and name not in fields:
                     raise RuntimeError(
                         'unable to compute required field: %s' % name)
-        return row, list(fields.values())
+        return row
 
     def _fields_and_values_for_insert(self, fields):
         empty_fieldnames, new_fields = \
@@ -730,14 +728,14 @@ class Table(Serializable, BasicStorage):
             new_fields, to_compute)
 
     def _insert(self, **fields):
-        row, op_values = self._fields_and_values_for_insert(fields)
-        return self._db._adapter._insert(self, op_values)
+        row = self._fields_and_values_for_insert(fields)
+        return self._db._adapter._insert(self, row.op_values())
 
     def insert(self, **fields):
-        row, op_values = self._fields_and_values_for_insert(fields)
+        row = self._fields_and_values_for_insert(fields)
         if any(f(row) for f in self._before_insert):
             return 0
-        ret = self._db._adapter.insert(self, op_values)
+        ret = self._db._adapter.insert(self, row.op_values())
         if ret and self._after_insert:
             for f in self._after_insert:
                 f(row, ret)
@@ -840,11 +838,12 @@ class Table(Serializable, BasicStorage):
         here items is a list of dictionaries
         """
         data = [self._fields_and_values_for_insert(item) for item in items]
-        if any(f(el[0]) for el in data for f in self._before_insert):
+        if any(f(el) for el in data for f in self._before_insert):
             return 0
-        ret = self._db._adapter.bulk_insert(self, [el[1] for el in data])
+        ret = self._db._adapter.bulk_insert(
+            self, [el.op_values() for el in data])
         ret and [
-            [f(el[0], ret[k]) for k, el in enumerate(data)]
+            [f(el, ret[k]) for k, el in enumerate(data)]
             for f in self._after_insert]
         return ret
 
@@ -2066,8 +2065,8 @@ class Set(Serializable):
     def _update(self, **update_fields):
         db = self.db
         table = db._adapter.get_table(self.query)
-        row, op_values = table._fields_and_values_for_update(update_fields)
-        return db._adapter._update(table, self.query, op_values)
+        row = table._fields_and_values_for_update(update_fields)
+        return db._adapter._update(table, self.query, row.op_values())
 
     def as_dict(self, flat=False, sanitize=True):
         if flat:
@@ -2218,12 +2217,12 @@ class Set(Serializable):
     def update(self, **update_fields):
         db = self.db
         table = db._adapter.get_table(self.query)
-        row, op_values = table._fields_and_values_for_update(update_fields)
-        if not op_values:
+        row = table._fields_and_values_for_update(update_fields)
+        if not row._values:
             raise ValueError("No fields to update")
         if any(f(self, row) for f in table._before_update):
             return 0
-        ret = db._adapter.update(table, self.query, op_values)
+        ret = db._adapter.update(table, self.query, row.op_values())
         ret and [f(self, row) for f in table._after_update]
         return ret
 
@@ -2232,10 +2231,10 @@ class Set(Serializable):
         Same as update but does not call table._before_update and _after_update
         """
         table = self.db._adapter.get_table(self.query)
-        row, op_values = table._fields_and_values_for_update(update_fields)
-        if not op_values:
+        row = table._fields_and_values_for_update(update_fields)
+        if not row._values:
             raise ValueError("No fields to update")
-        ret = self.db._adapter.update(table, self.query, op_values)
+        ret = self.db._adapter.update(table, self.query, row.op_values())
         return ret
 
     def validate_and_update(self, **update_fields):
@@ -2252,13 +2251,14 @@ class Set(Serializable):
         if response.errors:
             response.updated = None
         else:
-            row, op_values = table._fields_and_values_for_update(new_fields)
-            if not op_values:
+            row = table._fields_and_values_for_update(new_fields)
+            if not row._values:
                 raise ValueError("No fields to update")
             if any(f(self, row) for f in table._before_update):
                 ret = 0
             else:
-                ret = self.db._adapter.update(table, self.query, op_values)
+                ret = self.db._adapter.update(
+                    table, self.query, row.op_values())
                 ret and [f(self, new_fields) for f in table._after_update]
             response.updated = ret
         return response
