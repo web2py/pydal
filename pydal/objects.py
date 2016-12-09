@@ -11,20 +11,28 @@ import shutil
 import sys
 import types
 from collections import OrderedDict
-from ._compat import PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, \
-    integer_types, basestring, iteritems, xrange, implements_iterator, \
-    implements_bool, copyreg, reduce, string_types, to_bytes, to_native, long
+from ._compat import (
+    PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, basestring, iteritems,
+    xrange, implements_iterator, implements_bool, copyreg, reduce, to_bytes,
+    to_native, long
+)
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
-from .helpers.regex import REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, \
-    REGEX_PYTHON_KEYWORDS, REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, \
-    REGEX_CLEANUP_FN, REGEX_VALID_TB_FLD, REGEX_TYPE
-from .helpers.classes import Reference, MethodAdder, SQLCallableList, SQLALL, \
-    Serializable, BasicStorage, SQLCustomType
-from .helpers.methods import list_represent, bar_decode_integer, \
-    bar_decode_string, bar_encode, archive_record, cleanup, \
-    use_common_filters, pluralize
+from .helpers.regex import (
+    REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, REGEX_PYTHON_KEYWORDS,
+    REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, REGEX_CLEANUP_FN,
+    REGEX_VALID_TB_FLD, REGEX_TYPE
+)
+from .helpers.classes import (
+    Reference, MethodAdder, SQLCallableList, SQLALL, Serializable,
+    BasicStorage, SQLCustomType, cachedprop
+)
+from .helpers.methods import (
+    list_represent, bar_decode_integer, bar_decode_string, bar_encode,
+    archive_record, cleanup, use_common_filters, pluralize,
+    attempt_upload_on_insert, attempt_upload_on_update, delete_uploaded_files
+)
 from .helpers.serializers import serializers
 
 
@@ -235,9 +243,10 @@ class Table(Serializable, BasicStorage):
         if 'primarykey' in args and args['primarykey'] is not None:
             self._primarykey = args.get('primarykey')
 
-        self._before_insert = []
-        self._before_update = [Set.delete_uploaded_files]
-        self._before_delete = [Set.delete_uploaded_files]
+        self._before_insert = [attempt_upload_on_insert(self)]
+        self._before_update = [
+            delete_uploaded_files, attempt_upload_on_update(self)]
+        self._before_delete = [delete_uploaded_files]
         self._after_insert = []
         self._after_update = []
         self._after_delete = []
@@ -356,6 +365,10 @@ class Table(Serializable, BasicStorage):
     @property
     def fields(self):
         return self._fields
+
+    @cachedprop
+    def _upload_fieldnames(self):
+        return set(field.name for field in self if field.type == 'upload')
 
     def update(self, *args, **kwargs):
         raise RuntimeError("Syntax Not Supported")
@@ -716,35 +729,11 @@ class Table(Serializable, BasicStorage):
         return self._compute_fields_for_operation(
             new_fields, to_compute)
 
-    def _attempt_upload(self, fields):
-        for field in self:
-            if field.type == 'upload' and field.name in fields:
-                value = fields[field.name]
-                if not (value is None or isinstance(value, string_types)):
-                    if not PY2 and isinstance(value, bytes):
-                        continue
-                    if hasattr(value, 'file') and hasattr(value, 'filename'):
-                        new_name = field.store(
-                            value.file, filename=value.filename)
-                    elif isinstance(value, dict):
-                        if 'data' in value and 'filename' in value:
-                            stream = BytesIO(to_bytes(value['data']))
-                            new_name = field.store(
-                                stream, filename=value['filename'])
-                        else:
-                            new_name = None
-                    elif hasattr(value, 'read') and hasattr(value, 'name'):
-                        new_name = field.store(value, filename=value.name)
-                    else:
-                        raise RuntimeError("Unable to handle upload")
-                    fields[field.name] = new_name
-
     def _insert(self, **fields):
         row, op_values = self._fields_and_values_for_insert(fields)
         return self._db._adapter._insert(self, op_values)
 
     def insert(self, **fields):
-        self._attempt_upload(fields)
         row, op_values = self._fields_and_values_for_insert(fields)
         if any(f(row) for f in self._before_insert):
             return 0
@@ -2229,7 +2218,6 @@ class Set(Serializable):
     def update(self, **update_fields):
         db = self.db
         table = db._adapter.get_table(self.query)
-        table._attempt_upload(update_fields)
         row, op_values = table._fields_and_values_for_update(update_fields)
         if not op_values:
             raise ValueError("No fields to update")
@@ -2264,7 +2252,6 @@ class Set(Serializable):
         if response.errors:
             response.updated = None
         else:
-            table._attempt_upload(new_fields)
             row, op_values = table._fields_and_values_for_update(new_fields)
             if not op_values:
                 raise ValueError("No fields to update")
@@ -2275,46 +2262,6 @@ class Set(Serializable):
                 ret and [f(self, new_fields) for f in table._after_update]
             response.updated = ret
         return response
-
-    def delete_uploaded_files(self, upload_fields=None):
-        table = self.db._adapter.tables(self.query).popitem()[1]
-        # ## mind uploadfield==True means file is not in DB
-        if upload_fields:
-            fields = list(upload_fields)
-            # Explicitly add compute upload fields (ex: thumbnail)
-            fields += [f for f in table.fields if table[f].compute is not None]
-        else:
-            fields = table.fields
-        fields = [f for f in fields if table[f].type == 'upload' and
-                  table[f].uploadfield == True and
-                  table[f].autodelete]
-        if not fields:
-            return False
-        for record in self.select(*[table[f] for f in fields]):
-            for fieldname in fields:
-                field = table[fieldname]
-                oldname = record.get(fieldname, None)
-                if not oldname:
-                    continue
-                if upload_fields and fieldname in upload_fields and \
-                   oldname == upload_fields[fieldname]:
-                    continue
-                if field.custom_delete:
-                    field.custom_delete(oldname)
-                else:
-                    uploadfolder = field.uploadfolder
-                    if not uploadfolder:
-                        uploadfolder = pjoin(
-                            self.db._adapter.folder, '..', 'uploads')
-                    if field.uploadseparate:
-                        items = oldname.split('.')
-                        uploadfolder = pjoin(
-                            uploadfolder, "%s.%s" %
-                            (items[0], items[1]), items[2][:2])
-                    oldpath = pjoin(uploadfolder, oldname)
-                    if exists(oldpath):
-                        os.unlink(oldpath)
-        return False
 
 
 class LazyReferenceGetter(object):
@@ -2385,9 +2332,6 @@ class LazySet(object):
 
     def validate_and_update(self, **update_fields):
         return self._getset().validate_and_update(**update_fields)
-
-    def delete_uploaded_files(self, upload_fields=None):
-        return self._getset().delete_uploaded_files(upload_fields)
 
 
 class VirtualCommand(object):
