@@ -524,7 +524,7 @@ class IMAPAdapter(NoSQLAdapter):
         fetch_results = list()
 
         if isinstance(query, Query):
-            tablename = self.get_table(query)
+            tablename = self.get_table(query)._dalname
             mailbox = self.connection.mailbox_names.get(tablename, None)
             if mailbox is None:
                 raise ValueError("Mailbox name not found: %s" % mailbox)
@@ -800,10 +800,11 @@ class IMAPAdapter(NoSQLAdapter):
         else:
             raise NotImplementedError("IMAP empty insert is not implemented")
 
-    def update(self, tablename, query, fields):
+    def update(self, table, query, fields):
         # TODO: the adapter should implement an .expand method
         commands = list()
         rowcount = 0
+        tablename = table._dalname
         if use_common_filters(query):
             query = self.common_filter(query, [tablename,])
         mark = []
@@ -855,8 +856,9 @@ class IMAPAdapter(NoSQLAdapter):
             counter = len(store_list)
         return counter
 
-    def delete(self, tablename, query):
+    def delete(self, table, query):
         counter = 0
+        tablename = table._dalname
         if query:
             if use_common_filters(query):
                 query = self.common_filter(query, [tablename,])
