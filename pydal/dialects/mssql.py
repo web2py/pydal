@@ -90,6 +90,21 @@ class MSSQLDialect(SQLDialect):
     def varquote(self, val):
         return varquote_aux(val, '[%s]')
 
+    def update(self, table, values, where=None):
+        tablename = self.writing_alias(table)
+        whr = ''
+        if where:
+            whr = ' %s' % self.where(where)
+        return 'UPDATE %s SET %s FROM %s%s;' % (
+            table.sqlsafe, values, tablename, whr)
+
+    def delete(self, table, where=None):
+        tablename = self.writing_alias(table)
+        whr = ''
+        if where:
+            whr = ' %s' % self.where(where)
+        return 'DELETE %s FROM %s%s;' % (table.sqlsafe, tablename, whr)
+
     def select(self, fields, tables, where=None, groupby=None, having=None,
                orderby=None, limitby=None, distinct=False, for_update=False):
         dst, whr, grp, order, limit, offset, upd = '', '', '', '', '', '', ''
