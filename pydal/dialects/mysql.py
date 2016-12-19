@@ -56,6 +56,13 @@ class MySQLDialect(SQLDialect):
     def insert_empty(self, table):
         return 'INSERT INTO %s VALUES (DEFAULT);' % table
 
+    def delete(self, table, where=None):
+        tablename = self.writing_alias(table)
+        whr = ''
+        if where:
+            whr = ' %s' % self.where(where)
+        return 'DELETE %s FROM %s%s;' % (table.sqlsafe, tablename, whr)
+
     @property
     def random(self):
         return 'RAND()'
@@ -86,8 +93,8 @@ class MySQLDialect(SQLDialect):
     def drop_table(self, table, mode):
         # breaks db integrity but without this mysql does not drop table
         return [
-            'SET FOREIGN_KEY_CHECKS=0;', 'DROP TABLE %s;' % table.sqlsafe,
+            'SET FOREIGN_KEY_CHECKS=0;', 'DROP TABLE %s;' % table._rname,
             'SET FOREIGN_KEY_CHECKS=1;']
 
     def drop_index(self, name, table):
-        return 'DROP INDEX %s ON %s;' % (self.quote(name), table.sqlsafe)
+        return 'DROP INDEX %s ON %s;' % (self.quote(name), table._rname)

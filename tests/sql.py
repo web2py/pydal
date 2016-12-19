@@ -672,11 +672,13 @@ class TestSubselect(DALtest):
             tmp = [row['aa'], row['bb'], row['aa']+2, row['aa']+1]
             self.assertEqual(list(result[idx]), tmp)
         # Check that query expansion methods don't work without alias
-        self.assertEqual(sub.real_name, None)
+        self.assertEqual(sub._rname, None)
+        self.assertEqual(sub._raw_rname, None)
+        self.assertEqual(sub._dalname, None)
         with self.assertRaises(SyntaxError):
             sub.query_name()
         with self.assertRaises(SyntaxError):
-            sub.query_alias
+            sub.sqlsafe
         with self.assertRaises(SyntaxError):
             sub.on(sub.aa != None)
         # Alias checks
@@ -686,9 +688,11 @@ class TestSubselect(DALtest):
             self.assertEqual(result[idx]['tt'].as_dict(), row)
             self.assertEqual(result[idx]['exp'], row['aa']+1)
         # Check query expansion methods again
-        self.assertEqual(sub.real_name, None)
+        self.assertEqual(sub._rname, None)
+        self.assertEqual(sub._raw_rname, None)
+        self.assertEqual(sub._dalname, None)
         self.assertEqual(sub.query_name()[0], str(sub))
-        self.assertEqual(sub.query_alias, db._adapter.dialect.quote('foo'))
+        self.assertEqual(sub.sqlsafe, db._adapter.dialect.quote('foo'))
         self.assertIsInstance(sub.on(sub.aa != None), Expression)
 
     def testSelectArguments(self):
@@ -1286,6 +1290,58 @@ class TestExpressions(DALtest):
         #self.assertEqual(db(t0).select(op).first()[op], 2)
 
 
+class TestTableAliasing(DALtest):
+
+    def testRun(self):
+        db = self.connect()
+        db.define_table('t1', Field('aa'))
+        db.define_table('t2',
+            Field('pk', type='id', unique=True, notnull=True),
+            Field('bb', type='integer'), rname='tt')
+        tab1 = db.t1.with_alias('test1')
+        tab2 = db.t2.with_alias('test2')
+        self.assertIs(tab2.id, tab2.pk)
+        self.assertEqual(tab1._dalname, 't1')
+        self.assertEqual(tab1._tablename, 'test1')
+        self.assertEqual(tab2._dalname, 't2')
+        self.assertEqual(tab2._tablename, 'test2')
+        self.assertEqual(tab2._rname, 'tt')
+        tab1.insert(aa='foo')
+        tab1.insert(aa='bar')
+        result = db(tab1).select(tab1.aa, orderby=tab1.aa)
+        self.assertEqual(result.as_list(), [{'aa': 'bar'}, {'aa': 'foo'}])
+
+        if not IS_SQLITE:
+            db(tab1.aa == 'foo').update(aa='baz')
+            result = db(tab1).select(tab1.aa, orderby=tab1.aa)
+            self.assertEqual(result.as_list(), [{'aa': 'bar'}, {'aa': 'baz'}])
+            db(tab1.aa == 'bar').delete()
+            result = db(tab1).select(tab1.aa, orderby=tab1.aa)
+            self.assertEqual(result.as_list(), [{'aa': 'baz'}])
+        else:
+            with self.assertRaises(SyntaxError):
+                db(tab1.aa == 'foo').update(aa='baz')
+            with self.assertRaises(SyntaxError):
+                db(tab1.aa == 'bar').delete()
+
+        tab2.insert(bb=123)
+        tab2.insert(bb=456)
+        result = db(tab2).select(tab2.bb, orderby=tab2.bb)
+        self.assertEqual(result.as_list(), [{'bb': 123}, {'bb': 456}])
+
+        if not IS_SQLITE:
+            db(tab2.bb == 456).update(bb=789)
+            result = db(tab2).select(tab2.bb, orderby=tab2.bb)
+            self.assertEqual(result.as_list(), [{'bb': 123}, {'bb': 789}])
+            db(tab2.bb == 123).delete()
+            result = db(tab2).select(tab2.bb, orderby=tab2.bb)
+            self.assertEqual(result.as_list(), [{'bb': 789}])
+        else:
+            with self.assertRaises(SyntaxError):
+                db(tab2.bb == 456).update(bb=789)
+            with self.assertRaises(SyntaxError):
+                db(tab2.bb == 123).delete()
+
 class TestJoin(DALtest):
 
     def testRun(self):
@@ -1381,21 +1437,30 @@ class TestMigrations(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'), migrate='.storage.table')
+        db.define_table('t1', Field('aa'), migrate='.storage.rname',
+                        rname='foo')
         db.commit()
         db.close()
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'), Field('b'),
                         migrate='.storage.table')
+        db.define_table('t1', Field('aa'), Field('b'),
+                        migrate='.storage.rname', rname='foo')
         db.commit()
         db.close()
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'), Field('b', 'text'),
                         migrate='.storage.table')
+        db.define_table('t1', Field('aa'), Field('b', 'text'),
+                        migrate='.storage.rname', rname='foo')
         db.commit()
         db.close()
         db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'), migrate='.storage.table')
+        db.define_table('t1', Field('aa'), migrate='.storage.rname',
+                        rname='foo')
         db.tt.drop()
+        db.t1.drop()
         db.commit()
         db.close()
 
@@ -1404,6 +1469,8 @@ class TestMigrations(unittest.TestCase):
             os.unlink('.storage.db')
         if os.path.exists('.storage.table'):
             os.unlink('.storage.table')
+        if os.path.exists('.storage.rname'):
+            os.unlink('.storage.rname')
 
 
 class TestReference(DALtest):

@@ -32,6 +32,7 @@ class Ingres(SQLAdapter):
         # post create table auto inc code (if needed)
         # modify table to btree for performance....
         # Older Ingres releases could use rule/trigger like Oracle above.
+        # FIXME: use table._rname instead in all 3 places?
         if hasattr(table, '_primarykey'):
             modify_tbl_sql = 'modify %s to btree unique on %s' % \
                 (table._tablename,

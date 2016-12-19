@@ -180,7 +180,7 @@ class MSSQLDialect(SQLDialect):
         return '; ALTER TABLE %s ADD ' % tablename
 
     def drop_index(self, name, table):
-        return 'DROP INDEX %s ON %s;' % (self.quote(name), table.sqlsafe)
+        return 'DROP INDEX %s ON %s;' % (self.quote(name), table._rname)
 
     def st_astext(self, first, query_env={}):
         return '%s.STAsText()' % self.expand(first, query_env=query_env)
@@ -393,7 +393,7 @@ class VerticaDialect(MSSQLDialect):
     def truncate(self, table, mode=''):
         if mode:
             mode = " %s" % mode
-        return ['TRUNCATE %s%s;' % (table.sqlsafe, mode)]
+        return ['TRUNCATE %s%s;' % (table._rname, mode)]
 
     def select(self, *args, **kwargs):
         return SQLDialect.select(self, *args, **kwargs)

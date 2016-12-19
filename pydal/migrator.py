@@ -51,6 +51,7 @@ class Migrator(object):
 
                 if referenced == '.':
                     referenced = tablename
+                # FIXME: use table._raw_rname instead?
                 constraint_name = self.dialect.constraint_name(
                     tablename, field_name)
                 # if not '.' in referenced \
@@ -87,13 +88,13 @@ class Migrator(object):
                             TFK[rtablename] = {}
                         TFK[rtablename][rfieldname] = field_name
                     else:
-                        fk = rtable.sqlsafe + ' (' + rfield.sqlsafe_name + ')'
+                        fk = rtable._rname + ' (' + rfield.sqlsafe_name + ')'
                         ftype = ftype + \
                             types['reference FK'] % dict(
                                 # should be quoted
                                 constraint_name=constraint_name,
                                 foreign_key=fk,
-                                table_name=table.sqlsafe,
+                                table_name=table._rname,
                                 field_name=field.sqlsafe_name,
                                 on_delete_action=field.ondelete)
                 else:
@@ -111,10 +112,10 @@ class Migrator(object):
                     #migrations and model relationship work also if tables
                     #are not defined in order
                     if referenced == tablename:
-                        real_referenced = db[referenced].sqlsafe
+                        real_referenced = db[referenced]._rname
                     else:
                         real_referenced = (
-                            referenced in db and db[referenced].sqlsafe or
+                            referenced in db and db[referenced]._rname or
                             referenced)
                     rfield = db[referenced]._id
                     ftype_info = dict(
@@ -157,6 +158,7 @@ class Migrator(object):
                     else:
                         schema = parms[0]
                     ftype = "SELECT AddGeometryColumn ('%%(schema)s', '%%(tablename)s', '%%(fieldname)s', %%(srid)s, '%s', %%(dimension)s);" % types[geotype]
+                    # FIXME: use table._raw_rname instead?
                     ftype = ftype % dict(schema=schema,
                                          tablename=tablename,
                                          fieldname=field_name, srid=srid,
@@ -220,21 +222,21 @@ class Migrator(object):
             fkeys = [self.dialect.quote(rfields[k].name) for k in pkeys]
             fields = fields + ',\n    ' + \
                 types['reference TFK'] % dict(
-                    table_name=table.sqlsafe,
+                    table_name=table._rname,
                     field_name=', '.join(fkeys),
-                    foreign_table=table.sqlsafe,
+                    foreign_table=table._rname,
                     foreign_key=', '.join(pkeys),
                     on_delete_action=field.ondelete)
 
         if getattr(table, '_primarykey', None):
             query = "CREATE TABLE %s(\n    %s,\n    %s) %s" % \
-                (table.sqlsafe, fields,
+                (table._rname, fields,
                  self.dialect.primary_key(', '.join([
                     self.dialect.quote(pk)
                     for pk in table._primarykey])), other)
         else:
             query = "CREATE TABLE %s(\n    %s\n)%s" % \
-                (table.sqlsafe, fields, other)
+                (table._rname, fields, other)
 
         uri = self.adapter.uri
         if uri.startswith('sqlite:///') \
@@ -325,7 +327,7 @@ class Migrator(object):
         for key in sql_fields_old:
             if key not in keys:
                 keys.append(key)
-        new_add = self.dialect.concat_add(tablename)
+        new_add = self.dialect.concat_add(table._rname)
 
         metadata_change = False
         sql_fields_current = copy.copy(sql_fields_old)
@@ -339,7 +341,7 @@ class Migrator(object):
                     query = [sql_fields[key]['sql']]
                 else:
                     query = ['ALTER TABLE %s ADD %s %s;' % (
-                        table.sqlsafe, self.dialect.quote(key),
+                        table._rname, self.dialect.quote(key),
                         sql_fields_aux[key]['sql'].replace(', ', new_add))]
                 metadata_change = True
             elif self.dbengine in ('sqlite', 'spatialite'):
@@ -353,17 +355,16 @@ class Migrator(object):
                    ftype.startswith('geometry'):
                     geotype, parms = ftype[:-1].split('(')
                     schema = parms.split(',')[0]
+                    # FIXME: use table._raw_rname instead?
                     query = ["SELECT DropGeometryColumn ('%(schema)s', \
                              '%(table)s', '%(field)s');" % dict(
                                 schema=schema, table=tablename, field=key)]
                 elif self.dbengine in ('firebird',):
                     query = ['ALTER TABLE %s DROP %s;' % (
-                        self.dialect.quote(tablename),
-                        self.dialect.quote(key))]
+                        table._rname, self.dialect.quote(key))]
                 else:
                     query = ['ALTER TABLE %s DROP COLUMN %s;' % (
-                        self.dialect.quote(tablename),
-                        self.dialect.quote(key))]
+                        table._rname, self.dialect.quote(key))]
                 metadata_change = True
             elif (
                sql_fields[key]['sql'] != sql_fields_old[key]['sql'] and not
@@ -373,7 +374,6 @@ class Migrator(object):
                sql_fields[key]['type'].startswith('double') and not
                sql_fields[key]['type'].startswith('id')):
                 sql_fields_current[key] = sql_fields[key]
-                t = tablename
                 tt = sql_fields_aux[key]['sql'].replace(', ', new_add)
                 if self.dbengine in ('firebird',):
                     drop_expr = 'ALTER TABLE %s DROP %s;'
@@ -382,21 +382,19 @@ class Migrator(object):
                 key_tmp = key + '__tmp'
                 query = [
                     'ALTER TABLE %s ADD %s %s;' % (
-                        self.dialect.quote(t), self.dialect.quote(key_tmp),
-                        tt),
+                        table._rname, self.dialect.quote(key_tmp), tt),
                     'UPDATE %s SET %s=%s;' % (
-                        self.dialect.quote(t), self.dialect.quote(key_tmp),
+                        table._rname, self.dialect.quote(key_tmp),
                         self.dialect.quote(key)),
                     drop_expr % (
-                        self.dialect.quote(t), self.dialect.quote(key)),
+                        table._rname, self.dialect.quote(key)),
                     'ALTER TABLE %s ADD %s %s;' % (
-                        self.dialect.quote(t),
-                        self.dialect.quote(key), tt),
+                        table._rname, self.dialect.quote(key), tt),
                     'UPDATE %s SET %s=%s;' % (
-                        self.dialect.quote(t), self.dialect.quote(key),
+                        table._rname, self.dialect.quote(key),
                         self.dialect.quote(key_tmp)),
                     drop_expr % (
-                        self.dialect.quote(t), self.dialect.quote(key_tmp))
+                        table._rname, self.dialect.quote(key_tmp))
                 ]
                 metadata_change = True
             elif sql_fields[key]['type'] != sql_fields_old[key]['type']:

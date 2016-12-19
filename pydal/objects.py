@@ -213,16 +213,17 @@ class Table(Serializable, BasicStorage):
         super(Table, self).__init__()
         self._actual = False  # set to True by define_table()
         self._db = db
-        self._tablename = tablename
+        self._tablename = self._dalname = tablename
         if not isinstance(tablename, str) or hasattr(DAL, tablename) or not \
            REGEX_VALID_TB_FLD.match(tablename) or \
            REGEX_PYTHON_KEYWORDS.match(tablename):
             raise SyntaxError('Field: invalid table name: %s, '
                               'use rname for "funny" names' % tablename)
-        self._ot = None
-        self._rname = args.get('rname')
+        self._rname = args.get('rname') or \
+            db and db._adapter.dialect.quote(tablename)
+        self._raw_rname = args.get('rname') or db and tablename
         self._sequence_name = args.get('sequence_name') or \
-            db and db._adapter.dialect.sequence_name(self._rname or tablename)
+            db and db._adapter.dialect.sequence_name(self._raw_rname)
         self._trigger_name = args.get('trigger_name') or \
             db and db._adapter.dialect.trigger_name(tablename)
         self._common_filter = args.get('common_filter')
@@ -368,7 +369,7 @@ class Table(Serializable, BasicStorage):
                                   current_record_label=None):
         db = self._db
         archive_db = archive_db or db
-        archive_name = archive_name % dict(tablename=self._tablename)
+        archive_name = archive_name % dict(tablename=self._dalname)
         if archive_name in archive_db.tables():
             return  # do not try define the archive if already exists
         fieldnames = self.fields()
@@ -395,7 +396,7 @@ class Table(Serializable, BasicStorage):
                 AND, [
                     tab.is_active == True
                     for tab in db._adapter.tables(query).values()
-                    if tab.real_name == self.real_name]
+                    if tab._raw_rname == self._raw_rname]
                 )
             query = self._common_filter
             if query:
@@ -611,38 +612,24 @@ class Table(Serializable, BasicStorage):
         return '<Table %s (%s)>' % (self._tablename, ', '.join(self.fields()))
 
     def __str__(self):
-        if self._ot is not None:
-            return self._db._adapter.dialect._as(self._ot, self._tablename)
-        return self._tablename
+        if self._tablename == self._dalname:
+            return self._tablename
+        return self._db._adapter.dialect._as(self._dalname, self._tablename)
 
     @property
     def sqlsafe(self):
-        rname = self._rname
-        if rname:
-            return rname
+        if self._tablename == self._dalname:
+            return self._rname
         return self._db._adapter.sqlsafe_table(self._tablename)
 
     @property
     def sqlsafe_alias(self):
-        rname = self._rname
-        ot = self._ot
-        if rname and not ot:
-            return rname
-        return self._db._adapter.sqlsafe_table(self._tablename, self._ot)
+        if self._tablename == self._dalname:
+            return self._rname
+        return self._db._adapter.sqlsafe_table(self._tablename, self._rname)
 
     def query_name(self, *args, **kwargs):
         return (self.sqlsafe_alias,)
-
-    @property
-    def query_alias(self):
-        if self._rname and not self._ot:
-            return self._rname
-        return self._db._adapter.dialect.quote(self._tablename)
-
-    @property
-    def real_name(self):
-        """Backend name of the table"""
-        return self._rname or self._ot or self.sqlsafe
 
     def _drop(self, mode=''):
         return self._db._adapter.dialect.drop_table(self, mode)
@@ -1037,7 +1024,19 @@ class Table(Serializable, BasicStorage):
         return table_as_dict
 
     def with_alias(self, alias):
-        return self._db._adapter.alias(self, alias)
+        other = copy.copy(self)
+        other['ALL'] = SQLALL(other)
+        other['_tablename'] = alias
+        for fieldname in other.fields:
+            other[fieldname] = copy.copy(other[fieldname])
+            other[fieldname]._tablename = alias
+            other[fieldname].tablename = alias
+            other[fieldname].table = other
+        if 'id' in self and 'id' not in other.fields:
+            other['id'] = other[self.id.name]
+        other._id = other[self._id.name]
+        self._db[alias] = other
+        return other
 
     def on(self, query):
         return Expression(self._db, self._db._adapter.dialect.on, self, query)
@@ -1053,6 +1052,7 @@ class Select(BasicStorage):
     def __init__(self, db, query, fields, attributes):
         self._db = db
         self._tablename = None # alias will be stored here
+        self._rname = self._raw_rname = self._dalname = None
         self._common_filter = None
         self._query = query
         # if false, the subquery will never reference tables from parent scope
@@ -1178,14 +1178,10 @@ class Select(BasicStorage):
         return (sql,)
 
     @property
-    def query_alias(self):
+    def sqlsafe(self):
         if self._tablename is None:
             raise SyntaxError("Subselect must be aliased for use in a JOIN")
         return self._db._adapter.dialect.quote(self._tablename)
-
-    @property
-    def real_name(self):
-        return None
 
     def _filter_fields(self, record, id=False):
         return dict([(k, v) for (k, v) in iteritems(record) if k

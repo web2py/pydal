@@ -51,6 +51,7 @@ class FireBird(SQLAdapter):
         return long(self.cursor.fetchone()[0])
 
     def create_sequence_and_triggers(self, query, table, **args):
+        # FIXME: use table._rname instead?
         tablename = table._tablename
         sequence_name = table._sequence_name
         trigger_name = table._trigger_name

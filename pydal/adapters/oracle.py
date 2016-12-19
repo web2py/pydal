@@ -60,7 +60,7 @@ class Oracle(SQLAdapter):
         return long(self.cursor.fetchone()[0])
 
     def create_sequence_and_triggers(self, query, table, **args):
-        tablename = table._rname or table._tablename
+        tablename = table._rname
         id_name = table._id.name
         sequence_name = table._sequence_name
         trigger_name = table._trigger_name
@@ -102,13 +102,13 @@ class Oracle(SQLAdapter):
         if fields:
             r_values = {}
             return self.dialect.insert(
-                table.sqlsafe,
+                table._rname,
                 ','.join(el[0].sqlsafe_name for el in fields),
                 ','.join(
                     self._build_value_for_insert(f, v, r_values)
                     for f, v in fields)
                 ), r_values
-        return self.dialect.insert_empty(table.sqlsafe), None
+        return self.dialect.insert_empty(table._rname), None
 
     def insert(self, table, fields):
         query, values = self._insert(table, fields)

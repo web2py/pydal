@@ -148,13 +148,15 @@ class SQLDialect(CommonDialect):
     def where(self, query):
         return 'WHERE %s' % query
 
-    def update(self, tablename, values, where=None):
+    def update(self, table, values, where=None):
+        tablename = self.writing_alias(table)
         whr = ''
         if where:
             whr = ' %s' % self.where(where)
         return 'UPDATE %s SET %s%s;' % (tablename, values, whr)
 
-    def delete(self, tablename, where=None):
+    def delete(self, table, where=None):
+        tablename = self.writing_alias(table)
         whr = ''
         if where:
             whr = ' %s' % self.where(where)
@@ -470,18 +472,18 @@ class SQLDialect(CommonDialect):
         return 'PRIMARY KEY(%s)' % key
 
     def drop_table(self, table, mode):
-        return ['DROP TABLE %s;' % table.sqlsafe]
+        return ['DROP TABLE %s;' % table._rname]
 
     def truncate(self, table, mode=''):
         if mode:
             mode = " %s" % mode
-        return ['TRUNCATE TABLE %s%s;' % (table.sqlsafe, mode)]
+        return ['TRUNCATE TABLE %s%s;' % (table._rname, mode)]
 
     def create_index(self, name, table, expressions, unique=False):
         uniq = ' UNIQUE' if unique else ''
         with self.adapter.index_expander():
             rv = 'CREATE%s INDEX %s ON %s (%s);' % (
-                uniq, self.quote(name), table.sqlsafe, ','.join(
+                uniq, self.quote(name), table._rname, ','.join(
                     self.expand(field) for field in expressions))
         return rv
 
@@ -493,6 +495,9 @@ class SQLDialect(CommonDialect):
 
     def concat_add(self, tablename):
         return ', ADD '
+
+    def writing_alias(self, table):
+        return table.sqlsafe_alias
 
 
 class NoSQLDialect(CommonDialect):

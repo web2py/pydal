@@ -118,11 +118,11 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
                 self._last_insert = (table._id, 1)
                 retval = table._id.name
             return self.dialect.insert(
-                table.sqlsafe,
+                table._rname,
                 ','.join(el[0].sqlsafe_name for el in fields),
                 ','.join(self.expand(v, f.type) for f, v in fields),
                 retval)
-        return self.dialect.insert_empty(table.sqlsafe)
+        return self.dialect.insert_empty(table._rname)
 
     @with_connection
     def prepare(self, key):
