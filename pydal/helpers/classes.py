@@ -5,13 +5,26 @@ import struct
 import time
 import traceback
 
-from .._compat import PY2, exists, copyreg, integer_types, implements_bool, \
-    iterkeys, itervalues, iteritems
+from .._compat import (
+    PY2, exists, copyreg, implements_bool, iterkeys, itervalues, iteritems,
+    long
+)
 from .._globals import THREAD_LOCAL
 from .serializers import serializers
 
 
-long = integer_types[-1]
+class cachedprop(object):
+    #: a read-only @property that is only evaluated once.
+    def __init__(self, fget, doc=None):
+        self.fget = fget
+        self.__doc__ = doc or fget.__doc__
+        self.__name__ = fget.__name__
+
+    def __get__(self, obj, cls):
+        if obj is None:
+            return self
+        obj.__dict__[self.__name__] = result = self.fget(obj)
+        return result
 
 
 @implements_bool
@@ -76,6 +89,77 @@ def pickle_basicstorage(s):
     return BasicStorage, (dict(s),)
 
 copyreg.pickle(BasicStorage, pickle_basicstorage)
+
+
+class OpRow(object):
+    __slots__ = ('_table', '_fields', '_values')
+
+    def __init__(self, table):
+        object.__setattr__(self, '_table', table)
+        object.__setattr__(self, '_fields', {})
+        object.__setattr__(self, '_values', {})
+
+    def set_value(self, key, value, field=None):
+        self._values[key] = value
+        self._fields[key] = self._fields.get(key, field or self._table[key])
+
+    def del_value(self, key):
+        del self._values[key]
+        del self._fields[key]
+
+    def __getitem__(self, key):
+        return self._values[key]
+
+    def __setitem__(self, key, value):
+        return self.set_value(key, value)
+
+    def __delitem__(self, key):
+        return self.del_value(key)
+
+    def __getattr__(self, key):
+        try:
+            return self.__getitem__(key)
+        except KeyError:
+            raise AttributeError
+
+    def __setattr__(self, key, value):
+        return self.set_value(key, value)
+
+    def __delattr__(self, key):
+        return self.del_value(key)
+
+    def __iter__(self):
+        return self._values.__iter__()
+
+    def __contains__(self, key):
+        return key in self._values
+
+    def keys(self):
+        return self._values.keys()
+
+    def iterkeys(self):
+        return iterkeys(self._values)
+
+    def values(self):
+        return self._values.values()
+
+    def itervalues(self):
+        return itervalues(self._values)
+
+    def items(self):
+        return self._values.items()
+
+    def iteritems(self):
+        return iteritems(self._values)
+
+    def op_values(self):
+        return [
+            (self._fields[key], value)
+            for key, value in iteritems(self._values)
+        ]
+
+    def __repr__(self):
+        return '<OpRow %s>' % repr(self._values)
 
 
 class Serializable(object):

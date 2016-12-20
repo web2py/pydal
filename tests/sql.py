@@ -4,19 +4,19 @@
 """
 
 from __future__ import print_function
-import sys
 import os
 import glob
 import datetime
 import json
 
-from pydal._compat import PY2, basestring, StringIO, integer_types, xrange
+from pydal._compat import basestring, StringIO, integer_types, xrange
 from pydal import DAL, Field
-from pydal.helpers.classes import SQLALL
+from pydal.helpers.classes import SQLALL, OpRow
 from pydal.objects import Table, Expression, Row
 from ._compat import unittest
 from ._adapt import (
-    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA, _quote)
+    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA,
+    _quote)
 from ._helpers import DALtest
 
 long = integer_types[-1]
@@ -880,7 +880,7 @@ class TestAddMethod(DALtest):
             self.assertEqual(db.tt.insert(aa='1'), 3)
         else:
             self.assertEqual(db.tt.insert(aa='1'), 1)
-            self.assertEqual(db.tt.insert(aa='1'), 1)            
+            self.assertEqual(db.tt.insert(aa='1'), 1)
         self.assertEqual(len(db.tt.all()), 3)
 
 
@@ -895,7 +895,7 @@ class TestBelongs(DALtest):
             self.assertEqual(db.tt.insert(aa='3'), 3)
         else:
             self.assertEqual(db.tt.insert(aa='2'), 1)
-            self.assertEqual(db.tt.insert(aa='3'), 1)   
+            self.assertEqual(db.tt.insert(aa='3'), 1)
         self.assertEqual(db(db.tt.aa.belongs(('1', '3'))).count(),
                          2)
         self.assertEqual(db(db.tt.aa.belongs(db(db.tt.id
@@ -2593,7 +2593,7 @@ class TestBulkInsert(DALtest):
         global ctr
         ctr = 0
         def test_after_insert(i, r):
-            self.assertIsInstance(i, dict)
+            self.assertIsInstance(i, OpRow)
             global ctr
             ctr += 1
             return True
