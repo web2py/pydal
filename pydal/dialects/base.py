@@ -497,7 +497,7 @@ class SQLDialect(CommonDialect):
         return ', ADD '
 
     def writing_alias(self, table):
-        return table.sqlsafe_alias
+        return table.sql_fullref
 
 
 class NoSQLDialect(CommonDialect):

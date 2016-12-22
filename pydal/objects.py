@@ -26,6 +26,7 @@ from .helpers.methods import list_represent, bar_decode_integer, \
     bar_decode_string, bar_encode, archive_record, cleanup, \
     use_common_filters, pluralize
 from .helpers.serializers import serializers
+from .utils import deprecated
 
 
 DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
@@ -617,19 +618,29 @@ class Table(Serializable, BasicStorage):
         return self._db._adapter.dialect._as(self._dalname, self._tablename)
 
     @property
+    @deprecated('sqlsafe', 'sql_shortref', 'Table')
     def sqlsafe(self):
+        return self.sql_shortref
+
+    @property
+    @deprecated('sqlsafe_alias', 'sql_fullref', 'Table')
+    def sqlsafe_alias(self):
+        return self.sql_fullref
+
+    @property
+    def sql_shortref(self):
         if self._tablename == self._dalname:
             return self._rname
         return self._db._adapter.sqlsafe_table(self._tablename)
 
     @property
-    def sqlsafe_alias(self):
+    def sql_fullref(self):
         if self._tablename == self._dalname:
             return self._rname
         return self._db._adapter.sqlsafe_table(self._tablename, self._rname)
 
     def query_name(self, *args, **kwargs):
-        return (self.sqlsafe_alias,)
+        return (self.sql_fullref,)
 
     def _drop(self, mode=''):
         return self._db._adapter.dialect.drop_table(self, mode)
@@ -1178,7 +1189,7 @@ class Select(BasicStorage):
         return (sql,)
 
     @property
-    def sqlsafe(self):
+    def sql_shortref(self):
         if self._tablename is None:
             raise SyntaxError("Subselect must be aliased for use in a JOIN")
         return self._db._adapter.dialect.quote(self._tablename)
@@ -1857,7 +1868,7 @@ class Field(Expression, Serializable):
     @property
     def sqlsafe(self):
         if self._table:
-            return self._table.sqlsafe + '.' + \
+            return self._table.sql_shortref + '.' + \
                 (self._rname or self._db._adapter.sqlsafe_field(self.name))
         return '<no table>.%s' % self.name
 

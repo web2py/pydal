@@ -96,14 +96,14 @@ class MSSQLDialect(SQLDialect):
         if where:
             whr = ' %s' % self.where(where)
         return 'UPDATE %s SET %s FROM %s%s;' % (
-            table.sqlsafe, values, tablename, whr)
+            table.sql_shortref, values, tablename, whr)
 
     def delete(self, table, where=None):
         tablename = self.writing_alias(table)
         whr = ''
         if where:
             whr = ' %s' % self.where(where)
-        return 'DELETE %s FROM %s%s;' % (table.sqlsafe, tablename, whr)
+        return 'DELETE %s FROM %s%s;' % (table.sql_shortref, tablename, whr)
 
     def select(self, fields, tables, where=None, groupby=None, having=None,
                orderby=None, limitby=None, distinct=False, for_update=False):

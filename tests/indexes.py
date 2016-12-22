@@ -28,7 +28,7 @@ class TestIndexesExpressions(unittest.TestCase):
         with db._adapter.index_expander():
             coalesce_sql = str(db.tt.bb.coalesce(None))
         expected_sql = 'CREATE INDEX %s ON %s (%s,%s);' % (
-            db._adapter.dialect.quote('idx_aa_and_bb'), db.tt.sqlsafe,
+            db._adapter.dialect.quote('idx_aa_and_bb'), db.tt.sql_shortref,
             db.tt.aa.sqlsafe_name, coalesce_sql)
         self.assertEqual(sql, expected_sql)
         rv = db.tt.create_index(

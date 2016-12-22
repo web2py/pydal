@@ -61,7 +61,7 @@ class MySQLDialect(SQLDialect):
         whr = ''
         if where:
             whr = ' %s' % self.where(where)
-        return 'DELETE %s FROM %s%s;' % (table.sqlsafe, tablename, whr)
+        return 'DELETE %s FROM %s%s;' % (table.sql_shortref, tablename, whr)
 
     @property
     def random(self):

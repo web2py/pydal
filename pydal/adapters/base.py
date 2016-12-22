@@ -412,7 +412,7 @@ class SQLAdapter(BaseAdapter):
         if isinstance(expression, Field):
             et = expression.table
             if not colnames:
-                rv = '%s.%s' % (et.sqlsafe, expression._rname or
+                rv = '%s.%s' % (et.sql_shortref, expression._rname or
                                 (self.dialect.quote(expression.name)))
             else:
                 rv = '%s.%s' % (self.dialect.quote(et._tablename),
@@ -685,7 +685,7 @@ class SQLAdapter(BaseAdapter):
         if (limitby and not groupby and query_tables and orderby_on_limitby and
            not orderby):
             sql_ord = ', '.join([
-                tablemap[t].sqlsafe + '.' + tablemap[t][x].sqlsafe_name
+                tablemap[t].sql_shortref + '.' + tablemap[t][x].sqlsafe_name
                 for t in query_tables if not isinstance(tablemap[t], Select)
                 for x in (hasattr(tablemap[t], '_primarykey') and
                           tablemap[t]._primarykey or ['_id'])

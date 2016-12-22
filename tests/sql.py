@@ -678,7 +678,7 @@ class TestSubselect(DALtest):
         with self.assertRaises(SyntaxError):
             sub.query_name()
         with self.assertRaises(SyntaxError):
-            sub.sqlsafe
+            sub.sql_shortref
         with self.assertRaises(SyntaxError):
             sub.on(sub.aa != None)
         # Alias checks
@@ -692,7 +692,7 @@ class TestSubselect(DALtest):
         self.assertEqual(sub._raw_rname, None)
         self.assertEqual(sub._dalname, None)
         self.assertEqual(sub.query_name()[0], str(sub))
-        self.assertEqual(sub.sqlsafe, db._adapter.dialect.quote('foo'))
+        self.assertEqual(sub.sql_shortref, db._adapter.dialect.quote('foo'))
         self.assertIsInstance(sub.on(sub.aa != None), Expression)
 
     def testSelectArguments(self):
