@@ -1301,6 +1301,7 @@ class TestTableAliasing(DALtest):
         tab1 = db.t1.with_alias('test1')
         tab2 = db.t2.with_alias('test2')
         self.assertIs(tab2.id, tab2.pk)
+        self.assertIs(tab2._id, tab2.pk)
         self.assertEqual(tab1._dalname, 't1')
         self.assertEqual(tab1._tablename, 'test1')
         self.assertEqual(tab2._dalname, 't2')
