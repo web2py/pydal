@@ -326,7 +326,7 @@ class Mongo(NoSQLAdapter):
                     # Mongodb reserved uuid key
                     colname = (tablename + '.' + 'id', '_id')
                 else:
-                    colname = (tablename + '.' + field.name, field.name)
+                    colname = (field.longname, field.name)
             elif not isinstance(query, Expression):
                 colname = (field.name, field.name)
             colnames.append(colname[1])

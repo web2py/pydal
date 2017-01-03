@@ -116,10 +116,10 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
             retval = None
             if hasattr(table, '_id'):
                 self._last_insert = (table._id, 1)
-                retval = table._id.name
+                retval = table._id._rname
             return self.dialect.insert(
                 table._rname,
-                ','.join(el[0].sqlsafe_name for el in fields),
+                ','.join(el[0]._rname for el in fields),
                 ','.join(self.expand(v, f.type) for f, v in fields),
                 retval)
         return self.dialect.insert_empty(table._rname)

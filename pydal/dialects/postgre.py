@@ -58,7 +58,7 @@ class PostgreDialect(SQLDialect):
     def insert(self, table, fields, values, returning=None):
         ret = ''
         if returning:
-            ret = 'RETURNING %s' % self.quote(returning)
+            ret = 'RETURNING %s' % returning
         return 'INSERT INTO %s(%s) VALUES (%s)%s;' % (
             table, fields, values, ret)
 

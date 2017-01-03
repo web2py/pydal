@@ -61,6 +61,7 @@ class Oracle(SQLAdapter):
 
     def create_sequence_and_triggers(self, query, table, **args):
         tablename = table._rname
+        # FIXME: use _rname instead?
         id_name = table._id.name
         sequence_name = table._sequence_name
         trigger_name = table._trigger_name
@@ -94,8 +95,8 @@ class Oracle(SQLAdapter):
 
     def _build_value_for_insert(self, field, value, r_values):
         if field.type is 'text':
-            r_values[':' + field.sqlsafe_name] = self.expand(value, field.type)
-            return ':' + field.sqlsafe_name
+            r_values[':' + field._rname] = self.expand(value, field.type)
+            return ':' + field._rname
         return self.expand(value, field.type)
 
     def _insert(self, table, fields):
@@ -103,7 +104,7 @@ class Oracle(SQLAdapter):
             r_values = {}
             return self.dialect.insert(
                 table._rname,
-                ','.join(el[0].sqlsafe_name for el in fields),
+                ','.join(el[0]._rname for el in fields),
                 ','.join(
                     self._build_value_for_insert(f, v, r_values)
                     for f, v in fields)

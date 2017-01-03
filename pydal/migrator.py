@@ -88,21 +88,21 @@ class Migrator(object):
                             TFK[rtablename] = {}
                         TFK[rtablename][rfieldname] = field_name
                     else:
-                        fk = rtable._rname + ' (' + rfield.sqlsafe_name + ')'
+                        fk = rtable._rname + ' (' + rfield._rname + ')'
                         ftype = ftype + \
                             types['reference FK'] % dict(
                                 # should be quoted
                                 constraint_name=constraint_name,
                                 foreign_key=fk,
                                 table_name=table._rname,
-                                field_name=field.sqlsafe_name,
+                                field_name=field._rname,
                                 on_delete_action=field.ondelete)
                 else:
                     # make a guess here for circular references
                     if referenced in db:
-                        id_fieldname = db[referenced]._id.sqlsafe_name
+                        id_fieldname = db[referenced]._id._rname
                     elif referenced == tablename:
-                        id_fieldname = table._id.sqlsafe_name
+                        id_fieldname = table._id._rname
                     else:  # make a guess
                         id_fieldname = self.dialect.quote('id')
                     #gotcha: the referenced table must be defined before
@@ -118,12 +118,13 @@ class Migrator(object):
                             referenced in db and db[referenced]._rname or
                             referenced)
                     rfield = db[referenced]._id
+                    # FIXME: use field._raw_rname for index_name?
                     ftype_info = dict(
                         index_name=self.dialect.quote(field_name+'__idx'),
-                        field_name=field.sqlsafe_name,
+                        field_name=field._rname,
                         constraint_name=self.dialect.quote(constraint_name),
                         foreign_key='%s (%s)' % (
-                            real_referenced, rfield.sqlsafe_name),
+                            real_referenced, rfield._rname),
                         on_delete_action=field.ondelete)
                     ftype_info['null'] = ' NOT NULL' if field.notnull else \
                         self.dialect.allow_null
@@ -203,36 +204,42 @@ class Migrator(object):
             # geometry fields are added after the table has been created, not now
             if not (self.dbengine == 'postgres' and
                field_type.startswith('geom')):
-                fields.append('%s %s' % (field.sqlsafe_name, ftype))
+                fields.append('%s %s' % (field._rname, ftype))
         other = ';'
 
         # backend-specific extensions to fields
         if self.dbengine == 'mysql':
             if not hasattr(table, "_primarykey"):
-                fields.append('PRIMARY KEY (%s)' % (
-                    self.dialect.quote(table._id.name)))
+                fields.append('PRIMARY KEY (%s)' % (table._id._rname))
             engine = self.adapter.adapter_args.get('engine', 'InnoDB')
             other = ' ENGINE=%s CHARACTER SET utf8;' % engine
 
         fields = ',\n    '.join(fields)
         for rtablename in TFK:
+            rtable = db[rtablename]
             rfields = TFK[rtablename]
-            pkeys = [
-                self.dialect.quote(pk) for pk in db[rtablename]._primarykey]
-            fkeys = [self.dialect.quote(rfields[k].name) for k in pkeys]
+            pkeys = [rtable[pk]._rname for pk in rtable._primarykey]
+            fk_fields = [table[rfields[k]] for k in rtable._primarykey]
+            fkeys = [f._rname for f in fk_fields]
+            constraint_name = self.dialect.constraint_name(
+                table._raw_rname, '_'.join(f._raw_rname for f in fk_fields))
+            on_delete = list(set(f.ondelete for f in fk_fields))
+            if len(on_delete) > 1:
+                raise SyntaxError('Table %s has incompatible ON DELETE actions in multi-field foreign key.' % table._dalname)
             fields = fields + ',\n    ' + \
                 types['reference TFK'] % dict(
+                    constraint_name=constraint_name,
                     table_name=table._rname,
                     field_name=', '.join(fkeys),
-                    foreign_table=table._rname,
+                    foreign_table=rtable._rname,
                     foreign_key=', '.join(pkeys),
-                    on_delete_action=field.ondelete)
+                    on_delete_action=on_delete[0])
 
         if getattr(table, '_primarykey', None):
             query = "CREATE TABLE %s(\n    %s,\n    %s) %s" % \
                 (table._rname, fields,
                  self.dialect.primary_key(', '.join([
-                    self.dialect.quote(pk)
+                    table[pk]._rname
                     for pk in table._primarykey])), other)
         else:
             query = "CREATE TABLE %s(\n    %s\n)%s" % \

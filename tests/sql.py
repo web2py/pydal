@@ -2129,6 +2129,7 @@ class TestRNameFields(DALtest):
         rname = _quote(db, 'this is the person name')
         db.define_table(
             'person',
+            Field('id', type='id', rname='fooid'),
             Field('name', default="Michael", rname=rname),
             Field('uuid')
             )
@@ -2392,6 +2393,28 @@ class TestRNameFields(DALtest):
         self.assertEqual(row['person.name'],'max')
         db.dog.drop()
         self.assertEqual(len(db.person._referenced_by),0)
+
+    def testTFK(self):
+        db = self.connect()
+        if 'reference TFK' not in db._adapter.types:
+            self.skipTest('Adapter does not support TFK references')
+        db.define_table('t1',
+            Field('id1', type='string', length=1, rname='foo1'),
+            Field('id2', type='integer', rname='foo2'),
+            Field('val', type='integer'),
+            primarykey=['id1', 'id2'])
+        db.define_table('t2',
+            Field('ref1', type=db.t1.id1, rname='bar1'),
+            Field('ref2', type=db.t1.id2, rname='bar2'))
+        db.t1.insert(id1='a', id2=1, val=10)
+        db.t1.insert(id1='a', id2=2, val=30)
+        db.t2.insert(ref1='a', ref2=1)
+        query = (db.t1.id1 == db.t2.ref1) & (db.t1.id2 == db.t2.ref2)
+        result = db(query).select(db.t1.ALL)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['id1'], 'a')
+        self.assertEqual(result[0]['id2'], 1)
+        self.assertEqual(result[0]['val'], 10)
 
 
 class TestQuoting(DALtest):

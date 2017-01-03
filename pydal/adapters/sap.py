@@ -45,5 +45,5 @@ class SAPDB(SQLAdapter):
         self.execute('CREATE SEQUENCE %s;' % table._sequence_name)
         self.execute(
             "ALTER TABLE %s ALTER COLUMN %s SET DEFAULT NEXTVAL('%s');" %
-            (table._rname, table._id.name, table._sequence_name))
+            (table._rname, table._id._rname, table._sequence_name))
         self.execute(query)

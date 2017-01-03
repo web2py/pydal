@@ -601,7 +601,7 @@ class IMAPAdapter(NoSQLAdapter):
         if allfields:
             colnames = ["%s.%s" % (tablename, field) for field in self.search_fields.keys()]
         else:
-            colnames = ["%s.%s" % (tablename, field.name) for field in fields]
+            colnames = [field.longname for field in fields]
 
         for k in colnames:
             imapfields_dict[k] = k

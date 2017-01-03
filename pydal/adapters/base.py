@@ -410,13 +410,10 @@ class SQLAdapter(BaseAdapter):
     def _expand(self, expression, field_type=None, colnames=False,
         query_env={}):
         if isinstance(expression, Field):
-            et = expression.table
             if not colnames:
-                rv = '%s.%s' % (et.sql_shortref, expression._rname or
-                                (self.dialect.quote(expression.name)))
+                rv = expression.sqlsafe
             else:
-                rv = '%s.%s' % (self.dialect.quote(et._tablename),
-                                self.dialect.quote(expression.name))
+                rv = expression.longname
             if field_type == 'string' and expression.type not in (
                     'string', 'text', 'json', 'password'):
                 rv = self.dialect.cast(rv, self.types['text'], query_env)
@@ -451,7 +448,7 @@ class SQLAdapter(BaseAdapter):
     def _expand_for_index(self, expression, field_type=None, colnames=False,
         query_env={}):
         if isinstance(expression, Field):
-            return expression._rname or self.dialect.quote(expression.name)
+            return expression._rname
         return self._expand(expression, field_type, colnames, query_env)
 
     @contextmanager
@@ -467,7 +464,7 @@ class SQLAdapter(BaseAdapter):
         if fields:
             return self.dialect.insert(
                 table._rname,
-                ','.join(el[0].sqlsafe_name for el in fields),
+                ','.join(el[0]._rname for el in fields),
                 ','.join(self.expand(v, f.type) for f, v in fields))
         return self.dialect.insert_empty(table._rname)
 
@@ -503,7 +500,7 @@ class SQLAdapter(BaseAdapter):
                 query = self.common_filter(query, [table])
             sql_q = self.expand(query, query_env=query_env)
         sql_v = ','.join([
-            '%s=%s' % (field.sqlsafe_name,
+            '%s=%s' % (field._rname,
                 self.expand(value, field.type, query_env=query_env))
             for (field, value) in fields])
         return self.dialect.update(table, sql_v, sql_q)
@@ -685,7 +682,7 @@ class SQLAdapter(BaseAdapter):
         if (limitby and not groupby and query_tables and orderby_on_limitby and
            not orderby):
             sql_ord = ', '.join([
-                tablemap[t].sql_shortref + '.' + tablemap[t][x].sqlsafe_name
+                tablemap[t][x].sqlsafe
                 for t in query_tables if not isinstance(tablemap[t], Select)
                 for x in (hasattr(tablemap[t], '_primarykey') and
                           tablemap[t]._primarykey or ['_id'])
@@ -820,7 +817,7 @@ class SQLAdapter(BaseAdapter):
 
     def create_index(self, table, index_name, *fields, **kwargs):
         expressions = [
-            field.sqlsafe_name if isinstance(field, Field) else field
+            field._rname if isinstance(field, Field) else field
             for field in fields]
         sql = self.dialect.create_index(
             index_name, table, expressions, **kwargs)
