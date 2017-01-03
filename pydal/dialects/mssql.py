@@ -77,7 +77,7 @@ class MSSQLDialect(SQLDialect):
     def type_reference_tfk(self):
         return ' CONSTRAINT FK_%(foreign_table)s_PK FOREIGN KEY ' + \
             '(%(field_name)s) REFERENCES %(foreign_table)s ' + \
-            '(%(foreign_key)s) ON DELETE %(on_delete_action)s',
+            '(%(foreign_key)s) ON DELETE %(on_delete_action)s'
 
     @sqltype_for('geometry')
     def type_geometry(self):
