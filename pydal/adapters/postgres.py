@@ -105,7 +105,11 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
 
     def lastrowid(self, table):
         if self._last_insert:
-            return long(self.cursor.fetchone()[0])
+            pk = self.cursor.fetchone()[0]
+            try:
+                return long(pk)
+            except ValueError:
+                return str(pk)
         sequence_name = table._sequence_name
         self.execute("SELECT currval(%s);" % self.adapt(sequence_name))
         return long(self.cursor.fetchone()[0])
