@@ -118,7 +118,7 @@ class OpRow(object):
 
     def __getattr__(self, key):
         try:
-            return self.__getitem__(key)
+            return self[key]
         except KeyError:
             raise AttributeError
 
@@ -133,6 +133,13 @@ class OpRow(object):
 
     def __contains__(self, key):
         return key in self._values
+
+    def get(self, key, default=None):
+        try:
+            rv = self[key]
+        except KeyError:
+            rv = default
+        return rv
 
     def keys(self):
         return self._values.keys()
