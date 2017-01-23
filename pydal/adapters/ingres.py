@@ -32,19 +32,18 @@ class Ingres(SQLAdapter):
         # post create table auto inc code (if needed)
         # modify table to btree for performance....
         # Older Ingres releases could use rule/trigger like Oracle above.
-        # FIXME: use table._rname instead in all 3 places?
         if hasattr(table, '_primarykey'):
             modify_tbl_sql = 'modify %s to btree unique on %s' % \
-                (table._tablename,
+                (table._rname,
                  ', '.join(["'%s'" % x for x in table.primarykey]))
             self.execute(modify_tbl_sql)
         else:
-            tmp_seqname = '%s_iisq' % table._tablename
+            tmp_seqname = '%s_iisq' % table._raw_rname
             query = query.replace(self.dialect.INGRES_SEQNAME, tmp_seqname)
             self.execute('create sequence %s' % tmp_seqname)
             self.execute(query)
             self.execute(
-                'modify %s to btree unique on %s' % (table._tablename, 'id'))
+                'modify %s to btree unique on %s' % (table._rname, 'id'))
 
 
 @adapters.register_for('ingresu')

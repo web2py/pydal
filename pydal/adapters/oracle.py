@@ -61,8 +61,7 @@ class Oracle(SQLAdapter):
 
     def create_sequence_and_triggers(self, query, table, **args):
         tablename = table._rname
-        # FIXME: use _rname instead?
-        id_name = table._id.name
+        id_name = table._id._rname
         sequence_name = table._sequence_name
         trigger_name = table._trigger_name
         self.execute(query)

@@ -16,7 +16,7 @@ from pydal.helpers.classes import SQLALL
 from pydal.objects import Table, Expression, Row
 from ._compat import unittest
 from ._adapt import (
-    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA, _quote)
+    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA)
 from ._helpers import DALtest
 
 long = integer_types[-1]
@@ -1437,6 +1437,13 @@ class TestMigrations(unittest.TestCase):
 
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa'), Field('BB'),
+                        migrate='.storage.table')
+        db.define_table('t1', Field('aa'), Field('BB'),
+                        migrate='.storage.rname', rname='foo')
+        db.commit()
+        db.close()
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
         db.define_table('tt', Field('aa'), migrate='.storage.table')
         db.define_table('t1', Field('aa'), migrate='.storage.rname',
                         rname='foo')
@@ -1464,6 +1471,108 @@ class TestMigrations(unittest.TestCase):
         db.t1.drop()
         db.commit()
         db.close()
+
+    def testFieldRName(self):
+        def checkWrite(db, table, data):
+            rowid = table.insert(**data)
+            query = (table._id == rowid)
+            fields = [table[x] for x in data.keys()]
+            row = db(query).select(*fields).first()
+            self.assertIsNot(row, None)
+            self.assertEqual(row.as_dict(), data)
+            db(query).delete()
+
+        # Create tables
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa', rname='faa'),
+            Field('BB', rname='fbb'), migrate='.storage.table')
+        db.define_table('t1', Field('aa', rname='faa'),
+            Field('BB', rname='fbb'), migrate='.storage.rname', rname='foo')
+        data = dict(aa='aa1', BB='BB1')
+        checkWrite(db, db.tt, data)
+        checkWrite(db, db.t1, data)
+        db.commit()
+        db.close()
+
+        # Drop field defined by CREATE TABLE
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa', rname='faa'),
+            migrate='.storage.table')
+        db.define_table('t1', Field('aa', rname='faa'),
+            migrate='.storage.rname', rname='foo')
+        data = dict(aa='aa2')
+        checkWrite(db, db.tt, data)
+        checkWrite(db, db.t1, data)
+        db.commit()
+        db.close()
+
+        # Add new field
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa', rname='faa'), Field('b', rname='fb'),
+            migrate='.storage.table')
+        db.define_table('t1', Field('aa', rname='faa'), Field('b', rname='fb'),
+            migrate='.storage.rname', rname='foo')
+        data = dict(aa='aa3', b='b3')
+        integrity = dict(aa='data', b='integrity')
+        checkWrite(db, db.tt, data)
+        checkWrite(db, db.t1, data)
+        db.tt.insert(**integrity)
+        db.t1.insert(**integrity)
+        db.commit()
+        db.close()
+
+        # Change field type
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa', rname='faa'),
+            Field('b', 'text', rname='fb'), migrate='.storage.table')
+        db.define_table('t1', Field('aa', rname='faa'),
+            Field('b', 'text', rname='fb'), migrate='.storage.rname',
+            rname='foo')
+        data = dict(aa='aa4', b='b4')
+        checkWrite(db, db.tt, data)
+        checkWrite(db, db.t1, data)
+        row = db(db.tt).select(*[db.tt[x] for x in integrity.keys()]).first()
+        self.assertIsNot(row, None)
+        self.assertEqual(row.as_dict(), integrity)
+        row2 = db(db.t1).select(*[db.t1[x] for x in integrity.keys()]).first()
+        self.assertIsNot(row2, None)
+        self.assertEqual(row2.as_dict(), integrity)
+        db.commit()
+        db.close()
+
+        # Change field rname
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa', rname='faa'),
+            Field('b', 'text', rname='xb'), migrate='.storage.table')
+        db.define_table('t1', Field('aa', rname='faa'),
+            Field('b', 'text', rname='xb'), migrate='.storage.rname',
+            rname='foo')
+        data = dict(aa='aa4', b='b4')
+        checkWrite(db, db.tt, data)
+        checkWrite(db, db.t1, data)
+        row = db(db.tt).select(*[db.tt[x] for x in integrity.keys()]).first()
+        self.assertIsNot(row, None)
+        self.assertEqual(row.as_dict(), integrity)
+        row2 = db(db.t1).select(*[db.t1[x] for x in integrity.keys()]).first()
+        self.assertIsNot(row2, None)
+        self.assertEqual(row2.as_dict(), integrity)
+        db.commit()
+        db.close()
+
+        # Drop field defined by ALTER TABLE
+        db = DAL(DEFAULT_URI, check_reserved=['all'])
+        db.define_table('tt', Field('aa', rname='faa'),
+            migrate='.storage.table')
+        db.define_table('t1', Field('aa', rname='faa'),
+            migrate='.storage.rname', rname='foo')
+        data = dict(aa='aa5')
+        checkWrite(db, db.tt, data)
+        checkWrite(db, db.t1, data)
+        db.tt.drop()
+        db.t1.drop()
+        db.commit()
+        db.close()
+
 
     def tearDown(self):
         if os.path.exists('.storage.db'):
@@ -1875,7 +1984,7 @@ class TestRNameTable(DALtest):
 
     def testSelect(self):
         db = self.connect()
-        rname = _quote(db, 'a very complicated tablename')
+        rname = 'a_very_complicated_tablename'
         db.define_table(
             'easy_name',
             Field('a_field'),
@@ -1904,14 +2013,14 @@ class TestRNameTable(DALtest):
         avg = db.easy_name.id.avg()
         rtn = db(db.easy_name.id > 0).select(avg)
         self.assertEqual(rtn[0][avg], 3)
-        rname = _quote(db, 'this is the person table')
+        rname = 'this_is_the_person_table'
         db.define_table(
             'person',
             Field('name', default="Michael"),
             Field('uuid'),
             rname=rname
             )
-        rname = _quote(db, 'this is the pet table')
+        rname = 'this_is_the_pet_table'
         db.define_table(
             'pet',
             Field('friend','reference person'),
@@ -1984,7 +2093,7 @@ class TestRNameTable(DALtest):
             for key in ['reference','reference FK']:
                 db._adapter.types[key]=db._adapter.types[key].replace(
                 '%(on_delete_action)s','NO ACTION')
-        rname = _quote(db, 'the cubs')
+        rname = 'the_cubs'
         db.define_table('pet_farm',
             Field('name'),
             Field('father','reference pet_farm'),
@@ -2021,8 +2130,8 @@ class TestRNameTable(DALtest):
 
     def testJoin(self):
         db = self.connect()
-        rname = _quote(db, 'this is table t1')
-        rname2 = _quote(db, 'this is table t2')
+        rname = 'this_is_table_t1'
+        rname2 = 'this_is_table_t2'
         db.define_table('t1', Field('aa'), rname=rname)
         db.define_table('t2', Field('aa'), Field('b', db.t1), rname=rname2)
         i1 = db.t1.insert(aa='1')
@@ -2091,8 +2200,8 @@ class TestRNameFields(DALtest):
     # tests for highly experimental rname attribute
     def testSelect(self):
         db = self.connect()
-        rname = _quote(db, 'a very complicated fieldname')
-        rname2 = _quote(db, 'rrating from 1 to 10')
+        rname = 'a_very_complicated_fieldname'
+        rname2 = 'rrating_from_1_to_10'
         db.define_table(
             'easy_name',
             Field('a_field', rname=rname),
@@ -2126,14 +2235,14 @@ class TestRNameFields(DALtest):
         rtn = db(db.easy_name.id > 0).select(avg)
         self.assertEqual(rtn[0][avg], 2)
 
-        rname = _quote(db, 'this is the person name')
+        rname = 'this_is_the_person_name'
         db.define_table(
             'person',
             Field('id', type='id', rname='fooid'),
             Field('name', default="Michael", rname=rname),
             Field('uuid')
             )
-        rname = _quote(db, 'this is the pet name')
+        rname = 'this_is_the_pet_name'
         db.define_table(
             'pet',
             Field('friend','reference person'),
@@ -2200,7 +2309,7 @@ class TestRNameFields(DALtest):
         self.assertEqual(rtn[2].pet.name, 'Gertie')
 
         #aliases
-        rname = _quote(db, 'the cub name')
+        rname = 'the_cub_name'
         if DEFAULT_URI.startswith('mssql'):
             #multiple cascade gotcha
             for key in ['reference','reference FK']:
@@ -2241,7 +2350,7 @@ class TestRNameFields(DALtest):
 
     def testRun(self):
         db = self.connect()
-        rname = _quote(db, 'a very complicated fieldname')
+        rname = 'a_very_complicated_fieldname'
         for ft in ['string', 'text', 'password', 'upload', 'blob']:
             db.define_table('tt', Field('aa', ft, default='', rname=rname))
             self.assertEqual(db.tt.insert(aa='x'), 1)
@@ -2314,7 +2423,7 @@ class TestRNameFields(DALtest):
 
     def testInsert(self):
         db = self.connect()
-        rname = _quote(db, 'a very complicated fieldname')
+        rname = 'a_very_complicated_fieldname'
         db.define_table('tt', Field('aa', rname=rname))
         self.assertEqual(db.tt.insert(aa='1'), 1)
         self.assertEqual(db.tt.insert(aa='1'), 2)
@@ -2329,8 +2438,8 @@ class TestRNameFields(DALtest):
 
     def testJoin(self):
         db = self.connect()
-        rname = _quote(db, 'this is field aa')
-        rname2 = _quote(db, 'this is field b')
+        rname = 'this_is_field_aa'
+        rname2 = 'this_is_field_b'
         db.define_table('t1', Field('aa', rname=rname))
         db.define_table('t2', Field('aa', rname=rname), Field('b', db.t1, rname=rname2))
         i1 = db.t1.insert(aa='1')
@@ -2562,7 +2671,8 @@ class TestGis(DALtest):
         if not IS_POSTGRESQL: return
         for b in [True, False]:
             db = DAL(DEFAULT_URI, check_reserved=['all'], ignore_field_case=b)
-            t0 = db.define_table('t0', Field('Point', 'geometry()'))
+            t0 = db.define_table('t0', Field('Point', 'geometry()'),
+                Field('rname_point', 'geometry()', rname='foo'))
             db.commit()
             db.close()
             db = DAL(DEFAULT_URI, check_reserved=['all'], ignore_field_case=b)
