@@ -627,12 +627,14 @@ class SQLAdapter(BaseAdapter):
                 ijoin_tables, ijoin_on, itables_to_merge, ijoin_on_tables,
                 iimportant_tablenames, iexcluded, itablemap
             ) = self._build_joins_for_select(tablemap, join)
+            tablemap = merge_tablemaps(tablemap, itables_to_merge)
             tablemap = merge_tablemaps(tablemap, itablemap)
         if left:
             (
                 join_tables, join_on, tables_to_merge, join_on_tables,
                 important_tablenames, excluded, jtablemap
             ) = self._build_joins_for_select(tablemap, left)
+            tablemap = merge_tablemaps(tablemap, tables_to_merge)
             tablemap = merge_tablemaps(tablemap, jtablemap)
         current_scope = outer_scoped + list(tablemap)
         query_env = dict(current_scope=current_scope,
