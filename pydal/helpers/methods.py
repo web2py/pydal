@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-import uuid
-import re
 
-from .._compat import iteritems, integer_types
+import os
+import re
+import uuid
+from .._compat import (
+    PY2, BytesIO, iteritems, integer_types, string_types, to_bytes, pjoin,
+    exists
+)
 from .regex import REGEX_NOPASSWD, REGEX_UNPACK, REGEX_CONST_STRING, REGEX_W
 from .classes import SQLCustomType
-# from ..objects import Field, Table
 
 
 PLURALIZE_RULES = [
@@ -339,3 +342,81 @@ def geoLine(*line):
 
 def geoPolygon(*line):
     return "POLYGON ((%s))" % ','.join("%f %f" % item for item in line)
+
+
+# upload utils
+def attempt_upload(table, fields):
+    for fieldname in table._upload_fieldnames & set(fields):
+        value = fields[fieldname]
+        if not (value is None or isinstance(value, string_types)):
+            if not PY2 and isinstance(value, bytes):
+                continue
+            if hasattr(value, 'file') and hasattr(value, 'filename'):
+                new_name = table[fieldname].store(
+                    value.file, filename=value.filename)
+            elif isinstance(value, dict):
+                if 'data' in value and 'filename' in value:
+                    stream = BytesIO(to_bytes(value['data']))
+                    new_name = table[fieldname].store(
+                        stream, filename=value['filename'])
+                else:
+                    new_name = None
+            elif hasattr(value, 'read') and hasattr(value, 'name'):
+                new_name = table[fieldname].store(value, filename=value.name)
+            else:
+                raise RuntimeError("Unable to handle upload")
+            fields[fieldname] = new_name
+
+
+def attempt_upload_on_insert(table):
+    def wrapped(fields):
+        return attempt_upload(table, fields)
+    return wrapped
+
+
+def attempt_upload_on_update(table):
+    def wrapped(dbset, fields):
+        return attempt_upload(table, fields)
+    return wrapped
+
+
+def delete_uploaded_files(dbset, upload_fields=None):
+    table = dbset.db._adapter.tables(dbset.query).popitem()[1]
+    # ## mind uploadfield==True means file is not in DB
+    if upload_fields:
+        fields = list(upload_fields)
+        # Explicitly add compute upload fields (ex: thumbnail)
+        fields += [f for f in table.fields if table[f].compute is not None]
+    else:
+        fields = table.fields
+    fields = [
+        f for f in fields if table[f].type == 'upload' and
+        table[f].uploadfield == True and table[f].autodelete
+    ]
+    if not fields:
+        return False
+    for record in dbset.select(*[table[f] for f in fields]):
+        for fieldname in fields:
+            field = table[fieldname]
+            oldname = record.get(fieldname, None)
+            if not oldname:
+                continue
+            if upload_fields and fieldname in upload_fields and \
+               oldname == upload_fields[fieldname]:
+                continue
+            if field.custom_delete:
+                field.custom_delete(oldname)
+            else:
+                uploadfolder = field.uploadfolder
+                if not uploadfolder:
+                    uploadfolder = pjoin(
+                        dbset.db._adapter.folder, '..', 'uploads')
+                if field.uploadseparate:
+                    items = oldname.split('.')
+                    uploadfolder = pjoin(
+                        uploadfolder, "%s.%s" %
+                        (items[0], items[1]), items[2][:2])
+                oldpath = pjoin(uploadfolder, oldname)
+                if exists(oldpath):
+                    os.unlink(oldpath)
+    return False
