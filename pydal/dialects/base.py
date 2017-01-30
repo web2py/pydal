@@ -379,7 +379,8 @@ class SQLDialect(CommonDialect):
             self.expand(second, first.type, query_env=query_env))
 
     def _is_numerical(self, field_type):
-        return field_type in ('integer', 'boolean', 'double', 'bigint') or \
+        return field_type in \
+            ('integer', 'float', 'double', 'bigint', 'boolean') or \
             field_type.startswith('decimal')
 
     def add(self, first, second, query_env={}):
