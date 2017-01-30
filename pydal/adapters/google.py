@@ -374,7 +374,7 @@ class GoogleDatastore(NoSQLAdapter):
                 (t.name == 'nativeRef' and item) or getattr(item, t.name)
                 for t in fields
             ] for item in items]
-        colnames = ['%s.%s' % (table._tablename, t.name) for t in fields]
+        colnames = [t.longname for t in fields]
         processor = attributes.get('processor', self.parse)
         return processor(rows, fields, colnames, False)
 

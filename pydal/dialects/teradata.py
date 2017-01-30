@@ -97,4 +97,4 @@ class TeradataDialect(SQLDialect):
             dst, limit, fields, tables, whr, grp, order, offset, upd)
 
     def truncate(self, table, mode=''):
-        return ['DELETE FROM %s ALL;' % table._tablename]
+        return ['DELETE FROM %s ALL;' % table._rname]

@@ -40,10 +40,16 @@ class SQLiteDialect(SQLDialect):
             for_update)
 
     def truncate(self, table, mode=''):
-        tablename = table._tablename
+        tablename = self.adapter.expand(table._raw_rname, 'string')
         return [
-            self.delete(tablename),
-            self.delete('sqlite_sequence', "name='%s'" % tablename)]
+            self.delete(table),
+            "DELETE FROM sqlite_sequence WHERE name=%s" % tablename]
+
+    def writing_alias(self, table):
+        if table._dalname != table._tablename:
+            raise SyntaxError(
+                'SQLite does not support UPDATE/DELETE on aliased table')
+        return table._rname
 
 
 @dialects.register_for(Spatialite)

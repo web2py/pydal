@@ -105,10 +105,10 @@ class FireBirdDialect(SQLDialect):
     def drop_table(self, table, mode):
         sequence_name = table._sequence_name
         return [
-            'DROP TABLE %s %s;' % (table.sqlsafe, mode),
+            'DROP TABLE %s %s;' % (table._rname, mode),
             'DROP GENERATOR %s;' % sequence_name]
 
     def truncate(self, table, mode=''):
         return [
-            'DELETE FROM %s;' % table._tablename,
+            'DELETE FROM %s;' % table._rname,
             'SET GENERATOR %s TO 0;' % table._sequence_name]

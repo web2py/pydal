@@ -58,7 +58,7 @@ class PostgreDialect(SQLDialect):
     def insert(self, table, fields, values, returning=None):
         ret = ''
         if returning:
-            ret = 'RETURNING %s' % self.quote(returning)
+            ret = 'RETURNING %s' % returning
         return 'INSERT INTO %s(%s) VALUES (%s)%s;' % (
             table, fields, values, ret)
 
@@ -115,7 +115,7 @@ class PostgreDialect(SQLDialect):
     def drop_table(self, table, mode):
         if mode not in ['restrict', 'cascade', '']:
             raise ValueError('Invalid mode: %s' % mode)
-        return ['DROP TABLE ' + table.sqlsafe + ' ' + mode + ';']
+        return ['DROP TABLE ' + table._rname + ' ' + mode + ';']
 
     def create_index(self, name, table, expressions, unique=False, where=None):
         uniq = ' UNIQUE' if unique else ''
@@ -124,7 +124,7 @@ class PostgreDialect(SQLDialect):
             whr = ' %s' % self.where(where)
         with self.adapter.index_expander():
             rv = 'CREATE%s INDEX %s ON %s (%s)%s;' % (
-                uniq, self.quote(name), table.sqlsafe, ','.join(
+                uniq, self.quote(name), table._rname, ','.join(
                     self.expand(field) for field in expressions), whr)
         return rv
 

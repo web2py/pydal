@@ -75,9 +75,9 @@ class MSSQLDialect(SQLDialect):
 
     @sqltype_for('reference TFK')
     def type_reference_tfk(self):
-        return ' CONSTRAINT FK_%(foreign_table)s_PK FOREIGN KEY ' + \
+        return ' CONSTRAINT FK_%(constraint_name)s_PK FOREIGN KEY ' + \
             '(%(field_name)s) REFERENCES %(foreign_table)s ' + \
-            '(%(foreign_key)s) ON DELETE %(on_delete_action)s',
+            '(%(foreign_key)s) ON DELETE %(on_delete_action)s'
 
     @sqltype_for('geometry')
     def type_geometry(self):
@@ -89,6 +89,21 @@ class MSSQLDialect(SQLDialect):
 
     def varquote(self, val):
         return varquote_aux(val, '[%s]')
+
+    def update(self, table, values, where=None):
+        tablename = self.writing_alias(table)
+        whr = ''
+        if where:
+            whr = ' %s' % self.where(where)
+        return 'UPDATE %s SET %s FROM %s%s;' % (
+            table.sql_shortref, values, tablename, whr)
+
+    def delete(self, table, where=None):
+        tablename = self.writing_alias(table)
+        whr = ''
+        if where:
+            whr = ' %s' % self.where(where)
+        return 'DELETE %s FROM %s%s;' % (table.sql_shortref, tablename, whr)
 
     def select(self, fields, tables, where=None, groupby=None, having=None,
                orderby=None, limitby=None, distinct=False, for_update=False):
@@ -180,7 +195,7 @@ class MSSQLDialect(SQLDialect):
         return '; ALTER TABLE %s ADD ' % tablename
 
     def drop_index(self, name, table):
-        return 'DROP INDEX %s ON %s;' % (self.quote(name), table.sqlsafe)
+        return 'DROP INDEX %s ON %s;' % (self.quote(name), table._rname)
 
     def st_astext(self, first, query_env={}):
         return '%s.STAsText()' % self.expand(first, query_env=query_env)
@@ -393,7 +408,7 @@ class VerticaDialect(MSSQLDialect):
     def truncate(self, table, mode=''):
         if mode:
             mode = " %s" % mode
-        return ['TRUNCATE %s%s;' % (table.sqlsafe, mode)]
+        return ['TRUNCATE %s%s;' % (table._rname, mode)]
 
     def select(self, *args, **kwargs):
         return SQLDialect.select(self, *args, **kwargs)

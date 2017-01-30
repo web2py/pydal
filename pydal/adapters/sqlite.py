@@ -87,7 +87,7 @@ class SQLite(SQLAdapter):
         counter = super(SQLite, self).delete(table, query)
         if counter:
             for field in table._referenced_by:
-                if field.type == 'reference ' + table._tablename \
+                if field.type == 'reference ' + table._dalname \
                    and field.ondelete == 'CASCADE':
                     db(field.belongs(deleted)).delete()
         return counter
