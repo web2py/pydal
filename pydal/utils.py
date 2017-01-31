@@ -5,7 +5,7 @@
 
     Provides some utilities for pydal.
 
-    :copyright: (c) 2016 by Giovanni Barillari and contributors
+    :copyright: (c) 2017 by Giovanni Barillari and contributors
     :license: BSD, see LICENSE for more details.
 """
 
