@@ -1,6 +1,16 @@
 pydal changelog
 ===============
 
+Version 17.01
+-------------
+
+Released on January 31st 2017
+
+- Several bugfixes
+- Introduced "joinable" sub-selects
+- Values are now kept between callbacks
+
+
 Version 16.11
 -------------
 
