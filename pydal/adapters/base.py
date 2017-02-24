@@ -346,6 +346,12 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     def rowslice(self, rows, minimum=0, maximum=None):
         return rows
 
+    def sqlsafe_table(self, tablename, original_tablename=None):
+        return tablename
+
+    def sqlsafe_field(self, fieldname):
+        return fieldname
+
 
 class DebugHandler(ExecutionHandler):
     def before_execute(self, command):
@@ -940,12 +946,6 @@ class NoSQLAdapter(BaseAdapter):
     def nested_select(self, *args, **kwargs):
         raise NotOnNOSQLError(
             "Nested queries are not supported on NoSQL databases")
-
-    def sqlsafe_table(self, tablename, original_tablename=None):
-        return tablename
-
-    def sqlsafe_field(self, fieldname):
-        return fieldname
 
 
 class NullAdapter(BaseAdapter):
