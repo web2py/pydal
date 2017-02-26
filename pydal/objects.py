@@ -2933,6 +2933,16 @@ class Rows(BasicRows):
             return row[keys[0]]
         return row
 
+    def __getstate__(self):
+        ret = self.__dict__.copy()
+        del ret['fields']
+        return ret
+
+    def _restore_fields(self, fields):
+        if not hasattr(self, 'fields'):
+            self.fields = fields
+        return self
+
 
 @implements_iterator
 class IterRows(BasicRows):

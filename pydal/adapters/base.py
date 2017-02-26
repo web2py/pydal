@@ -745,10 +745,12 @@ class SQLAdapter(BaseAdapter):
         key = self.uri + '/' + sql
         key = hashlib_md5(key).hexdigest()
         args = (sql, fields, attributes, colnames)
-        return cache_model(
+        ret = cache_model(
             key,
             lambda self=self, args=args: self._select_aux(*args),
             time_expire)
+        ret._restore_fields(fields)
+        return ret
 
     def select(self, query, fields, attributes):
         colnames, sql = self._select_wcols(query, fields, **attributes)

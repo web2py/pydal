@@ -1,5 +1,5 @@
 from ._compat import unittest
-from ._adapt import DEFAULT_URI
+from ._adapt import DEFAULT_URI, drop
 from pydal import DAL
 
 class DALtest(unittest.TestCase):
@@ -20,6 +20,6 @@ class DALtest(unittest.TestCase):
             db.commit()
             tablist = list(db.tables)
             for table in reversed(tablist):
-                db[table].drop()
+                drop(db[table])
             db.close()
         self._connections = []
