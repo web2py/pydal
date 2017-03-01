@@ -2,7 +2,7 @@ import time
 import pickle
 from pydal import DAL, Field
 from ._compat import unittest
-from ._adapt import DEFAULT_URI, IS_IMAP, drop
+from ._adapt import DEFAULT_URI, IS_IMAP, IS_MSSQL
 from ._helpers import DALtest
 
 
@@ -67,10 +67,12 @@ class TestCache(DALtest):
         db.tt.insert(aa='1', bb=2, cc=3)
         r0 = db(db.tt).select(db.tt.ALL)
         csv0 = str(r0)
-        r1 = db(db.tt).select(db.tt.ALL, cache=cache)
-        self.assertEqual(csv0, str(r1))
-        r2 = db(db.tt).select(db.tt.ALL, cache=cache)
-        self.assertEqual(csv0, str(r2))
+        # raw data returned by MSSQL cannot be pickled...
+        if not IS_MSSQL:
+            r1 = db(db.tt).select(db.tt.ALL, cache=cache)
+            self.assertEqual(csv0, str(r1))
+            r2 = db(db.tt).select(db.tt.ALL, cache=cache)
+            self.assertEqual(csv0, str(r2))
         r3 = db(db.tt).select(db.tt.ALL, cache=cache, cacheable=True)
         self.assertEqual(csv0, str(r3))
         r4 = db(db.tt).select(db.tt.ALL, cache=cache, cacheable=True)
