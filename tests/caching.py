@@ -59,6 +59,7 @@ class TestCache(DALtest):
         r4 = db().select(db.tt.ALL, cache=(cache, 1000), cacheable=True)
         self.assertEqual(len(r0), len(r4))
 
+    @unittest.skipIf(IS_MSSQL, "Class nesting in ODBC driver breaks pickle")
     def testPickling(self):
         db = self.connect()
         cache = (PickleCache(), 1000)
@@ -67,12 +68,10 @@ class TestCache(DALtest):
         db.tt.insert(aa='1', bb=2, cc=3)
         r0 = db(db.tt).select(db.tt.ALL)
         csv0 = str(r0)
-        # raw data returned by MSSQL cannot be pickled...
-        if not IS_MSSQL:
-            r1 = db(db.tt).select(db.tt.ALL, cache=cache)
-            self.assertEqual(csv0, str(r1))
-            r2 = db(db.tt).select(db.tt.ALL, cache=cache)
-            self.assertEqual(csv0, str(r2))
+        r1 = db(db.tt).select(db.tt.ALL, cache=cache)
+        self.assertEqual(csv0, str(r1))
+        r2 = db(db.tt).select(db.tt.ALL, cache=cache)
+        self.assertEqual(csv0, str(r2))
         r3 = db(db.tt).select(db.tt.ALL, cache=cache, cacheable=True)
         self.assertEqual(csv0, str(r3))
         r4 = db(db.tt).select(db.tt.ALL, cache=cache, cacheable=True)
