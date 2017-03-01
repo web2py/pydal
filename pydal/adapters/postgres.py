@@ -101,7 +101,6 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
     def after_connection(self):
         self.execute("SET CLIENT_ENCODING TO 'UTF8'")
         self.execute("SET standard_conforming_strings=on;")
-        self._config_json()
 
     def lastrowid(self, table):
         if self._last_insert:
@@ -141,7 +140,7 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
 class PostgrePsyco(Postgre):
     drivers = ('psycopg2',)
 
-    def _config_json(self):
+    def after_reconnect(self):
         use_json = self.driver.__version__ >= "2.0.12" and \
             self.connection.server_version >= 90200
         if use_json:
@@ -165,7 +164,7 @@ class PostgrePsyco(Postgre):
 class PostgrePG8000(Postgre):
     drivers = ('pg8000',)
 
-    def _config_json(self):
+    def after_reconnect(self):
         if self.connection._server_version >= "9.2.0":
             self.dialect = self._get_json_dialect()(self)
             if self.driver.__version__ >= '1.10.2':
@@ -268,9 +267,8 @@ class JDBCPostgre(Postgre):
         self.connection.set_client_encoding('UTF8')
         self.execute('BEGIN;')
         self.execute("SET CLIENT_ENCODING TO 'UNICODE';")
-        self._config_json()
 
-    def _config_json(self):
+    def after_reconnect(self):
         use_json = self.connection.dbversion >= "9.2.0"
         if use_json:
             self.dialect = self._get_json_dialect()(self)

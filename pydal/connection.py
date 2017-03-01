@@ -133,9 +133,16 @@ class ConnectionPool(object):
         if callable(self._after_connection):
             self._after_connection(self)
         self.after_connection()
+        self.after_reconnect()
 
     def after_connection(self):
         #this it is supposed to be overloaded by adapters
+        pass
+
+    def after_reconnect(self):
+        #this it is supposed to be overloaded by adapters
+        #called after after_connection() and every time an idle connection
+        #is taken out of the connection pool.
         pass
 
     def reconnect(self):
@@ -164,6 +171,7 @@ class ConnectionPool(object):
                     try:
                         if self.check_active_connection:
                             self.test_connection()
+                        self.after_reconnect()
                         break
                     except:
                         pass
