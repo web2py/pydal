@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import threading
 from ._compat import itervalues
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL
 from ._load import OrderedDict
@@ -14,6 +15,8 @@ class ConnectionPool(object):
         _iid_ = str(id(self))
         self._connection_thname_ = '_pydal_connection_' + _iid_ + '_'
         self._cursors_thname_ = '_pydal_cursors_' + _iid_ + '_'
+        self._lock = threading.RLock()
+        self._first_connection = True
 
     @property
     def _pid_(self):
@@ -133,16 +136,14 @@ class ConnectionPool(object):
         if callable(self._after_connection):
             self._after_connection(self)
         self.after_connection()
-        self.after_reconnect()
 
     def after_connection(self):
         #this it is supposed to be overloaded by adapters
         pass
 
-    def after_reconnect(self):
+    def after_first_reconnect(self):
         #this it is supposed to be overloaded by adapters
-        #called after after_connection() and every time an idle connection
-        #is taken out of the connection pool.
+        #called after first reconnect() to finish adapter initialization
         pass
 
     def reconnect(self):
@@ -171,7 +172,6 @@ class ConnectionPool(object):
                     try:
                         if self.check_active_connection:
                             self.test_connection()
-                        self.after_reconnect()
                         break
                     except:
                         pass
@@ -180,3 +180,7 @@ class ConnectionPool(object):
                     self.connection = self.connector()
                     self.after_connection_hook()
                     break
+        with self._lock:
+            if self._first_connection:
+                self.after_first_reconnect()
+                self._first_connection = False

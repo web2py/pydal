@@ -31,7 +31,7 @@ class Informix(SQLAdapter):
     def connector(self):
         return self.driver.connect(self.dsn, **self.driver_args)
 
-    def after_reconnect(self):
+    def after_first_reconnect(self):
         self.dbms_version = int(self.connection.dbms_version.split('.')[0])
 
     @with_connection_or_raise

@@ -70,7 +70,7 @@ class Mongo(NoSQLAdapter):
         conn.commit = lambda: None
         return conn
 
-    def after_reconnect(self):
+    def after_first_reconnect(self):
         #: server version
         self._server_version = self.connection.command(
             "serverStatus")['version']
