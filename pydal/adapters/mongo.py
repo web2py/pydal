@@ -1,7 +1,7 @@
 import copy
 import random
 from datetime import datetime
-from .._compat import integer_types, basestring, long
+from .._compat import basestring, long
 from ..exceptions import NotOnNOSQLError
 from ..helpers.classes import FakeCursor, Reference, SQLALL
 from ..helpers.methods import use_common_filters, xorify
@@ -62,6 +62,8 @@ class Mongo(NoSQLAdapter):
         # synchronous, except when overruled by either this default or
         # function parameter
         self.safe = 1 if self.adapter_args.get('safe', True) else 0
+        #: load configuration on first connection
+        self.reconnect = self._reconnect_and_configure
 
     def connector(self):
         conn = self.driver.MongoClient(self.uri, w=self.safe)[self._driver_db]
@@ -70,7 +72,7 @@ class Mongo(NoSQLAdapter):
         conn.commit = lambda: None
         return conn
 
-    def after_connection(self):
+    def _set_server_version(self):
         #: server version
         self._server_version = self.connection.command(
             "serverStatus")['version']
@@ -78,6 +80,14 @@ class Mongo(NoSQLAdapter):
             [int(x) for x in self._server_version.split('.')])
         self.server_version_major = (
             self.server_version[0] + self.server_version[1] / 10.0)
+
+    def _reconnect_and_configure(self):
+        self._reconnect()
+        self._set_server_version()
+        self.reconnect = self._reconnect
+
+    def _reconnect(self):
+        super(Mongo, self).reconnect()
 
     def object_id(self, arg=None):
         """ Convert input to a valid Mongodb ObjectId instance

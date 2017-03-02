@@ -78,6 +78,8 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
         else:
             self.__version__ = None
         THREAD_LOCAL._pydal_last_insert_ = None
+        #: load configuration on first connection
+        self.reconnect = self._reconnect_and_configure
 
     def _get_json_dialect(self):
         from ..dialects.postgre import PostgreDialectJSON
@@ -101,7 +103,14 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
     def after_connection(self):
         self.execute("SET CLIENT_ENCODING TO 'UTF8'")
         self.execute("SET standard_conforming_strings=on;")
+
+    def _reconnect_and_configure(self):
+        self._reconnect()
         self._config_json()
+        self.reconnect = self._reconnect
+
+    def _reconnect(self):
+        super(Postgre, self).reconnect()
 
     def lastrowid(self, table):
         if self._last_insert:
@@ -260,6 +269,8 @@ class JDBCPostgre(Postgre):
         else:
             self.__version__ = None
         THREAD_LOCAL._pydal_last_insert_ = None
+        #: load configuration on first connection
+        self.reconnect = self._reconnect_and_configure
 
     def connector(self):
         return self.driver.connect(*self.dsn, **self.driver_args)
@@ -268,7 +279,14 @@ class JDBCPostgre(Postgre):
         self.connection.set_client_encoding('UTF8')
         self.execute('BEGIN;')
         self.execute("SET CLIENT_ENCODING TO 'UNICODE';")
+
+    def _reconnect_and_configure(self):
+        self._reconnect()
         self._config_json()
+        self.reconnect = self._reconnect
+
+    def _reconnect(self):
+        super(Postgre, self).reconnect()
 
     def _config_json(self):
         use_json = self.connection.dbversion >= "9.2.0"

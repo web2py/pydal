@@ -27,12 +27,19 @@ class Informix(SQLAdapter):
             raise SyntaxError('Database name required')
         self.dsn = '%s@%s' % (db, host)
         self.driver_args.update(user=user, password=password)
+        #: load configuration on first connection
+        self.reconnect = self._reconnect_and_configure
 
     def connector(self):
         return self.driver.connect(self.dsn, **self.driver_args)
 
-    def after_connection(self):
+    def _reconnect_and_configure(self):
+        self._reconnect()
         self.dbms_version = int(self.connection.dbms_version.split('.')[0])
+        self.reconnect = self._reconnect
+
+    def _reconnect(self):
+        super(Informix, self).reconnect()
 
     @with_connection_or_raise
     def execute(self, *args, **kwargs):
