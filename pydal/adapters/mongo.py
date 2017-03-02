@@ -3,7 +3,8 @@ import random
 from datetime import datetime
 from .._compat import basestring, long
 from ..exceptions import NotOnNOSQLError
-from ..helpers.classes import FakeCursor, Reference, SQLALL
+from ..helpers.classes import (
+    FakeCursor, Reference, SQLALL, ConnectionConfigurationMixin)
 from ..helpers.methods import use_common_filters, xorify
 from ..objects import Field, Row, Query, Expression
 from .base import NoSQLAdapter
@@ -17,8 +18,9 @@ except:
         pass
     USER_DEFINED_SUBTYPE = 0
 
+
 @adapters.register_for('mongodb')
-class Mongo(NoSQLAdapter):
+class Mongo(ConnectionConfigurationMixin, NoSQLAdapter):
     dbengine = 'mongodb'
     drivers = ('pymongo',)
 
@@ -62,8 +64,7 @@ class Mongo(NoSQLAdapter):
         # synchronous, except when overruled by either this default or
         # function parameter
         self.safe = 1 if self.adapter_args.get('safe', True) else 0
-        #: load configuration on first connection
-        self.reconnect = self._reconnect_and_configure
+        self._mock_reconnect()
 
     def connector(self):
         conn = self.driver.MongoClient(self.uri, w=self.safe)[self._driver_db]
@@ -72,7 +73,7 @@ class Mongo(NoSQLAdapter):
         conn.commit = lambda: None
         return conn
 
-    def _set_server_version(self):
+    def _configure_on_first_reconnect(self):
         #: server version
         self._server_version = self.connection.command(
             "serverStatus")['version']
@@ -80,14 +81,6 @@ class Mongo(NoSQLAdapter):
             [int(x) for x in self._server_version.split('.')])
         self.server_version_major = (
             self.server_version[0] + self.server_version[1] / 10.0)
-
-    def _reconnect_and_configure(self):
-        self._reconnect()
-        self._set_server_version()
-        self.reconnect = self._reconnect
-
-    def _reconnect(self):
-        super(Mongo, self).reconnect()
 
     def object_id(self, arg=None):
         """ Convert input to a valid Mongodb ObjectId instance
