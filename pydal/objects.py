@@ -2676,7 +2676,7 @@ class Rows(BasicRows):
             raise Exception('Cannot & incompatible Rows objects')
         records = self.records + other.records
         return self.__class__(
-            self.db, records, self.colnames,
+            self.db, records, self.colnames, fields=self.fields,
             compact=self.compact or other.compact)
 
     def __or__(self, other):
@@ -2686,7 +2686,7 @@ class Rows(BasicRows):
                    if record not in self.records]
         records = self.records + records
         return self.__class__(
-            self.db, records, self.colnames,
+            self.db, records, self.colnames, fields=self.fields,
             compact=self.compact or other.compact)
 
     def __len__(self):
@@ -2694,7 +2694,8 @@ class Rows(BasicRows):
 
     def __getslice__(self, a, b):
         return self.__class__(
-            self.db, self.records[a:b], self.colnames, compact=self.compact)
+            self.db, self.records[a:b], self.colnames, compact=self.compact,
+            fields=self.fields)
 
     def __getitem__(self, i):
         row = self.records[i]
@@ -2743,7 +2744,8 @@ class Rows(BasicRows):
         """
         if not self:
             return self.__class__(
-                self.db, [], self.colnames, compact=self.compact)
+                self.db, [], self.colnames, compact=self.compact,
+                fields=self.fields)
         records = []
         if limitby:
             a, b = limitby
@@ -2758,7 +2760,8 @@ class Rows(BasicRows):
                 if k == b:
                     break
         return self.__class__(
-            self.db, records, self.colnames, compact=self.compact)
+            self.db, records, self.colnames, compact=self.compact,
+            fields=self.fields)
 
     def exclude(self, f):
         """
@@ -2767,7 +2770,8 @@ class Rows(BasicRows):
         """
         if not self.records:
             return self.__class__(
-                self.db, [], self.colnames, compact=self.compact)
+                self.db, [], self.colnames, compact=self.compact,
+                fields=self.fields)
         removed = []
         i = 0
         while i < len(self):
@@ -2778,13 +2782,16 @@ class Rows(BasicRows):
             else:
                 i += 1
         return self.__class__(
-            self.db, removed, self.colnames, compact=self.compact)
+            self.db, removed, self.colnames, compact=self.compact,
+            fields=self.fields)
 
     def sort(self, f, reverse=False):
         """
         Returns a list of sorted elements (not sorted in place)
         """
-        rows = self.__class__(self.db, [], self.colnames, compact=self.compact)
+        rows = self.__class__(
+            self.db, [], self.colnames, compact=self.compact,
+            fields=self.fields)
         # When compact=True, iterating over self modifies each record,
         # so when sorting self, it is necessary to return a sorted
         # version of self.records rather than the sorted self directly.
@@ -2932,6 +2939,16 @@ class Rows(BasicRows):
         if self.compact and len(keys) == 1 and keys[0] != '_extra':
             return row[keys[0]]
         return row
+
+    def __getstate__(self):
+        ret = self.__dict__.copy()
+        del ret['fields']
+        return ret
+
+    def _restore_fields(self, fields):
+        if not hasattr(self, 'fields'):
+            self.fields = fields
+        return self
 
 
 @implements_iterator

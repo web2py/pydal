@@ -429,7 +429,7 @@ class Migrator(object):
                     drop_expr % (table._rname, key_tmp)
                 ]
                 metadata_change = True
-            elif sql_fields[key]['type'] != sql_fields_old[key]['type']:
+            elif sql_fields[key] != sql_fields_old[key]:
                 sql_fields_current[key] = sql_fields[key]
                 metadata_change = True
 

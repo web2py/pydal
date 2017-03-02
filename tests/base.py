@@ -176,3 +176,13 @@ class TestChainedJoinUNIQUE(unittest.TestCase):
         drop(db.bb)
         drop(db.aa)
         db.close()
+
+class TestNullAdapter(unittest.TestCase):
+    # Test that NullAdapter can define tables
+
+    def testRun(self):
+        db = DAL(None)
+        db.define_table('no_table', Field('aa'))
+        self.assertIsInstance(db.no_table.aa, Field)
+        self.assertIsInstance(db.no_table['aa'], Field)
+        db.close()
