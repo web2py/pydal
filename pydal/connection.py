@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import threading
 from ._compat import itervalues
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL
 from ._load import OrderedDict
@@ -14,6 +15,7 @@ class ConnectionPool(object):
         _iid_ = str(id(self))
         self._connection_thname_ = '_pydal_connection_' + _iid_ + '_'
         self._cursors_thname_ = '_pydal_cursors_' + _iid_ + '_'
+        self._lock = threading.RLock()
 
     @property
     def _pid_(self):
@@ -134,8 +136,19 @@ class ConnectionPool(object):
             self._after_connection(self)
         self.after_connection()
 
+    def _first_reconnect_hook(self):
+        with self._lock:
+            if '_first_reconnect_hook' not in self.__dict__:
+                self.after_first_reconnect()
+                self._first_reconnect_hook = lambda self=self: None
+
     def after_connection(self):
         #this it is supposed to be overloaded by adapters
+        pass
+
+    def after_first_reconnect(self):
+        #this it is supposed to be overloaded by adapters
+        #called after first reconnect() to finish adapter initialization
         pass
 
     def reconnect(self):
@@ -172,3 +185,4 @@ class ConnectionPool(object):
                     self.connection = self.connector()
                     self.after_connection_hook()
                     break
+        self._first_reconnect_hook()
