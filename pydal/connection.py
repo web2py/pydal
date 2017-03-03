@@ -16,7 +16,6 @@ class ConnectionPool(object):
         self._connection_thname_ = '_pydal_connection_' + _iid_ + '_'
         self._cursors_thname_ = '_pydal_cursors_' + _iid_ + '_'
         self._lock = threading.RLock()
-        self._first_connection = True
 
     @property
     def _pid_(self):
@@ -137,6 +136,12 @@ class ConnectionPool(object):
             self._after_connection(self)
         self.after_connection()
 
+    def _first_reconnect_hook(self):
+        with self._lock:
+            if '_first_reconnect_hook' not in self.__dict__:
+                self.after_first_reconnect()
+                self._first_reconnect_hook = lambda self=self: None
+
     def after_connection(self):
         #this it is supposed to be overloaded by adapters
         pass
@@ -180,7 +185,4 @@ class ConnectionPool(object):
                     self.connection = self.connector()
                     self.after_connection_hook()
                     break
-        with self._lock:
-            if self._first_connection:
-                self.after_first_reconnect()
-                self._first_connection = False
+        self._first_reconnect_hook()
