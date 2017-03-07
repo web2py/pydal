@@ -1,9 +1,10 @@
+from ..helpers.classes import ConnectionConfigurationMixin
 from .base import SQLAdapter
 from . import adapters, with_connection_or_raise
 
 
 @adapters.register_for('informix')
-class Informix(SQLAdapter):
+class Informix(ConnectionConfigurationMixin, SQLAdapter):
     dbengine = 'informix'
     drivers = ('informixdb',)
 
@@ -27,11 +28,12 @@ class Informix(SQLAdapter):
             raise SyntaxError('Database name required')
         self.dsn = '%s@%s' % (db, host)
         self.driver_args.update(user=user, password=password)
+        self._mock_reconnect()
 
     def connector(self):
         return self.driver.connect(self.dsn, **self.driver_args)
 
-    def after_connection(self):
+    def _configure_on_first_reconnect(self):
         self.dbms_version = int(self.connection.dbms_version.split('.')[0])
 
     @with_connection_or_raise

@@ -1,9 +1,10 @@
 import copy
 import random
 from datetime import datetime
-from .._compat import integer_types, basestring, long
+from .._compat import basestring, long
 from ..exceptions import NotOnNOSQLError
-from ..helpers.classes import FakeCursor, Reference, SQLALL
+from ..helpers.classes import (
+    FakeCursor, Reference, SQLALL, ConnectionConfigurationMixin)
 from ..helpers.methods import use_common_filters, xorify
 from ..objects import Field, Row, Query, Expression
 from .base import NoSQLAdapter
@@ -17,8 +18,9 @@ except:
         pass
     USER_DEFINED_SUBTYPE = 0
 
+
 @adapters.register_for('mongodb')
-class Mongo(NoSQLAdapter):
+class Mongo(ConnectionConfigurationMixin, NoSQLAdapter):
     dbengine = 'mongodb'
     drivers = ('pymongo',)
 
@@ -62,6 +64,7 @@ class Mongo(NoSQLAdapter):
         # synchronous, except when overruled by either this default or
         # function parameter
         self.safe = 1 if self.adapter_args.get('safe', True) else 0
+        self._mock_reconnect()
 
     def connector(self):
         conn = self.driver.MongoClient(self.uri, w=self.safe)[self._driver_db]
@@ -70,7 +73,7 @@ class Mongo(NoSQLAdapter):
         conn.commit = lambda: None
         return conn
 
-    def after_connection(self):
+    def _configure_on_first_reconnect(self):
         #: server version
         self._server_version = self.connection.command(
             "serverStatus")['version']
