@@ -1,7 +1,8 @@
 import re
-from .._compat import integer_types, long
+from .._compat import long
 from .base import SQLAdapter
 from . import adapters
+
 
 @adapters.register_for('firebird')
 class FireBird(SQLAdapter):
@@ -59,8 +60,8 @@ class FireBird(SQLAdapter):
         self.execute('set generator %s to 0;' % sequence_name)
         self.execute(
             'create trigger %s for %s active before insert position 0 ' +
-            'as\nbegin\nif(new.id is null) then\nbegin\n' +
-            'new.id = gen_id(%s, 1);\nend\nend;' % (
+            'as\nbegin\nif(new."id" is null) then\nbegin\n' +
+            'new."id" = gen_id(%s, 1);\nend\nend;' % (
                 trigger_name, tablename, sequence_name))
 
 
