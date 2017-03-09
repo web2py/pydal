@@ -57,10 +57,12 @@ class FireBird(SQLAdapter):
         self.execute(query)
         self.execute('create generator %s;' % sequence_name)
         self.execute('set generator %s to 0;' % sequence_name)
-        self.execute(
-            'create trigger %s for %s active before insert position 0 ' +
-            'as\nbegin\nif(new.id is null) then\nbegin\n' +
-            'new.id = gen_id(%s, 1);\nend\nend;' % (
+        #~ self.execute(
+            #~ 'create trigger %s for %s active before insert position 0 ' +
+            #~ 'as\nbegin\nif(new.id is null) then\nbegin\n' +
+            #~ 'new.id = gen_id(%s, 1);\nend\nend;' % (
+                #~ trigger_name, tablename, sequence_name))
+        self.execute('create trigger %s for %s active before insert position 0 as\nbegin\nif(new."id" is null) then\nbegin\n new."id" = gen_id(%s, 1);\nend\nend;' % (
                 trigger_name, tablename, sequence_name))
 
 
