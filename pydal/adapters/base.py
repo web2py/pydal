@@ -46,8 +46,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.expand = self._expand
         self._after_connection = after_connection
         self.connection = None
-        if do_connect:
-            self.find_driver()
+        self.find_driver()
         self._initialize_(do_connect)
         if do_connect:
             self.reconnect()
