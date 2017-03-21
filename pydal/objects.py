@@ -1640,6 +1640,7 @@ class Field(Expression, Serializable):
 
     def set_attributes(self, *args, **attributes):
         self.__dict__.update(*args, **attributes)
+        return self
 
     def clone(self, point_self_references_to=False, **args):
         field = copy.copy(self)
