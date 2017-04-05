@@ -5,7 +5,7 @@ from ..helpers.classes import Reference
 from .base import SQLAdapter
 from . import adapters, with_connection_or_raise
 
-@adapters.register_for('')
+@adapters.register_for('oracle')
 class Oracle(SQLAdapter):
     dbengine = 'oracle'
     drivers = ('cx_Oracle',)
