@@ -99,9 +99,10 @@ def with_metaclass(meta, *bases):
 def to_unicode(obj, charset='utf-8', errors='strict'):
     if obj is None:
         return None
-    if not isinstance(obj, bytes):
+    try:
+        return obj.decode(charset, errors)
+    except AttributeError:
         return text_type(obj)
-    return obj.decode(charset, errors)
 
 
 # shortcuts
