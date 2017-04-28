@@ -37,7 +37,7 @@ class Oracle(SQLAdapter):
         command = self.filter_sql_command(args[0])
         i = 1
         while True:
-            m = self.oracle_fix.match(command)
+            m = self.cmd_fix.match(command)
             if not m:
                 break
             command = command[:m.start('clob')] + str(i) + \
