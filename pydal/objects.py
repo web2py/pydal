@@ -647,6 +647,8 @@ class Table(Serializable, BasicStorage):
     @property
     def sql_fullref(self):
         if self._tablename == self._dalname:
+            if (self._db._adapter.dbengine=='oracle'):
+                return self._db._adapter.dialect.quote(self._rname)
             return self._rname
         return self._db._adapter.sqlsafe_table(self._tablename, self._rname)
 
@@ -2464,7 +2466,7 @@ class BasicRows(object):
                         yield i
                         i += 1
                 key_generator = new_key()
-                key = lambda r: key_generator.next()
+                key = lambda r: next(key_generator)
 
         rows = self.as_list(compact, storage_to_dict, datetime_to_str,
                             custom_types)
