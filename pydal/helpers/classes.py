@@ -225,7 +225,7 @@ class Reference(long):
             return None
 
     def get(self, key, default=None):
-        return self.__getattr__(key, default)
+        return self.__getattr__(key) or default
 
     def __setattr__(self, key, value):
         if key.startswith('_'):
