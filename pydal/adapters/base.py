@@ -420,7 +420,7 @@ class SQLAdapter(BaseAdapter):
             else:
                 rv = expression.longname
             if field_type == 'string' and expression.type not in (
-                    'string', 'text', 'json', 'password'):
+                    'string', 'text', 'json', 'jsonb', 'password'):
                 rv = self.dialect.cast(rv, self.types['text'], query_env)
         elif isinstance(expression, (Expression, Query)):
             first = expression.first
