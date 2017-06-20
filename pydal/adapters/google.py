@@ -11,6 +11,7 @@ from ..helpers.methods import use_common_filters, xorify
 from ..objects import Table, Field, Expression, Query
 from .base import NoSQLAdapter
 from .mysql import MySQL
+from .postgres import PostgrePsyco
 from . import adapters, with_connection_or_raise
 
 
@@ -46,7 +47,7 @@ class GoogleSQL(MySQL):
             self.folder = os.path.relpath(self.folder, os.getcwd())
 
     def _initialize_(self, do_connect):
-        super(MySQL, self)._initialize_(do_connect)
+        super(GoogleSQL, self)._initialize_(do_connect)
         self.folder = self.folder or pjoin(
             '$HOME', THREAD_LOCAL._pydal_folder_.split(
                 os.sep+'applications'+os.sep, 1)[1])
@@ -84,6 +85,52 @@ class GoogleSQL(MySQL):
         for handler in handlers:
             handler.after_execute(command)
         return rv
+
+    def clear_cache(self):
+        ndb.get_context().clear_cache()
+
+    def ignore_cache_for(self, entities=None):
+        entities = entities or []
+        ndb.get_context().set_cache_policy(
+            lambda key: key.kind() not in entities)
+
+
+@adapters.register_for('google:mysql')
+class GoogleMySQL(MySQL):
+    uploads_in_blob = True
+
+    def __init__(self, *args, **kwargs):
+        super(GoogleMySQL, self).__init__(*args, **kwargs)
+        self.migrator = GoogleMigrator(self)
+
+    def _find_work_folder(self):
+        super(GoogleMySQL)._find_work_folder()
+        if os.path.isabs(self.folder) and self.folder.startswith(os.getcwd()):
+            self.folder = os.path.relpath(self.folder, os.getcwd())
+
+    def find_driver(self):
+        self.driver = "pymysql"
+
+    def clear_cache(self):
+        ndb.get_context().clear_cache()
+
+    def ignore_cache_for(self, entities=None):
+        entities = entities or []
+        ndb.get_context().set_cache_policy(
+            lambda key: key.kind() not in entities)
+
+@adapters.register_for('google:postgres')
+class GooglePostgres(PostgrePsyco):
+    uploads_in_blob = True
+
+    def __init__(self, *args, **kwargs):
+        super(GooglePostgres, self).__init__(*args, **kwargs)
+        self.migrator = GoogleMigrator(self)
+
+    def _find_work_folder(self):
+        super(GooglePostgres)._find_work_folder()
+        if os.path.isabs(self.folder) and self.folder.startswith(os.getcwd()):
+            self.folder = os.path.relpath(self.folder, os.getcwd())
 
     def clear_cache(self):
         ndb.get_context().clear_cache()
@@ -294,12 +341,12 @@ class GoogleDatastore(NoSQLAdapter):
 
         if filters == None:
             items = tableobj.query(default_options=qo)
-        elif hasattr(filters, 'filter_all') and filters.filter_all:
+        elif getattr(filters, 'filter_all', None):
             items = []
-        elif (hasattr(filters, '_FilterNode__name') and
-              filters._FilterNode__name == '__key__' and
-              filters._FilterNode__opsymbol == '='):
-            item = ndb.Key.from_old_key(filters._FilterNode__value).get()
+        elif (getattr(filters, '_FilterNode__value') and
+              getattr(filters, '_FilterNode__name', None) == '__key__' and
+              getattr(filters, '_FilterNode__opsymbol', None) == '='):
+            item = ndb.Key.from_old_key(getattr(filters, '_FilterNode__value')).get()
             items = [item] if item else []
         else:
             items = tableobj.query(filters, default_options=qo)
