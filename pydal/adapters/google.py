@@ -343,7 +343,7 @@ class GoogleDatastore(NoSQLAdapter):
             items = tableobj.query(default_options=qo)
         elif getattr(filters, 'filter_all', None):
             items = []
-        elif (getattr(filters, '_FilterNode__value') and
+        elif (getattr(filters, '_FilterNode__value', None) and
               getattr(filters, '_FilterNode__name', None) == '__key__' and
               getattr(filters, '_FilterNode__opsymbol', None) == '='):
             item = ndb.Key.from_old_key(getattr(filters, '_FilterNode__value')).get()
