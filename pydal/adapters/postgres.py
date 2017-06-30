@@ -35,8 +35,8 @@ class Postgre(
 
     REGEX_URI = re.compile(
         '^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>\[[^/]+\]|' +
-        '[^\:@]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)' +
-        '(\?sslmode=(?P<sslmode>.+))?$')
+        '[^\:@]*)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)' +
+        '(\?sslmode=(?P<sslmode>.+))?(\?unix_socket=(?P<socket>.+))?$')
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
@@ -60,20 +60,22 @@ class Postgre(
         if not password:
             password = ''
         host = m.group('host')
-        if not host:
+        socket = m.group('socket')
+        if not host and not socket:
             raise SyntaxError('Host name required')
         db = m.group('db')
-        if not db:
+        if not db and not socket:
             raise SyntaxError('Database name required')
-        port = m.group('port') or '5432'
+        port = int(m.group('port') or '5432')
         sslmode = m.group('sslmode')
-        self.driver_args['database'] = db
-        self.driver_args['user'] = user
-        self.driver_args['host'] = host
-        self.driver_args['port'] = int(port)
-        self.driver_args['password'] = password
-        if sslmode:
-            self.driver_args['sslmode'] = sslmode
+        if socket:
+            self.driver_args.update(user=user, host=socket, port=port, password=password)
+            if db:
+                self.driver_args['database'] = db
+        else:
+            self.driver_args.update(database=db, user=user, host=host, port=port, password=password)
+            if sslmode:
+                self.driver_args['sslmode'] = sslmode
         # choose diver according uri
         if self.driver:
             self.__version__ = "%s %s" % (self.driver.__name__,

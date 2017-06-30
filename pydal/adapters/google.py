@@ -95,6 +95,7 @@ class GoogleSQL(MySQL):
             lambda key: key.kind() not in entities)
 
 
+# based on this: https://cloud.google.com/appengine/docs/standard/python/cloud-sql/
 @adapters.register_for('google:mysql')
 class GoogleMySQL(MySQL):
     uploads_in_blob = True
