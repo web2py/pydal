@@ -41,8 +41,8 @@ class GoogleSQL(MySQL):
         super(GoogleSQL, self).__init__(*args, **kwargs)
         self.migrator = GoogleMigrator(self)
 
-    def _find_work_folder(self):
-        super(GoogleSQL)._find_work_folder()
+    def _find_work_folder(self):        
+        super(GoogleSQL, self)._find_work_folder()
         if os.path.isabs(self.folder) and self.folder.startswith(os.getcwd()):
             self.folder = os.path.relpath(self.folder, os.getcwd())
 
@@ -105,7 +105,7 @@ class GoogleMySQL(MySQL):
         self.migrator = GoogleMigrator(self)
 
     def _find_work_folder(self):
-        super(GoogleMySQL)._find_work_folder()
+        super(GoogleMySQL, self)._find_work_folder()
         if os.path.isabs(self.folder) and self.folder.startswith(os.getcwd()):
             self.folder = os.path.relpath(self.folder, os.getcwd())
 
@@ -129,7 +129,7 @@ class GooglePostgres(PostgrePsyco):
         self.migrator = GoogleMigrator(self)
 
     def _find_work_folder(self):
-        super(GooglePostgres)._find_work_folder()
+        super(GooglePostgres, self)._find_work_folder()
         if os.path.isabs(self.folder) and self.folder.startswith(os.getcwd()):
             self.folder = os.path.relpath(self.folder, os.getcwd())
 
