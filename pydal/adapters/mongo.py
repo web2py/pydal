@@ -248,13 +248,13 @@ class Mongo(ConnectionConfigurationMixin, NoSQLAdapter):
 
         if for_update:
             self.db.logger.warning(
-                "Attribute 'for_update' unsuppored by MongoDB")
+                "Attribute 'for_update' unsupported by MongoDB")
         if join or left:
             raise NotOnNOSQLError("Joins not supported on NoSQL databases")
         if required or cache or cacheable:
             self.db.logger.warning(
                 "Attributes 'required', 'cache' and 'cacheable' are" +
-                " unsuppored by MongoDB")
+                " unsupported by MongoDB")
 
         if limitby and orderby_on_limitby and not orderby:
             if groupby:
