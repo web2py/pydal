@@ -39,7 +39,7 @@ class MySQL(SQLAdapter):
         if socket:
             self.driver_args.update(
                 unix_socket=socket,
-                ser=user, passwd=password,
+                user=user, passwd=password,
                 charset=charset)
             if db:
                 self.driver_args.update(db=db)

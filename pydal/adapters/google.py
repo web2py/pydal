@@ -96,9 +96,10 @@ class GoogleSQL(MySQL):
 
 
 # based on this: https://cloud.google.com/appengine/docs/standard/python/cloud-sql/
-@adapters.register_for('google:mysql')
+@adapters.register_for('google:MySQLdb')
 class GoogleMySQL(MySQL):
     uploads_in_blob = True
+    drivers = ('MySQLdb',)
 
     def __init__(self, *args, **kwargs):
         super(GoogleMySQL, self).__init__(*args, **kwargs)
@@ -109,9 +110,6 @@ class GoogleMySQL(MySQL):
         if os.path.isabs(self.folder) and self.folder.startswith(os.getcwd()):
             self.folder = os.path.relpath(self.folder, os.getcwd())
 
-    def find_driver(self):
-        self.driver = "pymysql"
-
     def clear_cache(self):
         ndb.get_context().clear_cache()
 
@@ -120,9 +118,10 @@ class GoogleMySQL(MySQL):
         ndb.get_context().set_cache_policy(
             lambda key: key.kind() not in entities)
 
-@adapters.register_for('google:postgres')
+@adapters.register_for('google:psycopg2')
 class GooglePostgres(PostgrePsyco):
     uploads_in_blob = True
+    drivers = ('psycopg2',)
 
     def __init__(self, *args, **kwargs):
         super(GooglePostgres, self).__init__(*args, **kwargs)
