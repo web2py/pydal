@@ -702,7 +702,7 @@ class Table(Serializable, BasicStorage):
             field = self[name]
             if field.compute:
                 to_compute.append((name, field))
-            if field.default is not None:
+            elif field.default is not None:
                 new_fields[name] = (field, field.default)
             elif field.required:
                 raise RuntimeError(
