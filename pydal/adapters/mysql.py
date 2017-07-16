@@ -12,8 +12,8 @@ class MySQL(SQLAdapter):
 
     REGEX_URI = re.compile(
         '^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>\[[^/]+\]|' +
-        '[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>[^?]+)(\?set_encoding=' +
-        '(?P<charset>\w+))?$')
+        '[^\:/]*)(\:(?P<port>[0-9]+))?/(?P<db>[^?]+)(\?set_encoding=' +
+        '(?P<charset>\w+))?(\?unix_socket=(?P<socket>.+))?$')
 
     def _initialize_(self, do_connect):
         super(MySQL, self)._initialize_(do_connect)
@@ -28,16 +28,25 @@ class MySQL(SQLAdapter):
         if not password:
             password = ''
         host = m.group('host')
-        if not host:
+        socket = m.group('socket')
+        if not host and not socket:
             raise SyntaxError('Host name required')
         db = m.group('db')
-        if not db:
+        if not db and not socket:
             raise SyntaxError('Database name required')
         port = int(m.group('port') or '3306')
         charset = m.group('charset') or 'utf8'
-        self.driver_args.update(
-            db=db, user=user, passwd=password, host=host, port=port,
-            charset=charset)
+        if socket:
+            self.driver_args.update(
+                unix_socket=socket,
+                user=user, passwd=password,
+                charset=charset)
+            if db:
+                self.driver_args.update(db=db)
+        else:
+            self.driver_args.update(
+                db=db, user=user, passwd=password, host=host, port=port,
+                charset=charset)
 
     def connector(self):
         return self.driver.connect(**self.driver_args)

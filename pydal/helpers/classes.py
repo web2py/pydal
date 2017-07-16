@@ -213,14 +213,14 @@ class Reference(long):
                 "reference: %s %d" % (self._table, long(self))
             )
 
-    def __getattr__(self, key):
+    def __getattr__(self, key, default=None):
         if key == 'id':
             return long(self)
         if key in self._table:
             self.__allocate()
         if self._record:
             # to deal with case self.update_record()
-            return self._record.get(key, None)
+            return self._record.get(key, default)
         else:
             return None
 

@@ -5,7 +5,9 @@ from . import parsers, for_type
 
 @parsers.register_for(Postgre)
 class PostgreParser(ListsParser, JSONParser):
-    pass
+    @for_type('jsonb')
+    def _jsonb(self, value):
+        return self.json(value)
 
 
 class PostgreAutoJSONParser(ListsParser):

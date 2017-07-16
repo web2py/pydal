@@ -1,5 +1,17 @@
-pydal changelog
+pyDAL changelog
 ===============
+
+Version 17.07
+-------------
+
+Released on July 4th 2017
+
+- Various bugfixes
+- Field.set_attributes now returns the instance
+- [PostgreSQL] Added jsonb type and serialization/parsing support
+- Added unix socket support in MySQL and PostgreSQL adapters
+- [GCP] Added MySQL and PostgreSQL support
+
 
 Version 17.03
 -------------

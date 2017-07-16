@@ -68,7 +68,7 @@ class PostgreDialect(SQLDialect):
 
     def add(self, first, second, query_env={}):
         t = first.type
-        if t in ('text', 'string', 'password', 'json', 'upload', 'blob'):
+        if t in ('text', 'string', 'password', 'json', 'jsonb', 'upload', 'blob'):
             return '(%s || %s)' % (
                 self.expand(first, query_env=query_env),
                 self.expand(second, first.type, query_env=query_env))
@@ -90,7 +90,7 @@ class PostgreDialect(SQLDialect):
             if escape is None:
                 escape = '\\'
                 second = second.replace(escape, escape * 2)
-        if first.type not in ('string', 'text', 'json'):
+        if first.type not in ('string', 'text', 'json', 'jsonb'):
             return "(%s LIKE %s ESCAPE '%s')" % (
                 self.cast(self.expand(first, query_env=query_env),
                 'CHAR(%s)' % first.length), second, escape)
@@ -105,7 +105,7 @@ class PostgreDialect(SQLDialect):
             if escape is None:
                 escape = '\\'
                 second = second.replace(escape, escape * 2)
-        if first.type not in ('string', 'text', 'json', 'list:string'):
+        if first.type not in ('string', 'text', 'json', 'jsonb', 'list:string'):
             return "(%s ILIKE %s ESCAPE '%s')" % (
                 self.cast(self.expand(first, query_env=query_env),
                 'CHAR(%s)' % first.length), second, escape)
@@ -235,6 +235,9 @@ class PostgreDialectJSON(PostgreDialect):
     def type_json(self):
         return 'JSON'
 
+    @sqltype_for('jsonb')
+    def type_jsonb(self):
+        return 'JSONB'
 
 @dialects.register_for(PostgreNew)
 class PostgreDialectArrays(PostgreDialect):
@@ -282,6 +285,10 @@ class PostgreDialectArraysJSON(PostgreDialectArrays):
     def type_json(self):
         return 'JSON'
 
+    @sqltype_for('jsonb')
+    def type_jsonb(self):
+        return 'JSONB'
+
 
 @dialects.register_for(PostgreBoolean)
 class PostgreDialectBoolean(PostgreDialectArrays):
@@ -294,3 +301,7 @@ class PostgreDialectBooleanJSON(PostgreDialectBoolean):
     @sqltype_for('json')
     def type_json(self):
         return 'JSON'
+
+    @sqltype_for('jsonb')
+    def type_jsonb(self):
+        return 'JSONB'
