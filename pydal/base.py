@@ -593,7 +593,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         args_get = args.get
         common_fields = self._common_fields
         if common_fields:
-            fields = list(fields) + [f.clone() for f in common_fields]
+            fields = list(fields) + [f if isinstance(f, Table) else f.clone() for f in common_fields]
 
         table_class = args_get('table_class', Table)
         table = table_class(self, tablename, *fields, **args)
