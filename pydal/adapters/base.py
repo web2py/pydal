@@ -59,7 +59,9 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.parser = parsers.get_for(self)
         self.representer = representers.get_for(self)
 
-    def _initialize_(self, do_connect):
+    def _initialize_(self, do_connect):        
+        if 'migrator' in self.adapter_args:
+            self.migrator = self.adapter_args['migrator'](self)
         self._find_work_folder()
 
     @property

@@ -3,7 +3,7 @@ import re
 from .._compat import pjoin
 from .._globals import THREAD_LOCAL
 from .._gae import gae, ndb, rdbms, namespace_manager, classobj, NDBPolyModel
-from ..migrator import Migrator
+from ..migrator import Migrator, InDBMigrator
 from ..helpers.classes import DatabaseStoredFile, FakeDriver, SQLCustomType, \
     SQLALL, Reference
 from ..helpers.gae import NDBDecimalProperty
@@ -14,23 +14,8 @@ from .mysql import MySQL
 from .postgres import PostgrePsyco
 from . import adapters, with_connection_or_raise
 
-
-class GoogleMigrator(Migrator):
-    def file_exists(self, filename):
-        return DatabaseStoredFile.exists(self.db, filename)
-
-    def file_open(self, filename, mode='rb', lock=True):
-        return DatabaseStoredFile(self.db, filename, mode)
-
-    @staticmethod
-    def file_close(fileobj):
-        fileobj.close_connection()
-
-    def file_delete(self, filename):
-        query = "DELETE FROM web2py_filesystem WHERE path='%s'" % filename
-        self.db.executesql(query)
-        self.db.commit()
-
+class GoogleMigrator(InDBMigrator):
+    pass
 
 @adapters.register_for('google:sql')
 class GoogleSQL(MySQL):
