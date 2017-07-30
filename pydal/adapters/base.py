@@ -60,8 +60,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.representer = representers.get_for(self)
 
     def _initialize_(self, do_connect):        
-        if 'migrator' in self.adapter_args:
-            self.migrator = self.adapter_args['migrator'](self)
         self._find_work_folder()
 
     @property
@@ -367,7 +365,10 @@ class SQLAdapter(BaseAdapter):
 
     def __init__(self, *args, **kwargs):
         super(SQLAdapter, self).__init__(*args, **kwargs)
-        self.migrator = Migrator(self)
+        if 'migrator' in self.adapter_args:
+            self.migrator = self.adapter_args['migrator'](self)
+        else:
+            self.migrator = Migrator(self)
         self.execution_handlers = list(self.db.execution_handlers)
         if self.db._debug:
             self.execution_handlers.insert(0, DebugHandler)
