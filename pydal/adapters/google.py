@@ -3,9 +3,8 @@ import re
 from .._compat import pjoin
 from .._globals import THREAD_LOCAL
 from .._gae import gae, ndb, rdbms, namespace_manager, classobj, NDBPolyModel
-from ..migrator import Migrator, InDBMigrator
-from ..helpers.classes import DatabaseStoredFile, FakeDriver, SQLCustomType, \
-    SQLALL, Reference
+from ..migrator import InDBMigrator
+from ..helpers.classes import FakeDriver, SQLCustomType, SQLALL, Reference
 from ..helpers.gae import NDBDecimalProperty
 from ..helpers.methods import use_common_filters, xorify
 from ..objects import Table, Field, Expression, Query
@@ -14,19 +13,17 @@ from .mysql import MySQL
 from .postgres import PostgrePsyco
 from . import adapters, with_connection_or_raise
 
-class GoogleMigrator(InDBMigrator):
-    pass
+
+class GoogleMigratorMixin(object):
+    migrator_cls = InDBMigrator
+
 
 @adapters.register_for('google:sql')
-class GoogleSQL(MySQL):
+class GoogleSQL(GoogleMigratorMixin, MySQL):
     uploads_in_blob = True
     REGEX_URI = re.compile('^(?P<instance>.*)/(?P<db>.*)$')
 
-    def __init__(self, *args, **kwargs):
-        super(GoogleSQL, self).__init__(*args, **kwargs)
-        self.migrator = GoogleMigrator(self)
-
-    def _find_work_folder(self):        
+    def _find_work_folder(self):
         super(GoogleSQL, self)._find_work_folder()
         if os.path.isabs(self.folder) and self.folder.startswith(os.getcwd()):
             self.folder = os.path.relpath(self.folder, os.getcwd())
@@ -82,13 +79,9 @@ class GoogleSQL(MySQL):
 
 # based on this: https://cloud.google.com/appengine/docs/standard/python/cloud-sql/
 @adapters.register_for('google:MySQLdb')
-class GoogleMySQL(MySQL):
+class GoogleMySQL(GoogleMigratorMixin, MySQL):
     uploads_in_blob = True
     drivers = ('MySQLdb',)
-
-    def __init__(self, *args, **kwargs):
-        super(GoogleMySQL, self).__init__(*args, **kwargs)
-        self.migrator = GoogleMigrator(self)
 
     def _find_work_folder(self):
         super(GoogleMySQL, self)._find_work_folder()
@@ -103,14 +96,11 @@ class GoogleMySQL(MySQL):
         ndb.get_context().set_cache_policy(
             lambda key: key.kind() not in entities)
 
+
 @adapters.register_for('google:psycopg2')
-class GooglePostgres(PostgrePsyco):
+class GooglePostgres(GoogleMigratorMixin, PostgrePsyco):
     uploads_in_blob = True
     drivers = ('psycopg2',)
-
-    def __init__(self, *args, **kwargs):
-        super(GooglePostgres, self).__init__(*args, **kwargs)
-        self.migrator = GoogleMigrator(self)
 
     def _find_work_folder(self):
         super(GooglePostgres, self)._find_work_folder()

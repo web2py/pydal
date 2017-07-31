@@ -59,7 +59,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.parser = parsers.get_for(self)
         self.representer = representers.get_for(self)
 
-    def _initialize_(self, do_connect):        
+    def _initialize_(self, do_connect):
         self._find_work_folder()
 
     @property
@@ -362,13 +362,12 @@ class SQLAdapter(BaseAdapter):
     #[Note - gi0baro] can_select_for_update should be deprecated and removed
     can_select_for_update = True
     execution_handlers = []
+    migrator_cls = Migrator
 
     def __init__(self, *args, **kwargs):
         super(SQLAdapter, self).__init__(*args, **kwargs)
-        if 'migrator' in self.adapter_args:
-            self.migrator = self.adapter_args['migrator'](self)
-        else:
-            self.migrator = Migrator(self)
+        migrator_cls = self.adapter_args.get('migrator', self.migrator_cls)
+        self.migrator = migrator_cls(self)
         self.execution_handlers = list(self.db.execution_handlers)
         if self.db._debug:
             self.execution_handlers.insert(0, DebugHandler)
