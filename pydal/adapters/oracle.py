@@ -74,6 +74,10 @@ class Oracle(SQLAdapter):
             id=id_name)
         )
 
+    def _select_aux_execute(self, sql):
+        self.execute(sql)
+        return self.fetchall()
+
     def fetchall(self):
         from ..drivers import cx_Oracle
         if any(x[1] == cx_Oracle.LOB or x[1] == cx_Oracle.CLOB
