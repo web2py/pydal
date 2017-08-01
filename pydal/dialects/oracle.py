@@ -102,8 +102,9 @@ class OracleDialect(SQLDialect):
                 whr2 = whr + " AND w_row > %i" % lmin
             else:
                 whr2 = self.where('w_row > %i' % lmin)
-            return 'SELECT%s %s FROM (SELECT w_tmp.*, ROWNUM w_row FROM ' + \
-                '(SELECT %s FROM %s%s%s%s) w_tmp WHERE ROWNUM<=%i) %s%s%s%s;' \
+
+            return ('SELECT%s %s FROM (SELECT w_tmp.*, ROWNUM w_row FROM '
+                '(SELECT %s FROM %s%s%s%s) w_tmp WHERE ROWNUM<=%i) %s%s%s%s;') \
                 % (
                     dst, fields, fields, tables, whr, grp, order, lmax, tables,
                     whr2, grp, order)
