@@ -107,7 +107,7 @@ class MSSQLDialect(SQLDialect):
 
     def select(self, fields, tables, where=None, groupby=None, having=None,
                orderby=None, limitby=None, distinct=False, for_update=False):
-        dst, whr, grp, order, limit, offset, upd = '', '', '', '', '', '', ''
+        dst, whr, grp, order, limit, upd = '', '', '', '', '', ''
         if distinct is True:
             dst = ' DISTINCT'
         elif distinct:
@@ -125,8 +125,8 @@ class MSSQLDialect(SQLDialect):
             limit = ' TOP %i' % lmax
         if for_update:
             upd = ' FOR UPDATE'
-        return 'SELECT%s %s FROM %s%s%s%s%s%s%s;' % (
-            dst, fields, tables, whr, grp, order, limit, offset, upd)
+        return 'SELECT%s%s %s FROM %s%s%s%s%s;' % (
+            dst, limit, fields, tables, whr, grp, order, upd)
 
     def left_join(self, val, query_env={}):
         # Left join must always have an ON clause
