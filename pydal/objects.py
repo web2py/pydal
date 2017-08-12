@@ -2943,7 +2943,7 @@ class Rows(BasicRows):
 
     def __getstate__(self):
         ret = self.__dict__.copy()
-        del ret['fields']
+        ret.pop('fields', None)
         return ret
 
     def _restore_fields(self, fields):
