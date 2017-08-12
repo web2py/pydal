@@ -519,7 +519,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         else:
             pattern = pjoin(path, self._uri_hash + '_*.table')
             for filename in glob.glob(pattern):
-                tfile = self._adapter.file_open(filename, 'r')
+                tfile = self._adapter.migrator.file_open(filename, 'r')
                 try:
                     sql_fields = pickle.load(tfile)
                     name = filename[len(pattern) - 7:-6]
@@ -537,7 +537,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                                       **dict(migrate=migrate,
                                              fake_migrate=fake_migrate))
                 finally:
-                    self._adapter.file_close(tfile)
+                    self._adapter.migrator.file_close(tfile)
 
     def check_reserved_keyword(self, name):
         """
