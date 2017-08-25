@@ -18,7 +18,7 @@ before_install:
       tar x -C .travis/oracle --strip-components=1 -f v2.0.2.tar.gz ;
       bash -x .travis/oracle/download.sh ;
       bash -x .travis/oracle/install.sh ;
-      pip install cx_Oracle ;
+      pip install cx_Oracle==v5.3 ;
       echo -e "CREATE USER TEST IDENTIFIED BY TEST ;\n GRANT CONNECT, RESOURCE TO TEST ;\n" | "$ORACLE_HOME/bin/sqlplus" -L -S / AS SYSDBA ;
     fi
 
