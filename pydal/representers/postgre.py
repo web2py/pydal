@@ -1,6 +1,7 @@
 from ..adapters.postgres import Postgre, PostgreNew
 from .base import SQLRepresenter, JSONRepresenter
 from . import representers, before_type, for_type
+from ..helpers.serializers import serializers
 
 
 @representers.register_for(Postgre)
@@ -28,6 +29,10 @@ class PostgreRepresenter(SQLRepresenter, JSONRepresenter):
     @for_type('geography', adapt=False)
     def _geography(self, value, srid):
         return "ST_GeogFromText('SRID=%s;%s')" % (srid, value)
+
+    @for_type('jsonb', encode=True)
+    def _jsonb(self, value):
+        return serializers.json(value)
 
 
 @representers.register_for(PostgreNew)

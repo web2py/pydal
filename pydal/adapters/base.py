@@ -362,10 +362,12 @@ class SQLAdapter(BaseAdapter):
     #[Note - gi0baro] can_select_for_update should be deprecated and removed
     can_select_for_update = True
     execution_handlers = []
+    migrator_cls = Migrator
 
     def __init__(self, *args, **kwargs):
         super(SQLAdapter, self).__init__(*args, **kwargs)
-        self.migrator = Migrator(self)
+        migrator_cls = self.adapter_args.get('migrator', self.migrator_cls)
+        self.migrator = migrator_cls(self)
         self.execution_handlers = list(self.db.execution_handlers)
         if self.db._debug:
             self.execution_handlers.insert(0, DebugHandler)
@@ -420,7 +422,7 @@ class SQLAdapter(BaseAdapter):
             else:
                 rv = expression.longname
             if field_type == 'string' and expression.type not in (
-                    'string', 'text', 'json', 'password'):
+                    'string', 'text', 'json', 'jsonb', 'password'):
                 rv = self.dialect.cast(rv, self.types['text'], query_env)
         elif isinstance(expression, (Expression, Query)):
             first = expression.first

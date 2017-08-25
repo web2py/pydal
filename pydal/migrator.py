@@ -6,7 +6,7 @@ import pickle
 import sys
 from ._compat import PY2, string_types, pjoin, iteritems, to_bytes, exists
 from ._load import portalocker
-from .helpers.classes import SQLCustomType
+from .helpers.classes import SQLCustomType, DatabaseStoredFile
 
 
 class Migrator(object):
@@ -538,3 +538,20 @@ class Migrator(object):
     def file_exists(filename):
         #to be used ONLY for files that on GAE may not be on filesystem
         return exists(filename)
+
+
+class InDBMigrator(Migrator):
+    def file_exists(self, filename):
+        return DatabaseStoredFile.exists(self.db, filename)
+
+    def file_open(self, filename, mode='rb', lock=True):
+        return DatabaseStoredFile(self.db, filename, mode)
+
+    @staticmethod
+    def file_close(fileobj):
+        fileobj.close_connection()
+
+    def file_delete(self, filename):
+        query = "DELETE FROM web2py_filesystem WHERE path='%s'" % filename
+        self.db.executesql(query)
+        self.db.commit()

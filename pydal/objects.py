@@ -704,7 +704,7 @@ class Table(Serializable, BasicStorage):
             field = self[name]
             if field.compute:
                 to_compute.append((name, field))
-            if field.default is not None:
+            elif field.default is not None:
                 new_fields[name] = (field, field.default)
             elif field.required:
                 raise RuntimeError(
@@ -1410,12 +1410,12 @@ class Expression(object):
         return Query(self.db, self._dialect.belongs, self, value)
 
     def startswith(self, value):
-        if self.type not in ('string', 'text', 'json', 'upload'):
+        if self.type not in ('string', 'text', 'json', 'jsonb', 'upload'):
             raise SyntaxError("startswith used with incompatible field type")
         return Query(self.db, self._dialect.startswith, self, value)
 
     def endswith(self, value):
-        if self.type not in ('string', 'text', 'json', 'upload'):
+        if self.type not in ('string', 'text', 'json', 'jsonb', 'upload'):
             raise SyntaxError("endswith used with incompatible field type")
         return Query(self.db, self._dialect.endswith, self, value)
 
@@ -1430,7 +1430,7 @@ class Expression(object):
                 return self.contains('')
             else:
                 return reduce(all and AND or OR, subqueries)
-        if self.type not in ('string', 'text', 'json', 'upload') and not \
+        if self.type not in ('string', 'text', 'json', 'jsonb', 'upload') and not \
            self.type.startswith('list:'):
             raise SyntaxError("contains used with incompatible field type")
         return Query(
@@ -1443,7 +1443,7 @@ class Expression(object):
     # GIS expressions
 
     def st_asgeojson(self, precision=15, options=0, version=1):
-        return Expression(self.db, self.db._adapter.ST_ASGEOJSON, self,
+        return Expression(self.db, self._dialect.st_asgeojson, self,
                           dict(precision=precision, options=options,
                                version=version), 'string')
 
@@ -2945,7 +2945,7 @@ class Rows(BasicRows):
 
     def __getstate__(self):
         ret = self.__dict__.copy()
-        del ret['fields']
+        ret.pop('fields', None)
         return ret
 
     def _restore_fields(self, fields):
