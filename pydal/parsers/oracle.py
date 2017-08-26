@@ -12,15 +12,15 @@ class OracleParser(BasicParser):
 
     @for_type('text')
     def _text(self, value):
-        return value.read()
+        return value
 
     @for_type('clob')
     def _clob(self, value):
-        return value.read()
+        return value
 
     @for_type('json')
     def _json(self, value):
-        return json.loads(value.read())
+        return json.loads(value)
 
     @for_type('date')
     def _date(self, value):
@@ -31,16 +31,16 @@ class OracleParser(BasicParser):
 
     @for_type('list:reference')
     def _list_references(self, value, field_type):
-        return super(OracleParser, self)._list_references.f(self, value.read(), field_type)
+        return super(OracleParser, self)._list_references.f(self, value, field_type)
 
 class OracleListsParser(ListsParser):
     @for_type('list:integer')
     def _list_integers(self, value):
-        return super(OracleListsParser, self)._list_integers.f(self, value.read())
+        return super(OracleListsParser, self)._list_integers.f(self, value)
 
     @for_type('list:string')
     def _list_strings(self, value):
-        return super(OracleListsParser, self)._list_strings.f(self, value.read())
+        return super(OracleListsParser, self)._list_strings.f(self, value)
 
 
 @parsers.register_for(Oracle)

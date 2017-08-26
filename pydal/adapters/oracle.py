@@ -6,7 +6,7 @@ from ..helpers.classes import Reference
 from ..helpers.methods import use_common_filters
 from .base import SQLAdapter
 from ..objects import Table, Field, Expression, Query
-from . import adapters, with_connection_or_raise
+from . import adapters, with_connection, with_connection_or_raise
 
 @adapters.register_for('oracle')
 class Oracle(SQLAdapter):
@@ -34,6 +34,10 @@ class Oracle(SQLAdapter):
 
     def test_connection(self):
         self.execute('SELECT 1 FROM DUAL;')
+
+    @with_connection
+    def close_connection(self):
+        self.connection = None
 
     @with_connection_or_raise
     def execute(self, *args, **kwargs):
