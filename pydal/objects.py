@@ -856,6 +856,7 @@ class Table(Serializable, BasicStorage):
                              unique = 'uuid',
                              id_offset = None,  # id_offset used only when id_map is None
                              transform = None,
+                             validate=False,                             
                              *args, **kwargs
                              ):
         """
@@ -875,6 +876,13 @@ class Table(Serializable, BasicStorage):
         incrementing order.
         Will keep the id numbers in restored table.
         """
+
+        # !!!!!!!!!!!!!!!!!!!!
+        # if we need to import a csv file with users , we have to use validate_and_insert method in order to have the proper password hashing
+        if validate:
+            inserting=self.validate_and_insert
+        else:
+            inserting=self.insert
 
         delimiter = kwargs.get('delimiter', ',')
         quotechar = kwargs.get('quotechar', '"')
@@ -973,7 +981,7 @@ class Table(Serializable, BasicStorage):
                         except ValueError:
                             raise RuntimeError("Unable to parse line:%s" % (lineno+1))
                 if not (id_map or csv_id is None or id_offset is None or unique_idx):
-                    curr_id = self.insert(**ditems)
+                    curr_id = inserting(**ditems)
                     if first:
                         first = False
                         # First curr_id is bigger than csv_id,
@@ -984,11 +992,11 @@ class Table(Serializable, BasicStorage):
                     # create new id until we get the same as old_id+offset
                     while curr_id < csv_id+id_offset[self._tablename]:
                         self._db(self[cid] == curr_id).delete()
-                        curr_id = self.insert(**ditems)
+                        curr_id = inserting(**ditems)
                 # Validation. Check for duplicate of 'unique' &,
                 # if present, update instead of insert.
                 elif not unique_idx:
-                    new_id = self.insert(**ditems)
+                    new_id = inserting(**ditems)
                 else:
                     unique_value = line[unique_idx]
                     query = self[unique] == unique_value
@@ -997,7 +1005,7 @@ class Table(Serializable, BasicStorage):
                         record.update_record(**ditems)
                         new_id = record[self._id.name]
                     else:
-                        new_id = self.insert(**ditems)
+                        new_id = inserting(**ditems)
                 if id_map and csv_id is not None:
                     id_map_self[csv_id] = new_id
             if lineno % 1000 == 999:
