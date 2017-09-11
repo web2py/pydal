@@ -129,7 +129,10 @@ import socket
 import threading
 import time
 import traceback
-import urllib
+try:
+    from urllib import unquote  # Python 2.X
+except ImportError:
+    from urllib.parse import unquote  # Python 3+
 from uuid import uuid4
 
 from ._compat import PY2, pickle, hashlib_md5, pjoin, copyreg, integer_types, \
