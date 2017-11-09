@@ -187,7 +187,7 @@ class SQLDialect(CommonDialect):
             dst, fields, tables, whr, grp, order, limit, offset, upd)
 
     def count(self, val, distinct=None, query_env={}):
-        return ('count(%s)' if not distinct else 'count(DISTINCT %s)') % \
+        return ('COUNT(%s)' if not distinct else 'COUNT(DISTINCT %s)') % \
             self.expand(val, query_env=query_env)
 
     def join(self, val, query_env={}):
