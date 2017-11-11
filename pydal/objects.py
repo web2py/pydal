@@ -1537,6 +1537,7 @@ class Field(Expression, Serializable):
             a = Field(name, 'string', length=32, default=None, required=False,
                 requires=IS_NOT_EMPTY(), ondelete='CASCADE',
                 notnull=False, unique=False,
+                regex=None, options=None,
                 uploadfield=True, widget=None, label=None, comment=None,
                 uploadfield=True, # True means store on disk,
                                   # 'a_field_name' means store in this field in db
@@ -1565,7 +1566,7 @@ class Field(Expression, Serializable):
                  compute=None, custom_store=None, custom_retrieve=None,
                  custom_retrieve_file_properties=None, custom_delete=None,
                  filter_in=None, filter_out=None, custom_qualifier=None,
-                 map_none=None, rname=None):
+                 map_none=None, rname=None, **others):
         self._db = self.db = None  # both for backward compatibility
         self.table = self._table = None
         self.op = None
@@ -1595,6 +1596,8 @@ class Field(Expression, Serializable):
         self.ondelete = ondelete.upper()  # this is for reference fields only
         self.notnull = notnull
         self.unique = unique
+        self.regex = regex
+        self.options = options
         self.uploadfield = uploadfield
         self.uploadfolder = uploadfolder
         self.uploadseparate = uploadseparate
@@ -1626,6 +1629,8 @@ class Field(Expression, Serializable):
         if isinstance(self.type, SQLCustomType):
             stype = self.type.type
         self._itype = REGEX_TYPE.match(stype).group(0) if stype else None
+        for key in others:
+            setattr(self, key) = others[key]
 
     def bind(self, table):
         if self._table is not None:
