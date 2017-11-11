@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 import types
+import re
 from collections import OrderedDict
 from ._compat import (
     PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, basestring, iteritems,
@@ -40,6 +41,17 @@ from .utils import deprecated
 DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
                  'blob': 2**31}
 
+
+DEFAULT_REGEX = {
+    'id':      '[1-9]\d*',
+    'decimal': '\d{1,10}\.\d{2}',
+    'integer': '[+-]?\d*',
+    'float':   '[+-]?\d*(\.\d*)?', 
+    'double':  '[+-]?\d*(\.\d*)?',
+    'date':    '\d{4}\-\d{2}\-\d{2}',
+    'time':    '\d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
+    'datetime':'\d{4}\-\d{2}\-\d{2} \d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
+    }             
 
 class Row(BasicStorage):
 
@@ -1612,7 +1624,8 @@ class Field(Expression, Serializable):
         self.ondelete = ondelete.upper()  # this is for reference fields only
         self.notnull = notnull
         self.unique = unique
-        self.regex = regex
+        # split to deal with decimal(,)
+        self.regex = regex or DEFAULT_REGEX.get(self.type.split('(')[0])
         self.options = options
         self.uploadfield = uploadfield
         self.uploadfolder = uploadfolder
