@@ -856,8 +856,8 @@ class Table(Serializable, BasicStorage):
                              unique = 'uuid',
                              id_offset = None,  # id_offset used only when id_map is None
                              transform = None,                                                          
-                             *args, **kwargs,
-                             validate=False
+                             validate=False,
+                             **kwargs                      
                              ):
         """
         Import records from csv file.
@@ -1548,7 +1548,8 @@ class Field(Expression, Serializable):
                 uploadfield=True, # True means store on disk,
                                   # 'a_field_name' means store in this field in db
                                   # False means file content will be discarded.
-                writable=True, readable=True, update=None, authorize=None,
+                writable=True, readable=True, searchable=True, listable=True,
+                update=None, authorize=None,
                 autodelete=False, represent=None, uploadfolder=None,
                 uploadseparate=False # upload to separate directories by uuid_keys
                                      # first 2 character and tablename.fieldname
@@ -1566,7 +1567,9 @@ class Field(Expression, Serializable):
     def __init__(self, fieldname, type='string', length=None, default=DEFAULT,
                  required=False, requires=DEFAULT, ondelete='CASCADE',
                  notnull=False, unique=False, uploadfield=True, widget=None,
-                 label=None, comment=None, writable=True, readable=True,
+                 label=None, comment=None, 
+                 writable=True, readable=True,
+                 searchable=True, listable=True,
                  regex=None, options=None,
                  update=None, authorize=None, autodelete=False, represent=None,
                  uploadfolder=None, uploadseparate=False, uploadfs=None,
@@ -1613,6 +1616,8 @@ class Field(Expression, Serializable):
         self.comment = comment
         self.writable = writable
         self.readable = readable
+        self.searchable = searchable
+        self.listable = listable
         self.update = update
         self.authorize = authorize
         self.autodelete = autodelete
