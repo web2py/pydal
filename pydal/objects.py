@@ -1561,6 +1561,7 @@ class Field(Expression, Serializable):
                  required=False, requires=DEFAULT, ondelete='CASCADE',
                  notnull=False, unique=False, uploadfield=True, widget=None,
                  label=None, comment=None, writable=True, readable=True,
+                 regex=None, options=None,
                  update=None, authorize=None, autodelete=False, represent=None,
                  uploadfolder=None, uploadseparate=False, uploadfs=None,
                  compute=None, custom_store=None, custom_retrieve=None,
