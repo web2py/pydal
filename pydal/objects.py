@@ -1630,7 +1630,7 @@ class Field(Expression, Serializable):
             stype = self.type.type
         self._itype = REGEX_TYPE.match(stype).group(0) if stype else None
         for key in others:
-            setattr(self, key) = others[key]
+            setattr(self, key, others[key])
 
     def bind(self, table):
         if self._table is not None:
