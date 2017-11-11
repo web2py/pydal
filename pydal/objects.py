@@ -366,6 +366,12 @@ class Table(Serializable, BasicStorage):
     def fields(self):
         return self._fields
 
+    def _structure(self):
+        keys = ['name','type','writable','listable','searchable','regex','options','default']        
+        def noncallable(obj): return obj if not callable(obj) else None
+        return [{key: noncallable(getattr(field, key)) for key in keys} 
+                for field in self if field.readable and not field.type=='password']
+
     @cachedprop
     def _upload_fieldnames(self):
         return set(field.name for field in self if field.type == 'upload')
