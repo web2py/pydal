@@ -379,7 +379,8 @@ class Table(Serializable, BasicStorage):
         return self._fields
 
     def _structure(self):
-        keys = ['name','type','writable','listable','searchable','regex','options','default']        
+        keys = ['name','type','writable','listable','searchable','regex','options',
+                'default','label','unique','notnull','required']        
         def noncallable(obj): return obj if not callable(obj) else None
         return [{key: noncallable(getattr(field, key)) for key in keys} 
                 for field in self if field.readable and not field.type=='password']
