@@ -856,8 +856,8 @@ class Table(Serializable, BasicStorage):
                              unique = 'uuid',
                              id_offset = None,  # id_offset used only when id_map is None
                              transform = None,
-                             validate=False,                             
-                             *args, **kwargs
+                             validate=False,
+                             *args, **kwargs                             
                              ):
         """
         Import records from csv file.
@@ -877,8 +877,6 @@ class Table(Serializable, BasicStorage):
         Will keep the id numbers in restored table.
         """
 
-        # !!!!!!!!!!!!!!!!!!!!
-        # if we need to import a csv file with users , we have to use validate_and_insert method in order to have the proper password hashing
         if validate:
             inserting=self.validate_and_insert
         else:
