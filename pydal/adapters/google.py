@@ -96,6 +96,9 @@ class GoogleMySQL(GoogleMigratorMixin, MySQL):
         ndb.get_context().set_cache_policy(
             lambda key: key.kind() not in entities)
 
+    def after_connection(self):
+        self.execute("SET FOREIGN_KEY_CHECKS=1;")
+        self.execute("SET sql_mode='NO_BACKSLASH_ESCAPES,TRADITIONAL';")
 
 @adapters.register_for('google:psycopg2')
 class GooglePostgres(GoogleMigratorMixin, PostgrePsyco):

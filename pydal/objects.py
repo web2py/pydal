@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 import types
+import re
 from collections import OrderedDict
 from ._compat import (
     PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, basestring, iteritems,
@@ -40,6 +41,17 @@ from .utils import deprecated
 DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
                  'blob': 2**31}
 
+
+DEFAULT_REGEX = {
+    'id':      '[1-9]\d*',
+    'decimal': '\d{1,10}\.\d{2}',
+    'integer': '[+-]?\d*',
+    'float':   '[+-]?\d*(\.\d*)?', 
+    'double':  '[+-]?\d*(\.\d*)?',
+    'date':    '\d{4}\-\d{2}\-\d{2}',
+    'time':    '\d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
+    'datetime':'\d{4}\-\d{2}\-\d{2} \d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
+    }             
 
 class Row(BasicStorage):
 
@@ -365,6 +377,13 @@ class Table(Serializable, BasicStorage):
     @property
     def fields(self):
         return self._fields
+
+    def _structure(self):
+        keys = ['name','type','writable','listable','searchable','regex','options',
+                'default','label','unique','notnull','required']        
+        def noncallable(obj): return obj if not callable(obj) else None
+        return [{key: noncallable(getattr(field, key)) for key in keys} 
+                for field in self if field.readable and not field.type=='password']
 
     @cachedprop
     def _upload_fieldnames(self):
@@ -855,9 +874,9 @@ class Table(Serializable, BasicStorage):
                              null = '<NULL>',
                              unique = 'uuid',
                              id_offset = None,  # id_offset used only when id_map is None
-                             transform = None,
+                             transform = None,                                                          
                              validate=False,
-                             *args, **kwargs                             
+                             **kwargs                      
                              ):
         """
         Import records from csv file.
@@ -1543,11 +1562,13 @@ class Field(Expression, Serializable):
             a = Field(name, 'string', length=32, default=None, required=False,
                 requires=IS_NOT_EMPTY(), ondelete='CASCADE',
                 notnull=False, unique=False,
+                regex=None, options=None,
                 uploadfield=True, widget=None, label=None, comment=None,
                 uploadfield=True, # True means store on disk,
                                   # 'a_field_name' means store in this field in db
                                   # False means file content will be discarded.
-                writable=True, readable=True, update=None, authorize=None,
+                writable=True, readable=True, searchable=True, listable=True,
+                update=None, authorize=None,
                 autodelete=False, represent=None, uploadfolder=None,
                 uploadseparate=False # upload to separate directories by uuid_keys
                                      # first 2 character and tablename.fieldname
@@ -1565,13 +1586,16 @@ class Field(Expression, Serializable):
     def __init__(self, fieldname, type='string', length=None, default=DEFAULT,
                  required=False, requires=DEFAULT, ondelete='CASCADE',
                  notnull=False, unique=False, uploadfield=True, widget=None,
-                 label=None, comment=None, writable=True, readable=True,
+                 label=None, comment=None, 
+                 writable=True, readable=True,
+                 searchable=True, listable=True,
+                 regex=None, options=None,
                  update=None, authorize=None, autodelete=False, represent=None,
                  uploadfolder=None, uploadseparate=False, uploadfs=None,
                  compute=None, custom_store=None, custom_retrieve=None,
                  custom_retrieve_file_properties=None, custom_delete=None,
                  filter_in=None, filter_out=None, custom_qualifier=None,
-                 map_none=None, rname=None):
+                 map_none=None, rname=None, **others):
         self._db = self.db = None  # both for backward compatibility
         self.table = self._table = None
         self.op = None
@@ -1601,6 +1625,9 @@ class Field(Expression, Serializable):
         self.ondelete = ondelete.upper()  # this is for reference fields only
         self.notnull = notnull
         self.unique = unique
+        # split to deal with decimal(,)
+        self.regex = regex or DEFAULT_REGEX.get(self.type.split('(')[0])
+        self.options = options
         self.uploadfield = uploadfield
         self.uploadfolder = uploadfolder
         self.uploadseparate = uploadseparate
@@ -1609,6 +1636,8 @@ class Field(Expression, Serializable):
         self.comment = comment
         self.writable = writable
         self.readable = readable
+        self.searchable = searchable
+        self.listable = listable
         self.update = update
         self.authorize = authorize
         self.autodelete = autodelete
@@ -1632,6 +1661,8 @@ class Field(Expression, Serializable):
         if isinstance(self.type, SQLCustomType):
             stype = self.type.type
         self._itype = REGEX_TYPE.match(stype).group(0) if stype else None
+        for key in others:
+            setattr(self, key, others[key])
 
     def bind(self, table):
         if self._table is not None:
