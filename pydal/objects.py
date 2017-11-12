@@ -1626,7 +1626,9 @@ class Field(Expression, Serializable):
         self.notnull = notnull
         self.unique = unique
         # split to deal with decimal(,)
-        self.regex = regex or DEFAULT_REGEX.get(self.type.split('(')[0])
+        self.regex = regex
+        if not regex and isinstance(self.type, str):
+            self.regex = DEFAULT_REGEX.get(self.type.split('(')[0])
         self.options = options
         self.uploadfield = uploadfield
         self.uploadfolder = uploadfolder
