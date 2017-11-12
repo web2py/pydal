@@ -855,9 +855,9 @@ class Table(Serializable, BasicStorage):
                              null = '<NULL>',
                              unique = 'uuid',
                              id_offset = None,  # id_offset used only when id_map is None
-                             transform = None,                                                          
-                             *args, **kwargs,
-                             validate=False
+                             transform = None,
+                             validate=False,
+                             *args, **kwargs                             
                              ):
         """
         Import records from csv file.
