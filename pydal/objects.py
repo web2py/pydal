@@ -1265,6 +1265,10 @@ class Expression(object):
         return Expression(
             self.db, self._dialect.aggregate, self, 'ABS', self.type)
 
+    def cast(self, cast_as, **kwargs):        
+        return Expression(
+            self.db, self._dialect.cast, self, self._dialect.types[cast_as] % kwargs, cast_as)
+    
     def lower(self):
         return Expression(
             self.db, self._dialect.lower, self, None, self.type)
