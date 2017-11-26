@@ -1729,7 +1729,7 @@ class Field(Expression, Serializable):
             self_uploadfield.table.insert(**keys)
         elif self_uploadfield is True:
             if self.uploadfs:
-                dest_file = self.uploadfs.open(newfilename, 'wb')
+                dest_file = self.uploadfs.open(unicode(newfilename), 'wb')
             else:
                 if path:
                     pass
