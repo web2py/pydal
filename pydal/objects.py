@@ -1524,7 +1524,7 @@ class Expression(object):
 
 class FieldVirtual(object):
     def __init__(self, name, f=None, ftype='string', label=None,
-                 table_name=None):
+                 table_name=None, readable=True, listable=True):
         # for backward compatibility
         (self.name, self.f) = (name, f) if f else ('unknown', name)
         self.type = ftype
@@ -1532,7 +1532,9 @@ class FieldVirtual(object):
         self.represent = lambda v, r=None: v
         self.formatter = IDENTITY
         self.comment = None
-        self.readable = True
+        self.readable = readable
+        self.listable = listable
+        self.searchable = False
         self.writable = False
         self.requires = None
         self.widget = None
