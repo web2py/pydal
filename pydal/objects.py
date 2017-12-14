@@ -799,7 +799,7 @@ class Table(Serializable, BasicStorage):
                     else:
                         query = query & (getattr(self, key) == value)
                 myset = self._db(query)
-            response.id = myset.update(**new_fields)
+            response.id = myset.update(**new_fields) and record[self._id.name]
         return response
 
     def update_or_insert(self, _key=DEFAULT, **values):
