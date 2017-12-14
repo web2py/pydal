@@ -758,18 +758,14 @@ class Table(Serializable, BasicStorage):
 
     def _validate_fields(self, fields, defattr='default'):
         response = Row()
-        response.id, response.errors = None, Row()
-        new_fields = copy.copy(fields)
-        for fieldname in self.fields:
-            default = getattr(self[fieldname], defattr)
-            if callable(default):
-                default = default()
-            raw_value = fields.get(fieldname, default)
-            value, error = self[fieldname].validate(raw_value)
-            if error:
-                response.errors[fieldname] = "%s" % error
-            elif value is not None:
-                new_fields[fieldname] = value
+        response.id, response.errors, new_fields = None, Row(), Row()
+        for field in self:
+            if field.name in fields:
+                value, error = field.validate(fields[field.name])
+                if error:
+                    response.errors[field.name] = "%s" % error
+                else:
+                    new_fields[field.name] = value
         return response, new_fields
 
     def validate_and_insert(self, **fields):
@@ -778,7 +774,7 @@ class Table(Serializable, BasicStorage):
             response.id = self.insert(**new_fields)
         return response
 
-    def validate_and_update(self, _key=DEFAULT, **fields):
+    def validate_and_update(self, _key=DEFAULT, **fields):        
         response, new_fields = self._validate_fields(fields, 'update')
         #: select record(s) for update
         if _key is DEFAULT:
