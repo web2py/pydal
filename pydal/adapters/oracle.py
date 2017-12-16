@@ -66,8 +66,8 @@ class Oracle(SQLAdapter):
         trigger_name = table._trigger_name
         self.execute(query)
         self.execute(
-            'CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1 NOMAXVALUE ' +
-            'MINVALUE -1;' % sequence_name)
+            'CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1 NOMAXVALUE MINVALUE -1;' 
+            % sequence_name)
         self.execute(_trigger_sql % dict(
             trigger_name=trigger_name, tablename=tablename,
             sequence_name=sequence_name,
