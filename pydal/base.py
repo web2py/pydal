@@ -129,6 +129,7 @@ import socket
 import threading
 import time
 import traceback
+import urllib
 from uuid import uuid4
 
 from ._compat import PY2, pickle, hashlib_md5, pjoin, copyreg, integer_types, \
