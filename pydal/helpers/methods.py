@@ -94,7 +94,7 @@ def bar_escape(item):
 
 def bar_unescape(item):
     item = item.replace('||','|')
-    if item.startwith('\x00'):  item = item[1:]
+    if item.startswith('\x00'):  item = item[1:]
     if item.endswith('\x00'): item = item[:-1]
     return item
 
