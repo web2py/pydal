@@ -776,7 +776,7 @@ class Table(Serializable, BasicStorage):
         return response
 
     def validate_and_update(self, _key=DEFAULT, **fields):        
-        response, new_fields = self._validate_fields(fields, 'update')
+        response, new_fields = self._validate_fields(fields)
         #: select record(s) for update
         if _key is DEFAULT:
             record = self(**fields)
