@@ -756,16 +756,17 @@ class Table(Serializable, BasicStorage):
                 f(row, ret)
         return ret
 
-    def _validate_fields(self, fields, defattr='default'):
+    def _validate_fields(self, fields):
         response = Row()
         response.id, response.errors, new_fields = None, Row(), Row()
         for field in self:
-            if field.name in fields:
-                value, error = field.validate(fields[field.name])
-                if error:
-                    response.errors[field.name] = "%s" % error
-                else:
-                    new_fields[field.name] = value
+            # we validate even if not passed in case it is required
+            value, error = field.validate(fields.get(field.name))
+            if error:
+                response.errors[field.name] = "%s" % error
+            elif field.name in fields:
+                # only write if the field was passed and no error
+                new_fields[field.name] = value
         return response, new_fields
 
     def validate_and_insert(self, **fields):
