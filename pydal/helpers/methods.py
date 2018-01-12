@@ -10,6 +10,7 @@ from .._compat import (
 from .regex import REGEX_NOPASSWD, REGEX_UNPACK, REGEX_CONST_STRING, REGEX_W
 from .classes import SQLCustomType
 
+UNIT_SEPARATOR = '\x1f' # ASCII unit separater for delimiting data
 
 PLURALIZE_RULES = [
     (re.compile('child$'), re.compile('child$'), 'children'),
@@ -88,14 +89,14 @@ def merge_tablemaps(*maplist):
 
 def bar_escape(item):
     item = str(item).replace('|', '||')
-    if item.startswith('||'): item='\x00%s' % item
-    if item.endswith('||'): item='%s\x00' % item
+    if item.startswith('||'): item='%s%s' % (UNIT_SEPARATOR, item)
+    if item.endswith('||'): item='%s%s' % (item, UNIT_SEPARATOR)
     return item
 
 def bar_unescape(item):
     item = item.replace('||','|')
-    if item.startswith('\x00'):  item = item[1:]
-    if item.endswith('\x00'): item = item[:-1]
+    if item.startswith(UNIT_SEPARATOR): item = item[1:]
+    if item.endswith(UNIT_SEPARATOR): item = item[:-1]
     return item
 
 def bar_encode(items):
