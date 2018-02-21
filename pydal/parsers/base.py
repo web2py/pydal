@@ -34,7 +34,12 @@ class BasicParser(Parser):
 
     @for_type('blob')
     def _blob(self, value):
-        return to_native(b64decode(to_bytes(value)))
+        decoded = b64decode(to_bytes(value))
+        try:
+            decoded = to_native(decoded)
+        except:
+            pass
+        return decoded
 
     @before_parse('reference')
     def reference_extras(self, field_type):
