@@ -532,10 +532,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                             unique=value.get('unique', False)))
                         for key, value in iteritems(sql_fields)
                     ]
-                    if PY2:
-                        mf.sort(lambda a, b: cmp(a[0], b[0]))
-                    else:
-                        mf.sort(key=lambda a: a[0])
+                    mf.sort(key=lambda a: a[0])
                     self.define_table(name, *[item[1] for item in mf],
                                       **dict(migrate=migrate,
                                              fake_migrate=fake_migrate))
