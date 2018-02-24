@@ -133,7 +133,7 @@ import urllib
 from uuid import uuid4
 
 from ._compat import PY2, pickle, hashlib_md5, pjoin, copyreg, integer_types, \
-    with_metaclass, long, unquote
+    with_metaclass, long, unquote, iteritems
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT
 from ._load import OrderedDict
 from .helpers.classes import Serializable, SQLCallableList, BasicStorage, \
@@ -519,7 +519,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         else:
             pattern = pjoin(path, self._uri_hash + '_*.table')
             for filename in glob.glob(pattern):
-                tfile = self._adapter.migrator.file_open(filename, 'r')
+                tfile = self._adapter.migrator.file_open(filename, 'r' if PY2 else 'rb')
                 try:
                     sql_fields = pickle.load(tfile)
                     name = filename[len(pattern) - 7:-6]
@@ -530,9 +530,12 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                             length=value.get('length', None),
                             notnull=value.get('notnull', False),
                             unique=value.get('unique', False)))
-                        for key, value in sql_fields.iteritems()
+                        for key, value in iteritems(sql_fields)
                     ]
-                    mf.sort(lambda a, b: cmp(a[0], b[0]))
+                    if PY2:
+                        mf.sort(lambda a, b: cmp(a[0], b[0]))
+                    else:
+                        mf.sort(key=lambda a: a[0])
                     self.define_table(name, *[item[1] for item in mf],
                                       **dict(migrate=migrate,
                                              fake_migrate=fake_migrate))
