@@ -756,12 +756,19 @@ class Table(Serializable, BasicStorage):
                 f(row, ret)
         return ret
 
-    def _validate_fields(self, fields):
+    def _validate_fields(self, fields, defattr='default'):
         response = Row()
         response.id, response.errors, new_fields = None, Row(), Row()
         for field in self:
             # we validate even if not passed in case it is required
-            value, error = field.validate(fields.get(field.name))
+            error = default = None
+            if not field.required and not field.compute:
+                default = getattr(field, defattr)
+                if callable(default):
+                    default = default()
+            if not field.compute:
+                value = fields.get(field.name, default)
+                value, error = field.validate(value)
             if error:
                 response.errors[field.name] = "%s" % error
             elif field.name in fields:
@@ -770,13 +777,13 @@ class Table(Serializable, BasicStorage):
         return response, new_fields
 
     def validate_and_insert(self, **fields):
-        response, new_fields = self._validate_fields(fields)
+        response, new_fields = self._validate_fields(fields, 'default')
         if not response.errors:
             response.id = self.insert(**new_fields)
         return response
 
     def validate_and_update(self, _key=DEFAULT, **fields):        
-        response, new_fields = self._validate_fields(fields)
+        response, new_fields = self._validate_fields(fields, 'update')
         #: select record(s) for update
         if _key is DEFAULT:
             record = self(**fields)
