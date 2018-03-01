@@ -70,8 +70,9 @@ def use_common_filters(query):
 
 
 def merge_tablemaps(*maplist):
-    """Merge arguments into a single dict, check for name collisions.
-    Arguments may be modified in the process."""
+    """
+    Merge arguments into a single dict, check for name collisions.
+    """
     maplist = list(maplist)
     for i, item in enumerate(maplist):
         if isinstance(item, dict):
