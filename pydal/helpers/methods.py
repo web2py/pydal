@@ -72,6 +72,10 @@ def use_common_filters(query):
 def merge_tablemaps(*maplist):
     """Merge arguments into a single dict, check for name collisions.
     Arguments may be modified in the process."""
+    maplist = list(maplist)
+    for i, item in enumerate(maplist):
+        if isinstance(item, dict):
+            maplist[i] = dict(**item)
     ret = maplist[0]
     for item in maplist[1:]:
         if len(ret) > len(item):
@@ -87,11 +91,13 @@ def merge_tablemaps(*maplist):
         ret = big
     return ret
 
+
 def bar_escape(item):
     item = str(item).replace('|', '||')
     if item.startswith('||'): item='%s%s' % (UNIT_SEPARATOR, item)
     if item.endswith('||'): item='%s%s' % (item, UNIT_SEPARATOR)
     return item
+
 
 def bar_unescape(item):
     item = item.replace('||','|')
@@ -99,8 +105,10 @@ def bar_unescape(item):
     if item.endswith(UNIT_SEPARATOR): item = item[:-1]
     return item
 
+
 def bar_encode(items):
     return '|%s|' % '|'.join(bar_escape(item) for item in items if str(item).strip())
+
 
 def bar_decode_integer(value):
     long = integer_types[-1]
@@ -108,8 +116,10 @@ def bar_decode_integer(value):
         value = value.read()
     return [long(x) for x in value.split('|') if x.strip()]
 
+
 def bar_decode_string(value):
     return [bar_unescape(x) for x in REGEX_UNPACK.split(value[1:-1]) if x.strip()]
+
 
 def archive_record(qset, fs, archive_table, current_record):
     tablenames = qset.db._adapter.tables(qset.query)
