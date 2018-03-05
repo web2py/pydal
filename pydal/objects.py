@@ -93,7 +93,7 @@ class Row(BasicStorage):
         except Exception as e:
             raise e
 
-        raise KeyError
+        raise KeyError, key
 
     __str__ = __repr__ = lambda self: '<Row %s>' % \
         self.as_dict(custom_types=[LazySet])
