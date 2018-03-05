@@ -22,9 +22,7 @@ env:
     - ADAPTER=sqlite
     - ADAPTER=mysql
     - ADAPTER=postgres
-    - ADAPTER=postgresPG8000
     - ADAPTER=postgres3
-    - ADAPTER=postgres3PG8000
     - ADAPTER=google
     - ADAPTER=mongo
 
