@@ -1050,6 +1050,11 @@ class Table(Serializable, BasicStorage):
         return table_as_dict
 
     def with_alias(self, alias):
+        try:
+            if self._db[alias]._rname == self._rname:
+                return self._db[alias]
+        except AttributeError: # we never used this alias
+            pass
         other = copy.copy(self)
         other['ALL'] = SQLALL(other)
         other['_tablename'] = alias
