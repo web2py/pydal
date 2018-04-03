@@ -154,7 +154,7 @@ TABLE_ARGS = set(
 
 class MetaDAL(type):
     def __call__(cls, *args, **kwargs):
-        #: intercept arguments for DAL costumisation on call
+        #: intercept arguments for DAL customisation on call
         intercepts = [
             'logger', 'representers', 'serializers', 'uuid', 'validators',
             'validators_method', 'Table', 'Row']
@@ -484,8 +484,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             self.validators = None
         adapter = self._adapter
         self._uri_hash = table_hash or hashlib_md5(adapter.uri).hexdigest()
-        self.check_reserved = check_reserved
-        if self.check_reserved:
+        if check_reserved:
             from .contrib.reserved_sql_keywords import ADAPTERS as RSK
             self.RSK = RSK
         self._migrate = migrate
@@ -542,9 +541,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     def check_reserved_keyword(self, name):
         """
         Validates `name` against SQL keywords
-        Uses self.check_reserve which is a list of operators to use.
+        Uses self._check_reserved which is a list of operators to use.
         """
-        for backend in self.check_reserved:
+        for backend in self._check_reserved:
             if name.upper() in self.RSK[backend]:
                 raise SyntaxError(
                     'invalid table/column name "%s" is a "%s" reserved SQL/NOSQL keyword' % (name, backend.upper()))
@@ -555,6 +554,10 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             patterns, args, vars, queries, nested_select)
 
     def define_table(self, tablename, *fields, **kwargs):
+        invalid_kwargs = set(kwargs) - TABLE_ARGS
+        if invalid_kwargs:
+            raise SyntaxError('invalid table "%s" attributes: %s' %
+                              (tablename, invalid_kwargs))
         if not fields and 'fields' in kwargs:
             fields = kwargs.get('fields',())
         if not isinstance(tablename, str):
@@ -565,23 +568,23 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     raise SyntaxError("invalid unicode table name")
             else:
                 raise SyntaxError("missing table name")
-        elif hasattr(self, tablename) or tablename in self.tables:
-            if kwargs.get('redefine', False):
-                delattr(self, tablename)
+        redefine = kwargs.get('redefine', False)
+        if tablename in self.tables:
+            if redefine:
+                try:
+                    delattr(self, tablename)
+                except:
+                    pass
             else:
                 raise SyntaxError('table already defined: %s' % tablename)
-        elif tablename.startswith('_') or hasattr(self, tablename) or \
+        elif tablename.startswith('_') or tablename in dir(self) or \
                 REGEX_PYTHON_KEYWORDS.match(tablename):
             raise SyntaxError('invalid table name: %s' % tablename)
-        elif self.check_reserved:
+        elif self._check_reserved:
             self.check_reserved_keyword(tablename)
-        else:
-            invalid_kwargs = set(kwargs) - TABLE_ARGS
-            if invalid_kwargs:
-                raise SyntaxError('invalid table "%s" attributes: %s' %
-                                  (tablename, invalid_kwargs))
-        if self._lazy_tables and tablename not in self._LAZY_TABLES:
-            self._LAZY_TABLES[tablename] = (tablename, fields, kwargs)
+        if self._lazy_tables:
+            if tablename not in self._LAZY_TABLES or redefine:
+                self._LAZY_TABLES[tablename] = (tablename, fields, kwargs)
             table = None
         else:
             table = self.lazy_define_table(tablename, *fields, **kwargs)

@@ -337,15 +337,15 @@ class Table(Serializable, BasicStorage):
 
         fieldnames_set = set()
         reserved = dir(Table) + ['fields']
-        if (db and db.check_reserved):
-            check_reserved = db.check_reserved_keyword
+        if (db and db._check_reserved):
+            check_reserved_keyword = db.check_reserved_keyword
         else:
-            def check_reserved(field_name):
+            def check_reserved_keyword(field_name):
                 if field_name in reserved:
                     raise SyntaxError("field name %s not allowed" % field_name)
         for field in fields:
             field_name = field.name
-            check_reserved(field_name)
+            check_reserved_keyword(field_name)
             if db and db._ignore_field_case:
                 fname_item = field_name.lower()
             else:
