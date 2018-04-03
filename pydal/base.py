@@ -554,9 +554,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return RestParser(self).parse(
             patterns, args, vars, queries, nested_select)
 
-    def define_table(self, tablename, *fields, **args):
-        if not fields and 'fields' in args:
-            fields = args.get('fields',())
+    def define_table(self, tablename, *fields, **kwargs):
+        if not fields and 'fields' in kwargs:
+            fields = kwargs.get('fields',())
         if not isinstance(tablename, str):
             if isinstance(tablename, unicode):
                 try:
@@ -566,7 +566,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             else:
                 raise SyntaxError("missing table name")
         elif hasattr(self, tablename) or tablename in self.tables:
-            if args.get('redefine', False):
+            if kwargs.get('redefine', False):
                 delattr(self, tablename)
             else:
                 raise SyntaxError('table already defined: %s' % tablename)
@@ -576,27 +576,27 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         elif self.check_reserved:
             self.check_reserved_keyword(tablename)
         else:
-            invalid_args = set(args) - TABLE_ARGS
-            if invalid_args:
+            invalid_kwargs = set(kwargs) - TABLE_ARGS
+            if invalid_kwargs:
                 raise SyntaxError('invalid table "%s" attributes: %s' %
-                                  (tablename, invalid_args))
+                                  (tablename, invalid_kwargs))
         if self._lazy_tables and tablename not in self._LAZY_TABLES:
-            self._LAZY_TABLES[tablename] = (tablename, fields, args)
+            self._LAZY_TABLES[tablename] = (tablename, fields, kwargs)
             table = None
         else:
-            table = self.lazy_define_table(tablename, *fields, **args)
+            table = self.lazy_define_table(tablename, *fields, **kwargs)
         if tablename not in self.tables:
             self.tables.append(tablename)
         return table
 
-    def lazy_define_table(self, tablename, *fields, **args):
-        args_get = args.get
+    def lazy_define_table(self, tablename, *fields, **kwargs):
+        kwargs_get = kwargs.get
         common_fields = self._common_fields
         if common_fields:
             fields = list(fields) + [f if isinstance(f, Table) else f.clone() for f in common_fields]
 
-        table_class = args_get('table_class', Table)
-        table = table_class(self, tablename, *fields, **args)
+        table_class = kwargs_get('table_class', Table)
+        table = table_class(self, tablename, *fields, **kwargs)
         table._actual = True
         self[tablename] = table
         # must follow above line to handle self references
@@ -607,12 +607,12 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             if field.represent is None:
                 field.represent = auto_represent(field)
 
-        migrate = self._migrate_enabled and args_get('migrate', self._migrate)
+        migrate = self._migrate_enabled and kwargs_get('migrate', self._migrate)
         if migrate and self._uri not in (None, 'None') \
                 or self._adapter.dbengine == 'google:datastore':
             fake_migrate = self._fake_migrate_all or \
-                args_get('fake_migrate', self._fake_migrate)
-            polymodel = args_get('polymodel', None)
+                kwargs_get('fake_migrate', self._fake_migrate)
+            polymodel = kwargs_get('polymodel', None)
             try:
                 GLOBAL_LOCKER.acquire()
                 self._adapter.create_table(
@@ -623,7 +623,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 GLOBAL_LOCKER.release()
         else:
             table._dbt = None
-        on_define = args_get('on_define', None)
+        on_define = kwargs_get('on_define', None)
         if on_define:
             on_define(table)
         return table
@@ -665,8 +665,8 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     def __getattr__(self, key):
         if object.__getattribute__(self, '_lazy_tables') and \
                 key in object.__getattribute__(self, '_LAZY_TABLES'):
-            tablename, fields, args = self._LAZY_TABLES.pop(key)
-            return self.lazy_define_table(tablename, *fields, **args)
+            tablename, fields, kwargs = self._LAZY_TABLES.pop(key)
+            return self.lazy_define_table(tablename, *fields, **kwargs)
         return BasicStorage.__getattribute__(self, key)
 
     def __setattr__(self, key, value):

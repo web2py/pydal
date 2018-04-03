@@ -32,7 +32,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
-                 adapter_args={}, do_connect=True, after_connection=None):
+                 adapter_args={}, do_connect=True, after_connection=None,
+                 entity_quoting=False):
         super(BaseAdapter, self).__init__()
         self._load_dependencies()
         self.db = db
@@ -952,6 +953,7 @@ class NoSQLAdapter(BaseAdapter):
 
 
 class NullAdapter(BaseAdapter):
+
     def _load_dependencies(self):
         from ..dialects.base import CommonDialect
         self.dialect = CommonDialect(self)
