@@ -46,12 +46,12 @@ DEFAULT_REGEX = {
     'id':      '[1-9]\d*',
     'decimal': '\d{1,10}\.\d{2}',
     'integer': '[+-]?\d*',
-    'float':   '[+-]?\d*(\.\d*)?', 
+    'float':   '[+-]?\d*(\.\d*)?',
     'double':  '[+-]?\d*(\.\d*)?',
     'date':    '\d{4}\-\d{2}\-\d{2}',
     'time':    '\d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
     'datetime':'\d{4}\-\d{2}\-\d{2} \d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
-    }             
+    }
 
 class Row(BasicStorage):
 
@@ -380,9 +380,9 @@ class Table(Serializable, BasicStorage):
 
     def _structure(self):
         keys = ['name','type','writable','listable','searchable','regex','options',
-                'default','label','unique','notnull','required']        
+                'default','label','unique','notnull','required']
         def noncallable(obj): return obj if not callable(obj) else None
-        return [{key: noncallable(getattr(field, key)) for key in keys} 
+        return [{key: noncallable(getattr(field, key)) for key in keys}
                 for field in self if field.readable and not field.type=='password']
 
     @cachedprop
@@ -782,7 +782,7 @@ class Table(Serializable, BasicStorage):
             response.id = self.insert(**new_fields)
         return response
 
-    def validate_and_update(self, _key=DEFAULT, **fields):        
+    def validate_and_update(self, _key=DEFAULT, **fields):
         response, new_fields = self._validate_fields(fields, 'update')
         #: select record(s) for update
         if _key is DEFAULT:
@@ -878,9 +878,9 @@ class Table(Serializable, BasicStorage):
                              null = '<NULL>',
                              unique = 'uuid',
                              id_offset = None,  # id_offset used only when id_map is None
-                             transform = None,                                                          
+                             transform = None,
                              validate=False,
-                             **kwargs                      
+                             **kwargs
                              ):
         """
         Import records from csv file.
@@ -1274,10 +1274,10 @@ class Expression(object):
         return Expression(
             self.db, self._dialect.aggregate, self, 'ABS', self.type)
 
-    def cast(self, cast_as, **kwargs):        
+    def cast(self, cast_as, **kwargs):
         return Expression(
             self.db, self._dialect.cast, self, self._dialect.types[cast_as] % kwargs, cast_as)
-    
+
     def lower(self):
         return Expression(
             self.db, self._dialect.lower, self, None, self.type)
@@ -1601,7 +1601,7 @@ class Field(Expression, Serializable):
     def __init__(self, fieldname, type='string', length=None, default=DEFAULT,
                  required=False, requires=DEFAULT, ondelete='CASCADE',
                  notnull=False, unique=False, uploadfield=True, widget=None,
-                 label=None, comment=None, 
+                 label=None, comment=None,
                  writable=True, readable=True,
                  searchable=True, listable=True,
                  regex=None, options=None,
@@ -2172,14 +2172,15 @@ class Set(Serializable):
                              d.get("second", None))
         left = right = built = None
 
-        if op in ("AND", "OR"):
+        op = op.upper()
+        if op in ("_AND", "_OR"):
             if not (type(first), type(second)) == (dict, dict):
                 raise SyntaxError("Invalid AND/OR query")
-            if op == "AND":
+            if op == "_AND":
                 built = self.build(first) & self.build(second)
             else:
                 built = self.build(first) | self.build(second)
-        elif op == "NOT":
+        elif op == "_NOT":
             if first is None:
                 raise SyntaxError("Invalid NOT query")
             built = ~self.build(first)
@@ -2195,8 +2196,8 @@ class Set(Serializable):
                 else:
                     right = v
 
-            if hasattr(self.db._adapter, op):
-                opm = getattr(self.db._adapter, op)
+            if hasattr(self.db._adapter.dialect, op.lower()):
+                opm = getattr(self.db._adapter.dialect, op.lower())
 
             if op == "EQ":
                 built = left == right
