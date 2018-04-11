@@ -1,5 +1,12 @@
 from .regex import REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
 
+def to_num(num):
+    result = 0
+    try:
+        result = long(num)
+    except NameError as e:
+        result = int(num)
+    return result
 
 class RestParser(object):
     def __init__(self, db):
@@ -237,10 +244,10 @@ class RestParser(object):
                             'error': 'I\'m a teapot', 'response': None})
                     try:
                         distinct = vars.get('distinct', False) == 'True'
-                        offset = long(vars.get('offset', None) or 0)
+                        offset = to_num(vars.get('offset', None) or 0)
                         limits = (
                             offset,
-                            long(vars.get('limit', None) or 1000) + offset)
+                            to_num(vars.get('limit', None) or 1000) + offset)
                     except ValueError:
                         return self.db.Row({
                             'status': 400, 'error': 'invalid limits',
@@ -286,10 +293,10 @@ class RestParser(object):
                             if field.readable]
                     count = dbset.count()
                     try:
-                        offset = long(vars.get('offset', None) or 0)
+                        offset = to_num(vars.get('offset', None) or 0)
                         limits = (
                             offset,
-                            long(vars.get('limit', None) or 1000) + offset)
+                            to_num(vars.get('limit', None) or 1000) + offset)
                     except ValueError:
                         return self.db.Row({
                             'status': 400, 'error': ' invalid limits',
