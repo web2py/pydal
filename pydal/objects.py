@@ -1796,7 +1796,7 @@ class Field(Expression, Serializable):
             stream = BytesIO(to_bytes(data))
         elif self.uploadfs:
             # ## if file is on pyfilesystem
-            stream = self.uploadfs.open(name, 'rb')
+            stream = self.uploadfs.open(unicode(name), 'rb')
         else:
             # ## if file is on regular filesystem
             # this is intentially a sting with filename and not a stream
