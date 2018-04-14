@@ -21,6 +21,11 @@ class Oracle(SQLAdapter):
         self.ruri = self.uri.split('://', 1)[1]
         if 'threaded' not in self.driver_args:
             self.driver_args['threaded'] = True
+        # set character encoding defaults
+        if 'encoding' not in self.driver_args:
+            self.driver_args['encoding'] = 'UTF-8'
+        if 'nencoding' not in self.driver_args:
+            self.driver_args['nencoding'] = 'UTF-8'
 
     def connector(self):
         return self.driver.connect(self.ruri, **self.driver_args)

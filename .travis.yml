@@ -36,7 +36,7 @@ env:
     - ORACLE_SID=XE
     - PATH=$PATH:$ORACLE_HOME/bin
     - LD_LIBRARY_PATH=$ORACLE_HOME/lib
-    - NLS_LANG=American_America.UTF8
+    - NLS_LANG=.UTF8
   matrix:
     - ADAPTER=sqlite
     - ADAPTER=mysql

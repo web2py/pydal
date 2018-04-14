@@ -44,7 +44,7 @@ ALLOWED_DATATYPES = [
 
 
 def setUpModule():
-    if IS_MYSQL or IS_TERADATA:
+    if IS_MYSQL or IS_ORACLE or IS_TERADATA:
         db = DAL(DEFAULT_URI, check_reserved=['all'])
 
         def clean_table(db, tablename):
@@ -238,7 +238,7 @@ class TestFields(DALtest):
             self.assertEqual(db.tt.insert(aa='ö'), 1)
             if not (IS_ORACLE and (ft=='text' or ft=='blob')): 
                 # only verify insert for LOB types in oracle;
-                # select may throw errors in test
+                # select may create seg fault in test env
                 self.assertEqual(db().select(db.tt.aa)[0].aa, 'ö')
             db.tt.drop()
         db.define_table('tt', Field('aa', 'integer', default=1))
