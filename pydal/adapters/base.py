@@ -32,7 +32,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
-                 adapter_args={}, do_connect=True, after_connection=None):
+                 adapter_args={}, do_connect=True, after_connection=None,
+                 entity_quoting=False):
         super(BaseAdapter, self).__init__()
         self._load_dependencies()
         self.db = db
@@ -180,7 +181,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return new_fields
 
     def parse_value(self, value, field_itype, field_type, blob_decode=True):
-        #[Note - gi0baro] I think next if block can be (should be?) avoided
+        # [Note - gi0baro] I think next if block can be (should be?) avoided
         if field_type != 'blob' and isinstance(value, str):
             try:
                 value = value.decode(self.db._db_codec)
@@ -309,7 +310,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         # Old style virtual fields
         for tablename, tmp in fields_virtual.items():
             table = tmp[0]
-            ### old style virtual fields
+            # ## old style virtual fields
             for item in table.virtualfields:
                 try:
                     rowsobj = rowsobj.setvirtualfields(**{tablename: item})
@@ -322,7 +323,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                   cacheable=False):
         """
         Iterator to parse one row at a time.
-        It doen't support the old style virtual fields
+        It doesn't support the old style virtual fields
         """
         return IterRows(self.db, sql, fields, colnames, blob_decode, cacheable)
 
@@ -359,7 +360,7 @@ class DebugHandler(ExecutionHandler):
 
 class SQLAdapter(BaseAdapter):
     commit_on_alter_table = False
-    #[Note - gi0baro] can_select_for_update should be deprecated and removed
+    # [Note - gi0baro] can_select_for_update should be deprecated and removed
     can_select_for_update = True
     execution_handlers = []
     migrator_cls = Migrator
@@ -952,6 +953,7 @@ class NoSQLAdapter(BaseAdapter):
 
 
 class NullAdapter(BaseAdapter):
+
     def _load_dependencies(self):
         from ..dialects.base import CommonDialect
         self.dialect = CommonDialect(self)

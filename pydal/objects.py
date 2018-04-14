@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 import types
+import re
 from collections import OrderedDict
 from ._compat import (
     PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, basestring, iteritems,
@@ -40,6 +41,17 @@ from .utils import deprecated
 DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
                  'blob': 2**31}
 
+
+DEFAULT_REGEX = {
+    'id':      '[1-9]\d*',
+    'decimal': '\d{1,10}\.\d{2}',
+    'integer': '[+-]?\d*',
+    'float':   '[+-]?\d*(\.\d*)?', 
+    'double':  '[+-]?\d*(\.\d*)?',
+    'date':    '\d{4}\-\d{2}\-\d{2}',
+    'time':    '\d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
+    'datetime':'\d{4}\-\d{2}\-\d{2} \d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
+    }             
 
 class Row(BasicStorage):
 
@@ -81,7 +93,7 @@ class Row(BasicStorage):
         except Exception as e:
             raise e
 
-        raise KeyError
+        raise KeyError(key)
 
     __str__ = __repr__ = lambda self: '<Row %s>' % \
         self.as_dict(custom_types=[LazySet])
@@ -325,15 +337,15 @@ class Table(Serializable, BasicStorage):
 
         fieldnames_set = set()
         reserved = dir(Table) + ['fields']
-        if (db and db.check_reserved):
-            check_reserved = db.check_reserved_keyword
+        if (db and db._check_reserved):
+            check_reserved_keyword = db.check_reserved_keyword
         else:
-            def check_reserved(field_name):
+            def check_reserved_keyword(field_name):
                 if field_name in reserved:
                     raise SyntaxError("field name %s not allowed" % field_name)
         for field in fields:
             field_name = field.name
-            check_reserved(field_name)
+            check_reserved_keyword(field_name)
             if db and db._ignore_field_case:
                 fname_item = field_name.lower()
             else:
@@ -365,6 +377,13 @@ class Table(Serializable, BasicStorage):
     @property
     def fields(self):
         return self._fields
+
+    def _structure(self):
+        keys = ['name','type','writable','listable','searchable','regex','options',
+                'default','label','unique','notnull','required']        
+        def noncallable(obj): return obj if not callable(obj) else None
+        return [{key: noncallable(getattr(field, key)) for key in keys} 
+                for field in self if field.readable and not field.type=='password']
 
     @cachedprop
     def _upload_fieldnames(self):
@@ -741,27 +760,31 @@ class Table(Serializable, BasicStorage):
 
     def _validate_fields(self, fields, defattr='default'):
         response = Row()
-        response.id, response.errors = None, Row()
-        new_fields = copy.copy(fields)
-        for fieldname in self.fields:
-            default = getattr(self[fieldname], defattr)
-            if callable(default):
-                default = default()
-            raw_value = fields.get(fieldname, default)
-            value, error = self[fieldname].validate(raw_value)
+        response.id, response.errors, new_fields = None, Row(), Row()
+        for field in self:
+            # we validate even if not passed in case it is required
+            error = default = None
+            if not field.required and not field.compute:
+                default = getattr(field, defattr)
+                if callable(default):
+                    default = default()
+            if not field.compute:
+                value = fields.get(field.name, default)
+                value, error = field.validate(value)
             if error:
-                response.errors[fieldname] = "%s" % error
-            elif value is not None:
-                new_fields[fieldname] = value
+                response.errors[field.name] = "%s" % error
+            elif field.name in fields:
+                # only write if the field was passed and no error
+                new_fields[field.name] = value
         return response, new_fields
 
     def validate_and_insert(self, **fields):
-        response, new_fields = self._validate_fields(fields)
+        response, new_fields = self._validate_fields(fields, 'default')
         if not response.errors:
             response.id = self.insert(**new_fields)
         return response
 
-    def validate_and_update(self, _key=DEFAULT, **fields):
+    def validate_and_update(self, _key=DEFAULT, **fields):        
         response, new_fields = self._validate_fields(fields, 'update')
         #: select record(s) for update
         if _key is DEFAULT:
@@ -782,7 +805,7 @@ class Table(Serializable, BasicStorage):
                     else:
                         query = query & (getattr(self, key) == value)
                 myset = self._db(query)
-            response.id = myset.update(**new_fields)
+            response.id = myset.update(**new_fields) and record[self._id.name]
         return response
 
     def update_or_insert(self, _key=DEFAULT, **values):
@@ -857,8 +880,9 @@ class Table(Serializable, BasicStorage):
                              null = '<NULL>',
                              unique = 'uuid',
                              id_offset = None,  # id_offset used only when id_map is None
-                             transform = None,
-                             *args, **kwargs
+                             transform = None,                                                          
+                             validate=False,
+                             **kwargs                      
                              ):
         """
         Import records from csv file.
@@ -877,6 +901,11 @@ class Table(Serializable, BasicStorage):
         incrementing order.
         Will keep the id numbers in restored table.
         """
+
+        if validate:
+            inserting=self.validate_and_insert
+        else:
+            inserting=self.insert
 
         delimiter = kwargs.get('delimiter', ',')
         quotechar = kwargs.get('quotechar', '"')
@@ -975,7 +1004,7 @@ class Table(Serializable, BasicStorage):
                         except ValueError:
                             raise RuntimeError("Unable to parse line:%s" % (lineno+1))
                 if not (id_map or csv_id is None or id_offset is None or unique_idx):
-                    curr_id = self.insert(**ditems)
+                    curr_id = inserting(**ditems)
                     if first:
                         first = False
                         # First curr_id is bigger than csv_id,
@@ -986,11 +1015,11 @@ class Table(Serializable, BasicStorage):
                     # create new id until we get the same as old_id+offset
                     while curr_id < csv_id+id_offset[self._tablename]:
                         self._db(self[cid] == curr_id).delete()
-                        curr_id = self.insert(**ditems)
+                        curr_id = inserting(**ditems)
                 # Validation. Check for duplicate of 'unique' &,
                 # if present, update instead of insert.
                 elif not unique_idx:
-                    new_id = self.insert(**ditems)
+                    new_id = inserting(**ditems)
                 else:
                     unique_value = line[unique_idx]
                     query = self[unique] == unique_value
@@ -999,7 +1028,7 @@ class Table(Serializable, BasicStorage):
                         record.update_record(**ditems)
                         new_id = record[self._id.name]
                     else:
-                        new_id = self.insert(**ditems)
+                        new_id = inserting(**ditems)
                 if id_map and csv_id is not None:
                     id_map_self[csv_id] = new_id
             if lineno % 1000 == 999:
@@ -1023,6 +1052,11 @@ class Table(Serializable, BasicStorage):
         return table_as_dict
 
     def with_alias(self, alias):
+        try:
+            if self._db[alias]._rname == self._rname:
+                return self._db[alias]
+        except AttributeError: # we never used this alias
+            pass
         other = copy.copy(self)
         other['ALL'] = SQLALL(other)
         other['_tablename'] = alias
@@ -1242,6 +1276,10 @@ class Expression(object):
         return Expression(
             self.db, self._dialect.aggregate, self, 'ABS', self.type)
 
+    def cast(self, cast_as, **kwargs):        
+        return Expression(
+            self.db, self._dialect.cast, self, self._dialect.types[cast_as] % kwargs, cast_as)
+    
     def lower(self):
         return Expression(
             self.db, self._dialect.lower, self, None, self.type)
@@ -1497,7 +1535,7 @@ class Expression(object):
 
 class FieldVirtual(object):
     def __init__(self, name, f=None, ftype='string', label=None,
-                 table_name=None):
+                 table_name=None, readable=True, listable=True):
         # for backward compatibility
         (self.name, self.f) = (name, f) if f else ('unknown', name)
         self.type = ftype
@@ -1505,7 +1543,9 @@ class FieldVirtual(object):
         self.represent = lambda v, r=None: v
         self.formatter = IDENTITY
         self.comment = None
-        self.readable = True
+        self.readable = readable
+        self.listable = listable
+        self.searchable = False
         self.writable = False
         self.requires = None
         self.widget = None
@@ -1539,11 +1579,13 @@ class Field(Expression, Serializable):
             a = Field(name, 'string', length=32, default=None, required=False,
                 requires=IS_NOT_EMPTY(), ondelete='CASCADE',
                 notnull=False, unique=False,
+                regex=None, options=None,
                 uploadfield=True, widget=None, label=None, comment=None,
                 uploadfield=True, # True means store on disk,
                                   # 'a_field_name' means store in this field in db
                                   # False means file content will be discarded.
-                writable=True, readable=True, update=None, authorize=None,
+                writable=True, readable=True, searchable=True, listable=True,
+                update=None, authorize=None,
                 autodelete=False, represent=None, uploadfolder=None,
                 uploadseparate=False # upload to separate directories by uuid_keys
                                      # first 2 character and tablename.fieldname
@@ -1561,13 +1603,16 @@ class Field(Expression, Serializable):
     def __init__(self, fieldname, type='string', length=None, default=DEFAULT,
                  required=False, requires=DEFAULT, ondelete='CASCADE',
                  notnull=False, unique=False, uploadfield=True, widget=None,
-                 label=None, comment=None, writable=True, readable=True,
+                 label=None, comment=None, 
+                 writable=True, readable=True,
+                 searchable=True, listable=True,
+                 regex=None, options=None,
                  update=None, authorize=None, autodelete=False, represent=None,
                  uploadfolder=None, uploadseparate=False, uploadfs=None,
                  compute=None, custom_store=None, custom_retrieve=None,
                  custom_retrieve_file_properties=None, custom_delete=None,
                  filter_in=None, filter_out=None, custom_qualifier=None,
-                 map_none=None, rname=None):
+                 map_none=None, rname=None, **others):
         self._db = self.db = None  # both for backward compatibility
         self.table = self._table = None
         self.op = None
@@ -1597,6 +1642,11 @@ class Field(Expression, Serializable):
         self.ondelete = ondelete.upper()  # this is for reference fields only
         self.notnull = notnull
         self.unique = unique
+        # split to deal with decimal(,)
+        self.regex = regex
+        if not regex and isinstance(self.type, str):
+            self.regex = DEFAULT_REGEX.get(self.type.split('(')[0])
+        self.options = options
         self.uploadfield = uploadfield
         self.uploadfolder = uploadfolder
         self.uploadseparate = uploadseparate
@@ -1605,6 +1655,8 @@ class Field(Expression, Serializable):
         self.comment = comment
         self.writable = writable
         self.readable = readable
+        self.searchable = searchable
+        self.listable = listable
         self.update = update
         self.authorize = authorize
         self.autodelete = autodelete
@@ -1628,6 +1680,8 @@ class Field(Expression, Serializable):
         if isinstance(self.type, SQLCustomType):
             stype = self.type.type
         self._itype = REGEX_TYPE.match(stype).group(0) if stype else None
+        for key in others:
+            setattr(self, key, others[key])
 
     def bind(self, table):
         if self._table is not None:
@@ -1688,7 +1742,7 @@ class Field(Expression, Serializable):
             self_uploadfield.table.insert(**keys)
         elif self_uploadfield is True:
             if self.uploadfs:
-                dest_file = self.uploadfs.open(newfilename, 'wb')
+                dest_file = self.uploadfs.open(unicode(newfilename), 'wb')
             else:
                 if path:
                     pass

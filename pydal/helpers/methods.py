@@ -10,6 +10,7 @@ from .._compat import (
 from .regex import REGEX_NOPASSWD, REGEX_UNPACK, REGEX_CONST_STRING, REGEX_W
 from .classes import SQLCustomType
 
+UNIT_SEPARATOR = '\x1f' # ASCII unit separater for delimiting data
 
 PLURALIZE_RULES = [
     (re.compile('child$'), re.compile('child$'), 'children'),
@@ -69,8 +70,13 @@ def use_common_filters(query):
 
 
 def merge_tablemaps(*maplist):
-    """Merge arguments into a single dict, check for name collisions.
-    Arguments may be modified in the process."""
+    """
+    Merge arguments into a single dict, check for name collisions.
+    """
+    maplist = list(maplist)
+    for i, item in enumerate(maplist):
+        if isinstance(item, dict):
+            maplist[i] = dict(**item)
     ret = maplist[0]
     for item in maplist[1:]:
         if len(ret) > len(item):
@@ -88,7 +94,17 @@ def merge_tablemaps(*maplist):
 
 
 def bar_escape(item):
-    return str(item).replace('|', '||')
+    item = str(item).replace('|', '||')
+    if item.startswith('||'): item='%s%s' % (UNIT_SEPARATOR, item)
+    if item.endswith('||'): item='%s%s' % (item, UNIT_SEPARATOR)
+    return item
+
+
+def bar_unescape(item):
+    item = item.replace('||','|')
+    if item.startswith(UNIT_SEPARATOR): item = item[1:]
+    if item.endswith(UNIT_SEPARATOR): item = item[:-1]
+    return item
 
 
 def bar_encode(items):
@@ -103,8 +119,7 @@ def bar_decode_integer(value):
 
 
 def bar_decode_string(value):
-    return [x.replace('||', '|') for x in
-            REGEX_UNPACK.split(value[1:-1]) if x.strip()]
+    return [bar_unescape(x) for x in REGEX_UNPACK.split(value[1:-1]) if x.strip()]
 
 
 def archive_record(qset, fs, archive_table, current_record):
