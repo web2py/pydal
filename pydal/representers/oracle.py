@@ -1,6 +1,8 @@
 import base64
 import datetime
 from ..adapters.oracle import Oracle
+from .._compat import to_native
+from base64 import b64encode
 from .base import SQLRepresenter, JSONRepresenter
 from . import representers
 
@@ -9,6 +11,7 @@ from . import representers
 class OracleRepresenter(SQLRepresenter, JSONRepresenter):
     def exceptions(self, obj, field_type):
         if field_type == 'blob':
+            obj = to_native(b64encode(obj))
             return "utl_raw.cast_to_raw('%s')" % obj
         elif field_type == 'date':
             if isinstance(obj, (datetime.date, datetime.datetime)):
