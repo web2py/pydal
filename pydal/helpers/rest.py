@@ -1,4 +1,5 @@
 from .regex import REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
+from .._compat import long
 
 def to_num(num):
     result = 0
