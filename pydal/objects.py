@@ -2726,10 +2726,23 @@ class Rows(BasicRows):
                             box[attribute] = method()
         return self
 
-    def __and__(self, other):
+    def __add__(self, other):
         if self.colnames != other.colnames:
             raise Exception('Cannot & incompatible Rows objects')
         records = self.records + other.records
+        return self.__class__(
+            self.db, records, self.colnames, fields=self.fields,
+            compact=self.compact or other.compact)
+
+    def __and__(self, other):
+        if self.colnames != other.colnames:
+            raise Exception('Cannot & incompatible Rows objects')
+        records = []
+        other_records = list(other.records)
+        for record in self.records:
+            if record in other_records:
+                records.append(record)
+                other_records.remove(record)
         return self.__class__(
             self.db, records, self.colnames, fields=self.fields,
             compact=self.compact or other.compact)
