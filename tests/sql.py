@@ -1644,7 +1644,9 @@ class TestClientLevelOps(DALtest):
 
     def testRun(self):
         db = self.connect()
-        db.define_table('tt', Field('aa', represent=lambda x,r:'x'+x),
+        db.define_table(
+            'tt', 
+            Field('aa', represent=lambda x,r:'x'+x),
             Field('bb', type='integer', represent=lambda x,r:'y'+str(x)))
         db.commit()
         db.tt.insert(aa="test", bb=1)
@@ -1657,7 +1659,7 @@ class TestClientLevelOps(DALtest):
         rows3 = rows1 + rows2
         self.assertEqual(len(rows3), 2)
         rows4 = rows1 | rows2
-        self.assertEqual(len(rows4), 2)
+        self.assertEqual(len(rows4), 1)
         rows5 = rows1 & rows2
         self.assertEqual(len(rows5), 1)
         rows6 = rows1.find(lambda row: row.aa=="test")
