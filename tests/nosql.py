@@ -1395,16 +1395,18 @@ class TestClientLevelOps(unittest.TestCase):
         db.tt.insert(aa="test")
         rows1 = db(db.tt.aa=='test').select()
         rows2 = db(db.tt.aa=='test').select()
-        rows3 = rows1 & rows2
+        rows3 = rows1 + rows2
         assert len(rows3) == 2
-        rows4 = rows1 | rows2
+        rows4 = rows1 & rows2
         assert len(rows4) == 1
-        rows5 = rows1.find(lambda row: row.aa=="test")
+        rows5 = rows1 | rows2
         assert len(rows5) == 1
-        rows6 = rows2.exclude(lambda row: row.aa=="test")
+        rows6 = rows1.find(lambda row: row.aa=="test")
         assert len(rows6) == 1
-        rows7 = rows5.sort(lambda row: row.aa)
+        rows7 = rows2.exclude(lambda row: row.aa=="test")
         assert len(rows7) == 1
+        rows8 = rows5.sort(lambda row: row.aa)
+        assert len(rows8) == 1
         drop(db.tt)
         db.commit()
         db.close()
