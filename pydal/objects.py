@@ -399,7 +399,7 @@ class Table(Serializable, BasicStorage):
                                   current_record='current_record',
                                   current_record_label=None,
                                   migrate=None,
-                                  redefine=False):
+                                  redefine=None):
         db = self._db
         archive_db = archive_db or db
         archive_name = archive_name % dict(tablename=self._dalname)
@@ -414,10 +414,20 @@ class Table(Serializable, BasicStorage):
             clones.append(
                 field.clone(unique=False, type=field.type if nfk else 'bigint')
                 )
+        
+        d = dict(format=self._format))
+        if migrate:
+            d['migrate'] = migrate
+        elif isinstance(self._migrate, basestring):
+            d['migrate'] = self._migrate+'_archive'
+        else:
+            d['migrate'] = self._migrate
+        if redefine:
+            d['redefine'] = redefine
         archive_db.define_table(
             archive_name,
-            Field(current_record, field_type, label=current_record_label),
-            *clones, **dict(format=self._format, migrate=migrate, redefine=redefine))
+            Field(current_record, field_type, label=current_record_label), 
+            *clones, **d)
 
         self._before_update.append(
             lambda qset, fs, db=archive_db, an=archive_name, cn=current_record:

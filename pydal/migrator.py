@@ -28,6 +28,7 @@ class Migrator(object):
     def create_table(self, table, migrate=True, fake_migrate=False,
                      polymodel=None):
         db = table._db
+        table._migrate = migrate
         fields = []
         # PostGIS geo fields are added after the table has been created
         postcreation_fields = []
