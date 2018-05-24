@@ -415,7 +415,7 @@ class Table(Serializable, BasicStorage):
                 field.clone(unique=False, type=field.type if nfk else 'bigint')
                 )
         
-        d = dict(format=self._format))
+        d = dict(format=self._format)
         if migrate:
             d['migrate'] = migrate
         elif isinstance(self._migrate, basestring):
