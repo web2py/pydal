@@ -397,7 +397,9 @@ class Table(Serializable, BasicStorage):
                                   archive_name='%(tablename)s_archive',
                                   is_active='is_active',
                                   current_record='current_record',
-                                  current_record_label=None):
+                                  current_record_label=None,
+                                  migrate=False,
+                                  redefine=False):
         db = self._db
         archive_db = archive_db or db
         archive_name = archive_name % dict(tablename=self._dalname)
@@ -415,7 +417,7 @@ class Table(Serializable, BasicStorage):
         archive_db.define_table(
             archive_name,
             Field(current_record, field_type, label=current_record_label),
-            *clones, **dict(format=self._format))
+            *clones, **dict(format=self._format, migrate=migrate, redefine=redefine))
 
         self._before_update.append(
             lambda qset, fs, db=archive_db, an=archive_name, cn=current_record:
@@ -434,7 +436,7 @@ class Table(Serializable, BasicStorage):
                 self._common_filter = lambda q: reduce(
                     AND, [query(q), newquery(q)])
             else:
-                self._common_filter = newquery
+                self._common_filter = newquery 
 
     def _validate(self, **vars):
         errors = Row()
