@@ -398,7 +398,7 @@ class Table(Serializable, BasicStorage):
                                   is_active='is_active',
                                   current_record='current_record',
                                   current_record_label=None,
-                                  migrate=False,
+                                  migrate=None,
                                   redefine=False):
         db = self._db
         archive_db = archive_db or db
