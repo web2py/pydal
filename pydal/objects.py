@@ -234,6 +234,7 @@ class Table(Serializable, BasicStorage):
         super(Table, self).__init__()
         self._actual = False  # set to True by define_table()
         self._db = db
+        self._migrate = None
         self._tablename = self._dalname = tablename
         if not isinstance(tablename, str) or hasattr(DAL, tablename) or not \
            REGEX_VALID_TB_FLD.match(tablename) or \
@@ -420,7 +421,7 @@ class Table(Serializable, BasicStorage):
             d['migrate'] = migrate
         elif isinstance(self._migrate, basestring):
             d['migrate'] = self._migrate+'_archive'
-        else:
+        elif self._migrate:
             d['migrate'] = self._migrate
         if redefine:
             d['redefine'] = redefine
