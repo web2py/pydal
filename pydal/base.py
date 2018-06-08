@@ -860,14 +860,15 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         id_offset = {} # only used if id_map is None
         map_tablenames = map_tablenames or {}
         for line in ifile:
-            line = line.strip()
+            line = line.decode().strip()
             if not line:
                 continue
             elif line == 'END':
                 return
-            elif not line.startswith('TABLE ') or \
-                    not line[6:] in self.tables:
-                raise SyntaxError('invalid file format')
+            elif not line.startswith('TABLE ') :
+                raise SyntaxError('Invalid file format')
+            elif  not line[6:] in self.tables:
+                raise SyntaxError('Unknown table : %s' % line[6:])
             else:
                 tablename = line[6:]
                 tablename = map_tablenames.get(tablename,tablename)
