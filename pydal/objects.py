@@ -925,8 +925,7 @@ class Table(Serializable, BasicStorage):
             self._db[self].truncate()
 
         csvfile = csvfile.read().decode()
-        reader = csv.reader(csvfile, delimiter=delimiter,
-                            quotechar=quotechar, quoting=quoting))
+        reader = csv.reader(csvfile, delimiter=delimiter,quotechar=quotechar, quoting=quoting)
         colnames = None
         if isinstance(id_map, dict):
             if self._tablename not in id_map:
