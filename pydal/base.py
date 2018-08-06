@@ -860,7 +860,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         id_offset = {} # only used if id_map is None
         map_tablenames = map_tablenames or {}
         for line in ifile:
-            line = line.decode().strip()
+            line = line.strip()
             if not line:
                 continue
             elif line == 'END':
