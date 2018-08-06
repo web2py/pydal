@@ -46,12 +46,12 @@ DEFAULT_REGEX = {
     'id':      '[1-9]\d*',
     'decimal': '\d{1,10}\.\d{2}',
     'integer': '[+-]?\d*',
-    'float':   '[+-]?\d*(\.\d*)?', 
+    'float':   '[+-]?\d*(\.\d*)?',
     'double':  '[+-]?\d*(\.\d*)?',
     'date':    '\d{4}\-\d{2}\-\d{2}',
     'time':    '\d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
     'datetime':'\d{4}\-\d{2}\-\d{2} \d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
-    }             
+    }
 
 class Row(BasicStorage):
 
@@ -381,9 +381,9 @@ class Table(Serializable, BasicStorage):
 
     def _structure(self):
         keys = ['name','type','writable','listable','searchable','regex','options',
-                'default','label','unique','notnull','required']        
+                'default','label','unique','notnull','required']
         def noncallable(obj): return obj if not callable(obj) else None
-        return [{key: noncallable(getattr(field, key)) for key in keys} 
+        return [{key: noncallable(getattr(field, key)) for key in keys}
                 for field in self if field.readable and not field.type=='password']
 
     @cachedprop
@@ -415,7 +415,7 @@ class Table(Serializable, BasicStorage):
             clones.append(
                 field.clone(unique=False, type=field.type if nfk else 'bigint')
                 )
-        
+
         d = dict(format=self._format)
         if migrate:
             d['migrate'] = migrate
@@ -427,7 +427,7 @@ class Table(Serializable, BasicStorage):
             d['redefine'] = redefine
         archive_db.define_table(
             archive_name,
-            Field(current_record, field_type, label=current_record_label), 
+            Field(current_record, field_type, label=current_record_label),
             *clones, **d)
 
         self._before_update.append(
@@ -447,7 +447,7 @@ class Table(Serializable, BasicStorage):
                 self._common_filter = lambda q: reduce(
                     AND, [query(q), newquery(q)])
             else:
-                self._common_filter = newquery 
+                self._common_filter = newquery
 
     def _validate(self, **vars):
         errors = Row()
@@ -795,7 +795,7 @@ class Table(Serializable, BasicStorage):
             response.id = self.insert(**new_fields)
         return response
 
-    def validate_and_update(self, _key=DEFAULT, **fields):        
+    def validate_and_update(self, _key=DEFAULT, **fields):
         response, new_fields = self._validate_fields(fields, 'update')
         #: select record(s) for update
         if _key is DEFAULT:
@@ -891,9 +891,9 @@ class Table(Serializable, BasicStorage):
                              null = '<NULL>',
                              unique = 'uuid',
                              id_offset = None,  # id_offset used only when id_map is None
-                             transform = None,                                                          
+                             transform = None,
                              validate=False,
-                             **kwargs                      
+                             **kwargs
                              ):
         """
         Import records from csv file.
@@ -912,7 +912,6 @@ class Table(Serializable, BasicStorage):
         incrementing order.
         Will keep the id numbers in restored table.
         """
-
         if validate:
             inserting=self.validate_and_insert
         else:
@@ -925,8 +924,8 @@ class Table(Serializable, BasicStorage):
         if restore:
             self._db[self].truncate()
 
-        reader = csv.reader(csvfile, delimiter=delimiter,
-                            quotechar=quotechar, quoting=quoting)
+        csvfile = csvfile.read().decode()
+        reader = csv.reader(csvfile, delimiter=delimiter,quotechar=quotechar, quoting=quoting)
         colnames = None
         if isinstance(id_map, dict):
             if self._tablename not in id_map:
@@ -1287,10 +1286,10 @@ class Expression(object):
         return Expression(
             self.db, self._dialect.aggregate, self, 'ABS', self.type)
 
-    def cast(self, cast_as, **kwargs):        
+    def cast(self, cast_as, **kwargs):
         return Expression(
             self.db, self._dialect.cast, self, self._dialect.types[cast_as] % kwargs, cast_as)
-    
+
     def lower(self):
         return Expression(
             self.db, self._dialect.lower, self, None, self.type)
@@ -1614,7 +1613,7 @@ class Field(Expression, Serializable):
     def __init__(self, fieldname, type='string', length=None, default=DEFAULT,
                  required=False, requires=DEFAULT, ondelete='CASCADE',
                  notnull=False, unique=False, uploadfield=True, widget=None,
-                 label=None, comment=None, 
+                 label=None, comment=None,
                  writable=True, readable=True,
                  searchable=True, listable=True,
                  regex=None, options=None,
