@@ -15,7 +15,7 @@ from collections import OrderedDict
 from ._compat import (
     PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, basestring, iteritems,
     xrange, implements_iterator, implements_bool, copyreg, reduce, to_bytes,
-    to_native, long
+    to_native, long, text_type
 )
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
@@ -38,9 +38,7 @@ from .helpers.serializers import serializers
 from .utils import deprecated
 
 
-DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15,
-                 'blob': 2**31}
-
+DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15, 'blob': 2**31}
 
 DEFAULT_REGEX = {
     'id':      '[1-9]\d*',
@@ -1752,7 +1750,7 @@ class Field(Expression, Serializable):
             self_uploadfield.table.insert(**keys)
         elif self_uploadfield is True:
             if self.uploadfs:
-                dest_file = self.uploadfs.open(unicode(newfilename), 'wb')
+                dest_file = self.uploadfs.open(text_type(newfilename), 'wb')
             else:
                 if path:
                     pass
@@ -2054,7 +2052,7 @@ class Query(Serializable):
                     elif isinstance(v, (datetime.date,
                                         datetime.time,
                                         datetime.datetime)):
-                        newd[k] = unicode(v) if PY2 else str(v)
+                        newd[k] = text_type(v)
                 elif k == "op":
                     if callable(v):
                         newd[k] = v.__name__

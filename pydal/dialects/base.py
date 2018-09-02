@@ -285,7 +285,7 @@ class SQLDialect(CommonDialect):
         if isinstance(term, Expression):
             return term
         term = term.replace('\\', '\\\\')
-        term = term.replace('%', '\%').replace('_', '\_')
+        term = term.replace('%', r'\%').replace('_', r'\_')
         return term
 
     def startswith(self, first, second, query_env={}):
