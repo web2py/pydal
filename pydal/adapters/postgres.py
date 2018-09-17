@@ -1,4 +1,5 @@
 import re
+import os.path
 from .._compat import PY2, with_metaclass, iterkeys, to_unicode, long
 from .._globals import IDENTITY, THREAD_LOCAL
 from ..drivers import psycopg2_adapt
@@ -11,6 +12,7 @@ class PostgreMeta(AdapterMeta):
     def __call__(cls, *args, **kwargs):
         if cls not in [Postgre, PostgreNew, PostgreBoolean]:
             return AdapterMeta.__call__(cls, *args, **kwargs)
+        # choose driver according uri
         available_drivers = [
             driver for driver in cls.drivers
             if driver in iterkeys(kwargs['db']._drivers_available)]
@@ -34,9 +36,9 @@ class Postgre(
     support_distributed_transaction = True
 
     REGEX_URI = re.compile(
-        '^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>\[[^/]+\]|' +
-        '[^\:@]*)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)' +
-        '(\?sslmode=(?P<sslmode>.+))?(\?unix_socket=(?P<socket>.+))?$')
+        '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?'
+        '@(?P<host>[^:/]*)(:(?P<port>[0-9]+))?/(?P<db>[^?]+)'
+        '(\?sslmode=(?P<sslmode>[^?]+))?(\?(?P<ssl_flag>ssl))?(\?unix_socket=(?P<socket>.+))?$')
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
@@ -54,29 +56,36 @@ class Postgre(
         if not m:
             raise SyntaxError("Invalid URI string in DAL")
         user = self.credential_decoder(m.group('user'))
-        if not user:
-            raise SyntaxError('User required')
         password = self.credential_decoder(m.group('password'))
-        if not password:
-            password = ''
         host = m.group('host')
         socket = m.group('socket')
         if not host and not socket:
-            raise SyntaxError('Host name required')
+            raise SyntaxError('Host or UNIX socket name required')
         db = m.group('db')
-        if not db and not socket:
-            raise SyntaxError('Database name required')
-        port = int(m.group('port') or '5432')
-        sslmode = m.group('sslmode')
+        self.driver_args.update(user=user, database=db)
+        if password is not None:
+            self.driver_args['password'] = password
         if socket:
-            self.driver_args.update(user=user, host=socket, port=port, password=password)
-            if db:
-                self.driver_args['database'] = db
+            if not os.path.exists(socket):
+                raise ValueError("UNIX socket %r not found" % socket)
+            if self.driver_name == 'psycopg2':
+                # the psycopg2 driver let you configure the socket directory
+                # only (not the socket file name) by passing it as the host
+                # (must be an absolute path otherwise the driver tries a TCP/IP
+                # connection to host); this behaviour is due to the underlying
+                # libpq used by the driver
+                socket_dir = os.path.abspath(os.path.dirname(socket))
+                self.driver_args['host'] = socket_dir
+            elif self.driver_name == 'pg8000':
+                self.driver_args['unix_sock'] = socket
         else:
-            self.driver_args.update(database=db, user=user, host=host, port=port, password=password)
-            if sslmode:
+            port = int(m.group('port') or 5432)
+            self.driver_args.update(host=host, port=port)
+            sslmode = m.group('sslmode')
+            if sslmode and self.driver_name == 'psycopg2':
                 self.driver_args['sslmode'] = sslmode
-        # choose diver according uri
+            if m.group('ssl_flag') and self.driver_name == 'pg8000':
+                self.driver_args['ssl'] = True
         if self.driver:
             self.__version__ = "%s %s" % (self.driver.__name__,
                                           self.driver.__version__)
@@ -237,8 +246,8 @@ class JDBCPostgre(Postgre):
     drivers = ('zxJDBC',)
 
     REGEX_URI = re.compile(
-        '^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>\[[^/]+\]|' +
-        '[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>.+)$')
+        '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?'
+        '@(?P<host>[^:/]+)(:(?P<port>[0-9]+))?/(?P<db>.+)$')
 
     def _initialize_(self, do_connect):
         super(Postgre, self)._initialize_(do_connect)
