@@ -614,10 +614,9 @@ class Table(Serializable, BasicStorage):
                 raise SyntaxError(
                     'key must have all fields from primary key: %s' %
                     self._primarykey)        
-        elif str(key).isdigit():                
-            self._db(self._id == key)\
-                .update(**self._filter_fields(value)) is None:
-            raise SyntaxError('No such record: %s' % key)
+        elif str(key).isdigit():
+            if not self._db(self._id == key).update(**self._filter_fields(value)):
+                raise SyntaxError('No such record: %s' % key)
         else:
             if isinstance(key, dict):
                 raise SyntaxError(
