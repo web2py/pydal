@@ -2559,9 +2559,9 @@ class TestQuoting(DALtest):
                              Field('words', 'text'))
 
         blather = 'blah blah and so'
-        t0[0] = {'f': 'content'}
-        t1[0] = {'B': int(t0[1]['id']),
-                 'words': blather}
+        t0[None] = {'f': 'content'}
+        t1[None] = {'B': int(t0[1]['id']),
+                    'words': blather}
 
         r = db(db.t0.id==db.b.B).select()
 
@@ -2585,7 +2585,7 @@ class TestQuoting(DALtest):
                 return
             raise e
 
-        t0[0] = dict(a_a = 'a_a', a_A='a_A')
+        t0[None] = dict(a_a = 'a_a', a_A='a_A')
 
         self.assertEqual(t0[1].a_a, 'a_a')
         self.assertEqual(t0[1].a_A, 'a_A')
