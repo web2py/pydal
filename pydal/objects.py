@@ -532,31 +532,27 @@ class Table(Serializable, BasicStorage):
         return query
 
     def __getitem__(self, key):
-        if key is None:
-            return None
+        isgoogle = Key is not None and isinstance(key, Key)
+        if str(key).isdigit() or isgoogle:
+            # non negative key or gae
+            return self._db(self._id == key).select(
+                limitby=(0, 1),
+                orderby_on_limitby=False
+            ).first()
         elif isinstance(key, dict):
-            """ for keyed table """
+            # keyed table
             query = self._build_query(key)
             return self._db(query).select(
                 limitby=(0, 1),
                 orderby_on_limitby=False
             ).first()
+        elif key is None:
+            return None
         else:
             try:
-                isgoogle = 'google' in self._db._drivers_available and \
-                    isinstance(key, Key)
+                return getattr(self, key)
             except:
-                isgoogle = False
-            if str(key).isdigit() or isgoogle:
-                return self._db(self._id == key).select(
-                    limitby=(0, 1),
-                    orderby_on_limitby=False
-                ).first()
-            else:
-                try:
-                    return getattr(self, key)
-                except:
-                    raise KeyError(key)
+                raise KeyError(key)
 
     def __call__(self, key=DEFAULT, **kwargs):
         for_update = kwargs.get('_for_update', False)
@@ -646,7 +642,7 @@ class Table(Serializable, BasicStorage):
 
     def __iter__(self):
         for fieldname in self.fields:
-            yield self[fieldname]
+            yield getattr(self, fieldname)
 
     def __repr__(self):
         return '<Table %s (%s)>' % (self._tablename, ', '.join(self.fields()))
