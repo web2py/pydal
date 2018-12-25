@@ -450,7 +450,7 @@ class Table(Serializable, BasicStorage):
     def _validate(self, **vars):
         errors = Row()
         for key, value in iteritems(vars):
-            value, error = self[key].validate(value)
+            value, error = getattr(self, key).validate(value)
             if error:
                 errors[key] = error
         return errors
@@ -514,7 +514,7 @@ class Table(Serializable, BasicStorage):
 
     def _filter_fields(self, record, id=False):
         return dict([(k, v) for (k, v) in iteritems(record) if k
-                     in self.fields and (self[k].type != 'id' or id)])
+                     in self.fields and (getattr(self, k).type != 'id' or id)])
 
     def _build_query(self, key):
         """ for keyed table only """
@@ -522,9 +522,9 @@ class Table(Serializable, BasicStorage):
         for k, v in iteritems(key):
             if k in self._primarykey:
                 if query:
-                    query = query & (self[k] == v)
+                    query = query & (getattr(self, k) == v)
                 else:
-                    query = (self[k] == v)
+                    query = (getattr(self, k) == v)
             else:
                 raise SyntaxError(
                     'Field %s is not part of the primary key of %s' %
@@ -585,7 +585,7 @@ class Table(Serializable, BasicStorage):
             return record
         elif kwargs:
             query = reduce(lambda a, b: a & b, [
-                           self[k] == v for k, v in iteritems(kwargs)])
+                           getattr(self, k) == v for k, v in iteritems(kwargs)])
             return self._db(query).select(limitby=(0, 1),
                                           for_update=for_update,
                                           orderby=orderby,
@@ -689,7 +689,7 @@ class Table(Serializable, BasicStorage):
         table_fieldnames = set(self.fields)
         empty_fieldnames = OrderedDict((name, name) for name in self.fields)
         for name in list(input_fieldnames & table_fieldnames):
-            field = self[name]
+            field = getattr(self, name)
             value = field.filter_in(fields[name]) \
                 if field.filter_in else fields[name]
             new_fields[name] = (field, value)
@@ -723,7 +723,7 @@ class Table(Serializable, BasicStorage):
             self._filter_fields_for_operation(fields)
         to_compute = []
         for name in empty_fieldnames:
-            field = self[name]
+            field = getattr(self, name)
             if field.compute:
                 to_compute.append((name, field))
             elif field.default is not None:
@@ -739,7 +739,7 @@ class Table(Serializable, BasicStorage):
             self._filter_fields_for_operation(fields)
         to_compute = []
         for name in empty_fieldnames:
-            field = self[name]
+            field = getattr(self, name)
             if field.compute:
                 to_compute.append((name, field))
             if field.update is not None:
@@ -965,7 +965,7 @@ class Table(Serializable, BasicStorage):
 
         def is_id(colname):
             if colname in self:
-                return self[colname].type == 'id'
+                return getattr(self, colname).type == 'id'
             else:
                 return False
 
@@ -983,7 +983,7 @@ class Table(Serializable, BasicStorage):
                     if is_id(colname):
                         cid = colname
                     elif colname in self.fields:
-                        cols[colname] = self[colname]
+                        cols[colname] = getattr(self, colname)
                     if colname == unique:
                         unique_idx = i
             elif len(line)==len(colnames):
@@ -1016,7 +1016,7 @@ class Table(Serializable, BasicStorage):
                             if curr_id > csv_id else 0
                     # create new id until we get the same as old_id+offset
                     while curr_id < csv_id+id_offset[self._tablename]:
-                        self._db(self[cid] == curr_id).delete()
+                        self._db(getattr(self, cid) == curr_id).delete()
                         curr_id = inserting(**ditems)
                 # Validation. Check for duplicate of 'unique' &,
                 # if present, update instead of insert.
@@ -1024,7 +1024,7 @@ class Table(Serializable, BasicStorage):
                     new_id = inserting(**ditems)
                 else:
                     unique_value = line[unique_idx]
-                    query = self[unique] == unique_value
+                    query = getattr(self, unique) == unique_value
                     record = self._db(query).select().first()
                     if record:
                         record.update_record(**ditems)
@@ -1063,7 +1063,7 @@ class Table(Serializable, BasicStorage):
         other['ALL'] = SQLALL(other)
         other['_tablename'] = alias
         for fieldname in other.fields:
-            tmp = self[fieldname].clone()
+            tmp = getattr(self, fieldname).clone()
             tmp.bind(other)
             other[fieldname] = tmp
         if 'id' in self and 'id' not in other.fields:
