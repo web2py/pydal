@@ -9,8 +9,10 @@
     :license: BSD, see LICENSE for more details.
 """
 
+import binascii
+import hashlib
 import warnings
-
+from _compat import to_bytes, to_native, basestring
 
 class RemovedInNextVersionWarning(DeprecationWarning):
     pass
@@ -42,3 +44,41 @@ class deprecated(object):
                 3 + self.additional_stack)
             return f(*args, **kwargs)
         return wrapped
+
+
+def pbkdf2_hex(data, salt, iterations=1000, keylen=24, hashfunc=None):
+    hashfunc = hashfunc or sha1
+    hmac = hashlib.pbkdf2_hmac(hashfunc().name, to_bytes(data),
+                               to_bytes(salt), iterations, keylen)
+    return binascii.hexlify(hmac)
+
+def simple_hash(text, key='', salt='', digest_alg='md5'):
+    """Generate hash with the given text using the specified digest algorithm."""
+    text = to_bytes(text)
+    key = to_bytes(key)
+    salt = to_bytes(salt)
+    if not digest_alg:
+        raise RuntimeError("simple_hash with digest_alg=None")
+    elif not isinstance(digest_alg, str):  # manual approach
+        h = digest_alg(text + key + salt)
+    elif digest_alg.startswith('pbkdf2'):  # latest and coolest!
+        iterations, keylen, alg = digest_alg[7:-1].split(',')
+        digest_alg = getattr(hashlib, alg) if isinstance(alg, basestring) else alg 
+        return to_native(pbkdf2_hex(text, salt, int(iterations), int(keylen), digest_alg))
+    elif key:  # use hmac
+        if isinstance(digest_alg, basestring):
+            digest_alg = getattr(hashlib, digest_alg)
+        h = hmac.new(key + salt, text, digest_alg)
+    else:  # compatible with third party systems                                                                                         
+        h = get_digest(digest_alg)()
+        h.update(text + salt)
+    return h.hexdigest()
+
+DIGEST_ALG_BY_SIZE = {
+    128 // 4: 'md5',
+    160 // 4: 'sha1',
+    224 // 4: 'sha224',
+    256 // 4: 'sha256',
+    384 // 4: 'sha384',
+    512 // 4: 'sha512',
+}
