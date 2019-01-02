@@ -22,10 +22,10 @@ import decimal
 import unicodedata
 import uuid
 
-from _compat import StringIO, integer_types, basestring, unicodeT, urllib_unquote, unichr, to_bytes, PY2, \
+from ._compat import StringIO, integer_types, basestring, unicodeT, urllib_unquote, unichr, to_bytes, PY2, \
     to_unicode, to_native, string_types, urlparse
-from utils import simple_hash, DIGEST_ALG_BY_SIZE
-from objects import Field, FieldVirtual, FieldMethod
+from .utils import simple_hash, DIGEST_ALG_BY_SIZE
+from .objects import Field, FieldVirtual, FieldMethod
 from functools import reduce
 
 regex_isint = re.compile('^[+-]?\d+$')

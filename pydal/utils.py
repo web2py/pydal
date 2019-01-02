@@ -12,7 +12,7 @@
 import binascii
 import hashlib
 import warnings
-from _compat import to_bytes, to_native, basestring
+from ._compat import to_bytes, to_native, basestring
 
 class RemovedInNextVersionWarning(DeprecationWarning):
     pass

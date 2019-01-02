@@ -26,10 +26,10 @@ import tempfile
 import types
 from functools import reduce
 from json import loads, dumps
-from objects import DAL, Field, 
-from validators import IS_NOT_EMPTY, IS_IN_SET, IS_NOT_IN_DB, IS_EMPTY_OR, IS_INT_IN_RANGE, IS_DATETIME, IS_IN_DB
-from utils import web2py_uuid
-from _compat import Queue, long, iteritems, PY2
+from .objects import DAL, Field, 
+from .validators import IS_NOT_EMPTY, IS_IN_SET, IS_NOT_IN_DB, IS_EMPTY_OR, IS_INT_IN_RANGE, IS_DATETIME, IS_IN_DB
+from .utils import web2py_uuid
+from ._compat import Queue, long, iteritems, PY2
 
 class Storage(dict):
     __getattr__ = __getitem__
