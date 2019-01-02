@@ -69,8 +69,10 @@ def simple_hash(text, key='', salt='', digest_alg='md5'):
         if isinstance(digest_alg, basestring):
             digest_alg = getattr(hashlib, digest_alg)
         h = hmac.new(key + salt, text, digest_alg)
-    else:  # compatible with third party systems                                                                                         
-        h = get_digest(digest_alg)()
+    else:  # compatible with third party systems
+        if isinstance(digest_alg, basestring):
+            digest_alg = getattr(hashlib, digest_alg)
+        h = digest_alg()
         h.update(text + salt)
     return h.hexdigest()
 
