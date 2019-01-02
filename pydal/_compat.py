@@ -33,7 +33,6 @@ if PY2:
     import cgi
     import cookielib
     from xmlrpclib import ProtocolError
-    from gluon.contrib import ipaddress
     BytesIO = StringIO
     reduce = reduce
     reload = reload
@@ -101,7 +100,6 @@ else:
     from http import cookiejar as cookielib
     from xmlrpc.client import ProtocolError
     import html # warning, this is the python3 module and not the web2py html module
-    import ipaddress
     hashlib_md5 = lambda s: hashlib.md5(bytes(s, 'utf8'))
     iterkeys = lambda d: iter(d.keys())
     itervalues = lambda d: iter(d.values())
