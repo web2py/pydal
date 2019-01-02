@@ -11,6 +11,7 @@
 
 import binascii
 import hashlib
+import hmac
 import warnings
 from ._compat import to_bytes, to_native, basestring
 
