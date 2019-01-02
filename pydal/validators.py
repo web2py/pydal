@@ -33,7 +33,7 @@ regex_isint = re.compile('^[+-]?\d+$')
 JSONErrors = (NameError, TypeError, ValueError, AttributeError,
               KeyError)
 
-__all__ = [
+VALIDATOR_NAMES = [
     'ANY_OF',
     'CLEANUP',
     'CRYPT',
@@ -44,6 +44,7 @@ __all__ = [
     'IS_DATETIME',
     'IS_DECIMAL_IN_RANGE',
     'IS_EMAIL',
+    'IS_GENERIC_URL',
     'IS_LIST_OF_EMAILS',
     'IS_EMPTY_OR',
     'IS_EXPR',
@@ -55,6 +56,7 @@ __all__ = [
     'IS_IPV4',
     'IS_IPV6',
     'IS_IPADDRESS',
+    'IS_HTTP_URL',
     'IS_LENGTH',
     'IS_LIST_OF',
     'IS_LOWER',
