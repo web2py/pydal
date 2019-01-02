@@ -24,16 +24,19 @@ import logging
 import optparse
 import tempfile
 import types
+import uuid
 from functools import reduce
 from json import loads, dumps
-from .objects import DAL, Field
+from . import DAL, Field
 from .validators import IS_NOT_EMPTY, IS_IN_SET, IS_NOT_IN_DB, IS_EMPTY_OR, IS_INT_IN_RANGE, IS_DATETIME, IS_IN_DB
-from .utils import web2py_uuid
 from ._compat import Queue, long, iteritems, PY2
 
+def uuid4():
+    return str(uuid.uuid4())
+
 class Storage(dict):
-    __getattr__ = __getitem__
-    __setattr__ = __setitem__
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
 
 USAGE = """
 ## Example
@@ -813,7 +816,7 @@ class Scheduler(MetaScheduler):
                   if self.tasks else DEFAULT),
             Field('uuid', length=255,
                   requires=IS_NOT_IN_DB(db, 'scheduler_task.uuid'),
-                  unique=True, default=web2py_uuid),
+                  unique=True, default=uuid4),
             Field('args', 'text', default='[]', requires=TYPE(list)),
             Field('vars', 'text', default='{}', requires=TYPE(dict)),
             Field('enabled', 'boolean', default=True),
@@ -1520,7 +1523,7 @@ class Scheduler(MetaScheduler):
             function = function.__name__
         targs = 'args' in kwargs and kwargs.pop('args') or dumps(pargs)
         tvars = 'vars' in kwargs and kwargs.pop('vars') or dumps(pvars)
-        tuuid = 'uuid' in kwargs and kwargs.pop('uuid') or web2py_uuid()
+        tuuid = 'uuid' in kwargs and kwargs.pop('uuid') or uuid4()
         tname = 'task_name' in kwargs and kwargs.pop('task_name') or function
         immediate = 'immediate' in kwargs and kwargs.pop('immediate') or None
         cronline = kwargs.get('cronline')
