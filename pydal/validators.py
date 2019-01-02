@@ -519,7 +519,7 @@ class IS_IN_DB(Validator):
         delimiter=None,
         auto_add=False,
     ):
-        from objects import Table
+        from .objects import Table
         if hasattr(dbset, 'define_table'):
             self.dbset = dbset()
         else:
@@ -709,7 +709,7 @@ class IS_NOT_IN_DB(Validator):
         ignore_common_filters=False,
     ):
 
-        from objects import Table
+        from .objects import Table
         if isinstance(field, Table):
             field = field._id
 
