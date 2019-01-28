@@ -605,7 +605,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         # must follow above line to handle self references
         table._create_references()
         for field in table:
-            if field.requires == DEFAULT:
+            if field.requires is DEFAULT:
                 field.requires = auto_validators(field)
             if field.represent is None:
                 field.represent = auto_represent(field)

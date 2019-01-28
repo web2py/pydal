@@ -63,7 +63,7 @@ class Row(BasicStorage):
         _extra = super(Row, self).get('_extra', None)
         if _extra is not None:
             v = _extra.get(key, DEFAULT)
-            if v != DEFAULT:
+            if v is not DEFAULT:
                 return v
 
         try:
@@ -1639,7 +1639,7 @@ class Field(Expression, Serializable):
 
         self.length = length if length is not None else \
             DEFAULTLENGTH.get(self.type, 512)
-        self.default = default if default != DEFAULT else (update or None)
+        self.default = default if default is not DEFAULT else (update or None)
         self.required = required  # is this field required
         self.ondelete = ondelete.upper()  # this is for reference fields only
         self.notnull = notnull
@@ -1843,10 +1843,10 @@ class Field(Expression, Serializable):
         return dict(path=path, filename=filename)
 
     def formatter(self, value):
-        requires = self.requires
         if value is None:
             return self.map_none
-        if not requires:
+        requires = self.requires
+        if not requires or requires is DEFAULT:
             return value
         if not isinstance(requires, (list, tuple)):
             requires = [requires]
@@ -1861,9 +1861,9 @@ class Field(Expression, Serializable):
         return value
 
     def validate(self, value):
-        if not self.requires or self.requires == DEFAULT:
-            return ((value if value != self.map_none else None), None)
         requires = self.requires
+        if not requires or requires is DEFAULT:
+            return ((value if value != self.map_none else None), None)
         if not isinstance(requires, (list, tuple)):
             requires = [requires]
         for validator in requires:
