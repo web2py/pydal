@@ -2,9 +2,9 @@
 
 pyDAL is a pure Python Database Abstraction Layer.
 
-It dynamically generates the SQL in real time using the specified dialect for the database back end, so that you do not have to write SQL code or learn different SQL dialects (the term SQL is used generically), and your code will be portable among different types of databases.
+It dynamically generates the SQL/noSQL in realtime using the specified dialect for the database backend, so that you do not have to write SQL code or learn different SQL dialects (the term SQL is used generically), and your code will be portable among different types of databases.
 
-pyDAL comes from the original web2py's DAL, with the aim of being wide-compatible. pyDAL doesn't require web2py and can be used in any Python context.
+pyDAL comes from the original web2py's DAL, with the aim of being compatible with any Python program. pyDAL doesn't require web2py and can be used in any Python context.
 
 [![pip version](https://img.shields.io/pypi/v/pydal.svg?style=flat-square)](https://pypi.python.org/pypi/pydal)
 [![Build Status](https://img.shields.io/travis/web2py/pydal/master.svg?style=flat-square&label=Travis-CI)](https://travis-ci.org/web2py/pydal)
@@ -14,17 +14,17 @@ pyDAL comes from the original web2py's DAL, with the aim of being wide-compatibl
 
 ## Installation
 
-You can install pyDAL using pip:
+You can install pyDAL using `pip`:
 
     pip install pyDAL
 
-## Usage and documentation
+## Usage and Documentation
 
 Here is a quick example:
 
     >>> from pydal import DAL, Field
     >>> db = DAL('sqlite://storage.db')
-    >>> db.define_table('thing',Field('name'))
+    >>> db.define_table('thing', Field('name'))
     >>> db.thing.insert(name='Chair')
     >>> query = db.thing.name.startswith('C')
     >>> rows = db(query).select()
@@ -46,25 +46,24 @@ A little *taste* of pyDAL features:
 
 ## Which databases are supported?
 
-pyDAL actually support these databases:
+pyDAL supports the following databases:
 
-* sqlite
-* postgresql
-* mysql
-* mssql
-* db2
-* firebird
-* sybase
-* oracle
-* informix
-* teradata
-* sapdb
-* ingres
-* cubrid
-* imap
-* mongodb
+* SQLite
+* MySQL
+* PostgreSQL
+* MSSQL
+* FireBird
+* Oracle
+* DB2
+* Ingres
+* Sybase
+* Informix
+* Teradata
+* Cubrid
+* SAPDB
+* IMAP
+* MongoDB
 
 ## License
 
-pyDAL is released under the BSD-3c License.
-For further details, please check the `LICENSE` file.
+pyDAL is released under the BSD-3c License.  For further details, please check the `LICENSE` file.
