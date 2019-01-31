@@ -294,6 +294,8 @@ class Mongo(ConnectionConfigurationMixin, NoSQLAdapter):
             groupby=groupby, distinct=distinct, having=having)
         ctable = self.connection[tablename]
         modifiers = {'snapshot': snapshot}
+        if int(''.join(self.driver.version.split('.'))) > 370:
+            modifiers = {}
 
         if not expanded.pipeline:
             if limitby:
