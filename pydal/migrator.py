@@ -38,7 +38,10 @@ class Migrator(object):
         tablename = table._tablename
         types = self.adapter.types
         for sortable, field in enumerate(table, start=1):
-            field_name = field.name
+            if self.db._ignore_field_case:
+                field_name = field.name.lower()
+            else:
+                field_name = field.name
             field_type = field.type
             if isinstance(field_type, SQLCustomType):
                 ftype = field_type.native or field_type.type
