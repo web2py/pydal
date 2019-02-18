@@ -612,7 +612,7 @@ class Table(Serializable, BasicStorage):
             else:
                 raise SyntaxError(
                     'key must have all fields from primary key: %s' %
-                    self._primarykey)        
+                    self._primarykey)
         else:
             if isinstance(value, FieldVirtual):
                 value.bind(self, str(key))

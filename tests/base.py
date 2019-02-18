@@ -161,7 +161,7 @@ class TestChainedJoinUNIQUE(unittest.TestCase):
 
         rows = db(db.bb).select()
         rows.join(db.aa.id, fields=[db.aa.name])
-        
+
         self.assertEqual(rows[0].aa.name, 'x')
         self.assertEqual(rows[1].aa.name, 'x')
         self.assertEqual(rows[2].aa.name, 'x')

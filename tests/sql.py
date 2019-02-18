@@ -1645,7 +1645,7 @@ class TestClientLevelOps(DALtest):
     def testRun(self):
         db = self.connect()
         db.define_table(
-            'tt', 
+            'tt',
             Field('aa', represent=lambda x,r:'x'+x),
             Field('bb', type='integer', represent=lambda x,r:'y'+str(x)))
         db.commit()
