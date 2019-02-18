@@ -5,8 +5,9 @@ import re
 REGEX_TYPE = re.compile('^([\w\_\:]+)')
 REGEX_DBNAME = re.compile('^(\w+)(\:\w+)*')
 REGEX_W = re.compile('^\w+$')
-REGEX_TABLE_DOT_FIELD = re.compile('^(\w+)\.([^.]+)$')
-REGEX_NO_GREEDY_ENTITY_NAME = r'(.+?)'
+REGEX_TABLE_DOT_FIELD = re.compile(r'^(\w+)\.(\w+)$')
+REGEX_TABLE_DOT_FIELD_OPTIONAL_QUOTES = r'^"?(\w+)"?\."?(\w+)"?$'
+REGEX_NO_GREEDY_ENTITY_NAME = r'(\w+?)'
 REGEX_UPLOAD_PATTERN = re.compile('(?P<table>[\w\-]+)\.(?P<field>[\w\-]+)\.(?P<uuidkey>[\w\-]+)(\.(?P<name>\w+))?\.\w+$')
 REGEX_CLEANUP_FN = re.compile('[\'"\s;]+')
 REGEX_UNPACK = re.compile('(?<!\|)\|(?!\|)')

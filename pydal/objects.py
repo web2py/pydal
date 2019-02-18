@@ -23,7 +23,7 @@ from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import (
     REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, REGEX_PYTHON_KEYWORDS,
     REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, REGEX_CLEANUP_FN,
-    REGEX_VALID_TB_FLD, REGEX_TYPE
+    REGEX_VALID_TB_FLD, REGEX_TYPE, REGEX_TABLE_DOT_FIELD_OPTIONAL_QUOTES
 )
 from .helpers.classes import (
     Reference, MethodAdder, SQLCallableList, SQLALL, Serializable,
@@ -252,7 +252,7 @@ class Table(Serializable, BasicStorage):
             'singular', tablename.replace('_', ' ').capitalize())
         self._plural = args.get(
             'plural', pluralize(self._singular.lower()).capitalize())
-        # horrible but for backard compatibility of appamdin:
+        # horrible but for backward compatibility of appadmin
         if 'primarykey' in args and args['primarykey'] is not None:
             self._primarykey = args.get('primarykey')
 
@@ -269,7 +269,8 @@ class Table(Serializable, BasicStorage):
 
         self.add_method = MethodAdder(self)
 
-        fieldnames, newfields = set(), []
+        fieldnames = set()
+        newfields = []
         _primarykey = getattr(self, '_primarykey', None)
         if _primarykey is not None:
             if not isinstance(_primarykey, list):
@@ -317,10 +318,8 @@ class Table(Serializable, BasicStorage):
                     field
                 )
         fields = newfields
-        tablename = tablename
         self._fields = SQLCallableList()
         self.virtualfields = []
-        fields = list(fields)
 
         if db and db._adapter.uploads_in_blob is True:
             uploadfields = [f.name for f in fields if f.type == 'blob']
@@ -532,10 +531,9 @@ class Table(Serializable, BasicStorage):
         return query
 
     def __getitem__(self, key):
-        isgoogle = Key is not None and isinstance(key, Key)
-        if str(key).isdigit() or isgoogle:
+        if str(key).isdigit() or (Key is not None and isinstance(key, Key)):
             # non negative key or gae
-            return self._db(self._id == key).select(
+            return self._db(self._id == str(key)).select(
                 limitby=(0, 1),
                 orderby_on_limitby=False
             ).first()
@@ -546,9 +544,7 @@ class Table(Serializable, BasicStorage):
                 limitby=(0, 1),
                 orderby_on_limitby=False
             ).first()
-        elif key is None:
-            return None
-        else:
+        elif key is not None:
             try:
                 return getattr(self, key)
             except:
@@ -595,9 +591,16 @@ class Table(Serializable, BasicStorage):
 
     def __setitem__(self, key, value):
         if key is None:
+            # table[None] = value (shortcut for insert)
             self.insert(**self._filter_fields(value))
-        elif isinstance(key, dict) and isinstance(value, dict):
-            """ option for keyed table """
+        elif str(key).isdigit():
+            # table[non negative key] = value (shortcut for update)
+            if not self._db(self._id == key).update(**self._filter_fields(value)):
+                raise SyntaxError('No such record: %s' % key)
+        elif isinstance(key, dict):
+            # keyed table
+            if not isinstance(value, dict):
+                raise SyntaxError('value must be a dictionary: %s' % value)
             if set(key.keys()) == set(self._primarykey):
                 value = self._filter_fields(value)
                 kv = {}
@@ -610,21 +613,14 @@ class Table(Serializable, BasicStorage):
                 raise SyntaxError(
                     'key must have all fields from primary key: %s' %
                     self._primarykey)        
-        elif str(key).isdigit():
-            if not self._db(self._id == key).update(**self._filter_fields(value)):
-                raise SyntaxError('No such record: %s' % key)
         else:
-            if isinstance(key, dict):
-                raise SyntaxError(
-                    'value must be a dictionary: %s' % value)
+            if isinstance(value, FieldVirtual):
+                value.bind(self, str(key))
+                self._virtual_fields.append(value)
+            elif isinstance(value, FieldMethod):
+                value.bind(self, str(key))
+                self._virtual_methods.append(value)
             self.__dict__[str(key)] = value
-            if isinstance(value, (FieldVirtual, FieldMethod)):
-                if value.name == 'unknown':
-                    value.name = str(key)
-                if isinstance(value, FieldVirtual):
-                    self._virtual_fields.append(value)
-                else:
-                    self._virtual_methods.append(value)
 
     def __setattr__(self, key, value):
         if key[:1] != '_' and key in self:
@@ -900,7 +896,7 @@ class Table(Serializable, BasicStorage):
         - 'id_map' if set to None will not map ids
 
         The import will keep the id numbers in the restored table.
-        This assumes that there is an field of type id that is integer and in
+        This assumes that there is a field of type id that is integer and in
         incrementing order.
         Will keep the id numbers in restored table.
         """
@@ -976,7 +972,7 @@ class Table(Serializable, BasicStorage):
                 return
             if not colnames:
                 # assume this is the first line of the input, contains colnames
-                colnames = [x.split('.', 1)[-1] for x in line][:len(line)]
+                colnames = [x.split('.', 1)[-1] for x in line]
 
                 cols, cid = {}, None
                 for i, colname in enumerate(colnames):
@@ -1554,6 +1550,16 @@ class FieldVirtual(object):
         self.tablename = table_name
         self.filter_out = None
 
+    def bind(self, table, name):
+        if self.tablename is not None:
+            raise ValueError(
+                'FieldVirtual %s is already bound to a table' % self)
+        if self.name == 'unknown': # for backward compatibility
+            self.name = name
+        elif name != self.name:
+            raise ValueError('Cannot rename FieldVirtual %s to %s' % (self.name, name))
+        self.tablename = table._tablename
+
     def __str__(self):
         return '%s.%s' % (self.tablename, self.name)
 
@@ -1563,6 +1569,12 @@ class FieldMethod(object):
         # for backward compatibility
         (self.name, self.f) = (name, f) if f else ('unknown', name)
         self.handler = handler or VirtualCommand
+
+    def bind(self, table, name):
+        if self.name == 'unknown': # for backward compatibility
+            self.name = name
+        elif name != self.name:
+            raise ValueError('Cannot rename FieldMethod %s to %s' % (self.name, name))
 
 
 @implements_bool
@@ -1803,7 +1815,7 @@ class Field(Expression, Serializable):
             stream = self.uploadfs.open(name, 'rb')
         else:
             # ## if file is on regular filesystem
-            # this is intentially a sting with filename and not a stream
+            # this is intentionally a string with filename and not a stream
             # this propagates and allows stream_file_or_304_or_206 to be called
             fullname = pjoin(file_properties['path'], name)
             if nameonly:
@@ -2573,6 +2585,25 @@ class BasicRows(object):
 
         return serializers.json(items)
 
+    @property
+    def colnames_fields(self):
+        colnames = self.colnames
+        plain_fields = self.fields
+        if len(colnames) > len(plain_fields):
+            fields = []; fi = 0
+            for col in colnames:
+                m = re.match(REGEX_TABLE_DOT_FIELD_OPTIONAL_QUOTES, col)
+                if m:
+                    t, f = m.groups()
+                    table = self.db[t]; field = table[f]
+                    if field in table._virtual_fields + table._virtual_methods:
+                        fields.append(field)
+                        continue
+                fields.append(plain_fields[fi]); fi += 1
+            assert len(colnames) == len(fields)
+            return fields
+        return plain_fields
+
     def export_to_csv_file(self, ofile, null='<NULL>', *args, **kwargs):
         """
         Exports data to csv, the first line contains the column names
@@ -2632,16 +2663,14 @@ class BasicRows(object):
             return value
 
         repr_cache = {}
-        fieldlist = [f if isinstance(f, Field) else None for f in self.fields]
+        fieldlist = self.colnames_fields
         fieldmap = dict(zip(self.colnames, fieldlist))
         for record in self:
             row = []
             for col in colnames:
                 field = fieldmap[col]
-                if field is None:
-                    row.append(record._extra[col])
-                else:
-                    t, f = field._tablename, field.name
+                if isinstance(field, (Field, FieldVirtual)):
+                    t = field.tablename; f = field.name
                     if isinstance(record.get(t, None), (Row, dict)):
                         value = record[t][f]
                     else:
@@ -2660,6 +2689,8 @@ class BasicRows(object):
                         else:
                             value = field.represent(value, record)
                     row.append(none_exception(value))
+                else:
+                    row.append(record._extra[col])
             writer.writerow(row)
 
     # for consistent naming yet backwards compatible
