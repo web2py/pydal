@@ -376,12 +376,24 @@ class TestFields(unittest.TestCase):
 
         ## Lazy and Virtual fields
         db.tt.b = Field.Virtual(lambda row: row.tt.aa)
+        # test for FieldVirtual.bind
+        self.assertEqual(db.tt.b.tablename, 'tt')
+        self.assertEqual(db.tt.b.name, 'b')
         db.tt.c = Field.Lazy(lambda row: row.tt.aa)
-        row = db().select(db.tt.aa)[0]
+        # test for FieldMethod.bind
+        self.assertEqual(db.tt.c.name, 'c')
+        rows = db().select(db.tt.aa)
+        row = rows[0]
         self.assertEqual(row.b,t0)
         self.assertEqual(row.c(),t0)
-
+        # test for BasicRows.colnames_fields
+        rows.colnames.insert(0, 'tt.b')
+        rows.colnames.insert(1, 'tt.c')
+        colnames_fields = rows.colnames_fields
+        self.assertIs(colnames_fields[0], db.tt.b)
+        self.assertIs(colnames_fields[1], db.tt.c)
         drop(db.tt)
+
         db.define_table('tt', Field('aa', 'time', default='11:30'))
         t0 = datetime.time(10, 30, 55)
         self.assertEqual(isinstance(db.tt.insert(aa=t0), long), True)
