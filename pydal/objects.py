@@ -2817,6 +2817,8 @@ class Rows(BasicRows):
             fields=self.fields)
 
     def __getitem__(self, i):
+        if isinstance(i, slice):
+            return self.__getslice__(i.start, i.stop)
         row = self.records[i]
         keys = list(row.keys())
         if self.compact and len(keys) == 1 and keys[0] != '_extra':
