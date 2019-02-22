@@ -12,11 +12,11 @@ class SQLiteParser(
 ):
     @before_parse('decimal')
     def decimal_extras(self, field_type):
-        return {'decimals': field_type[8:-1].split(',')[-1]}
+        return {'decimals': field_type[8:-1].split(',')[1].strip()}
 
     @for_type('decimal')
     def _decimal(self, value, decimals):
-        value = ('%.' + decimals + 'f') % value
+        value = '{0:.{precision}f}'.format(value, precision=decimals)
         return Decimal(value)
 
     @for_type('date')
