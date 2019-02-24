@@ -3094,7 +3094,7 @@ class IterRows(BasicRows):
     def __next__(self):
         db_row = self.cursor.fetchone()
         if db_row is None:
-            return
+            raise StopIteration
         row = self.db._adapter._parse(db_row, self.tmps, self.fields,
                                       self.colnames, self.blob_decode,
                                       self.cacheable, self.fields_virtual,
@@ -3121,6 +3121,7 @@ class IterRows(BasicRows):
         except StopIteration:
             # Iterator is over, adjust the cursor logic
             self.db._adapter.close_cursor(self.cursor)
+            return
         return
 
     def first(self):
