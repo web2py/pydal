@@ -285,7 +285,7 @@ class SQLDialect(CommonDialect):
         if isinstance(term, Expression):
             return term
         term = term.replace('\\', '\\\\')
-        term = term.replace('%', r'\%').replace('_', r'\_')
+        term = term.replace(r'%', r'\%').replace('_', r'\_')
         return term
 
     def startswith(self, first, second, query_env={}):
@@ -318,18 +318,18 @@ class SQLDialect(CommonDialect):
                 second = Expression(
                     second.db,
                     self.concat('%', Expression(
-                        second.db, self.replace(second, ('%', '\%'),
-                            query_env=query_env)), '%'))
+                        second.db, self.replace(second, (r'%', r'\%'),
+                            query_env=query_env)), r'%'))
             else:
-                second = '%'+self._like_escaper_default(str(second))+'%'
+                second = '%'+self._like_escaper_default(str(second))+r'%'
         elif first.type.startswith('list:'):
             if isinstance(second, Expression):
                 second = Expression(
-                    second.db, self.concat('%|', Expression(
+                    second.db, self.concat(r'%|', Expression(
                         second.db, self.replace(Expression(
                             second.db, self.replace(
-                                second, ('%', '\%'), query_env)),
-                                ('|', '||'))), '|%'))
+                                second, (r'%', r'\%'), query_env)),
+                                ('|', '||'))), r'|%'))
             else:
                 second = str(second).replace('|', '||')
                 second = '%|'+self._like_escaper_default(second)+'|%'

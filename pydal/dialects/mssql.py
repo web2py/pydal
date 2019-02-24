@@ -159,7 +159,7 @@ class MSSQLDialect(SQLDialect):
     def regexp(self, first, second, query_env={}):
         second = self.expand(second, 'string', query_env=query_env)
         second = second.replace('\\', '\\\\')
-        second = second.replace('%', '\%').replace('*', '%').replace('.', '_')
+        second = second.replace(r'%', r'\%').replace('*', '%').replace('.', '_')
         return "(%s LIKE %s ESCAPE '\\')" % (
             self.expand(first, query_env=query_env), second)
 
