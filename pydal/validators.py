@@ -84,7 +84,10 @@ def translate(text):
 
 
 class ValidationError(Exception):
-    pass
+
+    def __init__(self, message):
+        Exception.__init__(self, message)
+        self.message = message
 
 
 class Validator(object):
