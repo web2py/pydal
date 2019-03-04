@@ -20,6 +20,7 @@ if PY2:
     import urllib2
     import Queue
     import ConfigParser as configparser
+    from .contrib import ipaddress
     from email.MIMEBase import MIMEBase
     from email.Header import Header
     from email import Encoders, Charset
@@ -89,6 +90,7 @@ else:
     import _thread as thread
     import configparser
     import queue as Queue
+    import ipaddress
     from email.mime.base import MIMEBase
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
