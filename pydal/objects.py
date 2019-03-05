@@ -1812,7 +1812,7 @@ class Field(Expression, Serializable):
             stream = BytesIO(to_bytes(data))
         elif self.uploadfs:
             # ## if file is on pyfilesystem
-            stream = self.uploadfs.open(name, 'rb')
+            stream = self.uploadfs.open(unicode(name), 'rb')
         else:
             # ## if file is on regular filesystem
             # this is intentionally a string with filename and not a stream
@@ -2188,14 +2188,15 @@ class Set(Serializable):
                              d.get("second", None))
         left = right = built = None
 
-        if op in ("AND", "OR"):
+        op = op.upper()
+        if op in ("_AND", "_OR"):
             if not (type(first), type(second)) == (dict, dict):
                 raise SyntaxError("Invalid AND/OR query")
-            if op == "AND":
+            if op == "_AND":
                 built = self.build(first) & self.build(second)
             else:
                 built = self.build(first) | self.build(second)
-        elif op == "NOT":
+        elif op == "_NOT":
             if first is None:
                 raise SyntaxError("Invalid NOT query")
             built = ~self.build(first)
@@ -2211,8 +2212,8 @@ class Set(Serializable):
                 else:
                     right = v
 
-            if hasattr(self.db._adapter, op):
-                opm = getattr(self.db._adapter, op)
+            if hasattr(self.db._adapter.dialect, op.lower()):
+                opm = getattr(self.db._adapter.dialect, op.lower())
 
             if op == "EQ":
                 built = left == right
