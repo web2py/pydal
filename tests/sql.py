@@ -2713,7 +2713,6 @@ class TestGis(DALtest):
 class TestJSON(DALtest):
 
     def testJSONExpressions(self):
-        from py
         db = self.connect()
         tj = db.define_table('tj', Field('testjson', 'json'))
         rec1 = tj.insert(testjson={u'a': {u'a1': 2, u'a0': 1}, u'b': 3, u'c': {u'c0': {u'c01': [2, 4]}}})
