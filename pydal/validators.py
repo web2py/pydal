@@ -26,6 +26,7 @@ import decimal
 import binascii
 import unicodedata
 import encodings.idna
+from functools import reduce
 
 from pydal._compat import StringIO, integer_types, basestring, unicodeT, urllib_unquote, \
     unichr, to_bytes, PY2, to_unicode, to_native, string_types, urlparse, ipaddress
