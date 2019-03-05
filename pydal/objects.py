@@ -1529,6 +1529,35 @@ class Expression(object):
     def st_dwithin(self, value, distance):
         return Query(
             self.db, self._dialect.st_dwithin, self, (value, distance))
+    # JSON Expressions
+    def json_key(self, key):
+        """
+        Get the json in key which you can use for more queries
+        -> operator
+        """
+        return Expression(
+            self.db, self._dialect.json_key, self, key)
+
+    def json_key_value(self, key):
+        """ Get the value int or text in key """
+        return Expression(
+            self.db, self._dialect.json_key_value, self, key)
+
+    def json_path(self, path):
+        """ Get the json in path which you can use for more queries """
+        return Expression(
+            self.db, self._dialect.json_path, self, path)
+
+    def json_path_value(self, path):
+        """ Get the json in path which you can use for more queries """
+        return Expression(
+            self.db, self._dialect.json_path_value, self, path)
+
+    # JSON Queries
+    def json_contains(self, jsonvalue):
+        # @> operator, value is json e.g. '{"country": "Peru"}'
+        return Query(
+            self.db, self._dialect.json_contains, self, jsonvalue)
 
 
 class FieldVirtual(object):
