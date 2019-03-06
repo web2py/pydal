@@ -1534,8 +1534,8 @@ class Expression(object):
     
     def json_key(self, key):
         """
-        Get the json in key which you can use as to build queries or as one of
-        the fields you want to get in a select.
+        Get the json in key which you can use to build queries or as one of the
+        fields you want to get in a select.
         
         Example:
             Usage::
@@ -1548,15 +1548,14 @@ class Expression(object):
                 >>> row.a
                 {u'a1': 2, u'a0': 1}
 
-                Using it as part of a building a query
+                Using it as part of building a query
 
                 >>> row = db(tj.testjson.json_key('a').json_key_value('a0') == 1).select().first()
                 >>> row
                 <Row {'testjson': {u'a': {u'a1': 2, u'a0': 1}, u'c': {u'c0': {u'c01': [2, 4]}}, u'b': 3}, 'id': 1L}>
 
         """
-        return Expression(
-            self.db, self._dialect.json_key, self, key)
+        return Expression(self.db, self._dialect.json_key, self, key)
 
     def json_key_value(self, key):
         """
@@ -1573,15 +1572,14 @@ class Expression(object):
                 >>> row.b
                 '3'
 
-                Using it as part of a building a query
+                Using it as part of building a query
 
                 >>> row = db(db.tj.testjson.json_key('a').json_key_value('a0') == 1).select().first()
                 >>> row
                 <Row {'testjson': {u'a': {u'a1': 2, u'a0': 1}, u'c': {u'c0': {u'c01': [2, 4]}}, u'b': 3}, 'id': 1L}>
 
         """
-        return Expression(
-            self.db, self._dialect.json_key_value, self, key)
+        return Expression(self.db, self._dialect.json_key_value, self, key)
 
     def json_path(self, path):
         """
@@ -1596,8 +1594,7 @@ class Expression(object):
                 >>> row.firstc01
                 2
         """
-        return Expression(
-            self.db, self._dialect.json_path, self, path)
+        return Expression(self.db, self._dialect.json_path, self, path)
 
     def json_path_value(self, path):
         """
@@ -1611,14 +1608,14 @@ class Expression(object):
                 >>> db(db.tj.testjson.json_path_value('{a, a1}') == 2).select().first()
                 <Row {'testjson': {u'a': {u'a1': 2, u'a0': 1}, u'c': {u'c0': {u'c01': [2, 4]}}, u'b': 3}, 'id': 1L}>
         """
-        return Expression(
-            self.db, self._dialect.json_path_value, self, path)
+        return Expression(self.db, self._dialect.json_path_value, self, path)
 
     # JSON Queries
     
     def json_contains(self, jsonvalue):
         """
-        Containment operator, value is json string e.g. '{"country": "Peru"}'
+        Containment operator, jsonvalue parameter must be a json string
+        e.g. '{"country": "Peru"}'
 
         Example:
             Usage::
@@ -1628,8 +1625,7 @@ class Expression(object):
                 >>> db(db.tj.testjson.json_contains('{"c": {"c0":{"c01": [2]}}}')).select().first()
                 <Row {'testjson': {u'a': {u'a1': 2, u'a0': 1}, u'c': {u'c0': {u'c01': [2, 4]}}, u'b': 3}, 'id': 1L}>
         """
-        return Query(
-            self.db, self._dialect.json_contains, self, jsonvalue)
+        return Query(self.db, self._dialect.json_contains, self, jsonvalue)
 
 
 class FieldVirtual(object):
