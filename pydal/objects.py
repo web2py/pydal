@@ -1601,7 +1601,7 @@ class Expression(object):
 
     def json_path_value(self, path):
         """
-        Get the json in path which you can use for more queries
+        Get the value in path which you can use for more queries
 
         Example:
             Usage::
