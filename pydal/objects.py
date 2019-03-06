@@ -1529,33 +1529,105 @@ class Expression(object):
     def st_dwithin(self, value, distance):
         return Query(
             self.db, self._dialect.st_dwithin, self, (value, distance))
+    
     # JSON Expressions
+    
     def json_key(self, key):
         """
-        Get the json in key which you can use for more queries
-        -> operator
+        Get the json in key which you can use as to build queries or as one of
+        the fields you want to get in a select.
+        
+        Example:
+            Usage::
+
+                To use as one of the fields you want to get in a select
+
+                >>> tj = db.define_table('tj', Field('testjson', 'json'))
+                >>> tj.insert(testjson={u'a': {u'a1': 2, u'a0': 1}, u'b': 3, u'c': {u'c0': {u'c01': [2, 4]}}})
+                >>> row = db(db.tj).select(db.tj.testjson.json_key('a').with_alias('a')).first()
+                >>> row.a
+                {u'a1': 2, u'a0': 1}
+
+                Using it as part of a building a query
+
+                >>> row = db(tj.testjson.json_key('a').json_key_value('a0') == 1).select().first()
+                >>> row
+                <Row {'testjson': {u'a': {u'a1': 2, u'a0': 1}, u'c': {u'c0': {u'c01': [2, 4]}}, u'b': 3}, 'id': 1L}>
+
         """
         return Expression(
             self.db, self._dialect.json_key, self, key)
 
     def json_key_value(self, key):
-        """ Get the value int or text in key """
+        """
+        Get the value int or text in key
+
+        Example:
+            Usage::
+
+                To use as one of the fields you want to get in a select
+
+                >>> tj = db.define_table('tj', Field('testjson', 'json'))
+                >>> tj.insert(testjson={u'a': {u'a1': 2, u'a0': 1}, u'b': 3, u'c': {u'c0': {u'c01': [2, 4]}}})
+                >>> row = db(db.tj).select(db.tj.testjson.json_key_value('b').with_alias('b')).first()
+                >>> row.b
+                '3'
+
+                Using it as part of a building a query
+
+                >>> row = db(db.tj.testjson.json_key('a').json_key_value('a0') == 1).select().first()
+                >>> row
+                <Row {'testjson': {u'a': {u'a1': 2, u'a0': 1}, u'c': {u'c0': {u'c01': [2, 4]}}, u'b': 3}, 'id': 1L}>
+
+        """
         return Expression(
             self.db, self._dialect.json_key_value, self, key)
 
     def json_path(self, path):
-        """ Get the json in path which you can use for more queries """
+        """
+        Get the json in path which you can use for more queries
+
+        Example:
+            Usage::
+
+                >>> tj = db.define_table('tj', Field('testjson', 'json'))
+                >>> tj.insert(testjson={u'a': {u'a1': 2, u'a0': 1}, u'b': 3, u'c': {u'c0': {u'c01': [2, 4]}}})
+                >>> row = db(db.tj.id > 0).select(db.tj.testjson.json_path('{c, c0, c01, 0}').with_alias('firstc01')).first()
+                >>> row.firstc01
+                2
+        """
         return Expression(
             self.db, self._dialect.json_path, self, path)
 
     def json_path_value(self, path):
-        """ Get the json in path which you can use for more queries """
+        """
+        Get the json in path which you can use for more queries
+
+        Example:
+            Usage::
+
+                >>> tj = db.define_table('tj', Field('testjson', 'json'))
+                >>> tj.insert(testjson={u'a': {u'a1': 2, u'a0': 1}, u'b': 3, u'c': {u'c0': {u'c01': [2, 4]}}})
+                >>> db(db.tj.testjson.json_path_value('{a, a1}') == 2).select().first()
+                <Row {'testjson': {u'a': {u'a1': 2, u'a0': 1}, u'c': {u'c0': {u'c01': [2, 4]}}, u'b': 3}, 'id': 1L}>
+        """
         return Expression(
             self.db, self._dialect.json_path_value, self, path)
 
     # JSON Queries
+    
     def json_contains(self, jsonvalue):
-        # @> operator, value is json e.g. '{"country": "Peru"}'
+        """
+        Containment operator, value is json string e.g. '{"country": "Peru"}'
+
+        Example:
+            Usage::
+
+                >>> tj = db.define_table('tj', Field('testjson', 'json'))
+                >>> tj.insert(testjson={u'a': {u'a1': 2, u'a0': 1}, u'b': 3, u'c': {u'c0': {u'c01': [2, 4]}}})
+                >>> db(db.tj.testjson.json_contains('{"c": {"c0":{"c01": [2]}}}')).select().first()
+                <Row {'testjson': {u'a': {u'a1': 2, u'a0': 1}, u'c': {u'c0': {u'c01': [2, 4]}}, u'b': 3}, 'id': 1L}>
+        """
         return Query(
             self.db, self._dialect.json_contains, self, jsonvalue)
 

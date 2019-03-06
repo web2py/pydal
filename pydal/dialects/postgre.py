@@ -249,10 +249,7 @@ class PostgreDialectJSON(PostgreDialect):
             second['precision'], second['options'])
 
     def json_key(self, first, key, query_env=None):
-        """
-        Get the json in key which you can use for more queries
-        -> operator
-        """
+        """ Get the json in key which you can use for more queries """
         if isinstance(key, basestring):
             key = self.expand(key, 'string', query_env=query_env)
         elif not isinstance(key, integer_types):
