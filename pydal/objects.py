@@ -11,6 +11,7 @@ import shutil
 import sys
 import types
 import re
+import io
 from collections import OrderedDict
 from ._compat import (
     PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, basestring, iteritems,
@@ -881,6 +882,7 @@ class Table(Serializable, BasicStorage):
                              id_offset = None,  # id_offset used only when id_map is None
                              transform = None,
                              validate=False,
+                             encoding="utf-8",
                              **kwargs
                              ):
         """
@@ -912,7 +914,7 @@ class Table(Serializable, BasicStorage):
         if restore:
             self._db[self].truncate()
 
-        reader = csv.reader(csvfile, delimiter=delimiter,
+        reader = csv.reader(io.TextIOWrapper(csvfile, encoding=encoding), delimiter=delimiter,
                             quotechar=quotechar, quoting=quoting)
         colnames = None
         if isinstance(id_map, dict):
