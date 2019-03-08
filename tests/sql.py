@@ -1544,43 +1544,47 @@ class TestMigrations(unittest.TestCase):
         db.commit()
         db.close()
 
-        # Change field type
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', Field('aa', rname='faa'),
-            Field('b', 'text', rname='fb'), migrate='.storage.table')
-        db.define_table('t1', Field('aa', rname='faa'),
-            Field('b', 'text', rname='fb'), migrate='.storage.rname',
-            rname='foo')
-        data = dict(aa='aa4', b='b4')
-        checkWrite(db, db.tt, data)
-        checkWrite(db, db.t1, data)
-        row = db(db.tt).select(*[db.tt[x] for x in integrity.keys()]).first()
-        self.assertIsNot(row, None)
-        self.assertEqual(row.as_dict(), integrity)
-        row2 = db(db.t1).select(*[db.t1[x] for x in integrity.keys()]).first()
-        self.assertIsNot(row2, None)
-        self.assertEqual(row2.as_dict(), integrity)
-        db.commit()
-        db.close()
+        if not IS_SQLITE:
 
-        # Change field rname
-        db = DAL(DEFAULT_URI, check_reserved=['all'])
-        db.define_table('tt', Field('aa', rname='faa'),
-            Field('b', 'text', rname='xb'), migrate='.storage.table')
-        db.define_table('t1', Field('aa', rname='faa'),
-            Field('b', 'text', rname='xb'), migrate='.storage.rname',
-            rname='foo')
-        data = dict(aa='aa4', b='b4')
-        checkWrite(db, db.tt, data)
-        checkWrite(db, db.t1, data)
-        row = db(db.tt).select(*[db.tt[x] for x in integrity.keys()]).first()
-        self.assertIsNot(row, None)
-        self.assertEqual(row.as_dict(), integrity)
-        row2 = db(db.t1).select(*[db.t1[x] for x in integrity.keys()]).first()
-        self.assertIsNot(row2, None)
-        self.assertEqual(row2.as_dict(), integrity)
-        db.commit()
-        db.close()
+            # Change field type
+            db = DAL(DEFAULT_URI, check_reserved=['all'])
+            db.define_table('tt', Field('aa', rname='faa'),
+                Field('b', 'text', rname='fb'), migrate='.storage.table')
+            db.define_table('t1', Field('aa', rname='faa'),
+                Field('b', 'text', rname='fb'), migrate='.storage.rname',
+                rname='foo')
+            data = dict(aa='aa4', b='b4')
+            checkWrite(db, db.tt, data)
+            checkWrite(db, db.t1, data)
+            row = db(db.tt).select(*[db.tt[x] for x in integrity.keys()]).first()
+            self.assertIsNot(row, None)
+            self.assertEqual(row.as_dict(), integrity)
+            row2 = db(db.t1).select(*[db.t1[x] for x in integrity.keys()]).first()
+            self.assertIsNot(row2, None)
+            self.assertEqual(row2.as_dict(), integrity)
+            db.commit()
+            db.close()
+
+        if not IS_SQLITE:
+
+            # Change field rname
+            db = DAL(DEFAULT_URI, check_reserved=['all'])
+            db.define_table('tt', Field('aa', rname='faa'),
+                Field('b', 'text', rname='xb'), migrate='.storage.table')
+            db.define_table('t1', Field('aa', rname='faa'),
+                Field('b', 'text', rname='xb'), migrate='.storage.rname',
+                rname='foo')
+            data = dict(aa='aa4', b='b4')
+            checkWrite(db, db.tt, data)
+            checkWrite(db, db.t1, data)
+            row = db(db.tt).select(*[db.tt[x] for x in integrity.keys()]).first()
+            self.assertIsNot(row, None)
+            self.assertEqual(row.as_dict(), integrity)
+            row2 = db(db.t1).select(*[db.t1[x] for x in integrity.keys()]).first()
+            self.assertIsNot(row2, None)
+            self.assertEqual(row2.as_dict(), integrity)
+            db.commit()
+            db.close()
 
         # Drop field defined by ALTER TABLE
         db = DAL(DEFAULT_URI, check_reserved=['all'])
