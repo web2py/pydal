@@ -27,8 +27,9 @@ if PY2:
     from email.MIMEMultipart import MIMEMultipart
     from email.MIMEText import MIMEText
     from email.Charset import add_charset, QP as charset_QP
-    from urllib import FancyURLopener, urlencode, urlopen
+    from urllib import FancyURLopener, urlencode
     from urllib import quote as urllib_quote, unquote as urllib_unquote, quote_plus as urllib_quote_plus
+    from urllib2 import urlopen
     from string import maketrans
     from types import ClassType
     import cgi
