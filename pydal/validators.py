@@ -33,8 +33,6 @@ from pydal._compat import StringIO, integer_types, basestring, unicodeT, urllib_
 from pydal.objects import Field, FieldVirtual, FieldMethod, Table
 
 
-regex_isint = re.compile(r'^[+-]?\d+$')
-
 JSONErrors = (NameError, TypeError, ValueError, AttributeError, KeyError)
 
 __all__ = [
@@ -485,10 +483,6 @@ class IS_IN_SET(Validator):
         return value
 
 
-regex1 = re.compile(r'\w+\.\w+')
-regex2 = re.compile(r'%\(([^\)]+)\)\d*(?:\.\d+)?[a-zA-Z]')
-
-
 class IS_IN_DB(Validator):
     """
     Example:
@@ -499,6 +493,9 @@ class IS_IN_DB(Validator):
 
     used for reference fields, rendered as a dropbox
     """
+
+    REGEX_TABLE_DOT_FIELD = r'^(\w+)\.(\w+)$'
+    REGEX_INTERP_CONV_SPECIFIER = r'%\((\w+)\)\d*(?:\.\d+)?[a-zA-Z]'
 
     def __init__(self,
                  dbset,
@@ -533,9 +530,10 @@ class IS_IN_DB(Validator):
         if not label:
             label = '%%(%s)s' % kfield
         if isinstance(label, str):
-            if regex1.match(str(label)):
-                label = '%%(%s)s' % str(label).split('.')[-1]
-            fieldnames = regex2.findall(label)
+            m =  re.match(self.REGEX_TABLE_DOT_FIELD, label)
+            if m:
+                label = '%%(%s)s' % m.group(2)
+            fieldnames = re.findall(self.REGEX_INTERP_CONV_SPECIFIER, label)
             if kfield not in fieldnames:
                 fieldnames.append(kfield)  # kfield must be last
         elif isinstance(label, Field):
@@ -797,6 +795,8 @@ class IS_INT_IN_RANGE(Validator):
             ('abc', 'enter an integer')
     """
 
+    REGEX_INT = r'^[+-]?\d+$'
+
     def __init__(self,
                  minimum=None,
                  maximum=None,
@@ -808,7 +808,7 @@ class IS_INT_IN_RANGE(Validator):
             error_message, 'an integer', self.minimum, self.maximum)
 
     def validate(self, value):
-        if regex_isint.match(str(value)):
+        if re.match(self.REGEX_INT, str(value)):
             v = int(value)
             if ((self.minimum is None or v >= self.minimum) and
                     (self.maximum is None or v < self.maximum)):
@@ -1149,33 +1149,32 @@ class IS_EMAIL(Validator):
 
     """
 
-    body_regex = re.compile(r'''
-        ^(?!\.)                            # name may not begin with a dot
+    # NOTE: use these with flags = re.VERBOSE | re.IGNORECASE
+    REGEX_BODY = r'''
+        ^(?!\.)                           # name may not begin with a dot
         (
-          [-a-z0-9!\#$%&'*+/=?^_`{|}~]     # all legal characters except dot
+          [-a-z0-9!\#$%&'*+/=?^_`{|}~]    # all legal characters except dot
           |
-          (?<!\.)\.                        # single dots only
+          (?<!\.)\.                       # single dots only
         )+
-        (?<!\.)$                            # name may not end with a dot
-    ''', re.VERBOSE | re.IGNORECASE)
-    domain_regex = re.compile(r'''
+        (?<!\.)$                          # name may not end with a dot
+    '''
+    REGEX_DOMAIN = r'''
         (
           localhost
           |
           (
-            [a-z0-9]
-                # [sub]domain begins with alphanumeric
+            [a-z0-9]      # [sub]domain begins with alphanumeric
             (
-              [-\w]*                         # alphanumeric, underscore, dot, hyphen
-              [a-z0-9]                       # ending alphanumeric
+              [-\w]*      # alphanumeric, underscore, dot, hyphen
+              [a-z0-9]    # ending alphanumeric
             )?
-          \.                               # ending dot
+          \.              # ending dot
           )+
-          [a-z]{2,}                        # TLD alpha-only
+          [a-z]{2,}       # TLD alpha-only
        )$
-    ''', re.VERBOSE | re.IGNORECASE)
-
-    regex_proposed_but_failed = re.compile(r'^([\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+\.)*[\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+@((((([a-z0-9]{1}[a-z0-9\-]{0,62}[a-z0-9]{1})|[a-z])\.)+[a-z]{2,6})|(\d{1,3}\.){3}\d{1,3}(\:\d{1,5})?)$', re.VERBOSE | re.IGNORECASE)
+    '''
+    #regex_proposed_but_failed = re.compile(r'^([\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+\.)*[\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+@((((([a-z0-9]{1}[a-z0-9\-]{0,62}[a-z0-9]{1})|[a-z])\.)+[a-z]{2,6})|(\d{1,3}\.){3}\d{1,3}(\:\d{1,5})?)$', re.VERBOSE | re.IGNORECASE)
 
     def __init__(self,
                  banned=None,
@@ -1196,14 +1195,15 @@ class IS_EMAIL(Validator):
         body, domain = value.rsplit('@', 1)
 
         try:
-            match_body = self.body_regex.match(body)
-            match_domain = self.domain_regex.match(domain)
+            regex_flags = re.VERBOSE | re.IGNORECASE
+            match_body = re.match(self.REGEX_BODY, body, regex_flags)
+            match_domain = re.match(self.REGEX_DOMAIN, domain, regex_flags)
 
             if not match_domain:
                 # check for Internationalized Domain Names
                 # see https://docs.python.org/2/library/codecs.html#module-encodings.idna
                 domain_encoded = to_unicode(domain).encode('idna').decode('ascii')
-                match_domain = self.domain_regex.match(domain_encoded)
+                match_domain = re.match(self.REGEX_DOMAIN, domain_encoded, regex_flags)
 
             match = (match_body is not None) and (match_domain is not None)
         except (TypeError, UnicodeError):
@@ -1229,7 +1229,7 @@ class IS_LIST_OF_EMAILS(Validator):
                 XML(', '.join([A(x, _href='mailto:'+x).xml() for x in (v or [])]))
              )
     """
-    split_emails = re.compile(r'[^,;\s]+')
+    REGEX_NOT_EMAIL_SPLITTER = r'[^,;\s]+'
 
     def __init__(self, error_message='Invalid emails: %s'):
         self.error_message = error_message
@@ -1237,7 +1237,7 @@ class IS_LIST_OF_EMAILS(Validator):
     def validate(self, value):
         bad_emails = []
         f = IS_EMAIL()
-        for email in self.split_emails.findall(value):
+        for email in re.findall(self.REGEX_NOT_EMAIL_SPLITTER, value):
             error = f(email)[1]
             if error and email not in bad_emails:
                 bad_emails.append(email)
@@ -1380,7 +1380,7 @@ http_schemes = [None, 'http', 'https']
 # Defined in RFC 3490, Section 3.1, Requirement #1
 # Use this regex to split the authority component of a unicode URL into
 # its component labels
-label_split_regex = re.compile(u'[\u002e\u3002\uff0e\uff61]')
+REGEX_AUTHORITY_SPLITTER = u'[\u002e\u3002\uff0e\uff61]'
 
 
 def escape_unicode(string):
@@ -1438,7 +1438,7 @@ def unicode_to_ascii_authority(authority):
     # The encodings.idna Python module assumes that AllowUnassigned == True
 
     # RFC 3490, Section 4, Step 2
-    labels = label_split_regex.split(authority)
+    labels = re.split(REGEX_AUTHORITY_SPLITTER, authority)
 
     # RFC 3490, Section 4, Step 3
     # The encodings.idna Python module assumes that UseSTD3ASCIIRules == False
@@ -1583,9 +1583,9 @@ class IS_GENERIC_URL(Validator):
             raise SyntaxError("prepend_scheme='%s' is not in allowed_schemes=%s"
                               % (self.prepend_scheme, self.allowed_schemes))
 
-    GENERIC_URL = re.compile(r"%[^0-9A-Fa-f]{2}|%[^0-9A-Fa-f][0-9A-Fa-f]|%[0-9A-Fa-f][^0-9A-Fa-f]|%$|%[0-9A-Fa-f]$|%[^0-9A-Fa-f]$")
-    GENERIC_URL_VALID = re.compile(r"[A-Za-z0-9;/?:@&=+$,\-_\.!~*'\(\)%]+$")
-    URL_FRAGMENT_VALID = re.compile(r"[|A-Za-z0-9;/?:@&=+$,\-_\.!~*'\(\)%]+$")
+    REGEX_GENERIC_URL = r"%[^0-9A-Fa-f]{2}|%[^0-9A-Fa-f][0-9A-Fa-f]|%[0-9A-Fa-f][^0-9A-Fa-f]|%$|%[0-9A-Fa-f]$|%[^0-9A-Fa-f]$"
+    REGEX_GENERIC_URL_VALID = r"[A-Za-z0-9;/?:@&=+$,\-_\.!~*'\(\)%]+$"
+    REGEX_URL_FRAGMENT_VALID = r"[|A-Za-z0-9;/?:@&=+$,\-_\.!~*'\(\)%]+$"
 
     def validate(self, value):
         """
@@ -1600,7 +1600,7 @@ class IS_GENERIC_URL(Validator):
 
         # if we dont have anything or the URL misuses the '%' character
 
-        if not value or self.GENERIC_URL.search(value):
+        if not value or re.search(self.REGEX_GENERIC_URL, value):
             raise ValidationError(self.translator(self.error_message))
 
         if '#' in value:
@@ -1608,7 +1608,7 @@ class IS_GENERIC_URL(Validator):
         else:
             url, fragment_part = value, ''
         # if the URL is only composed of valid characters
-        if not self.GENERIC_URL_VALID.match(url) or (fragment_part and not self.URL_FRAGMENT_VALID.match(fragment_part)):
+        if not re.match(self.REGEX_GENERIC_URL_VALID, url) or (fragment_part and not re.match(self.REGEX_URL_FRAGMENT_VALID, fragment_part)):
             raise ValidationError(self.translator(self.error_message))
         # Then parse the URL into its components and check on
         try:
@@ -1975,9 +1975,8 @@ class IS_HTTP_URL(Validator):
             necessary to make the URL valid
     """
 
-    GENERIC_VALID_IP = re.compile(
-        r"([\w.!~*'|;:&=+$,-]+@)?\d+\.\d+\.\d+\.\d+(:\d*)*$")
-    GENERIC_VALID_DOMAIN = re.compile(r"([\w.!~*'|;:&=+$,-]+@)?(([A-Za-z0-9]+[A-Za-z0-9\-]*[A-Za-z0-9]+\.)*([A-Za-z0-9]+\.)*)*([A-Za-z]+[A-Za-z0-9\-]*[A-Za-z0-9]+)\.?(:\d*)*$")
+    REGEX_GENERIC_VALID_IP = r"([\w.!~*'|;:&=+$,-]+@)?\d+\.\d+\.\d+\.\d+(:\d*)*$"
+    REGEX_GENERIC_VALID_DOMAIN = r"([\w.!~*'|;:&=+$,-]+@)?(([A-Za-z0-9]+[A-Za-z0-9\-]*[A-Za-z0-9]+\.)*([A-Za-z0-9]+\.)*)*([A-Za-z]+[A-Za-z0-9\-]*[A-Za-z0-9]+)\.?(:\d*)*$"
 
     def __init__(self,
                  error_message='Enter a valid URL',
@@ -2026,12 +2025,13 @@ class IS_HTTP_URL(Validator):
                 # if there is an authority component
                 if authority:
                     # if authority is a valid IP address
-                    if self.GENERIC_VALID_IP.match(authority):
+                    if re.match(self.REGEX_GENERIC_VALID_IP, authority):
                         # Then this HTTP URL is valid
                         return value
                     else:
                         # else if authority is a valid domain name
-                        domainMatch = self.GENERIC_VALID_DOMAIN.match(
+                        domainMatch = re.match(
+                            self.REGEX_GENERIC_VALID_DOMAIN,
                             authority)
                         if domainMatch:
                             # if the top-level domain really exists
@@ -2204,10 +2204,6 @@ class IS_URL(Validator):
         return subMethod.validate(value)
 
 
-regex_time = re.compile(
-    '((?P<h>[0-9]+))([^0-9 ]+(?P<m>[0-9 ]+))?([^0-9ap ]+(?P<s>[0-9]*))?((?P<d>[ap]m))?')
-
-
 class IS_TIME(Validator):
     """
     Example:
@@ -2251,13 +2247,15 @@ class IS_TIME(Validator):
 
     """
 
+    REGEX_TIME = '((?P<h>[0-9]+))([^0-9 ]+(?P<m>[0-9 ]+))?([^0-9ap ]+(?P<s>[0-9]*))?((?P<d>[ap]m))?'
+
     def __init__(self, error_message='Enter time as hh:mm:ss (seconds, am, pm optional)'):
         self.error_message = error_message
 
     def validate(self, value):
         try:
             ivalue = value
-            value = regex_time.match(value.lower())
+            value = re.match(self.REGEX_TIME, value.lower())
             (h, m, s) = (int(value.group('h')), 0, 0)
             if not value.group('m') is None:
                 m = int(value.group('m'))
@@ -2772,10 +2770,10 @@ class CLEANUP(Validator):
 
     removes special characters on validation
     """
-    REGEX_CLEANUP = re.compile('[^\x09\x0a\x0d\x20-\x7e]')
+    REGEX_CLEANUP = '[^\x09\x0a\x0d\x20-\x7e]'
 
     def __init__(self, regex=None):
-        self.regex = self.REGEX_CLEANUP if regex is None \
+        self.regex = re.compile(self.REGEX_CLEANUP) if regex is None \
             else re.compile(regex)
 
     def validate(self, value):
@@ -3384,7 +3382,7 @@ class IS_FILE(Validator):
                 if self.match(v, value2):
                     return True
             return False
-        elif isinstance(value1, type(regex_isint)):
+        elif callable(getattr(value1, 'match', None)):
             return value1.match(value2)
         elif isinstance(value1, str):
             return value1 == value2
@@ -3589,7 +3587,7 @@ class IS_IPV4(Validator):
 
     """
 
-    regex = re.compile(
+    REGEX_IPV4 = re.compile(
         r'^(([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])\.){3}([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])$')
     numbers = (16777216, 65536, 256, 1)
     localhost = 2130706433
@@ -3635,7 +3633,7 @@ class IS_IPV4(Validator):
         self.error_message = error_message
 
     def validate(self, value):
-        if self.regex.match(value):
+        if re.match(self.REGEX_IPV4, value):
             number = 0
             for i, j in zip(self.numbers, value.split('.')):
                 number += i * int(j)
