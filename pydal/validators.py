@@ -145,6 +145,13 @@ class Validator(object):
         except ValidationError as e:
             return value, e.message
 
+def validator_caller(func, value):
+    if isinstance(func, Validator):
+        return func(value)
+    value, error = func(value)
+    if error is not None:
+        raise ValidationError(error)
+    return value
 
 class IS_MATCH(Validator):
     """
@@ -673,12 +680,12 @@ class IS_IN_DB(Validator):
             if self.theset:
                 if str(value) in self.theset:
                     if self._and:
-                        return self._and.validate(value)
+                        return validator_caller(self._and, value)
                     return value
             else:
                 if self.dbset(field == value).count():
                     if self._and:
-                        return self._and.validate(value)
+                        return validator_caller(self._and, value)
                     return value
         raise ValidationError(self.translator(self.error_message))
 
@@ -2534,7 +2541,7 @@ class IS_LIST_OF(Validator):
             for item in ivalue:
                 v = item
                 for validator in other:
-                    v = validator.validate(v)
+                    v = validator_caller(validator, v)
                 new_value.append(v)
             ivalue = new_value
         return ivalue
@@ -2749,9 +2756,9 @@ class IS_EMPTY_OR(Validator):
             return self.null
         if isinstance(self.other, (list, tuple)):
             for item in self.other:
-                value = item.validate(value)
+                value = validator_caller(item, value)
             return value
-        return self.other.validate(value)
+        return validator_caller(self.other, value)
 
     def formatter(self, value):
         if hasattr(self.other, 'formatter'):
