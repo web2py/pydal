@@ -147,7 +147,7 @@ class Validator(object):
 
 def validator_caller(func, value):
     if isinstance(func, Validator):
-        return func(value)
+        return func.validate(value)
     value, error = func(value)
     if error is not None:
         raise ValidationError(error)
