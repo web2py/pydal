@@ -7,7 +7,7 @@ from .._compat import (
     PY2, BytesIO, iteritems, integer_types, string_types, to_bytes, pjoin,
     exists
 )
-from .regex import REGEX_NOPASSWD, REGEX_UNPACK, REGEX_CONST_STRING, REGEX_W
+from .regex import REGEX_CREDENTIALS, REGEX_UNPACK, REGEX_CONST_STRING, REGEX_W
 from .classes import SQLCustomType
 
 UNIT_SEPARATOR = '\x1f' # ASCII unit separater for delimiting data
@@ -39,7 +39,7 @@ def pluralize(singular, rules=PLURALIZE_RULES):
 def hide_password(uri):
     if isinstance(uri, (list, tuple)):
         return [hide_password(item) for item in uri]
-    return REGEX_NOPASSWD.sub('******', uri)
+    return re.sub(REGEX_CREDENTIALS, '******', uri)
 
 
 def cleanup(text):
@@ -119,7 +119,7 @@ def bar_decode_integer(value):
 
 
 def bar_decode_string(value):
-    return [bar_unescape(x) for x in REGEX_UNPACK.split(value[1:-1]) if x.strip()]
+    return [bar_unescape(x) for x in re.split(REGEX_UNPACK, value[1:-1]) if x.strip()]
 
 
 def archive_record(qset, fs, archive_table, current_record):
@@ -161,9 +161,9 @@ def smart_query(fields, text):
     constants = {}
     i = 0
     while True:
-        m = REGEX_CONST_STRING.search(text)
+        m = re.search(REGEX_CONST_STRING, text)
         if not m: break
-        text = text[:m.start()]+('#%i' % i)+text[m.end():]
+        text = "%s#%i%s" % (text[:m.start()], i, text[m.end():])
         constants[str(i)] = m.group()[1:-1]
         i += 1
     text = re.sub('\s+', ' ', text).lower()

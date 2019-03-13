@@ -1,7 +1,6 @@
 import re
 from .._gae import gae
 from ..helpers._internals import Dispatcher
-from ..helpers.regex import REGEX_NO_GREEDY_ENTITY_NAME
 
 
 class Adapters(Dispatcher):
@@ -38,14 +37,14 @@ class AdapterMeta(type):
             del kwargs['entity_quoting']
 
         obj = super(AdapterMeta, cls).__call__(*args, **kwargs)
+
+        regex_ent = r'(\w+)'
         if not entity_quoting:
-            quot = obj.dialect.quote_template = '%s'
-            regex_ent = r'(\w+)'
+            obj.dialect.quote_template = '%s'
         else:
-            quot = obj.dialect.quote_template
-            regex_ent = REGEX_NO_GREEDY_ENTITY_NAME
+            regex_ent = obj.dialect.quote_template % regex_ent
         obj.REGEX_TABLE_DOT_FIELD = re.compile(
-            r'^' + quot % regex_ent + r'\.' + quot % regex_ent + r'$')
+            r'^%s\.%s$' % (regex_ent, regex_ent))
 
         return obj
 

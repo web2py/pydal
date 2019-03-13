@@ -1,3 +1,4 @@
+import re
 import copy
 import random
 from datetime import datetime
@@ -132,7 +133,7 @@ class Mongo(ConnectionConfigurationMixin, NoSQLAdapter):
         return 1 if val else 0
 
     def _regex_select_as_parser(self, colname):
-        return self.dialect.REGEX_SELECT_AS_PARSER.search(colname)
+        return re.search(self.dialect.REGEX_SELECT_AS_PARSER, colname)
 
     @staticmethod
     def _parse_data(expression, attribute, value=None):

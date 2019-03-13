@@ -1,3 +1,4 @@
+import re
 from .regex import REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
 from .._compat import long
 
@@ -107,9 +108,6 @@ class RestParser(object):
                     return locals()
         """
 
-        re1 = REGEX_SEARCH_PATTERN
-        re2 = REGEX_SQUARE_BRACKETS
-
         if patterns == 'auto':
             patterns = []
             for table in self.db.tables:
@@ -123,7 +121,8 @@ class RestParser(object):
                 if not isinstance(pattern, str):
                     pattern = pattern[0]
                 tokens = pattern.split('/')
-                if tokens[-1].startswith(':auto') and re2.match(tokens[-1]):
+                if tokens[-1].startswith(':auto') and \
+                        re.match(REGEX_SQUARE_BRACKETS, tokens[-1]):
                     new_patterns = self.auto_table(
                         tokens[-1][tokens[-1].find('[')+1:-1],
                         '/'.join(tokens[:-1]))
@@ -152,7 +151,7 @@ class RestParser(object):
             if len(tags) != len(args):
                 continue
             for tag in tags:
-                if re1.match(tag):
+                if re.match(REGEX_SEARCH_PATTERN, tag):
                     tokens = tag[1:-1].split('.')
                     table, field = tokens[0], tokens[1]
                     if not otable or table == otable:
@@ -198,7 +197,8 @@ class RestParser(object):
                     else:
                         raise RuntimeError(
                             "missing relation in pattern: %s" % pattern)
-                elif re2.match(tag) and args[i] == tag[:tag.find('[')]:
+                elif re.match(REGEX_SQUARE_BRACKETS, tag) and \
+                        args[i] == tag[:tag.find('[')]:
                     ref = tag[tag.find('[')+1:-1]
                     if '.' in ref and otable:
                         table, field = ref.split('.')

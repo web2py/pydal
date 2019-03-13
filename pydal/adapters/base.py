@@ -1,4 +1,4 @@
-import copy
+import re
 import sys
 import types
 from collections import defaultdict
@@ -213,7 +213,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 row[referee_link] = LazySet(rfield, rid)
 
     def _regex_select_as_parser(self, colname):
-        return REGEX_SELECT_AS_PARSER.search(colname)
+        return re.search(REGEX_SELECT_AS_PARSER, colname)
 
     def _parse(self, row, tmps, fields, colnames, blob_decode,
                cacheable, fields_virtual, fields_lazy):
@@ -247,10 +247,10 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 value = self.parse_value(
                     value, fields[j]._itype, fields[j].type, blob_decode)
                 extras[colname] = value
-                new_column_name = self._regex_select_as_parser(colname)
-                if new_column_name is not None:
-                    column_name = new_column_name.groups(0)
-                    new_row[column_name[0]] = value
+                new_column_match = self._regex_select_as_parser(colname)
+                if new_column_match is not None:
+                    new_column_name = new_column_match.group(1)
+                    new_row[new_column_name] = value
         #: add extras if needed (eg. operations results)
         if extras:
             new_row['_extra'] = extras

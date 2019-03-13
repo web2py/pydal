@@ -22,7 +22,7 @@ from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import (
     REGEX_TABLE_DOT_FIELD, REGEX_ALPHANUMERIC, REGEX_PYTHON_KEYWORDS,
-    REGEX_STORE_PATTERN, REGEX_UPLOAD_PATTERN, REGEX_CLEANUP_FN,
+    REGEX_UPLOAD_EXTENSION, REGEX_UPLOAD_PATTERN, REGEX_UPLOAD_CLEANUP,
     REGEX_VALID_TB_FLD, REGEX_TYPE, REGEX_TABLE_DOT_FIELD_OPTIONAL_QUOTES
 )
 from .helpers.classes import (
@@ -162,7 +162,7 @@ class Row(BasicStorage):
                     indent,
                     field)
             elif not callable(row):
-                if REGEX_ALPHANUMERIC.match(field):
+                if re.match(REGEX_ALPHANUMERIC, field):
                     return '%s<%s>%s</%s>' % (indent, field, row, field)
                 else:
                     return '%s<extra name="%s">%s</extra>' % \
@@ -1836,8 +1836,8 @@ class Field(Expression, Serializable):
             filename = file.name
         filename = os.path.basename(
             filename.replace('/', os.sep).replace('\\', os.sep))
-        m = REGEX_STORE_PATTERN.search(filename)
-        extension = m and m.group('e') or 'txt'
+        m = re.search(REGEX_UPLOAD_EXTENSION, filename)
+        extension = m and m.group(1) or 'txt'
         uuid_key = self._db.uuid().replace('-', '')[-16:]
         encoded_filename = to_native(
             base64.b16encode(to_bytes(filename)).lower())
@@ -1921,7 +1921,7 @@ class Field(Expression, Serializable):
         return (filename, stream)
 
     def retrieve_file_properties(self, name, path=None):
-        m = REGEX_UPLOAD_PATTERN.match(name)
+        m = re.match(REGEX_UPLOAD_PATTERN, name)
         if not m or not self.isattachment:
             raise TypeError('Can\'t retrieve %s file properties' % name)
         self_uploadfield = self.uploadfield
@@ -1930,7 +1930,7 @@ class Field(Expression, Serializable):
         if m.group('name'):
             try:
                 filename = base64.b16decode(m.group('name'), True).decode('utf-8')
-                filename = REGEX_CLEANUP_FN.sub('_', filename)
+                filename = re.sub(REGEX_UPLOAD_CLEANUP, '_', filename)
             except (TypeError, AttributeError):
                 filename = name
         else:

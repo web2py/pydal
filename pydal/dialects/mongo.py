@@ -64,7 +64,7 @@ class MongoDialect(NoSQLDialect):
     AS_MARK = "__#AS#__"
     REGEXP_MARK1 = "__#REGEXP_1#__"
     REGEXP_MARK2 = "__#REGEXP_2#__"
-    REGEX_SELECT_AS_PARSER = re.compile("\\'" + AS_MARK + "\\': \\'(\\S+)\\'")
+    REGEX_SELECT_AS_PARSER = r"'%s': '(\S+)'" % AS_MARK
 
     @staticmethod
     def _has_field(expression):

@@ -2,7 +2,6 @@ from collections import defaultdict
 from .._compat import with_metaclass, iteritems
 from .._gae import gae
 from ..helpers._internals import Dispatcher
-from ..helpers.regex import REGEX_TYPE
 
 
 parsers = Dispatcher("parser")
