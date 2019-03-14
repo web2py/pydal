@@ -136,9 +136,6 @@ class Validator(object):
         """
         return value
 
-    def validate(self, value):
-        raise NotImplementedError
-
     def __call__(self, value):
         try:
             return self.validate(value), None
@@ -146,7 +143,7 @@ class Validator(object):
             return value, e.message
 
 def validator_caller(func, value):
-    if isinstance(func, Validator):
+    if hasattr(func, 'validate'):
         return func.validate(value)
     value, error = func(value)
     if error is not None:
