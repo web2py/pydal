@@ -136,14 +136,19 @@ class Validator(object):
         """
         return value
 
+    def validate(self, value):
+        raise NotImplementedError
+
     def __call__(self, value):
         try:
             return self.validate(value), None
         except ValidationError as e:
             return value, e.message
 
+DEFAULT_VALIDATE = Validator.validate.__func__ if PY2 else Validator.validate
+
 def validator_caller(func, value):
-    if hasattr(func, 'validate'):
+    if func.validate.__func__ != DEFAULT_VALIDATE:
         return func.validate(value)
     value, error = func(value)
     if error is not None:
