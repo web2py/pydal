@@ -136,7 +136,8 @@ class Validator(object):
         """
         return value
 
-    def validate(self, value):
+    @staticmethod
+    def validate(value):
         raise NotImplementedError
 
     def __call__(self, value):
@@ -145,15 +146,15 @@ class Validator(object):
         except ValidationError as e:
             return value, e.message
 
-DEFAULT_VALIDATE = Validator.validate.__func__ if PY2 else Validator.validate
 
 def validator_caller(func, value):
-    if func.validate.__func__ != DEFAULT_VALIDATE:
+    if getattr(func, 'validate') is Validator.validate:
         return func.validate(value)
     value, error = func(value)
     if error is not None:
         raise ValidationError(error)
     return value
+
 
 class IS_MATCH(Validator):
     """
