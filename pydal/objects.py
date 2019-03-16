@@ -60,6 +60,7 @@ class Row(BasicStorage):
 
     def __getitem__(self, k):
         key = str(k)
+
         _extra = super(Row, self).get('_extra', None)
         if _extra is not None:
             v = _extra.get(key, DEFAULT)
@@ -73,23 +74,21 @@ class Row(BasicStorage):
 
         m = REGEX_TABLE_DOT_FIELD.match(key)
         if m:
+            key2 = m.group(2)
             try:
                 e = super(Row, self).__getitem__(m.group(1))
-                return e[m.group(2)]
+                return e[key2]
             except (KeyError, TypeError):
                 pass
-            key = m.group(2)
             try:
-                return super(Row, self).__getitem__(key)
+                return super(Row, self).__getitem__(key2)
             except KeyError:
                 pass
-        try:
-            e = super(Row, self).get('__get_lazy_reference__')
-            if e is not None and callable(e):
-                self[key] = e(key)
-                return self[key]
-        except Exception as e:
-            raise e
+
+        e = super(Row, self).get('__get_lazy_reference__')
+        if callable(e):
+            self[key] = e(key)
+            return self[key]
 
         raise KeyError(key)
 
@@ -2458,7 +2457,9 @@ class Set(Serializable):
 
 class LazyReferenceGetter(object):
     def __init__(self, table, id):
-        self.db, self.tablename, self.id = table._db, table._tablename, id
+        self.db = table._db
+        self.tablename = table._tablename
+        self.id = id
 
     def __call__(self, other_tablename):
         if self.db._lazy_tables is False:
