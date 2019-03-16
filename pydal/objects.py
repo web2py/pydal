@@ -61,7 +61,7 @@ class Row(BasicStorage):
     def __getitem__(self, k):
         key = str(k)
 
-        _extra = super(Row, self).get('_extra', None)
+        _extra = BasicStorage.get(self, '_extra', None)
         if _extra is not None:
             v = _extra.get(key, DEFAULT)
             if v is not DEFAULT:
@@ -76,19 +76,18 @@ class Row(BasicStorage):
         if m:
             key2 = m.group(2)
             try:
-                e = super(Row, self).__getitem__(m.group(1))
-                return e[key2]
+                return BasicStorage.__getitem__(self, m.group(1))[key2]
             except (KeyError, TypeError):
                 pass
             try:
-                return super(Row, self).__getitem__(key2)
+                return BasicStorage.__getitem__(self, key2)
             except KeyError:
                 pass
 
-        e = super(Row, self).get('__get_lazy_reference__')
-        if callable(e):
-            self[key] = e(key)
-            return self[key]
+        lg = BasicStorage.get(self, '__get_lazy_reference__', None)
+        if callable(lg):
+            v = self[key] = lg(key)
+            return v
 
         raise KeyError(key)
 
