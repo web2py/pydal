@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=no-member,not-an-iterable
 
 import base64
 import cgi

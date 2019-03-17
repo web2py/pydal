@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=no-member
+
 import os
 from ._compat import itervalues
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL

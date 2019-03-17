@@ -2792,7 +2792,7 @@ class CLEANUP(Validator):
 
 
 def pbkdf2_hex(data, salt, iterations=1000, keylen=24, hashfunc=None):
-    hashfunc = hashfunc or sha1
+    hashfunc = hashfunc or hashlib.sha1
     hmac = hashlib.pbkdf2_hmac(hashfunc().name, to_bytes(data),
                                to_bytes(salt), iterations, keylen)
     return binascii.hexlify(hmac)
