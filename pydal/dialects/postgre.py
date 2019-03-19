@@ -137,6 +137,9 @@ class PostgreDialect(SQLDialect):
     def st_astext(self, first, query_env={}):
         return 'ST_AsText(%s)' % self.expand(first, query_env=query_env)
 
+    def st_aswkb(self, first, query_env={}):
+        return '%s' % self.expand(first, query_env=query_env)
+
     def st_x(self, first, query_env={}):
         return 'ST_X(%s)' % (self.expand(first, query_env=query_env))
 
@@ -193,6 +196,17 @@ class PostgreDialect(SQLDialect):
             self.expand(first, query_env=query_env),
             self.expand(tup[0], first.type, query_env=query_env),
             self.expand(tup[1], 'double', query_env=query_env))
+
+    def st_transform(self, first, second, query_env={}):
+    	# The SRID argument can be provided as an integer SRID or a Proj4 string
+        if isinstance(second, int):
+            return 'ST_Transform(%s,%s)' % (
+                self.expand(first, query_env=query_env),
+                self.expand(second, 'integer', query_env=query_env))
+        else:
+            return 'ST_Transform(%s,%s)' % (
+                self.expand(first, query_env=query_env),
+                self.expand(second, 'string', query_env=query_env))
 
     @register_expression('doy')
     def extract_doy(self, expr):

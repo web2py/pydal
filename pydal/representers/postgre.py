@@ -20,7 +20,13 @@ class PostgreRepresenter(SQLRepresenter, JSONRepresenter):
 
     @for_type('geometry', adapt=False)
     def _geometry(self, value, srid):
-        return "ST_GeomFromText('%s',%s)" % (value, srid)
+        # If the value starts with a zero, treat as a WKB string
+        # and pass back flagged as hex data as is. Otherwise treat
+        # the value as WKT and pass it through the converter.
+        if value[0] == '0':
+            return "E'%s'" % value
+        else:
+            return "ST_GeomFromText('%s',%s)" % (value, srid)
 
     @before_type('geography')
     def geography_extras(self, field_type):
