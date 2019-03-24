@@ -1496,6 +1496,10 @@ class Expression(object):
         return Expression(
             self.db, self._dialect.st_astext, self, type='string')
 
+    def st_aswkb(self):
+        return Expression(
+            self.db, self._dialect.st_aswkb, self, type='string')
+
     def st_x(self):
         return Expression(self.db, self._dialect.st_x, self, type='string')
 
@@ -1514,6 +1518,10 @@ class Expression(object):
         return Expression(
             self.db, self._dialect.st_simplifypreservetopology, self, value,
             self.type)
+
+    def st_transform(self, value):
+        return Expression(
+            self.db, self._dialect.st_transform, self, value, self.type)
 
     # GIS queries
 
