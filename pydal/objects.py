@@ -16,7 +16,7 @@ from collections import OrderedDict
 from ._compat import (
     PY2, StringIO, BytesIO, pjoin, exists, hashlib_md5, basestring, iteritems,
     xrange, implements_iterator, implements_bool, copyreg, reduce, to_bytes,
-    to_native, long, text_type
+    to_native, to_unicode, long, text_type
 )
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
@@ -38,6 +38,8 @@ from .helpers.methods import (
 from .helpers.serializers import serializers
 from .utils import deprecated
 
+if not PY2:
+    unicode = str
 
 DEFAULTLENGTH = {'string': 512, 'password': 512, 'upload': 512, 'text': 2**15, 'blob': 2**31}
 
@@ -51,6 +53,14 @@ DEFAULT_REGEX = {
     'time':    '\d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
     'datetime':'\d{4}\-\d{2}\-\d{2} \d{2}\:\d{2}(\:\d{2}(\.\d*)?)?',
     }
+
+
+def csv_reader(utf8_data, dialect=csv.excel, encoding='utf-8', **kwargs):
+    """like csv.reader but allows to specify an encoding, defaults to utf-8"""
+    csv_reader = csv.reader(utf8_data, dialect=dialect, **kwargs)
+    for row in csv_reader:
+        yield [to_unicode(cell, encoding) for cell in row]
+
 
 class Row(BasicStorage):
 
@@ -879,6 +889,7 @@ class Table(Serializable, BasicStorage):
                              id_offset = None,  # id_offset used only when id_map is None
                              transform = None,
                              validate=False,
+                             encoding='urf-8',
                              **kwargs
                              ):
         """
@@ -910,7 +921,7 @@ class Table(Serializable, BasicStorage):
         if restore:
             self._db[self].truncate()
 
-        reader = csv.reader(csvfile, delimiter=delimiter,
+        reader = csv_reader(csvfile, delimiter=delimiter, encoding=encoding,
                             quotechar=quotechar, quoting=quoting)
         colnames = None
         if isinstance(id_map, dict):
@@ -2293,7 +2304,7 @@ class Set(Serializable):
         elif op == "NOT":
             if first is None:
                 raise SyntaxError("Invalid NOT query")
-            built = ~self.build(first)
+            built = ~self.build(first)  # pylint: disable=invalid-unary-operand-type
         else:
             # normal operation (GT, EQ, LT, ...)
             for k, v in {"left": first, "right": second}.items():
