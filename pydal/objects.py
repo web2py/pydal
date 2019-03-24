@@ -889,7 +889,7 @@ class Table(Serializable, BasicStorage):
                              id_offset = None,  # id_offset used only when id_map is None
                              transform = None,
                              validate=False,
-                             encoding='urf-8',
+                             encoding='utf-8',
                              **kwargs
                              ):
         """
