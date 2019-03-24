@@ -12,30 +12,6 @@ from .classes import SQLCustomType
 
 UNIT_SEPARATOR = '\x1f' # ASCII unit separater for delimiting data
 
-PLURALIZE_RULES = [
-    (re.compile('child$'), re.compile('child$'), 'children'),
-    (re.compile('oot$'), re.compile('oot$'), 'eet'),
-    (re.compile('ooth$'), re.compile('ooth$'), 'eeth'),
-    (re.compile('l[eo]af$'), re.compile('l([eo])af$'), 'l\\1aves'),
-    (re.compile('sis$'), re.compile('sis$'), 'ses'),
-    (re.compile('man$'), re.compile('man$'), 'men'),
-    (re.compile('ife$'), re.compile('ife$'), 'ives'),
-    (re.compile('eau$'), re.compile('eau$'), 'eaux'),
-    (re.compile('lf$'), re.compile('lf$'), 'lves'),
-    (re.compile('[sxz]$'), re.compile('$'), 'es'),
-    (re.compile('[^aeioudgkprt]h$'), re.compile('$'), 'es'),
-    (re.compile('(qu|[^aeiou])y$'), re.compile('y$'), 'ies'),
-    (re.compile('$'), re.compile('$'), 's'),
-    ]
-
-
-def pluralize(singular, rules=PLURALIZE_RULES):
-    for line in rules:
-        re_search, re_sub, replace = line
-        plural = re_search.search(singular) and re_sub.sub(replace, singular)
-        if plural: return plural
-
-
 def hide_password(uri):
     if isinstance(uri, (list, tuple)):
         return [hide_password(item) for item in uri]

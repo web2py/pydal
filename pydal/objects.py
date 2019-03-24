@@ -32,7 +32,7 @@ from .helpers.classes import (
 )
 from .helpers.methods import (
     list_represent, bar_decode_integer, bar_decode_string, bar_encode,
-    archive_record, cleanup, use_common_filters, pluralize,
+    archive_record, cleanup, use_common_filters,
     attempt_upload_on_insert, attempt_upload_on_update, delete_uploaded_files
 )
 from .helpers.serializers import serializers
@@ -249,8 +249,7 @@ class Table(Serializable, BasicStorage):
         self._format = args.get('format')
         self._singular = args.get(
             'singular', tablename.replace('_', ' ').capitalize())
-        self._plural = args.get(
-            'plural', pluralize(self._singular.lower()).capitalize())
+        self._plural = args.get('plural')
         # horrible but for backward compatibility of appadmin
         if 'primarykey' in args and args['primarykey'] is not None:
             self._primarykey = args.get('primarykey')
