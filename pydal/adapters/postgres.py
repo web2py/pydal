@@ -35,10 +35,11 @@ class Postgre(
     drivers = ('psycopg2', 'pg8000')
     support_distributed_transaction = True
 
-    REGEX_URI = re.compile(
-        '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?'
-        '@(?P<host>[^:/]*)(:(?P<port>[0-9]+))?/(?P<db>[^?]+)'
-        '(\?sslmode=(?P<sslmode>[^?]+))?(\?(?P<ssl_flag>ssl))?(\?unix_socket=(?P<socket>.+))?$')
+    REGEX_URI = \
+         '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
+        r'@(?P<host>[^:/]*)(:(?P<port>\d+))?/(?P<db>[^?]+)' \
+        r'(\?sslmode=(?P<sslmode>[^?]+))?(\?(?P<ssl_flag>ssl))?' \
+        r'(\?unix_socket=(?P<socket>.+))?$'
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
@@ -52,7 +53,7 @@ class Postgre(
     def _initialize_(self, do_connect):
         super(Postgre, self)._initialize_(do_connect)
         ruri = self.uri.split('://', 1)[1]
-        m = self.REGEX_URI.match(ruri)
+        m = re.match(self.REGEX_URI, ruri)
         if not m:
             raise SyntaxError("Invalid URI string in DAL")
         user = self.credential_decoder(m.group('user'))
@@ -245,32 +246,25 @@ class PostgrePG8000Boolean(PostgrePG8000New, PostgreBoolean):
 class JDBCPostgre(Postgre):
     drivers = ('zxJDBC',)
 
-    REGEX_URI = re.compile(
-        '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?'
-        '@(?P<host>[^:/]+)(:(?P<port>[0-9]+))?/(?P<db>.+)$')
+    REGEX_URI = \
+         '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
+        r'@(?P<host>[^:/]+)(:(?P<port>\d+))?/(?P<db>[^?]+)$'
 
     def _initialize_(self, do_connect):
         super(Postgre, self)._initialize_(do_connect)
         ruri = self.uri.split('://', 1)[1]
-        m = self.REGEX_URI.match(ruri)
+        m = re.match(self.REGEX_URI, ruri)
         if not m:
             raise SyntaxError("Invalid URI string in DAL")
         user = self.credential_decoder(m.group('user'))
-        if not user:
-            raise SyntaxError('User required')
         password = self.credential_decoder(m.group('password'))
-        if not password:
+        if password is None:
             password = ''
         host = m.group('host')
-        if not host:
-            raise SyntaxError('Host name required')
         db = m.group('db')
-        if not db:
-            raise SyntaxError('Database name required')
         port = m.group('port') or '5432'
         self.dsn = (
             'jdbc:postgresql://%s:%s/%s' % (host, port, db), user, password)
-        # choose diver according uri
         if self.driver:
             self.__version__ = "%s %s" % (self.driver.__name__,
                                           self.driver.__version__)

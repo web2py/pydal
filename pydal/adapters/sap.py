@@ -8,29 +8,22 @@ class SAPDB(SQLAdapter):
     dbengine = 'sapdb'
     drivers = ('sapdb',)
 
-    REGEX_URI = re.compile(
-        '^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>\[[^/]+\]|' +
-        '[^\:@]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)' +
-        '(\?sslmode=(?P<sslmode>.+))?$')
+    REGEX_URI = \
+         '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
+        r'@(?P<host>[^:/]+)/(?P<db>[^?]+)$'
 
     def _initialize_(self, do_connect):
         super(SAPDB, self)._initialize_(do_connect)
         ruri = self.uri.split('://', 1)[1]
-        m = self.REGEX_URI.match(ruri)
+        m = re.match(self.REGEX_URI, ruri)
         if not m:
             raise SyntaxError("Invalid URI string in DAL")
         user = self.credential_decoder(m.group('user'))
-        if not user:
-            raise SyntaxError('User required')
         password = self.credential_decoder(m.group('password'))
-        if not password:
+        if password is None:
             password = ''
         host = m.group('host')
-        if not host:
-            raise SyntaxError('Host name required')
         db = m.group('db')
-        if not db:
-            raise SyntaxError('Database name required')
         self.driver_args.update(
             user=user, password=password, database=db, host=host)
 
