@@ -43,6 +43,7 @@ class AdapterMeta(type):
             obj.dialect.quote_template = '%s'
         else:
             regex_ent = obj.dialect.quote_template % regex_ent
+        # FIXME: this regex should NOT be compiled
         obj.REGEX_TABLE_DOT_FIELD = re.compile(
             r'^%s\.%s$' % (regex_ent, regex_ent))
 

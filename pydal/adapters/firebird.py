@@ -25,7 +25,7 @@ class FireBird(SQLAdapter):
             raise SyntaxError("Invalid URI string in DAL")
         user = self.credential_decoder(m.group('user'))
         password = self.credential_decoder(m.group('password'))
-        if not password:
+        if password is None:
             password = ''
         host = m.group('host')
         db = m.group('db')
@@ -71,7 +71,7 @@ class FireBirdEmbedded(FireBird):
             raise SyntaxError("Invalid URI string in DAL")
         user = self.credential_decoder(m.group('user'))
         password = self.credential_decoder(m.group('password'))
-        if not password:
+        if password is None:
             password = ''
         pathdb = m.group('path')
         charset = m.group('charset') or 'UTF8'

@@ -21,7 +21,7 @@ class GoogleMigratorMixin(object):
 @adapters.register_for('google:sql')
 class GoogleSQL(GoogleMigratorMixin, MySQL):
     uploads_in_blob = True
-    REGEX_URI = re.compile('^(?P<instance>.*)/(?P<db>.*)$')
+    REGEX_URI = '^(?P<instance>.*)/(?P<db>.+)$'
 
     def _find_work_folder(self):
         super(GoogleSQL, self)._find_work_folder()
@@ -34,7 +34,7 @@ class GoogleSQL(GoogleMigratorMixin, MySQL):
             '$HOME', THREAD_LOCAL._pydal_folder_.split(
                 os.sep+'applications'+os.sep, 1)[1])
         ruri = self.uri.split('://', 1)[1]
-        m = self.REGEX_URI.match(ruri)
+        m = re.match(self.REGEX_URI, ruri)
         if not m:
             raise SyntaxError("Invalid URI string in DAL")
         self.driver_args['instance'] = self.credential_decoder(
@@ -123,11 +123,11 @@ class GooglePostgres(GoogleMigratorMixin, PostgrePsyco):
 class GoogleDatastore(NoSQLAdapter):
     dbengine = "google:datastore"
 
-    REGEX_NAMESPACE = re.compile('.*://(?P<namespace>.+)')
+    REGEX_NAMESPACE = '.*://(?P<namespace>.+)'
 
     def _initialize_(self, do_connect):
         super(GoogleDatastore, self)._initialize_(do_connect)
-        match = self.REGEX_NAMESPACE.match(self.uri)
+        match = re.match(self.REGEX_NAMESPACE, self.uri)
         if match:
             namespace_manager.set_namespace(match.group('namespace'))
         self.ndb_settings = self.adapter_args.get('ndb_settings')
@@ -245,7 +245,7 @@ class GoogleDatastore(NoSQLAdapter):
             else:
                 return ndb.Key(tablename, long(obj))
         if isinstance(obj, (Expression, Field)):
-            raise SyntaxError("non supported on GAE")
+            raise SyntaxError("not supported on GAE")
         if isinstance(field_type, gae.Property):
             return obj
         return super(GoogleDatastore, self).represent(obj, field_type)
@@ -346,7 +346,7 @@ class GoogleDatastore(NoSQLAdapter):
                 tbl = tableobj
                 for order in orders:
                     order = str(order)
-                    desc = order[:1] == '-'
+                    desc = order.startswith('~')
                     name = order[1 if desc else 0:].split('.')[-1]
                     if name == 'id':
                         o = -tbl._key if desc else tbl._key

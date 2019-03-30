@@ -10,8 +10,7 @@ class Oracle(SQLAdapter):
     dbengine = 'oracle'
     drivers = ('cx_Oracle',)
 
-    cmd_fix = re.compile(
-        "[^']*('[^']*'[^']*)*\:(?P<clob>CLOB\('([^']+|'')*'\))")
+    REGEX_CLOB = r"[^']*('[^']*'[^']*)*:(?P<clob>CLOB\('([^']+|'')*'\))"
 
     def _initialize_(self, do_connect):
         super(Oracle, self)._initialize_(do_connect)
@@ -37,7 +36,7 @@ class Oracle(SQLAdapter):
         command = self.filter_sql_command(args[0])
         i = 1
         while True:
-            m = self.cmd_fix.match(command)
+            m = re.match(self.REGEX_CLOB, command)
             if not m:
                 break
             command = command[:m.start('clob')] + str(i) + \

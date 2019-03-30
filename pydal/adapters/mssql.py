@@ -15,11 +15,12 @@ class MSSQL(SQLAdapter):
     dbengine = 'mssql'
     drivers = ('pyodbc',)
 
-    REGEX_DSN = re.compile('^(?P<dsn>.+)$')
-    REGEX_URI = re.compile(
-        '^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>\[[^/]+\]|' +
-        '[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?(?P<urlargs>.*))?$')
-    REGEX_ARGPATTERN = re.compile('(?P<argkey>[^=]+)=(?P<argvalue>[^&]*)')
+    REGEX_DSN = '^.+$'
+    REGEX_URI = \
+         '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
+        r'@(?P<host>[^:/]+)(:(?P<port>\d+))?/(?P<db>[^?]+)' \
+        r'(\?(?P<urlargs>.*))?$'
+    REGEX_ARG_VAL = '(?P<argkey>[^=]+)=(?P<argvalue>[^&]*)'
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
@@ -34,51 +35,37 @@ class MSSQL(SQLAdapter):
         super(MSSQL, self)._initialize_(do_connect)
         ruri = self.uri.split('://', 1)[1]
         if '@' not in ruri:
-            try:
-                m = self.REGEX_DSN.match(ruri)
-                if not m:
-                    raise SyntaxError(
-                        'Parsing uri string(%s) has no result' % self.uri)
-                dsn = m.group('dsn')
-                if not dsn:
-                    raise SyntaxError('DSN required')
-            except SyntaxError as e:
-                self.db.logger.error('NdGpatch error')
-                raise e
-            self.cnxn = dsn
+            m = re.match(self.REGEX_DSN, ruri)
+            if not m:
+                raise SyntaxError("Invalid URI string in DAL")
+            self.dsn = m.group()
         else:
-            m = self.REGEX_URI.match(ruri)
+            m = re.match(self.REGEX_URI, ruri)
             if not m:
                 raise SyntaxError(
                     "Invalid URI string in DAL: %s" % self.uri)
             user = self.credential_decoder(m.group('user'))
-            if not user:
-                raise SyntaxError('User required')
             password = self.credential_decoder(m.group('password'))
-            if not password:
+            if password is None:
                 password = ''
             host = m.group('host')
-            if not host:
-                raise SyntaxError('Host name required')
             db = m.group('db')
-            if not db:
-                raise SyntaxError('Database name required')
             port = m.group('port') or '1433'
             # Parse the optional url name-value arg pairs after the '?'
             # (in the form of arg1=value1&arg2=value2&...)
             # (drivers like FreeTDS insist on uppercase parameter keys)
             argsdict = {'DRIVER': '{SQL Server}'}
             urlargs = m.group('urlargs') or ''
-            for argmatch in self.REGEX_ARGPATTERN.finditer(urlargs):
+            for argmatch in re.finditer(self.REGEX_ARG_VAL, urlargs):
                 argsdict[str(argmatch.group('argkey')).upper()] = \
                     argmatch.group('argvalue')
             urlargs = ';'.join([
                 '%s=%s' % (ak, av) for (ak, av) in iteritems(argsdict)])
-            self.cnxn = 'SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;%s' \
+            self.dsn = 'SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;%s' \
                 % (host, port, db, user, password, urlargs)
 
     def connector(self):
-        return self.driver.connect(self.cnxn, **self.driver_args)
+        return self.driver.connect(self.dsn, **self.driver_args)
 
     def lastrowid(self, table):
         self.execute('SELECT SCOPE_IDENTITY();')
@@ -103,7 +90,7 @@ class MSSQL4(MSSQL):
 class MSSQLN(MSSQL):
     def represent(self, obj, field_type):
         rv = super(MSSQLN, self).represent(obj, field_type)
-        if field_type in ('string', 'text', 'json') and rv[:1] == "'":
+        if field_type in ('string', 'text', 'json') and rv.startswith("'"):
             rv = 'N' + rv
         return rv
 
@@ -145,40 +132,23 @@ class Sybase(MSSQL1):
         super(MSSQL, self)._initialize_(do_connect)
         ruri = self.uri.split('://', 1)[1]
         if '@' not in ruri:
-            try:
-                m = self.REGEX_DSN.match(ruri)
-                if not m:
-                    raise SyntaxError(
-                        'Parsing uri string(%s) has no result' % self.uri)
-                dsn = m.group('dsn')
-                if not dsn:
-                    raise SyntaxError('DSN required')
-            except SyntaxError as e:
-                self.db.logger.error('NdGpatch error')
-                raise e
-            self.cnxn = dsn
+            m = re.match(self.REGEX_DSN, ruri)
+            if not m:
+                raise SyntaxError("Invalid URI string in DAL")
+            dsn = m.group()
         else:
-            m = self.REGEX_URI.match(ruri)
+            m = re.match(self.REGEX_URI, ruri)
             if not m:
                 raise SyntaxError(
                     "Invalid URI string in DAL: %s" % self.uri)
             user = self.credential_decoder(m.group('user'))
-            if not user:
-                raise SyntaxError('User required')
             password = self.credential_decoder(m.group('password'))
-            if not password:
+            if password is None:
                 password = ''
             host = m.group('host')
-            if not host:
-                raise SyntaxError('Host name required')
             db = m.group('db')
-            if not db:
-                raise SyntaxError('Database name required')
             port = m.group('port') or '1433'
             self.dsn = 'sybase:host=%s:%s;dbname=%s' % (host, port, db)
             self.driver_args.update(
                 user=self.credential_decoder(user),
                 passwd=self.credential_decoder(password))
-
-    def connector(self):
-        return self.driver.connect(self.dsn, **self.driver_args)
