@@ -346,7 +346,7 @@ class GoogleDatastore(NoSQLAdapter):
                 tbl = tableobj
                 for order in orders:
                     order = str(order)
-                    desc = order.startswith('~')
+                    desc = order.startswith('-')
                     name = order[1 if desc else 0:].split('.')[-1]
                     if name == 'id':
                         o = -tbl._key if desc else tbl._key

@@ -557,8 +557,8 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(db(db.tt.id).count(), 3)
         self.assertEqual(db(db.tt.id!=None).count(), 3)
 
-        self.assertEqual(db(db.tt.id > 0).select(orderby=~db.tt.aa | db.tt.id)[0].aa, '3')
         self.assertEqual(db(db.tt.id > 0).select(orderby=~db.tt.aa)[0].aa, '3')
+        self.assertEqual(db(db.tt.id > 0).select(orderby=~db.tt.aa | db.tt.id)[0].aa, '3')
         self.assertEqual(len(db(db.tt.id > 0).select(limitby=(1, 2))), 1)
         self.assertEqual(db(db.tt.id > 0).select(limitby=(1, 2))[0].aa, '2')
         self.assertEqual(len(db().select(db.tt.ALL)), 3)
