@@ -822,8 +822,8 @@ class IS_INT_IN_RANGE(Validator):
             if ((self.minimum is None or v >= self.minimum) and
                     (self.maximum is None or v < self.maximum)):
                 return v
-            raise ValidationError(range_error_message(
-                    self.error_message, 'an integer', self.minimum, self.maximum))
+        raise ValidationError(range_error_message(
+                self.error_message, 'an integer', self.minimum, self.maximum))
 
 
 def str2dec(number):
