@@ -884,7 +884,7 @@ class IS_FLOAT_IN_RANGE(Validator):
         self.minimum = float(minimum) if minimum is not None else None
         self.maximum = float(maximum) if maximum is not None else None
         self.dot = str(dot)
-        self.error_message = error_mssage
+        self.error_message = error_message
 
     def validate(self, value):
         try:
