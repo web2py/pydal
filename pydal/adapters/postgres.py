@@ -40,8 +40,9 @@ class Postgre(
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
         r'@(?P<host>[^:/]*|\[[^\]]+\])(:(?P<port>\d+))?' \
          '/(?P<db>[^?]+)' \
-        r'(\?sslmode=(?P<sslmode>[^?]+))?(\?(?P<ssl_flag>ssl))?' \
-        r'(\?unix_socket=(?P<socket>.+))?$'
+        r'([?]sslmode=(?P<sslmode>[^?]+))?' \
+        r'([?&](?P<ssl_flag>ssl))?' \
+        r'([?&]unix_socket=(?P<socket>.+))?$'
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
