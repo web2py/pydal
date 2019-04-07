@@ -10,9 +10,11 @@ class MySQL(SQLAdapter):
     commit_on_alter_table = True
     support_distributed_transaction = True
 
+    # TODO: better syntax and parsing of urlargs (like in msssql.py)
     REGEX_URI = \
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
-        r'@(?P<host>[^:/]*)(:(?P<port>\d+))?/(?P<db>[^?]+)' \
+        r'@(?P<host>[^:/]*|\[[^\]]+\])(:(?P<port>\d+))?' \
+         '/(?P<db>[^?]+)' \
         r'(\?set_encoding=(?P<charset>\w+))?(\?unix_socket=(?P<socket>.+))?$'
 
     def _initialize_(self, do_connect):

@@ -14,7 +14,8 @@ class FireBird(SQLAdapter):
 
     REGEX_URI = \
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
-        r'@(?P<host>[^:/]+)(:(?P<port>\d+))?/(?P<db>[^?]+)' \
+        r'@(?P<host>[^:/]+|\[[^\]]+\])(:(?P<port>\d+))?' \
+         '/(?P<db>[^?]+)' \
         r'(\?set_encoding=(?P<charset>\w+))?$'
 
     def _initialize_(self, do_connect):

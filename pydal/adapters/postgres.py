@@ -35,9 +35,11 @@ class Postgre(
     drivers = ('psycopg2', 'pg8000')
     support_distributed_transaction = True
 
+    # TODO: better syntax and parsing of urlargs (like in msssql.py)
     REGEX_URI = \
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
-        r'@(?P<host>[^:/]*)(:(?P<port>\d+))?/(?P<db>[^?]+)' \
+        r'@(?P<host>[^:/]*|\[[^\]]+\])(:(?P<port>\d+))?' \
+         '/(?P<db>[^?]+)' \
         r'(\?sslmode=(?P<sslmode>[^?]+))?(\?(?P<ssl_flag>ssl))?' \
         r'(\?unix_socket=(?P<socket>.+))?$'
 
@@ -248,7 +250,8 @@ class JDBCPostgre(Postgre):
 
     REGEX_URI = \
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
-        r'@(?P<host>[^:/]+)(:(?P<port>\d+))?/(?P<db>[^?]+)$'
+        r'@(?P<host>[^:/]+|\[[^\]]+\])(:(?P<port>\d+))?' \
+         '/(?P<db>[^?]+)$'
 
     def _initialize_(self, do_connect):
         super(Postgre, self)._initialize_(do_connect)

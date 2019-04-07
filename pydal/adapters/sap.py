@@ -10,7 +10,7 @@ class SAPDB(SQLAdapter):
 
     REGEX_URI = \
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
-        r'@(?P<host>[^:/]+)/(?P<db>[^?]+)$'
+        r'@(?P<host>[^:/]+|\[[^\]]+\])/(?P<db>[^?]+)$'
 
     def _initialize_(self, do_connect):
         super(SAPDB, self)._initialize_(do_connect)

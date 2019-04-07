@@ -18,7 +18,8 @@ class MSSQL(SQLAdapter):
     REGEX_DSN = '^.+$'
     REGEX_URI = \
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
-        r'@(?P<host>[^:/]+)(:(?P<port>\d+))?/(?P<db>[^?]+)' \
+        r'@(?P<host>[^:/]+|\[[^\]]+\])(:(?P<port>\d+))?' \
+         '/(?P<db>[^?]+)' \
         r'(\?(?P<urlargs>.*))?$'
     REGEX_ARG_VAL = '(?P<argkey>[^=]+)=(?P<argvalue>[^&]*)'
 
