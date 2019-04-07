@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from ._gae import gae
 
 DRIVERS = {}
 
+from ._gae import gae
 if gae is not None:
     DRIVERS['google'] = gae
     psycopg2_adapt = None
@@ -154,8 +154,3 @@ try:
     DRIVERS['imaplib'] = imaplib
 except:
     pass
-
-
-# for backward compatibility?
-def get_driver(name):
-    return DRIVERS.get(name)
