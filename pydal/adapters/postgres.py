@@ -40,7 +40,7 @@ class Postgre(
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
         r'@(?P<host>[^:/]*|\[[^\]]+\])(:(?P<port>\d+))?' \
          '/(?P<db>[^?]+)' \
-        r'([?]sslmode=(?P<sslmode>[^?]+))?' \
+        r'([?]sslmode=(?P<sslmode>[^?&]+))?' \
         r'([?&](?P<ssl_flag>ssl))?' \
         r'([?&]unix_socket=(?P<socket>.+))?$'
 
