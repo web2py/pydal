@@ -814,8 +814,7 @@ class IS_INT_IN_RANGE(Validator):
 
         self.minimum = int(minimum) if minimum is not None else None
         self.maximum = int(maximum) if maximum is not None else None
-        self.error_message = range_error_message(
-            error_message, 'an integer', self.minimum, self.maximum)
+        self.error_message = error_message
 
     def validate(self, value):
         if re.match(self.REGEX_INT, str(value)):
@@ -823,7 +822,8 @@ class IS_INT_IN_RANGE(Validator):
             if ((self.minimum is None or v >= self.minimum) and
                     (self.maximum is None or v < self.maximum)):
                 return v
-        raise ValidationError(self.error_message)
+            raise ValidationError(range_error_message(
+                    self.error_message, 'an integer', self.minimum, self.maximum))
 
 
 def str2dec(number):
@@ -884,8 +884,7 @@ class IS_FLOAT_IN_RANGE(Validator):
         self.minimum = float(minimum) if minimum is not None else None
         self.maximum = float(maximum) if maximum is not None else None
         self.dot = str(dot)
-        self.error_message = range_error_message(
-            error_message, 'a number', self.minimum, self.maximum)
+        self.error_message = error_mssage
 
     def validate(self, value):
         try:
@@ -898,7 +897,8 @@ class IS_FLOAT_IN_RANGE(Validator):
                 return v
         except (ValueError, TypeError):
             pass
-        raise ValidationError(self.error_message)
+        raise ValidationError(range_error_message(
+                self.error_message, 'a number', self.minimum, self.maximum))
 
     def formatter(self, value):
         if value is None:
@@ -969,8 +969,7 @@ class IS_DECIMAL_IN_RANGE(Validator):
         self.minimum = decimal.Decimal(str(minimum)) if minimum is not None else None
         self.maximum = decimal.Decimal(str(maximum)) if maximum is not None else None
         self.dot = str(dot)
-        self.error_message = range_error_message(
-            error_message, 'a number', self.minimum, self.maximum)
+        self.error_message = error_message
 
     def validate(self, value):
         try:
@@ -981,7 +980,8 @@ class IS_DECIMAL_IN_RANGE(Validator):
                 return value
         except (ValueError, TypeError, decimal.InvalidOperation):
             pass
-        raise ValidationError(self.error_message)
+        raise ValidationError(range_error_message(
+                self.error_message, 'a number', self.minimum, self.maximum))
 
     def formatter(self, value):
         if value is None:
