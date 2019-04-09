@@ -848,6 +848,11 @@ class TestValidators(unittest.TestCase):
         def __call__(self, value):
             return (value, None) if value else (value, 'invalid!')
 
+    @staticmethod
+    def custom_validator_func(value):
+        """ Validation function instead of Validator subclass """
+        return (value, None) if value else (value, 'invalid!')
+
     def test_IS_EMPTY_OR(self):
         rtn = IS_EMPTY_OR(IS_EMAIL())('abc@def.com')
         self.assertEqual(rtn, ('abc@def.com', None))
@@ -872,6 +877,10 @@ class TestValidators(unittest.TestCase):
         rtn = IS_EMPTY_OR(self.CustomValidator())(1)
         self.assertEqual(rtn, (1, None))
         rtn = IS_EMPTY_OR(self.CustomValidator())(0)
+        self.assertEqual(rtn, (0, 'invalid!'))
+        rtn = IS_EMPTY_OR(self.custom_validator_func)(1)
+        self.assertEqual(rtn, (1, None))
+        rtn = IS_EMPTY_OR(self.custom_validator_func)(0)
         self.assertEqual(rtn, (0, 'invalid!'))
 
     def test_CLEANUP(self):

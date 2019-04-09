@@ -148,7 +148,8 @@ class Validator(object):
 
 
 def validator_caller(func, value):
-    if getattr(func, 'validate', None) is not Validator.validate:
+    validate = getattr(func, 'validate', None)
+    if validate and validate is not Validator.validate:
         return func.validate(value)
     value, error = func(value)
     if error is not None:
