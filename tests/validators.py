@@ -22,7 +22,7 @@ class TestValidators(unittest.TestCase):
 
     def test_MISC(self):
         """ Test miscelaneous utility functions and some general behavior guarantees """
-        
+
         self.assertEqual(options_sorter(('a', 'a'), ('a', 'a')), -1)
         self.assertEqual(options_sorter(('A', 'A'), ('a', 'a')), -1)
         self.assertEqual(options_sorter(('b', 'b'), ('a', 'a')), 1)
@@ -843,6 +843,11 @@ class TestValidators(unittest.TestCase):
         rtn = ANY_OF([IS_DATE(format='%m/%d/%Y'), IS_EMAIL()]).formatter(datetime.date(1834, 12, 14))
         self.assertEqual(rtn, '12/14/1834')
 
+    class CustomValidator(Validator):
+        """ Custom Validator not overloading .validate() """
+        def __call__(self, value):
+            return (value, None) if value else (value, 'invalid!')
+
     def test_IS_EMPTY_OR(self):
         rtn = IS_EMPTY_OR(IS_EMAIL())('abc@def.com')
         self.assertEqual(rtn, ('abc@def.com', None))
@@ -864,6 +869,10 @@ class TestValidators(unittest.TestCase):
         self.assertEqual(rtn, ('AAA', 'Enter a valid email address'))
         rtn = IS_EMPTY_OR([IS_LOWER(), IS_EMAIL()])('AAA')
         self.assertEqual(rtn, ('AAA', 'Enter a valid email address'))
+        rtn = IS_EMPTY_OR(self.CustomValidator())(1)
+        self.assertEqual(rtn, (1, None))
+        rtn = IS_EMPTY_OR(self.CustomValidator())(0)
+        self.assertEqual(rtn, (0, 'invalid!'))
 
     def test_CLEANUP(self):
         rtn = CLEANUP()('helloò')
