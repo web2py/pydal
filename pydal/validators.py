@@ -148,8 +148,9 @@ class Validator(object):
 
 
 def validator_caller(func, value):
-    if getattr(func, 'validate', None) is Validator.validate:
-        return func.validate(value)
+    validate = getattr(func, 'validate', None)
+    if validate and validate is not Validator.validate:
+        return validate(value)
     value, error = func(value)
     if error is not None:
         raise ValidationError(error)
@@ -257,7 +258,7 @@ class IS_EQUAL_TO(Validator):
         if value != self.expression:
             raise ValidationError(self.translator(self.error_message))
         return value
-        
+
 
 class IS_EXPR(Validator):
     """
@@ -2700,7 +2701,7 @@ class ANY_OF(Validator):
             if not e:
                 return v
         raise ValidationError(e)
-            
+
     def formatter(self, value):
         # Use the formatter of the first subvalidator
         # that validates the value and has a formatter
@@ -3657,7 +3658,7 @@ class IS_IPV4(Validator):
                     self.is_localhost != (number == self.localhost):
                 ok = False
 
-            private = any([private_number[0] <= number <= private_number[1] 
+            private = any([private_number[0] <= number <= private_number[1]
                            for private_number in self.private])
             if ok and self.is_private is not None and self.is_private != private:
                 ok = False
