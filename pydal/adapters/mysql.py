@@ -41,7 +41,7 @@ class MySQL(SQLAdapter):
         charset = m.group('charset') or 'utf8'
         self.driver_args.update(user=user, db=db, charset=charset)
         if password is not None:
-            self.driver_args['password'] = password
+            self.driver_args['passwd'] = password
         if socket:
             self.driver_args['unix_socket'] = socket
         else:
