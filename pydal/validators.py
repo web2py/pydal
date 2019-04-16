@@ -3155,7 +3155,7 @@ class IS_STRONG(Validator):
                 if not all_special.count(True) >= self.special:
                     failures.append(self.translator("Must include at least %s of the following: %s")
                                     % (self.special, self.specials))
-            elif self.special == 0:
+            elif self.special == 0 and self.special is not False:
                 if len(all_special) > 0:
                     failures.append(self.translator("May not contain any of the following: %s")
                                     % self.specials)
@@ -3170,7 +3170,7 @@ class IS_STRONG(Validator):
                 if not len(all_upper) >= self.upper:
                     failures.append(self.translator("Must include at least %s uppercase")
                                     % str(self.upper))
-            elif self.upper == 0:
+            elif self.upper == 0 and self.upper is not False:
                 if len(all_upper) > 0:
                     failures.append(
                         self.translator("May not include any uppercase letters"))
@@ -3180,7 +3180,7 @@ class IS_STRONG(Validator):
                 if not len(all_lower) >= self.lower:
                     failures.append(self.translator("Must include at least %s lowercase")
                                     % str(self.lower))
-            elif self.lower == 0:
+            elif self.lower == 0 and self.lower is not False:
                 if len(all_lower) > 0:
                     failures.append(
                         self.translator("May not include any lowercase letters"))
@@ -3193,7 +3193,7 @@ class IS_STRONG(Validator):
                 if not len(all_number) >= self.number:
                     failures.append(self.translator("Must include at least %s %s")
                                     % (str(self.number), numbers))
-            elif self.number == 0:
+            elif self.number == 0 and self.number is not False:
                 if len(all_number) > 0:
                     failures.append(self.translator("May not include any numbers"))
         if len(failures) == 0:
