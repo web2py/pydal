@@ -28,15 +28,15 @@ with open('pydal/__init__.py', 'rb') as f:
         f.read().decode('utf-8')).group(1)))
 
 setup(
-    name='pyDAL',
+    name='pydal',
     version=version,
     url='https://github.com/web2py/pydal',
     license='BSD',
     author='Massimo Di Pierro',
-    author_email='mdipierro@cs.depaul.edu',
-    maintainer='Giovanni Barillari',
-    maintainer_email='gi0baro@d4net.org',
-    description='a pure Python Database Abstraction Layer',
+    author_email='massimo.dipierro@gmail.com',
+    maintainer='Massimo Di Pierro',
+    maintainer_email='massimo.dipierro@gmail.com',
+    description='a pure Python Database Abstraction Layer (for python version 2.7 and 3.x)',
     long_description=__doc__,
     packages=[
         'pydal', 'pydal.adapters', 'pydal.dialects', 'pydal.helpers',
