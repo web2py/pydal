@@ -10,6 +10,7 @@
 """
 
 import warnings
+import re
 
 
 class RemovedInNextVersionWarning(DeprecationWarning):
@@ -42,3 +43,19 @@ class deprecated(object):
                 3 + self.additional_stack)
             return f(*args, **kwargs)
         return wrapped
+
+
+def split_uri_args(query, separators='&?', need_equal=False):
+    """
+    Split the args in the query string of a db uri.
+
+    Returns a dict with splitted args and values.
+    """
+    if need_equal:
+        regex_arg_val = "(?P<argkey>[^=]+)=(?P<argvalue>[^%s]*)[%s]?" % (
+            separators, separators)
+    else:
+        regex_arg_val = "(?P<argkey>[^=%s]+)(=(?P<argvalue>[^%s]*))?[%s]?" % (
+            separators, separators, separators)
+    return dict([m.group('argkey', 'argvalue')
+                 for m in re.finditer(regex_arg_val, query)])

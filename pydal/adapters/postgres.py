@@ -5,6 +5,7 @@ from .._globals import IDENTITY, THREAD_LOCAL
 from ..drivers import psycopg2_adapt
 from ..helpers.classes import ConnectionConfigurationMixin
 from .base import SQLAdapter
+from ..utils import split_uri_args
 from . import AdapterMeta, adapters, with_connection, with_connection_or_raise
 
 
@@ -35,14 +36,11 @@ class Postgre(
     drivers = ('psycopg2', 'pg8000')
     support_distributed_transaction = True
 
-    # TODO: better syntax and parsing of urlargs (like in msssql.py)
     REGEX_URI = \
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
         r'@(?P<host>[^:/]*|\[[^\]]+\])(:(?P<port>\d+))?' \
          '/(?P<db>[^?]+)' \
-        r'([?]sslmode=(?P<sslmode>[^?&]+))?' \
-        r'([?&](?P<ssl_flag>ssl))?' \
-        r'([?&]unix_socket=(?P<socket>.+))?$'
+        r'(\?(?P<uriargs>.*))?$'  # sslmode, ssl (no value) and unix_socket
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
@@ -62,7 +60,13 @@ class Postgre(
         user = self.credential_decoder(m.group('user'))
         password = self.credential_decoder(m.group('password'))
         host = m.group('host')
-        socket = m.group('socket')
+        uriargs = m.group('uriargs')
+        if uriargs:
+            uri_args = split_uri_args(uriargs, need_equal=False)
+            print uri_args
+        else:
+            uri_args = dict()
+        socket = uri_args.get('unix_socket')
         if not host and not socket:
             raise SyntaxError('Host or UNIX socket name required')
         db = m.group('db')
@@ -85,10 +89,10 @@ class Postgre(
         else:
             port = int(m.group('port') or 5432)
             self.driver_args.update(host=host, port=port)
-            sslmode = m.group('sslmode')
+            sslmode = uri_args.get('sslmode')
             if sslmode and self.driver_name == 'psycopg2':
                 self.driver_args['sslmode'] = sslmode
-            if m.group('ssl_flag') and self.driver_name == 'pg8000':
+            if 'ssl' in uri_args and self.driver_name == 'pg8000':
                 self.driver_args['ssl'] = True
         if self.driver:
             self.__version__ = "%s %s" % (self.driver.__name__,

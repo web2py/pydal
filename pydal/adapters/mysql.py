@@ -1,5 +1,6 @@
 import re
 from .base import SQLAdapter
+from ..utils import split_uri_args
 from . import adapters, with_connection
 
 
@@ -10,12 +11,11 @@ class MySQL(SQLAdapter):
     commit_on_alter_table = True
     support_distributed_transaction = True
 
-    # TODO: better syntax and parsing of urlargs (like in msssql.py)
     REGEX_URI = \
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
         r'@(?P<host>[^:/]*|\[[^\]]+\])(:(?P<port>\d+))?' \
          '/(?P<db>[^?]+)' \
-        r'(\?set_encoding=(?P<charset>\w+))?(\?unix_socket=(?P<socket>.+))?$'
+        r'(\?(?P<uriargs>.*))?$'  # set_encoding and unix_socket
 
     def _initialize_(self, do_connect):
         super(MySQL, self)._initialize_(do_connect)
@@ -26,7 +26,14 @@ class MySQL(SQLAdapter):
         user = self.credential_decoder(m.group('user'))
         password = self.credential_decoder(m.group('password'))
         host = m.group('host')
-        socket = m.group('socket')
+        uriargs = m.group('uriargs')
+        if uriargs:
+            uri_args = split_uri_args(uriargs, need_equal=True)
+            charset = uri_args.get('set_encoding') or 'utf8'
+            socket = uri_args.get('unix_socket')
+        else:
+            charset = 'utf8'
+            socket = None
         # NOTE:
         # MySQLdb (see http://mysql-python.sourceforge.net/MySQLdb.html)
         # use UNIX sockets and named pipes by default if no host is given
@@ -38,7 +45,6 @@ class MySQL(SQLAdapter):
             raise SyntaxError('Host or UNIX socket name required')
         db = m.group('db')
         port = int(m.group('port') or '3306')
-        charset = m.group('charset') or 'utf8'
         self.driver_args.update(user=user, db=db, charset=charset)
         if password is not None:
             self.driver_args['passwd'] = password

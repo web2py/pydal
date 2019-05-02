@@ -2,6 +2,7 @@ import re
 from .._compat import PY2, iteritems, integer_types, to_unicode, long
 from .._globals import IDENTITY
 from .base import SQLAdapter
+from ..utils import split_uri_args
 from . import adapters, with_connection_or_raise
 
 class Slicer(object):
@@ -20,8 +21,7 @@ class MSSQL(SQLAdapter):
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
         r'@(?P<host>[^:/]+|\[[^\]]+\])(:(?P<port>\d+))?' \
          '/(?P<db>[^?]+)' \
-        r'(\?(?P<urlargs>.*))?$'
-    REGEX_ARG_VAL = '(?P<argkey>[^=]+)=(?P<argvalue>[^&]*)'
+        r'(\?(?P<uriargs>.*))?$'
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
@@ -52,18 +52,19 @@ class MSSQL(SQLAdapter):
             host = m.group('host')
             db = m.group('db')
             port = m.group('port') or '1433'
-            # Parse the optional url name-value arg pairs after the '?'
+            # Parse the optional uri name-value arg pairs after the '?'
             # (in the form of arg1=value1&arg2=value2&...)
             # (drivers like FreeTDS insist on uppercase parameter keys)
             argsdict = {'DRIVER': '{SQL Server}'}
-            urlargs = m.group('urlargs') or ''
-            for argmatch in re.finditer(self.REGEX_ARG_VAL, urlargs):
-                argsdict[str(argmatch.group('argkey')).upper()] = \
-                    argmatch.group('argvalue')
-            urlargs = ';'.join([
+            uriargs = m.group('uriargs')
+            if uriargs:
+                for argkey, argvalue in split_uri_args(
+                        uriargs, separators='&', need_equal=True).items():
+                    argsdict[argkey.upper()] = argvalue
+            uriargs = ';'.join([
                 '%s=%s' % (ak, av) for (ak, av) in iteritems(argsdict)])
             self.dsn = 'SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;%s' \
-                % (host, port, db, user, password, urlargs)
+                % (host, port, db, user, password, uriargs)
 
     def connector(self):
         return self.driver.connect(self.dsn, **self.driver_args)
