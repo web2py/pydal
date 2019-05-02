@@ -63,7 +63,6 @@ class Postgre(
         uriargs = m.group('uriargs')
         if uriargs:
             uri_args = split_uri_args(uriargs, need_equal=False)
-            print uri_args
         else:
             uri_args = dict()
         socket = uri_args.get('unix_socket')
