@@ -1,0 +1,406 @@
+import collections
+import copy
+import datetime
+import fnmatch
+import functools
+import re
+
+
+__version__ = '0.1'
+
+__all__ = ['DBAPI', 'Policy', 'ALLOW_ALL_POLICY', 'DENY_ALL_POLICY']
+
+class PolicyViolation(ValueError): pass
+class InvalidFormat(ValueError): pass
+class NotFound(ValueError): pass
+
+
+def error_wrapper(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        data = {}
+        try:
+            data = func(*args, **kwargs)
+            if not data.get('errors'):
+                data['status'] = 'success'
+                data['code'] = 200
+            else:
+                data['status'] = 'error'
+                data['message'] = 'Validation Errors'
+                data['code'] = 422
+        except PolicyViolation as e:
+            data['status'] = 'error'
+            data['message'] = str(e)
+            data['code'] = 401
+        except NotFound as e:
+            data['status'] = 'error'
+            data['message'] = str(e)
+            data['code'] = 404
+        except (InvalidFormat, KeyError, ValueError) as e:
+            data['status'] = 'error'
+            data['message'] = str(e)
+            data['code'] = 400
+        finally:
+            data['timestamp'] = datetime.datetime.utcnow().isoformat()
+            data['api_version'] = __version__
+        return data
+    return wrapper
+
+
+class Policy(object):
+
+    model = {
+        'POST': {'authorize':False, 'fields':None},
+        'PUT': {'authorize':False, 'fields':None},
+        'DELETE': {'authorize':False},
+        'GET': {'authorize':False, 'fields':None, 'query':None, 'allowed_patterns':[], 'denied_patterns':[]}
+        }
+
+    def __init__(self):
+        self.info = {}
+
+    def set(self, tablename, method, **attributes):
+        method = method.upper()
+        if not method in self.model or any(key not in self.model[method] for key in attributes):
+            raise InvalidFormat('Invalid policy format')
+        if not tablename in self.info:
+            self.info[tablename] = copy.deepcopy(self.model)
+        self.info[tablename][method].update(attributes)
+    
+    def check_if_allowed(self, method, tablename, id=None, get_vars=None, post_vars=None):
+        get_vars = get_vars or {}
+        post_vars = post_vars or {}
+        policy = self.info.get(tablename) or self.info.get('*')
+        if not policy:
+            raise PolicyViolation('No policy for this object')
+        policy = policy.get(method.upper())
+        if not policy: 
+            raise PolicyViolation('No policy for this method')
+        authorize = policy.get('authorize')
+        if authorize is False or (callable(authorize) and not authorize(tablename, id, get_vars, post_vars)):
+            raise PolicyViolation('Not authorized')
+        for key in get_vars:
+            if any(fnmatch.fnmatch(key, p) for p in policy['denied_patterns']):
+                raise PolicyViolation('Pattern is not allowed')
+            allowed_patterns = policy['allowed_patterns']
+            if '**' not in allowed_patterns and not any(fnmatch.fnmatch(key, p) for p in allowed_patterns):
+                raise PolicyViolation('Pattern is not explicitely allowed')
+        return
+
+    def allowed_fieldnames(self, table, method='GET'):
+        method = method.upper()
+        policy = self.info.get(table._tablename) or self.info.get('*')
+        policy = policy[method]
+        allowed_fieldnames = policy['fields']
+        if not allowed_fieldnames:
+            allowed_fieldnames = [
+                f.name for f in table 
+                if (method == 'GET' and f.readable)
+                or (method != 'GET' and f.writable)]
+        return allowed_fieldnames
+
+    def check_fieldnames(self, table, fieldnames, method='GET'):
+        allowed_fieldnames = self.allowed_fieldnames(table, method)
+        invalid_fieldnames = set(fieldnames) - set(allowed_fieldnames)
+        if invalid_fieldnames:
+            raise InvalidFormat('Invalid fields: %s' % list(invalid_fieldnames))
+
+
+DENY_ALL_POLICY = Policy()
+ALLOW_ALL_POLICY = Policy()
+ALLOW_ALL_POLICY.set(tablename='*', method='GET', authorize=True, allowed_patterns=['**'])
+ALLOW_ALL_POLICY.set(tablename='*', method='POST', authorize=True)
+ALLOW_ALL_POLICY.set(tablename='*', method='PUT', authorize=True)
+ALLOW_ALL_POLICY.set(tablename='*', method='DELETE', authorize=True)
+
+
+class DBAPI(object):
+
+    re_table_and_fields = re.compile('\w+([\w+(,\w+)+])?')
+    re_lookups = re.compile('((\w*\!?\:)?(\w+(\[\w+(,\w+)*\])?)(\.\w+(\[\w+(,\w+)*\])?)*)')
+    re_no_brackets = re.compile('\[.*?\]')
+
+    def __init__(self, db, policy):
+        self.db = db
+        self.policy = policy
+
+    @error_wrapper
+    def __call__(self, method, tablename, id=None, get_vars=None, post_vars=None):
+        method = method.upper()
+        get_vars = get_vars or {}
+        post_vars = post_vars or {}
+        # validate incoming request
+        if not tablename in self.db.tables:
+            raise InvalidFormat('Invalid table name: %s' % tablename)
+        if self.policy:
+            self.policy.check_if_allowed(method, tablename, id, get_vars, post_vars)
+            if method in ['POST', 'PUT']:
+                self.policy.check_fieldnames(self.db[tablename], post_vars.keys(), method)
+        # apply rules
+        if method == 'GET':
+            if id:
+                get_vars[tablename + '.eq'] = id
+            return self.search(tablename, get_vars)
+        elif method == 'POST':
+            table =  self.db[tablename]
+            return table.validate_and_insert(**post_vars).as_dict()
+        elif method == 'PUT':
+            id = id or post_vars['id']
+            if not id:
+                raise InvalidFormat('No item id specified')
+            table =  self.db[tablename]
+            data = self.db(table.id == id).validate_and_update(**post_vars).as_dict()
+            if not data.get('updated'):
+                raise NotFound('Item not found')
+            return data
+        elif method == 'DELETE':
+            id = id or post_vars['id']
+            if not id:
+                raise InvalidFormat('No item id specified')
+            table = self.db[tablename]
+            deleted = self.db(table.id == id).delete()
+            if not deleted:
+                raise NotFound('Item not found')
+            return {'deleted': deleted}
+
+    def table_model(self, table):
+        """ converts a table into its form template """
+        items = []
+        fields = post_fields = put_fields = table.fields
+        if self.policy:
+            fields = self.policy.allowed_fieldnames(table, method='GET')
+            put_fields = self.policy.allowed_fieldnames(table, method='PUT')
+            post_fields = self.policy.allowed_fieldnames(table, method='POST')
+        for fieldname in fields:
+            field = table[fieldname]
+            item = {'name': field.name, 'label': field.label}
+            # https://github.com/collection-json/extensions/blob/master/template-validation.md
+            item['default'] = field.default() if callable(field.default) else field.default
+            item['type'] = str(field.type) # FIX THIS
+            if hasattr(field,'regex'):
+                item['regex'] = field.regex
+            item['required'] = field.required
+            item['unique'] = field.unique
+            item['post_writable'] = field.name in post_fields
+            item['put_writable'] = field.name in put_fields
+            item['options'] = field.options                                                                            
+            items.append(item)
+        return items
+
+    @staticmethod
+    def make_query(field, condition, value):
+        expression = {
+            'eq': lambda: field == value,
+            'ne': lambda: field == value,
+            'lt': lambda: field < value,
+            'gt': lambda: field > value,
+            'le': lambda: field <= value,
+            'ge': lambda: field >= value,            
+            'startswith': lambda: field.startswith(str(value)),
+            'in': lambda: field.belongs(value.split(',') if isinstance(value,str) else list(value)),
+            }
+        return expression[condition]()
+
+    @staticmethod
+    def parse_table_and_fields(text):
+        if not DBAPI.re_table_and_fields.match(text):
+            raise ValueError
+        parts = text.split('[')
+        if len(parts) == 1:
+            return parts[0], []
+        elif len(parts) == 2:
+            return parts[0], parts[1][:-1].split(',')
+
+    def search(self, tname, vars):
+
+        def check_table_permission(tablename):
+            if self.policy:
+                self.policy.check_if_allowed('GET', tablename)
+
+        def filter_fieldnames(table, fieldnames):            
+            if self.policy:
+                if fieldnames:
+                    self.policy.check_fieldnames(table, fieldnames)
+                else:
+                    fieldnames = self.policy.allowed_fieldnames(table)
+            elif not fieldnames:
+                fieldnames = table.fields
+            return fieldnames
+
+        db = self.db
+        tname, tfieldnames = DBAPI.parse_table_and_fields(tname)
+        check_table_permission(tname)
+        tfieldnames = filter_fieldnames(db[tname], tfieldnames)
+        query = []
+        offset = 0
+        limit = 100
+        model = False
+        table = db[tname]
+        queries = []
+        hop1 = collections.defaultdict(list)
+        hop2 = collections.defaultdict(list)
+        hop3 = collections.defaultdict(list)
+        lookup = {}
+        
+        for key, value in vars.items():
+
+            if key == 'offset':
+                offset = int(value)
+            elif key == 'limit':
+                limit = int(value)
+            elif key == 'lookup':
+                lookup = {item[0]: {} for item in DBAPI.re_lookups.findall(value)}
+            elif key == 'model':
+                model = str(value).lower()[0] == 't'
+            else:
+                key_parts = key.rsplit('.')
+                if not key_parts[-1] in ('eq','ne','gt','lt','ge','le','startswith'):
+                    key_parts.append('eq')
+                is_negated = key_parts[0] == 'not'
+                if is_negated:
+                    key_parts = key_parts[1:]
+                key, condition = key_parts[:-1], key_parts[-1]
+                if len(key) == 1: # example: name.eq=='Chair'
+                    query = self.make_query(table[key[0]], condition, value)
+                    queries.append(query if not is_negated else ~query)
+                elif len(key) == 2: # example: color.name.eq=='red'
+                    hop1[is_negated, key[0]].append((key[1], condition, value))
+                elif len(key) == 3: # example: a.rel.desc.eq=='above'
+                    hop2[is_negated, key[0], key[1]].append((key[2], condition, value))
+                elif len(key) == 4: # example: a.rel.b.name.eq == 'Table'
+                    hop3[is_negated, key[0], key[1], key[2]].append((key[3], condition, value))
+
+        for item in hop1:
+            is_negated, fieldname = item
+            ref_tablename = table[fieldname].type.split(' ')[1]
+            ref_table = db[ref_tablename]
+            subqueries = [self.make_query(ref_table[k], c, v) for k,c,v in hop1[item]]
+            subquery = functools.reduce(lambda a,b: a&b, subqueries)
+            query = table[fieldname].belongs(db(subquery)._select(ref_table.id))
+            queries.append(query if not is_negated else ~query)
+
+        for item in hop2:
+            is_negated, linkfield, linktable = item
+            ref_table = db[linktable]
+            subqueries = [self.make_query(ref_table[k], c, v) for k, c, v in hop2[item]]
+            subquery = functools.reduce(lambda a,b: a&b, subqueries)
+            query = table.id.belongs(db(subquery)._select(ref_table[linkfield]))
+            queries.append(query if not is_negated else ~query)
+
+        for item in hop3:
+            is_negated, linkfield, linktable, otherfield = item
+            ref_table = db[linktable]
+            ref_ref_tablename = ref_table[otherfield].type.split(' ')[1]
+            ref_ref_table = db[ref_ref_tablename]
+            subqueries = [self.make_query(ref_ref_table[k], c, v) for k,c,v in hop3[item]]
+            subquery = functools.reduce(lambda a, b: a&b, subqueries)
+            subquery &= ref_ref_table.id == ref_table[otherfield]
+            query = table.id.belongs(db(subquery)._select(ref_table[linkfield], groupby=ref_table[linkfield]))
+            queries.append(query if not is_negated else ~query)
+
+        if not queries:
+            queries.append(table)
+
+        query = functools.reduce(lambda a, b: a&b, queries)        
+        tfields = [table[tfieldname] for tfieldname in tfieldnames]
+        rows = db(query).select(*tfields, limitby=(offset, limit + offset))
+
+        lookup_map = {}
+        for key in list(lookup.keys()):      
+            name, key = key.split(':') if ':' in key else ('', key)
+            clean_key = DBAPI.re_no_brackets.sub('', key)
+            lookup_map[clean_key] = {'name': name.rstrip('!') or clean_key,  
+                                     'collapsed': name.endswith('!')}
+            key = key.split('.')
+
+            if len(key) == 1:
+                key, tfieldnames = DBAPI.parse_table_and_fields(key[0])
+                ref_tablename = table[key].type.split(' ')[1]
+                ref_table = db[ref_tablename]
+                tfieldnames = filter_fieldnames(ref_table, tfieldnames)
+                check_table_permission(ref_tablename)
+                ids = [row[key] for row in rows]
+                tfields = [ref_table[tfieldname] for tfieldname in tfieldnames]
+                if not 'id' in tfieldnames:
+                    tfields.append(ref_table['id'])
+                drows = db(ref_table.id.belongs(ids)).select(*tfields).as_dict()
+                if tfieldnames and not 'id' in tfieldnames:
+                    for row in drows.values():
+                        del row['id']
+                lkey, collapsed = lookup_map[key]['name'], lookup_map[key]['collapsed']
+                for row in rows:
+                    new_row = drows[row[key]]
+                    if collapsed:
+                        del row[key]
+                        for rkey in new_row:
+                            row[lkey + '_' + rkey] = new_row[rkey]
+                    else:
+                        row[lkey] = new_row
+
+            elif len(key) == 2:
+                lfield, key = key
+                key, tfieldnames = DBAPI.parse_table_and_fields(key)
+                check_table_permission(key)
+                ref_table = db[key]
+                tfieldnames = filter_fieldnames(ref_table, tfieldnames)
+                ids = [row['id'] for row in rows]
+                tfields = [ref_table[tfieldname] for tfieldname in tfieldnames]
+                if not lfield in tfieldnames:
+                    tfields.append(ref_table[lfield])
+                lrows = db(ref_table[lfield].belongs(ids)).select(*tfields)
+                drows = collections.defaultdict(list)
+                for row in lrows:
+                    row = row.as_dict()
+                    drows[row[lfield]].append(row)
+                    if not lfield in tfieldnames:
+                        del row[lfield]
+                lkey = lookup_map[lfield + '.' + key]['name']
+                for row in rows:                    
+                    row[lkey] = drows.get(row.id, [])
+
+            elif len(key) == 3:
+                lfield, key, rfield = key
+                key, tfieldnames = DBAPI.parse_table_and_fields(key)
+                rfield, tfieldnames2 = DBAPI.parse_table_and_fields(rfield)
+                check_table_permission(key)
+                ref_table = db[key]
+                ref_ref_tablename = ref_table[rfield].type.split(' ')[1]
+                check_table_permission(ref_ref_tablename)
+                ref_ref_table = db[ref_ref_tablename]
+                tfieldnames = filter_fieldnames(ref_table, tfieldnames)
+                tfieldnames2 = filter_fieldnames(ref_ref_table, tfieldnames2)
+                ids = [row['id'] for row in rows]
+                tfields = [ref_table[tfieldname] for tfieldname in tfieldnames]
+                if not lfield in tfieldnames:
+                    tfields.append(ref_table[lfield])
+                if not rfield in tfieldnames:
+                    tfields.append(ref_table[rfield])
+                tfields += [ref_ref_table[tfieldname] for tfieldname in tfieldnames2]
+                left = ref_ref_table.on(ref_table[rfield]==ref_ref_table['id'])
+                lrows = db(ref_table[lfield].belongs(ids)).select(*tfields, left=left)
+                drows = collections.defaultdict(list)
+                lkey = lfield + '.' + key + '.' + rfield
+                lkey, collapsed = lookup_map[lkey]['name'], lookup_map[lkey]['collapsed']
+                for row in lrows:
+                    row = row.as_dict()
+                    new_row = row[key]
+                    lfield_value, rfield_value = new_row[lfield], new_row[rfield]
+                    if not lfield in tfieldnames:
+                        del new_row[lfield]
+                    if not rfield in tfieldnames:
+                        del new_row[rfield]
+                    if collapsed:
+                        new_row.update(row[ref_ref_tablename])
+                    else:
+                        new_row[rfield] = row[ref_ref_tablename]
+                    drows[lfield_value].append(new_row)
+                for row in rows:                  
+                    row[lkey] = drows.get(row.id, [])
+
+        response = {}
+        response['items'] = rows.as_list()
+        if offset == 0:
+            response['count'] = db(query).count()
+        if model:
+            response['model'] = self.table_model(table)
+        return response
