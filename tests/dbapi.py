@@ -2,7 +2,7 @@ import unittest
 
 from pydal import DAL, Field
 from pydal.validators import IS_NOT_IN_DB
-from pydal.dbapi import DBAPI, ALLOW_ALL_POLICY, DENY_ALL_POLICY
+from pydal.dbapi import DBAPI, ALLOW_ALL_POLICY, DENY_ALL_POLICY, __version__
 
 class TestDBAPI(unittest.TestCase):
 
