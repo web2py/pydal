@@ -254,7 +254,7 @@ class DBAPI(object):
             if key == 'offset':
                 offset = int(value)
             elif key == 'limit':
-                limit = max(int(value), self.policy.get_limit(tname) if self.policy else MAX_LIMIT)
+                limit = min(int(value), self.policy.get_limit(tname) if self.policy else MAX_LIMIT)
             elif key == 'lookup':
                 lookup = {item[0]: {} for item in DBAPI.re_lookups.findall(value)}
             elif key == 'model':
