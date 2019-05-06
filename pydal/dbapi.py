@@ -5,10 +5,11 @@ import fnmatch
 import functools
 import re
 
-
 __version__ = '0.1'
 
 __all__ = ['DBAPI', 'Policy', 'ALLOW_ALL_POLICY', 'DENY_ALL_POLICY']
+
+MAX_LIMIT = 1000
 
 class PolicyViolation(ValueError): pass
 class InvalidFormat(ValueError): pass
@@ -53,7 +54,7 @@ class Policy(object):
         'POST': {'authorize':False, 'fields':None},
         'PUT': {'authorize':False, 'fields':None},
         'DELETE': {'authorize':False},
-        'GET': {'authorize':False, 'fields':None, 'query':None, 'allowed_patterns':[], 'denied_patterns':[]}
+        'GET': {'authorize':False, 'fields':None, 'query':None, 'allowed_patterns':[], 'denied_patterns':[], 'limit': MAX_LIMIT}
         }
 
     def __init__(self):
@@ -66,7 +67,13 @@ class Policy(object):
         if not tablename in self.info:
             self.info[tablename] = copy.deepcopy(self.model)
         self.info[tablename][method].update(attributes)
-    
+        
+    def get_limit(self, tablename):
+        policy = self.info.get(tablename) or self.info.get('*')
+        if not policy:
+            raise PolicyViolation('No policy for this object')
+        return policy['GET']['limit']
+ 
     def check_if_allowed(self, method, tablename, id=None, get_vars=None, post_vars=None):
         get_vars = get_vars or {}
         post_vars = post_vars or {}
@@ -247,7 +254,7 @@ class DBAPI(object):
             if key == 'offset':
                 offset = int(value)
             elif key == 'limit':
-                limit = int(value)
+                limit = max(int(value), self.policy.get_limit(tname) if self.policy else MAX_LIMIT)
             elif key == 'lookup':
                 lookup = {item[0]: {} for item in DBAPI.re_lookups.findall(value)}
             elif key == 'model':
