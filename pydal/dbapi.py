@@ -191,6 +191,8 @@ class DBAPI(object):
             item['post_writable'] = field.name in post_fields
             item['put_writable'] = field.name in put_fields
             item['options'] = field.options                                                                            
+            if field.type == 'id':
+                item['referenced_by'] = ['%s.%s' % (f._tablename, f.name) for f in table._referenced_by]
             items.append(item)
         return items
 
@@ -248,17 +250,20 @@ class DBAPI(object):
         hop2 = collections.defaultdict(list)
         hop3 = collections.defaultdict(list)
         lookup = {}
-        
+        orderby = None
         for key, value in vars.items():
 
             if key == 'offset':
                 offset = int(value)
             elif key == 'limit':
                 limit = min(int(value), self.policy.get_limit(tname) if self.policy else MAX_LIMIT)
+            elif key == 'orderby':
+                orderby = [~table[f[1:]] if f[:1] == '~' else table[f] for f in value.split(',') 
+                          if (f[1:] if f[:1] == '~' else f) in table.fields] or None
             elif key == 'lookup':
                 lookup = {item[0]: {} for item in DBAPI.re_lookups.findall(value)}
             elif key == 'model':
-                model = str(value).lower()[0] == 't'
+                model = str(value).lower()[:1] == 't'
             else:
                 key_parts = key.rsplit('.')
                 if not key_parts[-1] in ('eq','ne','gt','lt','ge','le','startswith'):
@@ -310,7 +315,7 @@ class DBAPI(object):
 
         query = functools.reduce(lambda a, b: a&b, queries)        
         tfields = [table[tfieldname] for tfieldname in tfieldnames]
-        rows = db(query).select(*tfields, limitby=(offset, limit + offset))
+        rows = db(query).select(*tfields, limitby=(offset, limit + offset), orderby=orderby)
 
         lookup_map = {}
         for key in list(lookup.keys()):      
