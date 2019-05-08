@@ -170,7 +170,7 @@ class DBAPI(object):
                 raise NotFound('Item not found')
             return {'deleted': deleted}
 
-    def table_model(self, table):
+    def table_model(self, table, fieldnames):
         """ converts a table into its form template """
         items = []
         fields = post_fields = put_fields = table.fields
@@ -179,7 +179,11 @@ class DBAPI(object):
             put_fields = self.policy.allowed_fieldnames(table, method='PUT')
             post_fields = self.policy.allowed_fieldnames(table, method='POST')
         for fieldname in fields:
+            if fieldnames and not fieldname in fieldnames:
+                continue
             field = table[fieldname]
+            if not field.readable and not field.writable:
+                continue
             item = {'name': field.name, 'label': field.label}
             # https://github.com/collection-json/extensions/blob/master/template-validation.md
             item['default'] = field.default() if callable(field.default) else field.default
@@ -237,7 +241,7 @@ class DBAPI(object):
             return fieldnames
 
         db = self.db
-        tname, tfieldnames = DBAPI.parse_table_and_fields(tname)
+        tname, tfieldnames = DBAPI.parse_table_and_fields(tname)        
         check_table_permission(tname)
         tfieldnames = filter_fieldnames(db[tname], tfieldnames)
         query = []
@@ -249,6 +253,7 @@ class DBAPI(object):
         hop1 = collections.defaultdict(list)
         hop2 = collections.defaultdict(list)
         hop3 = collections.defaultdict(list)
+        model_fieldnames = tfieldnames
         lookup = {}
         orderby = None
         for key, value in vars.items():
@@ -414,5 +419,5 @@ class DBAPI(object):
         if offset == 0:
             response['count'] = db(query).count()
         if model:
-            response['model'] = self.table_model(table)
+            response['model'] = self.table_model(table, model_fieldnames)
         return response
