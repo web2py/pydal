@@ -1,4 +1,4 @@
-.PHONY: clean build install test.sql
+.PHONY: clean build install deploy test.sql
 
 clean:
 	rm dist/* || echo ''
@@ -7,8 +7,7 @@ build: clean
 	python3 setup.py build
 install: build
 	python3 setup.py install
-test.sql:
-	make install
+test.sql: install
 	python3 -m unittest tests.sql
 deploy: build
 	#http://guide.python-distribute.org/creation.html

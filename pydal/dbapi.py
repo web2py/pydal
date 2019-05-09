@@ -258,7 +258,6 @@ class DBAPI(object):
         lookup = {}
         orderby = None
         for key, value in vars.items():
-
             if key == 'offset':
                 offset = int(value)
             elif key == 'limit':
