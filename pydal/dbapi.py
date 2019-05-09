@@ -211,6 +211,7 @@ class DBAPI(object):
             'ge': lambda: field >= value,            
             'startswith': lambda: field.startswith(str(value)),
             'in': lambda: field.belongs(value.split(',') if isinstance(value,str) else list(value)),
+            'contains': lambda: field.contains(value),
             }
         return expression[condition]()
 
@@ -262,7 +263,7 @@ class DBAPI(object):
                 offset = int(value)
             elif key == 'limit':
                 limit = min(int(value), self.policy.get_limit(tname) if self.policy else MAX_LIMIT)
-            elif key == 'orderby':
+            elif key == 'order':
                 orderby = [~table[f[1:]] if f[:1] == '~' else table[f] for f in value.split(',') 
                           if (f[1:] if f[:1] == '~' else f) in table.fields] or None
             elif key == 'lookup':
