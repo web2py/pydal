@@ -2784,7 +2784,7 @@ class BasicRows(object):
             """
             if value is None:
                 return null
-            elif PY2 and isinstance(value, unicode):
+            elif isinstance(value, unicode):
                 return value.encode('utf8')
             elif isinstance(value, Reference):
                 return long(value)
