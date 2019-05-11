@@ -15,6 +15,9 @@ class PolicyViolation(ValueError): pass
 class InvalidFormat(ValueError): pass
 class NotFound(ValueError): pass
 
+def maybe_call(value):
+    return value() if callable(value) else value
+
 
 def error_wrapper(func):
     @functools.wraps(func)
@@ -67,13 +70,13 @@ class Policy(object):
         if not tablename in self.info:
             self.info[tablename] = copy.deepcopy(self.model)
         self.info[tablename][method].update(attributes)
-        
-    def get_limit(self, tablename):
+
+    def get(self, tablename, method, name):
         policy = self.info.get(tablename) or self.info.get('*')
         if not policy:
             raise PolicyViolation('No policy for this object')
-        return policy['GET']['limit']
- 
+        return maybe_call(policy[method][name])
+
     def check_if_allowed(self, method, tablename, id=None, get_vars=None, post_vars=None):
         get_vars = get_vars or {}
         post_vars = post_vars or {}
@@ -81,7 +84,7 @@ class Policy(object):
         if not policy:
             raise PolicyViolation('No policy for this object')
         policy = policy.get(method.upper())
-        if not policy: 
+        if not policy:
             raise PolicyViolation('No policy for this method')
         authorize = policy.get('authorize')
         if authorize is False or (callable(authorize) and not authorize(tablename, id, get_vars, post_vars)):
@@ -101,9 +104,9 @@ class Policy(object):
         allowed_fieldnames = policy['fields']
         if not allowed_fieldnames:
             allowed_fieldnames = [
-                f.name for f in table 
-                if (method == 'GET' and f.readable)
-                or (method != 'GET' and f.writable)]
+                f.name for f in table
+                if (method == 'GET' and maybe_call(f.readable))
+                or (method != 'GET' and maybe_call(f.writable))]
         return allowed_fieldnames
 
     def check_fieldnames(self, table, fieldnames, method='GET'):
@@ -119,7 +122,6 @@ ALLOW_ALL_POLICY.set(tablename='*', method='GET', authorize=True, allowed_patter
 ALLOW_ALL_POLICY.set(tablename='*', method='POST', authorize=True)
 ALLOW_ALL_POLICY.set(tablename='*', method='PUT', authorize=True)
 ALLOW_ALL_POLICY.set(tablename='*', method='DELETE', authorize=True)
-
 
 class DBAPI(object):
 
@@ -187,16 +189,22 @@ class DBAPI(object):
             item = {'name': field.name, 'label': field.label}
             # https://github.com/collection-json/extensions/blob/master/template-validation.md
             item['default'] = field.default() if callable(field.default) else field.default
-            item['type'] = str(field.type) # FIX THIS
+            parts = field.type.split()
+            item['type'] = parts[0]
+            if len(parts)>1:
+                item['references'] = parts[1]
             if hasattr(field,'regex'):
                 item['regex'] = field.regex
             item['required'] = field.required
             item['unique'] = field.unique
             item['post_writable'] = field.name in post_fields
             item['put_writable'] = field.name in put_fields
-            item['options'] = field.options                                                                            
+            item['options'] = field.options
             if field.type == 'id':
-                item['referenced_by'] = ['%s.%s' % (f._tablename, f.name) for f in table._referenced_by]
+                item['referenced_by'] = ['%s.%s' % (f._tablename, f.name)
+                                         for f in table._referenced_by
+                                         if self.policy and
+                                         self.policy.check_if_allowed('GET', f._tablename)]
             items.append(item)
         return items
 
@@ -208,7 +216,7 @@ class DBAPI(object):
             'lt': lambda: field < value,
             'gt': lambda: field > value,
             'le': lambda: field <= value,
-            'ge': lambda: field >= value,            
+            'ge': lambda: field >= value,
             'startswith': lambda: field.startswith(str(value)),
             'in': lambda: field.belongs(value.split(',') if isinstance(value,str) else list(value)),
             'contains': lambda: field.contains(value),
@@ -231,7 +239,7 @@ class DBAPI(object):
             if self.policy:
                 self.policy.check_if_allowed('GET', tablename)
 
-        def filter_fieldnames(table, fieldnames):            
+        def filter_fieldnames(table, fieldnames):
             if self.policy:
                 if fieldnames:
                     self.policy.check_fieldnames(table, fieldnames)
@@ -242,7 +250,7 @@ class DBAPI(object):
             return fieldnames
 
         db = self.db
-        tname, tfieldnames = DBAPI.parse_table_and_fields(tname)        
+        tname, tfieldnames = DBAPI.parse_table_and_fields(tname)
         check_table_permission(tname)
         tfieldnames = filter_fieldnames(db[tname], tfieldnames)
         query = []
@@ -251,6 +259,10 @@ class DBAPI(object):
         model = False
         table = db[tname]
         queries = []
+        if self.policy:
+            common_query = self.policy.get(tname, 'GET', 'query')
+            if common_query:
+                queries.append(common_query)
         hop1 = collections.defaultdict(list)
         hop2 = collections.defaultdict(list)
         hop3 = collections.defaultdict(list)
@@ -258,16 +270,16 @@ class DBAPI(object):
         lookup = {}
         orderby = None
         for key, value in vars.items():
-            if key == 'offset':
+            if key == '@offset':
                 offset = int(value)
-            elif key == 'limit':
-                limit = min(int(value), self.policy.get_limit(tname) if self.policy else MAX_LIMIT)
-            elif key == 'order':
-                orderby = [~table[f[1:]] if f[:1] == '~' else table[f] for f in value.split(',') 
+            elif key == '@limit':
+                limit = min(int(value), self.policy.get(tname, 'GET', 'limit') if self.policy else MAX_LIMIT)
+            elif key == '@order':
+                orderby = [~table[f[1:]] if f[:1] == '~' else table[f] for f in value.split(',')
                           if (f[1:] if f[:1] == '~' else f) in table.fields] or None
-            elif key == 'lookup':
+            elif key == '@lookup':
                 lookup = {item[0]: {} for item in DBAPI.re_lookups.findall(value)}
-            elif key == 'model':
+            elif key == '@model':
                 model = str(value).lower()[:1] == 't'
             else:
                 key_parts = key.rsplit('.')
@@ -318,15 +330,15 @@ class DBAPI(object):
         if not queries:
             queries.append(table)
 
-        query = functools.reduce(lambda a, b: a&b, queries)        
+        query = functools.reduce(lambda a, b: a&b, queries)
         tfields = [table[tfieldname] for tfieldname in tfieldnames]
         rows = db(query).select(*tfields, limitby=(offset, limit + offset), orderby=orderby)
 
         lookup_map = {}
-        for key in list(lookup.keys()):      
+        for key in list(lookup.keys()):
             name, key = key.split(':') if ':' in key else ('', key)
             clean_key = DBAPI.re_no_brackets.sub('', key)
-            lookup_map[clean_key] = {'name': name.rstrip('!') or clean_key,  
+            lookup_map[clean_key] = {'name': name.rstrip('!') or clean_key,
                                      'collapsed': name.endswith('!')}
             key = key.split('.')
 
@@ -372,7 +384,7 @@ class DBAPI(object):
                     if not lfield in tfieldnames:
                         del row[lfield]
                 lkey = lookup_map[lfield + '.' + key]['name']
-                for row in rows:                    
+                for row in rows:
                     row[lkey] = drows.get(row.id, [])
 
             elif len(key) == 3:
@@ -411,7 +423,7 @@ class DBAPI(object):
                     else:
                         new_row[rfield] = row[ref_ref_tablename]
                     drows[lfield_value].append(new_row)
-                for row in rows:                  
+                for row in rows:
                     row[lkey] = drows.get(row.id, [])
 
         response = {}
