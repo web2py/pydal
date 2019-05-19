@@ -7,7 +7,7 @@ import re
 
 __version__ = '0.1'
 
-__all__ = ['DBAPI', 'Policy', 'ALLOW_ALL_POLICY', 'DENY_ALL_POLICY']
+__all__ = ['RestAPI', 'Policy', 'ALLOW_ALL_POLICY', 'DENY_ALL_POLICY']
 
 MAX_LIMIT = 1000
 
@@ -123,7 +123,7 @@ ALLOW_ALL_POLICY.set(tablename='*', method='POST', authorize=True)
 ALLOW_ALL_POLICY.set(tablename='*', method='PUT', authorize=True)
 ALLOW_ALL_POLICY.set(tablename='*', method='DELETE', authorize=True)
 
-class DBAPI(object):
+class RestAPI(object):
 
     re_table_and_fields = re.compile('\w+([\w+(,\w+)+])?')
     re_lookups = re.compile('((\w*\!?\:)?(\w+(\[\w+(,\w+)*\])?)(\.\w+(\[\w+(,\w+)*\])?)*)')
@@ -225,7 +225,7 @@ class DBAPI(object):
 
     @staticmethod
     def parse_table_and_fields(text):
-        if not DBAPI.re_table_and_fields.match(text):
+        if not RestAPI.re_table_and_fields.match(text):
             raise ValueError
         parts = text.split('[')
         if len(parts) == 1:
@@ -250,7 +250,7 @@ class DBAPI(object):
             return fieldnames
 
         db = self.db
-        tname, tfieldnames = DBAPI.parse_table_and_fields(tname)
+        tname, tfieldnames = RestAPI.parse_table_and_fields(tname)
         check_table_permission(tname)
         tfieldnames = filter_fieldnames(db[tname], tfieldnames)
         query = []
@@ -278,7 +278,7 @@ class DBAPI(object):
                 orderby = [~table[f[1:]] if f[:1] == '~' else table[f] for f in value.split(',')
                           if (f[1:] if f[:1] == '~' else f) in table.fields] or None
             elif key == '@lookup':
-                lookup = {item[0]: {} for item in DBAPI.re_lookups.findall(value)}
+                lookup = {item[0]: {} for item in RestAPI.re_lookups.findall(value)}
             elif key == '@model':
                 model = str(value).lower()[:1] == 't'
             else:
@@ -337,13 +337,13 @@ class DBAPI(object):
         lookup_map = {}
         for key in list(lookup.keys()):
             name, key = key.split(':') if ':' in key else ('', key)
-            clean_key = DBAPI.re_no_brackets.sub('', key)
+            clean_key = RestAPI.re_no_brackets.sub('', key)
             lookup_map[clean_key] = {'name': name.rstrip('!') or clean_key,
                                      'collapsed': name.endswith('!')}
             key = key.split('.')
 
             if len(key) == 1:
-                key, tfieldnames = DBAPI.parse_table_and_fields(key[0])
+                key, tfieldnames = RestAPI.parse_table_and_fields(key[0])
                 ref_tablename = table[key].type.split(' ')[1]
                 ref_table = db[ref_tablename]
                 tfieldnames = filter_fieldnames(ref_table, tfieldnames)
@@ -368,7 +368,7 @@ class DBAPI(object):
 
             elif len(key) == 2:
                 lfield, key = key
-                key, tfieldnames = DBAPI.parse_table_and_fields(key)
+                key, tfieldnames = RestAPI.parse_table_and_fields(key)
                 check_table_permission(key)
                 ref_table = db[key]
                 tfieldnames = filter_fieldnames(ref_table, tfieldnames)
@@ -389,8 +389,8 @@ class DBAPI(object):
 
             elif len(key) == 3:
                 lfield, key, rfield = key
-                key, tfieldnames = DBAPI.parse_table_and_fields(key)
-                rfield, tfieldnames2 = DBAPI.parse_table_and_fields(rfield)
+                key, tfieldnames = RestAPI.parse_table_and_fields(key)
+                rfield, tfieldnames2 = RestAPI.parse_table_and_fields(rfield)
                 check_table_permission(key)
                 ref_table = db[key]
                 ref_ref_tablename = ref_table[rfield].type.split(' ')[1]

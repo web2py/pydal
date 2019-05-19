@@ -2,9 +2,9 @@ import unittest
 
 from pydal import DAL, Field
 from pydal.validators import IS_NOT_IN_DB
-from pydal.dbapi import DBAPI, ALLOW_ALL_POLICY, DENY_ALL_POLICY, __version__
+from pydal.dbapi import RestAPI, ALLOW_ALL_POLICY, DENY_ALL_POLICY, __version__
 
-class TestDBAPI(unittest.TestCase):
+class TestRestAPI(unittest.TestCase):
 
     def setUp(self):
         db = DAL('sqlite:memory')
@@ -28,7 +28,7 @@ class TestDBAPI(unittest.TestCase):
         db.rel.insert(a=2, b=4, desc='is under')
         db.rel.insert(a=5, b=4, desc='is above')
 
-        api = DBAPI(db, ALLOW_ALL_POLICY)
+        api = RestAPI(db, ALLOW_ALL_POLICY)
 
         self.db = db
         self.api = api
