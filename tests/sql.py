@@ -2677,7 +2677,7 @@ class TestQuoting(DALtest):
             t0.drop()
         else:
             t0.drop('cascade')
-            t1.drop()
+            t1.drop('cascade')
             t2.drop()
 
 
