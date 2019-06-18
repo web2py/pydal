@@ -2670,8 +2670,8 @@ class TestQuoting(DALtest):
         self.assertEqual(result[0]['part_rev.id'], id_rev)
         self.assertEqual(result[0]['part_rev.part'], id)
 
-        if DEFAULT_URI.startswith('mssql'):
-            #there's no drop cascade in mssql
+        if DEFAULT_URI.startswith(('mssql', 'sqlite')):
+            #there's no drop cascade in mssql and it seems there is some problem in sqlite
             t2.drop()
             t1.drop()
             t0.drop()
