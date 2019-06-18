@@ -2653,17 +2653,17 @@ class TestQuoting(DALtest):
                 db._adapter.types[key]=db._adapter.types[key].replace(
                 '%(on_delete_action)s','NO ACTION')
 
-        t0 = db.define_table('object', Field('id', 'id'))
-        t1 = db.define_table('part', Field('id', 'reference object'), primarykey = ['id'])
+        t0 = db.define_table('object_', Field('id', 'id'))
+        t1 = db.define_table('part', Field('id', 'reference object_'), primarykey = ['id'])
         t2 = db.define_table('part_rev',
-                        Field('id', 'reference object'),
+                        Field('id', 'reference object_'),
                         Field('part', 'reference part'),
                         Field('rev', 'integer'),
                         primarykey = ['id']
         )
-        id = db.object.insert()
+        id = db.object_.insert()
         db.part.insert(id = id)
-        id_rev = db.object.insert()
+        id_rev = db.object_.insert()
         db.part_rev.insert(id = id_rev, part = id, rev = 0)
         result = db(db.part_rev.part == db.part.id).select()
         self.assertEqual(len(result), 1)
