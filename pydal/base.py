@@ -3,7 +3,7 @@
 """
 | This file is part of the web2py Web Framework
 | Copyrighted by Massimo Di Pierro <mdipierro@cs.depaul.edu>
-| License: LGPLv3 (http://www.gnu.org/licenses/lgpl.html)
+| License: BSD
 |
 
 This file contains the DAL support for many relational databases, including:

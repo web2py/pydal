@@ -5,7 +5,7 @@
 """
 | This file is part of the web2py Web Framework
 | Copyrighted by Massimo Di Pierro <mdipierro@cs.depaul.edu>
-| License: LGPLv3 (http://www.gnu.org/licenses/lgpl.html)
+| License: BSD
 | Thanks to ga2arch for help with IS_IN_DB and IS_NOT_IN_DB on GAE
 
 Validators
