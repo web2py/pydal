@@ -47,5 +47,7 @@ class MongoRepresenter(NoSQLRepresenter):
 
     @for_type('list:reference')
     def _list_reference(self, value):
+        if not isinstance(value, list):
+            return self.adapter.object_id(value)
         values = self._represent_list(value)
         return list(map(self.adapter.object_id, values))
