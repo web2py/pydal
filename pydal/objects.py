@@ -2423,6 +2423,15 @@ class Set(Serializable):
         ret and [f(self) for f in table._after_delete]
         return ret
 
+    def delete_naive(self):
+        """
+        Same as delete but does not call table._before_delete and _after_delete
+        """
+        db = self.db
+        table = db._adapter.get_table(self.query)
+        ret = db._adapter.delete(table, self.query)
+        return ret
+
     def update(self, **update_fields):
         db = self.db
         table = db._adapter.get_table(self.query)
@@ -2534,6 +2543,9 @@ class LazySet(object):
 
     def delete(self):
         return self._getset().delete()
+
+    def delete_naive(self):
+        return self._getset().delete_naive()
 
     def update(self, **update_fields):
         return self._getset().update(**update_fields)
