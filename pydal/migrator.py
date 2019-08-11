@@ -80,7 +80,8 @@ class Migrator(object):
                                 referenced, table._tablename))
 
                 # must be PK reference or unique
-                if getattr(rtable, '_primarykey', None) and rfieldname in \
+                if not rfield.type.startswith(('reference', 'big-reference')) \
+                   and getattr(rtable, '_primarykey', None) and rfieldname in \
                    rtable._primarykey or rfield.unique:
                     ftype = types[rfield.type[:9]] % \
                         dict(length=rfield.length)
