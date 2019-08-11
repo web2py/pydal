@@ -2330,7 +2330,7 @@ class IS_DATE(Validator):
             raise ValidationError(self.translator(self.error_message) % self.extremes)
 
     def formatter(self, value):
-        if value is None:
+        if value is None or value == '':
             return None
         format = self.format
         year = value.year
@@ -2397,7 +2397,7 @@ class IS_DATETIME(Validator):
             raise ValidationError(self.translator(self.error_message) % self.extremes)
 
     def formatter(self, value):
-        if value is None:
+        if value is None or value == '':
             return None
         format = self.format
         year = value.year
