@@ -108,6 +108,8 @@ class Row(BasicStorage):
     __int__ = lambda self: self.get('id')
 
     __long__ = lambda self: long(self.get('id'))
+    
+    __hash__ = lambda self: long(self.get('id'))
 
     __call__ = __getitem__
 
