@@ -1515,8 +1515,10 @@ def unicode_to_ascii_url(url, prepend_scheme):
 
     # if we still can't find the authority
     if not components.netloc:
-        raise Exception('No authority component found, ' +
-                        'could not decode unicode to US-ASCII')
+        # And it's not because the url is a relative url
+        if not url.startswith('/'):
+            raise Exception('No authority component found, ' +
+                            'could not decode unicode to US-ASCII')
 
     # We're here if we found an authority, let's rebuild the URL
     scheme = components.scheme
