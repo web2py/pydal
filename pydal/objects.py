@@ -313,7 +313,7 @@ class Table(Serializable, BasicStorage):
                 include_new(field)
             elif isinstance(field, (list, tuple)):
                 for other in field:
-                    include_new(field.clone())
+                    include_new(other.clone())
             elif isinstance(field, Table):
                 table = field
                 for field in table:
@@ -325,7 +325,7 @@ class Table(Serializable, BasicStorage):
                 include_new(Field(**field))
             elif not isinstance(field, (Field, Table)):
                 raise SyntaxError(
-                    'define_table argument is not a Field or Table: %s' %
+                    'define_table argument is not a Field, Table of list: %s' %
                     field
                 )
         fields = newfields
