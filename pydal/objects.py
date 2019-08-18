@@ -311,6 +311,9 @@ class Table(Serializable, BasicStorage):
                 if field.db is not None:
                     field = copy.copy(field)
                 include_new(field)
+            elif isinstance(field, (list, tuple)):
+                for other in field:
+                    include_new(field.clone())
             elif isinstance(field, Table):
                 table = field
                 for field in table:
