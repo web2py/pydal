@@ -315,7 +315,7 @@ class TestIsGenericUrl(unittest.TestCase):
             'http://www.curly{brace.com',
             'http://www.benn.ca/curly}brace/',
             'http://www.benn.ca/or|symbol/',
-            'http://www.benn.ca/back\slash',
+            'http://www.benn.ca/back\\slash',
             'http://www.benn.ca/the^carat',
             'http://left[bracket.me',
             'http://www.benn.ca/right]bracket',

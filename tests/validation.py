@@ -6,7 +6,7 @@ from pydal import DAL, Field
 
 long = integer_types[-1]
 
-regex_isint = re.compile('^[+-]?\d+$')
+regex_isint = re.compile(r'^[+-]?\d+$')
 
 
 def range_error_message(error_message, what_to_enter, minimum, maximum):

@@ -125,9 +125,9 @@ ALLOW_ALL_POLICY.set(tablename='*', method='DELETE', authorize=True)
 
 class RestAPI(object):
 
-    re_table_and_fields = re.compile('\w+([\w+(,\w+)+])?')
-    re_lookups = re.compile('((\w*\!?\:)?(\w+(\[\w+(,\w+)*\])?)(\.\w+(\[\w+(,\w+)*\])?)*)')
-    re_no_brackets = re.compile('\[.*?\]')
+    re_table_and_fields = re.compile(r'\w+([\w+(,\w+)+])?')
+    re_lookups = re.compile(r'((\w*\!?\:)?(\w+(\[\w+(,\w+)*\])?)(\.\w+(\[\w+(,\w+)*\])?)*)')
+    re_no_brackets = re.compile(r'\[.*?\]')
 
     def __init__(self, db, policy):
         self.db = db

@@ -584,14 +584,14 @@ class TestValidators(unittest.TestCase):
         rtn = IS_EMAIL()('localguy@localhost')       # localhost as domain
         self.assertEqual(rtn, ('localguy@localhost', None))
         # test for banned
-        rtn = IS_EMAIL(banned='^.*\.com(|\..*)$')('localguy@localhost')       # localhost as domain
+        rtn = IS_EMAIL(banned=r'^.*\.com(|\..*)$')('localguy@localhost')       # localhost as domain
         self.assertEqual(rtn, ('localguy@localhost', None))
-        rtn = IS_EMAIL(banned='^.*\.com(|\..*)$')('abc@example.com')
+        rtn = IS_EMAIL(banned=r'^.*\.com(|\..*)$')('abc@example.com')
         self.assertEqual(rtn, ('abc@example.com', 'Enter a valid email address'))
         # test for forced
         rtn = IS_EMAIL(forced='^.*\.edu(|\..*)$')('localguy@localhost')
         self.assertEqual(rtn, ('localguy@localhost', 'Enter a valid email address'))
-        rtn = IS_EMAIL(forced='^.*\.edu(|\..*)$')('localguy@example.edu')
+        rtn = IS_EMAIL(forced=r'^.*\.edu(|\..*)$')('localguy@example.edu')
         self.assertEqual(rtn, ('localguy@example.edu', None))
         # test for not a string at all
         rtn = IS_EMAIL(error_message='oops')(42)
