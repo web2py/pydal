@@ -1,7 +1,7 @@
 language: python
 
 sudo: required
-dist: trusty
+dist: bionic
 
 cache: pip
 
@@ -9,6 +9,7 @@ python:
   - '2.7'
   - 'pypy'
   - 'pypy3'
+  - '3.5'
   - '3.6'
   - '3.7'
 
@@ -40,11 +41,9 @@ matrix:
       env: ADAPTER=postgres
     - python: 'pypy3'
       env: ADAPTER=postgres3
-    - python: '3.4'
-      env: ADAPTER=google
-    - python: '3.5'
-      env: ADAPTER=google
     - python: '3.6'
+      env: ADAPTER=google
+    - python: '3.7'
       env: ADAPTER=google
 
 before_script:
