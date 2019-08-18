@@ -50,6 +50,7 @@ before_script:
   - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install codecov; fi
   - if [[ $ADAPTER == mongo ]]; then sleep 15; fi;
   - if [[ $ADAPTER == mysql ]]; then mysql -e 'create database pydal;'; fi
+  - if [[ $ADAPTER == postgres* ]]; then apt-get install postgresql-9.6-postgis-2.3 postgis -y -q; fi
   - if [[ $ADAPTER == postgres* ]]; then psql -c 'create database pydal;' -U postgres; fi
   - if [[ $ADAPTER == postgres* ]]; then psql -c 'create extension postgis;' -U postgres -d pydal; fi
   - if [[ $ADAPTER == postgres* ]]; then psql -c 'SHOW SERVER_VERSION' -U postgres; fi
@@ -77,7 +78,4 @@ services:
   - postgresql
 
 addons:
-  postgresql: "9.4"
-  apt:
-    packages:
-    - postgresql-9.4-postgis-2.3
+  postgresql: "9.6"
