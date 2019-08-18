@@ -1,6 +1,7 @@
 language: python
 
 sudo: required
+dist: trusty
 
 cache: pip
 
@@ -74,9 +75,10 @@ services:
   - mongodb
   - memcached
   - mysql
+  - postgresql
 
 addons:
   postgresql: "9.6"
   apt:
     packages:
-    - postgresql-9.4-postgis-2.3
+    - postgresql-9.6-postgis-2.4
