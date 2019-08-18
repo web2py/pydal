@@ -11,7 +11,6 @@ python:
   - 'pypy3'
   - '3.5'
   - '3.6'
-  - '3.7'
 
 install:
   - pip install tox>=1.8
@@ -41,9 +40,9 @@ matrix:
       env: ADAPTER=postgres
     - python: 'pypy3'
       env: ADAPTER=postgres3
-    - python: '3.6'
+    - python: '3.5'
       env: ADAPTER=google
-    - python: '3.7'
+    - python: '3.6'
       env: ADAPTER=google
 
 before_script:
