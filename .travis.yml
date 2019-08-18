@@ -1,7 +1,7 @@
 language: python
 
 sudo: required
-dist: bionic
+dist: trusty
 
 cache: pip
 
