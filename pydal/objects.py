@@ -313,7 +313,7 @@ class Table(Serializable, BasicStorage):
                 include_new(field)
             elif isinstance(field, (list, tuple)):
                 for other in field:
-                    include_new(other.clone())
+                    include_new(other)
             elif isinstance(field, Table):
                 table = field
                 for field in table:
