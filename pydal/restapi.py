@@ -77,25 +77,35 @@ class Policy(object):
             raise PolicyViolation('No policy for this object')
         return maybe_call(policy[method][name])
 
-    def check_if_allowed(self, method, tablename, id=None, get_vars=None, post_vars=None):
+    def check_if_allowed(self, method, tablename, id=None, get_vars=None, post_vars=None, exceptions=True):
         get_vars = get_vars or {}
         post_vars = post_vars or {}
         policy = self.info.get(tablename) or self.info.get('*')
         if not policy:
-            raise PolicyViolation('No policy for this object')
+            if exceptions:
+                raise PolicyViolation('No policy for this object')
+            return False
         policy = policy.get(method.upper())
         if not policy:
-            raise PolicyViolation('No policy for this method')
+            if exceptions:
+                raise PolicyViolation('No policy for this method')
+            return False
         authorize = policy.get('authorize')
         if authorize is False or (callable(authorize) and not authorize(tablename, id, get_vars, post_vars)):
-            raise PolicyViolation('Not authorized')
+            if exceptions:
+                raise PolicyViolation('Not authorized')
+            return False
         for key in get_vars:
             if any(fnmatch.fnmatch(key, p) for p in policy['denied_patterns']):
-                raise PolicyViolation('Pattern is not allowed')
+                if exception:
+                    raise PolicyViolation('Pattern is not allowed')
+                return False
             allowed_patterns = policy['allowed_patterns']
             if '**' not in allowed_patterns and not any(fnmatch.fnmatch(key, p) for p in allowed_patterns):
-                raise PolicyViolation('Pattern is not explicitely allowed')
-        return
+                if exceptions:
+                    raise PolicyViolation('Pattern is not explicitely allowed')
+                return False
+        return True
 
     def allowed_fieldnames(self, table, method='GET'):
         method = method.upper()
@@ -204,7 +214,8 @@ class RestAPI(object):
                 item['referenced_by'] = ['%s.%s' % (f._tablename, f.name)
                                          for f in table._referenced_by
                                          if self.policy and
-                                         self.policy.check_if_allowed('GET', f._tablename)]
+                                         self.policy.check_if_allowed('GET', f._tablename, 
+                                                                      exceptions=False)]
             items.append(item)
         return items
 
