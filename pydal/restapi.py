@@ -158,7 +158,7 @@ class RestAPI(object):
         # apply rules
         if method == 'GET':
             if id:
-                get_vars[tablename + '.eq'] = id
+                get_vars['id.eq'] = id
             return self.search(tablename, get_vars)
         elif method == 'POST':
             table =  self.db[tablename]
