@@ -369,8 +369,8 @@ class RestAPI(object):
                         del row['id']
                 lkey, collapsed = lookup_map[key]['name'], lookup_map[key]['collapsed']
                 for row in rows:
-                    new_row = drows[row[key]]
-                    if collapsed:
+                    new_row = drows.get(row[key])
+                    if new_row and collapsed:
                         del row[key]
                         for rkey in new_row:
                             row[lkey + '_' + rkey] = new_row[rkey]
