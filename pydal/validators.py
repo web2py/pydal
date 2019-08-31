@@ -651,7 +651,7 @@ class IS_IN_DB(Validator):
                 values = new_values
 
             if isinstance(self.multiple, (tuple, list)) and \
-                    not self.multiple[0] <= len(values) < self.multiple[1]:
+                    not self.multiple[0] <= len(values) <= self.multiple[1]:
                 raise ValidationError(self.translator(self.error_message))
             if self.theset:
                 if not [v for v in values if v not in self.theset]:
