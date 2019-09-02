@@ -2,6 +2,7 @@
 # pylint: disable=no-member,not-an-iterable
 
 import base64
+import binascii
 import cgi
 import copy
 import csv
@@ -1951,7 +1952,7 @@ class Field(Expression, Serializable):
             try:
                 filename = base64.b16decode(m.group('name'), True).decode('utf-8')
                 filename = re.sub(REGEX_UPLOAD_CLEANUP, '_', filename)
-            except (TypeError, AttributeError):
+            except (TypeError, AttributeError, binascii.Error):
                 filename = name
         else:
             filename = name
