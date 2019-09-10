@@ -102,12 +102,19 @@ class Row(BasicStorage):
 
         raise KeyError(key)
 
-    __str__ = __repr__ = lambda self: '<Row %s>' % \
-        self.as_dict(custom_types=[LazySet])
+    def __repr__(self):
+        return '<Row %s>' % self.as_dict(custom_types=[LazySet])
 
-    __int__ = lambda self: self.get('id')
+    def __int__(self):
+        return self.get('id')
 
-    __long__ = lambda self: long(self.get('id'))
+    def __long__(self): 
+        return long(int(self))
+
+    def __hash__(self):
+        return id(self)
+
+    __str__ = __repr__
 
     __call__ = __getitem__
 
