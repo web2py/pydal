@@ -183,8 +183,8 @@ class RestAPI(object):
             if not id:
                 raise InvalidFormat('No item id specified')
             table =  self.db[tablename]
-            data = self.db(table.id == id).validate_and_update(**post_vars).as_dict()
-            if not data.get('updated'):
+            data = table.validate_and_update(id, **post_vars).as_dict()
+            if not data.get('errors') and not data.get('updated'):
                 raise NotFound('Item not found')
             return data
         elif method == 'DELETE':
@@ -192,7 +192,7 @@ class RestAPI(object):
             if not id:
                 raise InvalidFormat('No item id specified')
             table = self.db[tablename]
-            deleted = self.db(table.id == id).delete()
+            deleted = self.db(table._id == id).delete()
             if not deleted:
                 raise NotFound('Item not found')
             return {'deleted': deleted}
@@ -335,7 +335,7 @@ class RestAPI(object):
             ref_table = db[ref_tablename]
             subqueries = [self.make_query(ref_table[k], c, v) for k,c,v in hop1[item]]
             subquery = functools.reduce(lambda a,b: a&b, subqueries)
-            query = table[fieldname].belongs(db(subquery)._select(ref_table.id))
+            query = table[fieldname].belongs(db(subquery)._select(ref_table._id))
             queries.append(query if not is_negated else ~query)
 
         for item in hop2:
@@ -343,7 +343,7 @@ class RestAPI(object):
             ref_table = db[linktable]
             subqueries = [self.make_query(ref_table[k], c, v) for k, c, v in hop2[item]]
             subquery = functools.reduce(lambda a,b: a&b, subqueries)
-            query = table.id.belongs(db(subquery)._select(ref_table[linkfield]))
+            query = table._id.belongs(db(subquery)._select(ref_table[linkfield]))
             queries.append(query if not is_negated else ~query)
 
         for item in hop3:
@@ -353,8 +353,8 @@ class RestAPI(object):
             ref_ref_table = db[ref_ref_tablename]
             subqueries = [self.make_query(ref_ref_table[k], c, v) for k,c,v in hop3[item]]
             subquery = functools.reduce(lambda a, b: a&b, subqueries)
-            subquery &= ref_ref_table.id == ref_table[otherfield]
-            query = table.id.belongs(db(subquery)._select(ref_table[linkfield], groupby=ref_table[linkfield]))
+            subquery &= ref_ref_table._id == ref_table[otherfield]
+            query = table._id.belongs(db(subquery)._select(ref_table[linkfield], groupby=ref_table[linkfield]))
             queries.append(query if not is_negated else ~query)
 
         if not queries:
@@ -382,7 +382,7 @@ class RestAPI(object):
                 tfields = [ref_table[tfieldname] for tfieldname in tfieldnames]
                 if not 'id' in tfieldnames:
                     tfields.append(ref_table['id'])
-                drows = db(ref_table.id.belongs(ids)).select(*tfields).as_dict()
+                drows = db(ref_table._id.belongs(ids)).select(*tfields).as_dict()
                 if tfieldnames and not 'id' in tfieldnames:
                     for row in drows.values():
                         del row['id']

@@ -137,20 +137,20 @@ class Validator(object):
         return value
 
     @staticmethod
-    def validate(value):
+    def validate(value, record_id=None):
         raise NotImplementedError
 
-    def __call__(self, value):
+    def __call__(self, value, record_id=None):
         try:
-            return self.validate(value), None
+            return self.validate(value, record_id), None
         except ValidationError as e:
             return value, e.message
 
 
-def validator_caller(func, value):
+def validator_caller(func, value, record_id=None):
     validate = getattr(func, 'validate', None)
     if validate and validate is not Validator.validate:
-        return validate(value)
+        return validate(value, record_id)
     value, error = func(value)
     if error is not None:
         raise ValidationError(error)
@@ -212,7 +212,7 @@ class IS_MATCH(Validator):
         self.extract = extract
         self.is_unicode = is_unicode or not PY2
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if not PY2:  # PY3 convert bytes to unicode
             value = to_unicode(value)
 
@@ -254,7 +254,7 @@ class IS_EQUAL_TO(Validator):
         self.expression = expression
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if value != self.expression:
             raise ValidationError(self.translator(self.error_message))
         return value
@@ -283,7 +283,7 @@ class IS_EXPR(Validator):
         self.error_message = error_message
         self.environment = environment or {}
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if callable(self.expression):
             message = self.expression(value)
             if message:
@@ -337,7 +337,7 @@ class IS_LENGTH(Validator):
         self.minsize = minsize
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if value is None:
             length = 0
         elif isinstance(value, str):
@@ -388,7 +388,7 @@ class IS_JSON(Validator):
         self.native_json = native_json
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         try:
             if self.native_json:
                 json.loads(value)  # raises error in case of malformed json
@@ -471,7 +471,7 @@ class IS_IN_SET(Validator):
             items.insert(0, ('', self.zero))
         return items
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if self.multiple:
             # if below was values = re.compile("[\w\-:]+").findall(str(value))
             if not value:
@@ -623,7 +623,7 @@ class IS_IN_DB(Validator):
         else:
             return table.insert(**d)
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         table = self.dbset.db[self.ktable]
         field = table[self.kfield]
 
@@ -684,12 +684,12 @@ class IS_IN_DB(Validator):
             if self.theset:
                 if str(value) in self.theset:
                     if self._and:
-                        return validator_caller(self._and, value)
+                        return validator_caller(self._and, value, record_id)
                     return value
             else:
                 if self.dbset(field == value).count():
                     if self._and:
-                        return validator_caller(self._and, value)
+                        return validator_caller(self._and, value, record_id)
                     return value
         raise ValidationError(self.translator(self.error_message))
 
@@ -725,9 +725,11 @@ class IS_NOT_IN_DB(Validator):
         self.ignore_common_filters = ignore_common_filters
 
     def set_self_id(self, id):
+        # this is legacy  - web2py uses but nobody else should
+        # it is not safe if the object is recycled
         self.record_id = id
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         value = to_native(str(value))
         if not value.strip():
             raise ValidationError(self.translator(self.error_message))
@@ -736,18 +738,17 @@ class IS_NOT_IN_DB(Validator):
         (tablename, fieldname) = str(self.field).split('.')
         table = self.dbset.db[tablename]
         field = table[fieldname]
-        subset = self.dbset(field == value,
-                            ignore_common_filters=self.ignore_common_filters)
-        id = self.record_id
+        query = field == value
+
+        # make sure exclude the record_id
+        id = record_id or self.record_id        
         if isinstance(id, dict):
-            fields = [table[f] for f in id]
-            row = subset.select(*fields, **dict(limitby=(0, 1), orderby_on_limitby=False)).first()
-            if row and any(str(row[f]) != str(id[f]) for f in id):
-                raise ValidationError(self.translator(self.error_message))
-        else:
-            row = subset.select(table._id, field, limitby=(0, 1), orderby_on_limitby=False).first()
-            if row and str(row[table._id]) != str(id):
-                raise ValidationError(self.translator(self.error_message))
+            id = table(**id)
+        if not id is None:
+            query &= table._id != id
+        subset = self.dbset(query, ignore_common_filters=self.ignore_common_filters)
+        if subset.select(limitby=(0, 1)):
+            raise ValidationError(self.translator(self.error_message))
         return value
 
 
@@ -817,7 +818,7 @@ class IS_INT_IN_RANGE(Validator):
         self.maximum = int(maximum) if maximum is not None else None
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if re.match(self.REGEX_INT, str(value)):
             v = int(value)
             if ((self.minimum is None or v >= self.minimum) and
@@ -887,7 +888,7 @@ class IS_FLOAT_IN_RANGE(Validator):
         self.dot = str(dot)
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         try:
             if self.dot == '.':
                 v = float(value)
@@ -972,7 +973,7 @@ class IS_DECIMAL_IN_RANGE(Validator):
         self.dot = str(dot)
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         try:
             if not isinstance(value, decimal.Decimal):
                 value = decimal.Decimal(str(value).replace(self.dot, '.'))
@@ -1042,7 +1043,7 @@ class IS_NOT_EMPTY(Validator):
         else:
             self.empty_regex = None
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         value, empty = is_empty(value, empty_regex=self.empty_regex)
         if empty:
             raise ValidationError(self.translator(self.error_message))
@@ -1199,7 +1200,7 @@ class IS_EMAIL(Validator):
         self.forced = forced
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if not(isinstance(value, (basestring, unicodeT))) or not value or '@' not in value:
             raise ValidationError(self.translator(self.error_message))
 
@@ -1245,7 +1246,7 @@ class IS_LIST_OF_EMAILS(Validator):
     def __init__(self, error_message='Invalid emails: %s'):
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         bad_emails = []
         f = IS_EMAIL()
         for email in re.findall(self.REGEX_NOT_EMAIL_SPLITTER, value):
@@ -1600,7 +1601,7 @@ class IS_GENERIC_URL(Validator):
     REGEX_GENERIC_URL_VALID = r"[A-Za-z0-9;/?:@&=+$,\-_\.!~*'\(\)%]+$"
     REGEX_URL_FRAGMENT_VALID = r"[|A-Za-z0-9;/?:@&=+$,\-_\.!~*'\(\)%]+$"
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         """
         Args:
             value: a string, the URL to validate
@@ -2017,7 +2018,7 @@ class IS_HTTP_URL(Validator):
             raise SyntaxError("prepend_scheme='%s' is not in allowed_schemes=%s" %
                               (self.prepend_scheme, self.allowed_schemes))
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         """
         Args:
             value: a string, the URL to validate
@@ -2182,7 +2183,7 @@ class IS_URL(Validator):
 
         self.prepend_scheme = prepend_scheme
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         """
         Args:
             value: a unicode or regular string, the URL to validate
@@ -2214,7 +2215,7 @@ class IS_URL(Validator):
                 # If we are not able to convert the unicode url into a
                 # US-ASCII URL, then the URL is not valid
                 raise ValidationError(self.translator(self.error_message))
-        return subMethod.validate(value)
+        return subMethod.validate(value, record_id)
 
 
 class IS_TIME(Validator):
@@ -2265,7 +2266,7 @@ class IS_TIME(Validator):
     def __init__(self, error_message='Enter time as hh:mm:ss (seconds, am, pm optional)'):
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         try:
             ivalue = value
             value = re.match(self.REGEX_TIME, value.lower())
@@ -2319,7 +2320,7 @@ class IS_DATE(Validator):
         self.error_message = str(error_message)
         self.extremes = {}
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if isinstance(value, datetime.date):
             return value
         try:
@@ -2383,7 +2384,7 @@ class IS_DATETIME(Validator):
         self.extremes = {}
         self.timezone = timezone
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if isinstance(value, datetime.datetime):
             return value
         try:
@@ -2458,8 +2459,8 @@ class IS_DATE_IN_RANGE(IS_DATE):
         self.extremes = dict(min=self.formatter(minimum),
                              max=self.formatter(maximum))
 
-    def validate(self, value):
-        value = IS_DATE.validate(self, value)
+    def validate(self, value, record_id=None):
+        value = IS_DATE.validate(self, value, record_id=None)
         if self.minimum and self.minimum > value:
             raise ValidationError(self.translator(self.error_message) % self.extremes)
         if self.maximum and value > self.maximum:
@@ -2511,8 +2512,8 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
         self.extremes = dict(min=self.formatter(minimum),
                              max=self.formatter(maximum))
 
-    def validate(self, value):
-        value = IS_DATETIME.validate(self, value)
+    def validate(self, value, record_id=None):
+        value = IS_DATETIME.validate(self, value, record_id=None)
         if self.minimum and self.minimum > value:
             raise ValidationError(self.translator(self.error_message) % self.extremes)
         if self.maximum and value > self.maximum:
@@ -2528,7 +2529,7 @@ class IS_LIST_OF(Validator):
         self.maximum = maximum
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         ivalue = value
         if not isinstance(value, list):
             ivalue = [ivalue]
@@ -2547,7 +2548,7 @@ class IS_LIST_OF(Validator):
             for item in ivalue:
                 v = item
                 for validator in other:
-                    v = validator_caller(validator, v)
+                    v = validator_caller(validator, v, record_id)
                 new_value.append(v)
             ivalue = new_value
         return ivalue
@@ -2564,7 +2565,7 @@ class IS_LOWER(Validator):
 
     """
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         cast_back = lambda x: x
         if isinstance(value, str):
             cast_back = to_native
@@ -2585,7 +2586,7 @@ class IS_UPPER(Validator):
 
     """
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         cast_back = lambda x: x
         if isinstance(value, str):
             cast_back = to_native
@@ -2672,7 +2673,7 @@ class IS_SLUG(Validator):
         self.error_message = error_message
         self.keep_underscores = keep_underscores
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if self.check and value != urlify(value, self.maxlen, self.keep_underscores):
             raise ValidationError(self.translator(self.error_message))
         return urlify(value, self.maxlen, self.keep_underscores)
@@ -2697,7 +2698,7 @@ class ANY_OF(Validator):
         self.subs = subs
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         for validator in self.subs:
             v, e = validator(value)
             if not e:
@@ -2756,15 +2757,15 @@ class IS_EMPTY_OR(Validator):
             if hasattr(self.other, 'set_self_id'):
                 self.other.set_self_id(id)
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         value, empty = is_empty(value, empty_regex=self.empty_regex)
         if empty:
             return self.null
         if isinstance(self.other, (list, tuple)):
             for item in self.other:
-                value = validator_caller(item, value)
+                value = validator_caller(item, value, record_id)
             return value
-        return validator_caller(self.other, value)
+        return validator_caller(self.other, value, record_id)
 
     def formatter(self, value):
         if hasattr(self.other, 'formatter'):
@@ -2789,7 +2790,7 @@ class CLEANUP(Validator):
         self.regex = re.compile(self.REGEX_CLEANUP) if regex is None \
             else re.compile(regex)
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         v = self.regex.sub('', str(value).strip())
         return v
 
@@ -3030,7 +3031,7 @@ class CRYPT(Validator):
         self.error_message = error_message
         self.salt = salt
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         v = value and str(value)[:self.max_length]
         if not v or len(v) < self.min_length:
             raise ValidationError(self.translator(self.error_message))
@@ -3136,7 +3137,7 @@ class IS_STRONG(Validator):
         self.error_message = error_message
         self.estring = es   # return error message as string (for doctest)
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         failures = []
         if value and len(value) == value.count('*') > 4:
             return value
@@ -3265,7 +3266,7 @@ class IS_IMAGE(Validator):
         self.aspectratio = aspectratio
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         try:
             extension = value.filename.rfind('.')
             assert extension >= 0
@@ -3400,7 +3401,7 @@ class IS_FILE(Validator):
         elif isinstance(value1, str):
             return value1 == value2
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         try:
             string = value.filename
         except:
@@ -3478,7 +3479,7 @@ class IS_UPLOAD_FILENAME(Validator):
         self.case = case
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         try:
             string = value.filename
         except:
@@ -3645,7 +3646,7 @@ class IS_IPV4(Validator):
         self.is_automatic = is_automatic
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         if re.match(self.REGEX_IPV4, value):
             number = 0
             for i, j in zip(self.numbers, value.split('.')):
@@ -3764,7 +3765,7 @@ class IS_IPV6(Validator):
         self.subnets = subnets
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         try:
             ip = ipaddress.IPv6Address(to_unicode(value))
             ok = True
@@ -3985,7 +3986,7 @@ class IS_IPADDRESS(Validator):
         self.is_ipv6 = is_ipv6 or is_ipv4 is False
         self.error_message = error_message
 
-    def validate(self, value):
+    def validate(self, value, record_id=None):
         IPAddress = ipaddress.ip_address
         IPv6Address = ipaddress.IPv6Address
         IPv4Address = ipaddress.IPv4Address
@@ -4008,7 +4009,7 @@ class IS_IPADDRESS(Validator):
                 is_private=self.is_private,
                 is_automatic=self.is_automatic,
                 error_message=self.error_message
-            ).validate(value)
+            ).validate(value, record_id)
         elif self.is_ipv6 or isinstance(ip, IPv6Address):
             return IS_IPV6(
                 is_private=self.is_private,
@@ -4020,6 +4021,6 @@ class IS_IPADDRESS(Validator):
                 is_teredo=self.is_teredo,
                 subnets=self.subnets,
                 error_message=self.error_message
-            ).validate(value)
+            ).validate(value, record_id)
         else:
             raise ValidationError(self.translator(self.error_message))

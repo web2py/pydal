@@ -273,7 +273,8 @@ class TestRestAPI(unittest.TestCase):
                           'updated': 1,
                           'errors': {},
                           'code': 200,
-                          'api_version': '0.1'
+                          'api_version': '0.1',
+                          'id': 4,
                           })
         response = api('DELETE', 'color', 4)
         del response['timestamp']

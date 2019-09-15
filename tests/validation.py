@@ -31,7 +31,7 @@ class IS_INT_IN_RANGE(object):
         self.error_message = range_error_message(
             error_message, 'an integer', self.minimum, self.maximum)
 
-    def __call__(self, value):
+    def __call__(self, value, record_id=None):
         if regex_isint.match(str(value)):
             v = int(value)
             if ((self.minimum is None or v >= self.minimum) and
