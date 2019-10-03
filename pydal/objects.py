@@ -1993,7 +1993,7 @@ class Field(Expression, Serializable):
                 value = item.formatter(value)
         return value
 
-    def validate(self, value, record_id):
+    def validate(self, value, record_id=None):
         requires = self.requires
         if not requires or requires is DEFAULT:
             return ((value if value != self.map_none else None), None)
