@@ -2672,7 +2672,7 @@ class BasicRows(object):
                         yield i
                         i += 1
                 key_generator = new_key()
-                key = lambda r: key_generator.next()
+                key = lambda r: next(key_generator)
 
         rows = self.as_list(compact, storage_to_dict, datetime_to_str,
                             custom_types)
