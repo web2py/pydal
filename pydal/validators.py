@@ -28,9 +28,9 @@ import unicodedata
 import encodings.idna
 from functools import reduce
 
-from pydal._compat import StringIO, integer_types, basestring, unicodeT, urllib_unquote, \
+from ._compat import StringIO, integer_types, basestring, unicodeT, urllib_unquote, \
     unichr, to_bytes, PY2, to_unicode, to_native, string_types, urlparse, ipaddress
-from pydal.objects import Field, FieldVirtual, FieldMethod, Table
+from .objects import Field, FieldVirtual, FieldMethod, Table
 
 
 JSONErrors = (NameError, TypeError, ValueError, AttributeError, KeyError)
