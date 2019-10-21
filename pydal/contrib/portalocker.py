@@ -193,6 +193,9 @@ class LockedFile(object):
     def read(self, size=None):
         return self.file.read() if size is None else self.file.read(size)
 
+    def readinto(self, b):
+        b[:] = self.file.read()
+
     def readline(self):
         return self.file.readline()
 
