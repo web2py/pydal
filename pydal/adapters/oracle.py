@@ -96,7 +96,7 @@ class Oracle(SQLAdapter):
         return self.dialect.quote(tablename)
 
     def _build_value_for_insert(self, field, value, r_values):
-        if field.type is 'text':
+        if field.type == 'text':
             r_values[':' + field._rname] = self.expand(value, field.type)
             return ':' + field._rname
         return self.expand(value, field.type)

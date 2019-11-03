@@ -32,7 +32,6 @@ if PY2:
     from urllib2 import urlopen
     from string import maketrans
     from types import ClassType
-    import cgi
     import cookielib
     from xmlrpclib import ProtocolError
     BytesIO = StringIO
