@@ -29,7 +29,7 @@ class FireBird(SQLAdapter):
         if password is None:
             password = ''
         host = m.group('host')
-        db = m.group('db')
+        db = self.credential_decoder(m.group('db'))
         port = int(m.group('port') or 3050)
         charset = m.group('charset') or 'UTF8'
         self.driver_args.update(
