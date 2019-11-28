@@ -72,8 +72,8 @@ class BaseRepresenter(Representer):
     @for_type('list:integer')
     def _list_integer(self, value):
         values = self._ensure_list(value)
-        values = list(map(int, [val for val in values if val != '']))
-        return self._listify_elements(value)
+        values = [int(val) for val in values if val != '']
+        return self._listify_elements(values)
 
     @for_type('list:string')
     def _list_string(self, value):
