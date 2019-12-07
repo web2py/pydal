@@ -5,7 +5,7 @@ import re
 import uuid
 from .._compat import (
     PY2, BytesIO, iteritems, integer_types, string_types, to_bytes, pjoin,
-    exists
+    exists, text_type
 )
 from .regex import REGEX_CREDENTIALS, REGEX_UNPACK, REGEX_CONST_STRING, REGEX_W
 from .classes import SQLCustomType
@@ -408,6 +408,11 @@ def delete_uploaded_files(dbset, upload_fields=None):
                         uploadfolder, "%s.%s" %
                         (items[0], items[1]), items[2][:2])
                 oldpath = pjoin(uploadfolder, oldname)
-                if exists(oldpath):
-                    os.unlink(oldpath)
+                if field.uploadfs:
+                    oldname = text_type(oldname)
+                    if field.uploadfs.exists(oldname):
+                        field.uploadfs.remove(oldname)
+                else:
+                    if exists(oldpath):
+                        os.unlink(oldpath)
     return False
