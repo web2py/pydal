@@ -532,6 +532,9 @@ class DatabaseStoredFile:
         self.p += len(data)
         return data
 
+    def readinto(self, bytes):
+        return self.read(bytes)
+
     def readline(self):
         i = self.data.find('\n', self.p)+1
         if i > 0:
