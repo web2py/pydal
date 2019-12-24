@@ -215,7 +215,7 @@ class RestAPI(object):
             # https://github.com/collection-json/extensions/blob/master/template-validation.md
             item['default'] = field.default() if callable(field.default) else field.default
             parts = field.type.split()
-            item['type'] = parts[0]
+            item['type'] = parts[0].split('(')[0]
             if len(parts)>1:
                 item['references'] = parts[1]
             if hasattr(field,'regex'):
