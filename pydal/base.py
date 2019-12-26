@@ -379,9 +379,8 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                  decode_credentials=False, driver_args=None,
                  adapter_args=None, attempts=5, auto_import=False,
                  bigint_id=False, debug=False, lazy_tables=False,
-                 db_uid=None, do_connect=True,
-                 after_connection=None, tables=None, ignore_field_case=True,
-                 entity_quoting=True, table_hash=None):
+                 db_uid=None, after_connection=None, tables=None,
+                 ignore_field_case=True, entity_quoting=True, table_hash=None):
 
         if uri == '<zombie>' and db_uid is not None:
             return
@@ -425,7 +424,6 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         self._check_reserved = check_reserved
         self._decode_credentials = decode_credentials
         self._attempts = attempts
-        self._do_connect = do_connect
         self._ignore_field_case = ignore_field_case
 
         if not str(attempts).isdigit() or attempts < 0:
@@ -450,7 +448,6 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                                       credential_decoder=credential_decoder,
                                       driver_args=driver_args or {},
                                       adapter_args=adapter_args or {},
-                                      do_connect=do_connect,
                                       after_connection=after_connection,
                                       entity_quoting=entity_quoting)
                         adapter = adapters.get_for(self._dbname)
@@ -598,7 +595,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         kwargs_get = kwargs.get
         common_fields = self._common_fields
         if common_fields:
-            fields = list(fields) + [f if isinstance(f, Table) else f.clone() 
+            fields = list(fields) + [f if isinstance(f, Table) else f.clone()
                                      for f in common_fields]
 
         table_class = kwargs_get('table_class', Table)
@@ -648,7 +645,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     'migrate', 'fake_migrate', 'migrate_enabled',
                     'fake_migrate_all', 'decode_credentials', 'driver_args',
                     'adapter_args', 'attempts', 'bigint_id', 'debug',
-                    'lazy_tables', 'do_connect']]))
+                    'lazy_tables']]))
         for table in self:
             db_as_dict["tables"].append(table.as_dict(flat=flat,
                                         sanitize=sanitize))

@@ -12,8 +12,8 @@ class Oracle(SQLAdapter):
 
     REGEX_CLOB = r"[^']*('[^']*'[^']*)*:(?P<clob>CLOB\('([^']+|'')*'\))"
 
-    def _initialize_(self, do_connect):
-        super(Oracle, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(Oracle, self)._initialize_()
         self.ruri = self.uri.split('://', 1)[1]
         if 'threaded' not in self.driver_args:
             self.driver_args['threaded'] = True
@@ -65,7 +65,7 @@ class Oracle(SQLAdapter):
         trigger_name = table._trigger_name
         self.execute(query)
         self.execute(
-            'CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1 NOMAXVALUE MINVALUE -1;' 
+            'CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1 NOMAXVALUE MINVALUE -1;'
             % sequence_name)
         self.execute(_trigger_sql % dict(
             trigger_name=trigger_name, tablename=tablename,

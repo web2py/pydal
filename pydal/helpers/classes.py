@@ -170,25 +170,6 @@ class OpRow(object):
         return '<OpRow %s>' % repr(self._values)
 
 
-class ConnectionConfigurationMixin(object):
-    def _mock_reconnect(self):
-        self._reconnect_lock = threading.RLock()
-        self._connection_reconnect = self.reconnect
-        self.reconnect = self._reconnect_and_configure
-        self._reconnect_mocked = True
-
-    def _reconnect_and_configure(self):
-        self._connection_reconnect()
-        with self._reconnect_lock:
-            if self._reconnect_mocked:
-                self._configure_on_first_reconnect()
-                self.reconnect = self._connection_reconnect
-                self._reconnect_mocked = False
-
-    def _configure_on_first_reconnect(self):
-        pass
-
-
 class Serializable(object):
     def as_dict(self, flat=False, sanitize=True):
         return self.__dict__

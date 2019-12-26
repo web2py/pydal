@@ -7,8 +7,8 @@ class Ingres(SQLAdapter):
     dbengine = 'ingres'
     drivers = ('pyodbc',)
 
-    def _initialize_(self, do_connect):
-        super(Ingres, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(Ingres, self)._initialize_()
         ruri = self.uri.split('://', 1)[1]
         connstr = ruri.lstrip()
         while connstr.startswith('/'):

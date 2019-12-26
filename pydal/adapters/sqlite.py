@@ -14,9 +14,9 @@ class SQLite(SQLAdapter):
     dbengine = 'sqlite'
     drivers = ('sqlite2', 'sqlite3')
 
-    def _initialize_(self, do_connect):
+    def _initialize_(self):
         self.pool_size = 0
-        super(SQLite, self)._initialize_(do_connect)
+        super(SQLite, self)._initialize_()
         path_encoding = sys.getfilesystemencoding() \
             or locale.getdefaultlocale()[1] or 'utf8'
         if ':memory' in self.uri.split('://', 1)[0]:
@@ -32,7 +32,7 @@ class SQLite(SQLAdapter):
                     self.dbpath = pjoin(self.folder, self.dbpath)
         if 'check_same_thread' not in self.driver_args:
             self.driver_args['check_same_thread'] = False
-        if 'detect_types' not in self.driver_args and do_connect:
+        if 'detect_types' not in self.driver_args:
             self.driver_args['detect_types'] = self.driver.PARSE_DECLTYPES
 
     def _driver_from_uri(self):
@@ -103,7 +103,7 @@ class Spatialite(SQLite):
         'Darwin': 'libspatialite.dylib'
     }
 
-    def after_connections(self):
+    def after_connection(self):
         self.connection.enable_load_extension(True)
         libspatialite = self.SPATIALLIBS[platform.system()]
         self.execute(r'SELECT load_extension("%s");' % libspatialite)

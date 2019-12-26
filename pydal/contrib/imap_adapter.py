@@ -172,7 +172,6 @@ class IMAPAdapter(NoSQLAdapter):
                  credential_decoder=IDENTITY,
                  driver_args={},
                  adapter_args={},
-                 do_connect=True,
                  after_connection=None):
 
         super(IMAPAdapter, self).__init__(
@@ -184,13 +183,12 @@ class IMAPAdapter(NoSQLAdapter):
             credential_decoder=credential_decoder,
             driver_args=driver_args,
             adapter_args=adapter_args,
-            do_connect=do_connect,
             after_connection=after_connection)
 
         # db uri: user@example.com:password@imap.server.com:123
         # TODO: max size adapter argument for preventing large mail transfers
 
-        if do_connect: self.find_driver(adapter_args)
+        self.find_driver(adapter_args)
         self.credential_decoder = credential_decoder
         self.driver_args = driver_args
         self.adapter_args = adapter_args
@@ -251,7 +249,7 @@ class IMAPAdapter(NoSQLAdapter):
 
         self.db.define_tables = self.define_tables
         self.connector = connector
-        if do_connect: self.reconnect()
+        self.reconnect()
 
     def reconnect(self, f=None):
         """

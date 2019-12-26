@@ -20,16 +20,3 @@ class Dispatcher(object):
         else:
             raise ValueError(
                 "no %s found for object: %s" % (self.namespace, obj))
-
-
-class Cursor(object):
-    def __init__(self, connection):
-        self.connection = connection
-        self.cursor = connection.cursor()
-        self.release()
-
-    def lock(self):
-        self.available = False
-
-    def release(self):
-        self.available = True

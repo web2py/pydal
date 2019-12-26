@@ -25,15 +25,15 @@ class MSSQL(SQLAdapter):
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
-                 adapter_args={}, do_connect=True, srid=4326,
+                 adapter_args={}, srid=4326,
                  after_connection=None):
         self.srid = srid
         super(MSSQL, self).__init__(
             db, uri, pool_size, folder, db_codec, credential_decoder,
-            driver_args, adapter_args, do_connect, after_connection)
+            driver_args, adapter_args, after_connection)
 
-    def _initialize_(self, do_connect):
-        super(MSSQL, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(MSSQL, self)._initialize_()
         ruri = self.uri.split('://', 1)[1]
         if '@' not in ruri:
             m = re.match(self.REGEX_DSN, ruri)
@@ -130,8 +130,8 @@ class Vertica(MSSQL1):
 class Sybase(MSSQL1):
     dbengine = 'sybase'
 
-    def _initialize_(self, do_connect):
-        super(MSSQL, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(MSSQL, self)._initialize_()
         ruri = self.uri.split('://', 1)[1]
         if '@' not in ruri:
             m = re.match(self.REGEX_DSN, ruri)

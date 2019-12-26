@@ -18,8 +18,8 @@ class FireBird(SQLAdapter):
          '/(?P<db>[^?]+)' \
         r'(\?set_encoding=(?P<charset>\w+))?$'
 
-    def _initialize_(self, do_connect):
-        super(FireBird, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(FireBird, self)._initialize_()
         ruri = self.uri.split('://', 1)[1]
         m = re.match(self.REGEX_URI, ruri)
         if not m:
@@ -64,8 +64,8 @@ class FireBirdEmbedded(FireBird):
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
         r'@(?P<path>[^?]+)(\?set_encoding=(?P<charset>\w+))?$'
 
-    def _initialize_(self, do_connect):
-        super(FireBird, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(FireBird, self)._initialize_()
         ruri = self.uri.split('://', 1)[1]
         m = re.match(self.REGEX_URI, ruri)
         if not m:

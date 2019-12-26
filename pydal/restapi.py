@@ -229,7 +229,7 @@ class RestAPI(object):
                 item['referenced_by'] = ['%s.%s' % (f._tablename, f.name)
                                          for f in table._referenced_by
                                          if self.policy and
-                                         self.policy.check_if_allowed('GET', f._tablename, 
+                                         self.policy.check_if_allowed('GET', f._tablename,
                                                                       exceptions=False)]
             items.append(item)
         return items

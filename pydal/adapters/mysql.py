@@ -17,8 +17,8 @@ class MySQL(SQLAdapter):
          '/(?P<db>[^?]+)' \
         r'(\?(?P<uriargs>.*))?$'  # set_encoding and unix_socket
 
-    def _initialize_(self, do_connect):
-        super(MySQL, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(MySQL, self)._initialize_()
         ruri = self.uri.split('://', 1)[1]
         m = re.match(self.REGEX_URI, ruri)
         if not m:
@@ -82,6 +82,6 @@ class Cubrid(MySQL):
     dbengine = "cubrid"
     drivers = ('cubriddb',)
 
-    def _initialize_(self, do_connect):
-        super(Cubrid, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(Cubrid, self)._initialize_()
         del self.driver_args['charset']

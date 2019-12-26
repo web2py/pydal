@@ -741,7 +741,7 @@ class IS_NOT_IN_DB(Validator):
         query = field == value
 
         # make sure exclude the record_id
-        id = record_id or self.record_id        
+        id = record_id or self.record_id
         if isinstance(id, dict):
             id = table(**id)
         if not id is None:

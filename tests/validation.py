@@ -1,6 +1,6 @@
 import re
 from ._compat import unittest
-from ._adapt import DEFAULT_URI, NOSQL, IS_IMAP, drop
+from ._adapt import DEFAULT_URI, IS_NOSQL, IS_IMAP, drop
 from pydal._compat import integer_types
 from pydal import DAL, Field
 
@@ -49,7 +49,7 @@ class TestValidateAndInsert(unittest.TestCase):
                         Field('bb', 'integer',
                               requires=IS_INT_IN_RANGE(1, 5)))
         rtn = db.val_and_insert.validate_and_insert(aa='test1', bb=2)
-        if NOSQL:
+        if IS_NOSQL:
             self.assertEqual(isinstance(rtn.id, long), True)
         else:
             self.assertEqual(rtn.id, 1)

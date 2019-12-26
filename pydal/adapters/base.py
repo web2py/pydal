@@ -32,7 +32,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
-                 adapter_args={}, do_connect=True, after_connection=None,
+                 adapter_args={}, after_connection=None,
                  entity_quoting=False):
         super(BaseAdapter, self).__init__()
         self._load_dependencies()
@@ -46,11 +46,9 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.adapter_args = adapter_args
         self.expand = self._expand
         self._after_connection = after_connection
-        self.connection = None
+        self.set_connection(None)
         self.find_driver()
-        self._initialize_(do_connect)
-        if do_connect:
-            self.reconnect()
+        self._initialize_()
 
     def _load_dependencies(self):
         from ..dialects import dialects
@@ -60,7 +58,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         self.parser = parsers.get_for(self)
         self.representer = representers.get_for(self)
 
-    def _initialize_(self, do_connect):
+    def _initialize_(self):
         self._find_work_folder()
 
     @property
@@ -109,7 +107,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     @with_connection
     def close_connection(self):
         rv = self.connection.close()
-        self.connection = None
+        self.set_connection(None)
         return rv
 
     def tables(self, *queries):

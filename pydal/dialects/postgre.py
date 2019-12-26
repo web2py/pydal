@@ -198,7 +198,7 @@ class PostgreDialect(SQLDialect):
             self.expand(tup[1], 'double', query_env=query_env))
 
     def st_transform(self, first, second, query_env={}):
-    	# The SRID argument can be provided as an integer SRID or a Proj4 string
+            # The SRID argument can be provided as an integer SRID or a Proj4 string
         if isinstance(second, int):
             return 'ST_Transform(%s,%s)' % (
                 self.expand(first, query_env=query_env),
@@ -256,7 +256,7 @@ class PostgreDialectJSON(PostgreDialect):
 
     def st_astext(self, first, query_env={}):
         return 'ST_AsText(%s)' % self.expand(first, query_env=query_env)
-    
+
     def st_asgeojson(self, first, second, query_env={}):
         return 'ST_AsGeoJSON(%s,%s,%s,%s)' % (
             second['version'], self.expand(first, query_env=query_env),

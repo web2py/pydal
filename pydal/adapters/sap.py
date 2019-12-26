@@ -12,8 +12,8 @@ class SAPDB(SQLAdapter):
          '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
         r'@(?P<host>[^:/]+|\[[^\]]+\])/(?P<db>[^?]+)$'
 
-    def _initialize_(self, do_connect):
-        super(SAPDB, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(SAPDB, self)._initialize_()
         ruri = self.uri.split('://', 1)[1]
         m = re.match(self.REGEX_URI, ruri)
         if not m:

@@ -7,8 +7,8 @@ class Teradata(SQLAdapter):
     dbengine = ''
     drivers = ('pyodbc',)
 
-    def _initialize_(self, do_connect):
-        super(Teradata, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(Teradata, self)._initialize_()
         self.ruri = self.uri.split('://', 1)[1]
 
     def connector(self):
@@ -22,7 +22,6 @@ class Teradata(SQLAdapter):
 
     def lastrowid(self, table):
         # Teradata cannot retrieve the lastrowid for an IDENTITY Column
-        # and they are not sequential anyway.  
+        # and they are not sequential anyway.
         # Similar to the NullCursor class, return 1
         return 1
-        

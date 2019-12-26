@@ -109,7 +109,7 @@ class Row(BasicStorage):
     def __int__(self):
         return self.get('id')
 
-    def __long__(self): 
+    def __long__(self):
         return long(int(self))
 
     def __hash__(self):
@@ -802,7 +802,7 @@ class Table(Serializable, BasicStorage):
             response.id = self.insert(**new_fields)
         return response
 
-    def validate_and_update(self, _key, **fields):        
+    def validate_and_update(self, _key, **fields):
         record = self(**_key) if isinstance(_key, dict) else self(_key)
         response, new_fields = self._validate_fields(fields, 'update', record.id)
         #: do the update
@@ -817,7 +817,7 @@ class Table(Serializable, BasicStorage):
                     else:
                         query = query & (getattr(self, key) == value)
                 myset = self._db(query)
-            response.updated = myset.update(**new_fields)            
+            response.updated = myset.update(**new_fields)
         if record:
             response.id = record.id
         return response
@@ -1553,14 +1553,14 @@ class Expression(object):
     def st_dwithin(self, value, distance):
         return Query(
             self.db, self._dialect.st_dwithin, self, (value, distance))
-    
+
     # JSON Expressions
-    
+
     def json_key(self, key):
         """
         Get the json in key which you can use to build queries or as one of the
         fields you want to get in a select.
-        
+
         Example:
             Usage::
 
@@ -1635,7 +1635,7 @@ class Expression(object):
         return Expression(self.db, self._dialect.json_path_value, self, path)
 
     # JSON Queries
-    
+
     def json_contains(self, jsonvalue):
         """
         Containment operator, jsonvalue parameter must be a json string
@@ -3220,14 +3220,18 @@ class IterRows(BasicRows):
         self.cacheable = cacheable
         (self.fields_virtual, self.fields_lazy, self.tmps) = \
             self.db._adapter._parse_expand_colnames(fields)
-        self.cursor = self.db._adapter.cursor
-        self.db._adapter.execute(sql)
-        self.db._adapter.lock_cursor(self.cursor)
+        self.sql = sql
         self._head = None
         self.last_item = None
         self.last_item_id = None
         self.compact = True
         self.sql = sql
+        # get a new cursor in order to be able to iterate without undesired behavior
+        # not completely safe but better than before
+        self.cursor = self.db._adapter.cursor
+        self.db._adapter.execute(sql)
+        # give the adapter a new cursor since this one is busy
+        self.db._adapter.reset_cursor()
 
     def __next__(self):
         db_row = self.cursor.fetchone()
@@ -3258,7 +3262,6 @@ class IterRows(BasicRows):
                 row = next(self)
         except StopIteration:
             # Iterator is over, adjust the cursor logic
-            self.db._adapter.close_cursor(self.cursor)
             return
         return
 

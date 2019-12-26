@@ -16,13 +16,14 @@ from pydal.helpers.classes import SQLALL, OpRow
 from pydal.objects import Table, Expression, Row
 from ._compat import unittest
 from ._adapt import (
-    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA)
+    DEFAULT_URI, IS_POSTGRESQL, IS_SQLITE, IS_MSSQL, IS_MYSQL, IS_TERADATA, IS_NOSQL)
 from ._helpers import DALtest
 
 long = integer_types[-1]
 
-print('Testing against %s engine (%s)' % (DEFAULT_URI.partition(':')[0],
-                                          DEFAULT_URI))
+print('Testing against %s engine (%s)' % (
+        DEFAULT_URI.partition(':')[0],
+        DEFAULT_URI))
 
 
 ALLOWED_DATATYPES = [
@@ -225,7 +226,7 @@ class TestFields(DALtest):
         obj = pickle.dumps('0')
         db.define_table('tt', Field('aa', 'blob'))
         self.assertEqual(db.tt.insert(aa=obj), 1)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, obj)
+        self.assertEqual(to_bytes(db().select(db.tt.aa)[0].aa), obj)
         self.assertEqual(db.tt[1].aa, obj)
         self.assertEqual(BytesIO(to_bytes(db.tt[1].aa)).read(), obj)
         db.tt.drop()
@@ -2641,7 +2642,7 @@ class TestQuoting(DALtest):
             t2.drop()
             t3.drop()
             t4.drop()
-            
+
     def testPKFK2(self):
 
         # test reference to reference
@@ -2776,7 +2777,7 @@ class TestJSON(DALtest):
         rows = db(db.tj.id > 0).select(db.tj.testjson.json_path('{c, c0, c01, 0}').with_alias('first'))
         self.assertEqual(rows[0].first, 2)
         self.assertEqual(rows[1].first, 2)
-        
+
 
 class TestSQLCustomType(DALtest):
 
@@ -2922,7 +2923,7 @@ class TestRecordVersioning(DALtest):
         self.assertEqual(db(db.t0_archive).count(), 2)
 
 
-@unittest.skipIf(IS_SQLITE, "Skip sqlite")
+@unittest.skipIf(IS_SQLITE or IS_NOSQL, "Skip if sqlite or NOSQL since no pools")
 class TestConnection(unittest.TestCase):
 
     def testRun(self):
@@ -2947,6 +2948,8 @@ class TestConnection(unittest.TestCase):
         dbs = []
         for a in range(10):
             db3 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+            # make sure the connection is stablished
+            db3._adapter.get_connection()
             dbs.append(db3)
         for db in dbs:
             db.close()

@@ -3,7 +3,6 @@ import os.path
 from .._compat import PY2, with_metaclass, iterkeys, to_unicode, long
 from .._globals import IDENTITY, THREAD_LOCAL
 from ..drivers import psycopg2_adapt
-from ..helpers.classes import ConnectionConfigurationMixin
 from .base import SQLAdapter
 from ..utils import split_uri_args
 from . import AdapterMeta, adapters, with_connection, with_connection_or_raise
@@ -30,7 +29,7 @@ class PostgreMeta(AdapterMeta):
 
 @adapters.register_for('postgres')
 class Postgre(
-    with_metaclass(PostgreMeta, ConnectionConfigurationMixin, SQLAdapter)
+    with_metaclass(PostgreMeta, SQLAdapter)
 ):
     dbengine = 'postgres'
     drivers = ('psycopg2', 'pg8000')
@@ -44,15 +43,15 @@ class Postgre(
 
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
-                 adapter_args={}, do_connect=True, srid=4326,
+                 adapter_args={}, srid=4326,
                  after_connection=None):
         self.srid = srid
         super(Postgre, self).__init__(
             db, uri, pool_size, folder, db_codec, credential_decoder,
-            driver_args, adapter_args, do_connect, after_connection)
+            driver_args, adapter_args, after_connection)
 
-    def _initialize_(self, do_connect):
-        super(Postgre, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(Postgre, self)._initialize_()
         ruri = self.uri.split('://', 1)[1]
         m = re.match(self.REGEX_URI, ruri)
         if not m:
@@ -99,7 +98,7 @@ class Postgre(
         else:
             self.__version__ = None
         THREAD_LOCAL._pydal_last_insert_ = None
-        self._mock_reconnect()
+        self.get_connection()
 
     def _get_json_dialect(self):
         from ..dialects.postgre import PostgreDialectJSON
@@ -124,7 +123,7 @@ class Postgre(
         self.execute("SET CLIENT_ENCODING TO 'UTF8'")
         self.execute("SET standard_conforming_strings=on;")
 
-    def _configure_on_first_reconnect(self):
+    def _after_first_connection(self):
         self._config_json()
 
     def lastrowid(self, table):
@@ -257,8 +256,8 @@ class JDBCPostgre(Postgre):
         r'@(?P<host>[^:/]+|\[[^\]]+\])(:(?P<port>\d+))?' \
          '/(?P<db>[^?]+)$'
 
-    def _initialize_(self, do_connect):
-        super(Postgre, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(Postgre, self)._initialize_()
         ruri = self.uri.split('://', 1)[1]
         m = re.match(self.REGEX_URI, ruri)
         if not m:
@@ -278,7 +277,7 @@ class JDBCPostgre(Postgre):
         else:
             self.__version__ = None
         THREAD_LOCAL._pydal_last_insert_ = None
-        self._mock_reconnect()
+        self.get_connection()
 
     def connector(self):
         return self.driver.connect(*self.dsn, **self.driver_args)

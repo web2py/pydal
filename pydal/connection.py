@@ -2,10 +2,10 @@
 # pylint: disable=no-member
 
 import os
+import threading
 from ._compat import itervalues
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL
 from ._load import OrderedDict
-from .helpers._internals import Cursor
 
 
 class ConnectionPool(object):
@@ -13,21 +13,15 @@ class ConnectionPool(object):
     check_active_connection = True
 
     def __init__(self):
-        _iid_ = str(id(self))
-        self._connection_thname_ = '_pydal_connection_' + _iid_ + '_'
-        self._cursors_thname_ = '_pydal_cursors_' + _iid_ + '_'
-
-    @property
-    def _pid_(self):
-        return str(os.getpid())
+        self._first_connection = False
 
     @property
     def _connection_uname_(self):
-        return self._connection_thname_ + self._pid_
+        return '_pydal_connection_%s_%s' % (id(self), os.getpid())
 
     @property
     def _cursors_uname_(self):
-        return self._cursors_thname_ + self._pid_
+        return '_pydal_cursor_%s_%s' % (id(self), os.getpid())
 
     @staticmethod
     def set_folder(folder):
@@ -35,53 +29,78 @@ class ConnectionPool(object):
 
     @property
     def connection(self):
-        return getattr(THREAD_LOCAL, self._connection_uname_)
+        return self.get_connection()
 
-    @connection.setter
-    def connection(self, val):
-        setattr(THREAD_LOCAL, self._connection_uname_, val)
-        self._clean_cursors()
-        if val is not None:
-            self._build_cursor()
+    def get_connection(self, use_pool=True):
+        """
+        if `self.pool_size>0` it will try pull the connection from the pool
+        if the connection is not active (closed by db server) it will loop
+        if not `self.pool_size` or no active connections in pool makes a new one
+        """
+        # check we we have a connection for this process/thread/object id
+        connection = getattr(THREAD_LOCAL, self._connection_uname_, None)
+        # if so, return it
+        if connection is not None:
+            return connection
 
-    def _clean_cursors(self):
-        setattr(THREAD_LOCAL, self._cursors_uname_, OrderedDict())
+        # if not and we have a pool
+        if use_pool and self.pool_size:
+            try:
+                GLOBAL_LOCKER.acquire()
+                pool = ConnectionPool.POOLS.get(self.uri, [])
+                ConnectionPool.POOLS[self.uri] = pool
+                # pop from the pool until we find a valid connection
+                while connection is None and pool:
+                    connection = pool.pop()
+                    try:
+                        self.set_connection(connection, run_hooks=False)
+                    except:
+                        connection = None
+            finally:
+                GLOBAL_LOCKER.release()
 
-    @property
-    def cursors(self):
-        return getattr(THREAD_LOCAL, self._cursors_uname_)
+        # if still no connection, make a new one and run the hooks
+        # note we serialize actual connectons to protect hooks
+        if connection is None:
+            connection = self.connector()
+            self.set_connection(connection, run_hooks=True)
 
-    def _build_cursor(self):
-        rv = Cursor(self.connection)
-        self.cursors[id(rv.cursor)] = rv
-        return rv
+        return connection
 
-    def _get_or_build_free_cursor(self):
-        for handler in itervalues(self.cursors):
-            if handler.available:
-                return handler
-        return self._build_cursor()
+    def set_connection(self, connection, run_hooks=False):
+        # store the connection in the thread local object and run hooks (optional)
+        setattr(THREAD_LOCAL, self._connection_uname_, connection)
+        if connection:
+            setattr(THREAD_LOCAL, self._cursors_uname_, connection.cursor())
+            # run hooks
+            if run_hooks:
+                self.after_connection_hook()
+            # some times we want to check the connection is still good
+            if self.check_active_connection:
+                self.test_connection()
+        else:
+            setattr(THREAD_LOCAL, self._cursors_uname_, None)
+
+    def reset_cursor(self):
+        """get a new cursor for the existing connection"""
+        setattr(THREAD_LOCAL, self._cursors_uname_, self.connection.cursor())
 
     @property
     def cursor(self):
-        return self._get_or_build_free_cursor().cursor
-
-    def lock_cursor(self, cursor):
-        self.cursors[id(cursor)].lock()
-
-    def release_cursor(self, cursor):
-        self.cursors[id(cursor)].release()
-
-    def close_cursor(self, cursor):
-        cursor.close()
-        del self.cursors[id(cursor)]
+        """retrieve the cursor of the connection"""
+        return getattr(THREAD_LOCAL, self._cursors_uname_)
 
     def _clean_tlocals(self):
+        """delete cusor and connection from the thead local"""
         delattr(THREAD_LOCAL, self._cursors_uname_)
         delattr(THREAD_LOCAL, self._connection_uname_)
 
     def close(self, action='commit', really=True):
-        #: if we have an action (commit, rollback), try to execute it
+        """if we have an action (commit, rollback), try to execute it"""
+        # if the connection was never established, nothing to do
+        if getattr(THREAD_LOCAL, self._connection_uname_, None) is None:
+            return
+        # try commit or rollback
         succeeded = True
         if action:
             try:
@@ -92,15 +111,17 @@ class ConnectionPool(object):
             except:
                 #: connection had some problems, we want to drop it
                 succeeded = False
-        #: if we have pools, we should recycle the connection (but only when
-        #  we succeded in `action`, if any and `len(pool)` is good)
+        # if we have pools, we should recycle the connection (but only when
+        # we succeded in `action`, if any and `len(pool)` is good)
         if self.pool_size and succeeded:
-            GLOBAL_LOCKER.acquire()
-            pool = ConnectionPool.POOLS[self.uri]
-            if len(pool) < self.pool_size:
-                pool.append(self.connection)
-                really = False
-            GLOBAL_LOCKER.release()
+            try:
+                GLOBAL_LOCKER.acquire()
+                pool = ConnectionPool.POOLS[self.uri]
+                if len(pool) < self.pool_size:
+                    pool.append(self.connection)
+                    really = False
+            finally:
+                GLOBAL_LOCKER.release()
         #: closing the connection when we `really` want to, in particular:
         #    - when we had an exception running `action`
         #    - when we don't have pools
@@ -111,7 +132,7 @@ class ConnectionPool(object):
             except:
                 pass
         #: always unset `connection` attribute
-        self.connection = None
+        self.set_connection(None)
 
     @staticmethod
     def close_all_instances(action):
@@ -125,52 +146,31 @@ class ConnectionPool(object):
         getattr(THREAD_LOCAL, '_pydal_db_instances_zombie_', {}).clear()
         if callable(action):
             action(None)
-        return
 
     def _find_work_folder(self):
         self.folder = getattr(THREAD_LOCAL, '_pydal_folder_', '')
 
     def after_connection_hook(self):
         """Hook for the after_connection parameter"""
+        # some work must be done on first connection only
+        if not self._first_connection:
+            self._after_first_connection()
+            self._first_connection = True
+        # handle user specified hooks if present
         if callable(self._after_connection):
             self._after_connection(self)
+        # handle global adapter hooks
         self.after_connection()
 
     def after_connection(self):
-        #this it is supposed to be overloaded by adapters
+        # this it is supposed to be overloaded by adapters
+        pass
+
+    def _after_first_connection(self):
+        """called only after first connection"""
         pass
 
     def reconnect(self):
-        """
-        Defines: `self.connection` and `self.cursor`
-        if `self.pool_size>0` it will try pull the connection from the pool
-        if the connection is not active (closed by db server) it will loop
-        if not `self.pool_size` or no active connections in pool makes a new one
-        """
-        if getattr(THREAD_LOCAL, self._connection_uname_, None) is not None:
-            return
-
-        if not self.pool_size:
-            self.connection = self.connector()
-            self.after_connection_hook()
-        else:
-            uri = self.uri
-            POOLS = ConnectionPool.POOLS
-            while True:
-                GLOBAL_LOCKER.acquire()
-                if uri not in POOLS:
-                    POOLS[uri] = []
-                if POOLS[uri]:
-                    self.connection = POOLS[uri].pop()
-                    GLOBAL_LOCKER.release()
-                    try:
-                        if self.check_active_connection:
-                            self.test_connection()
-                        break
-                    except:
-                        pass
-                else:
-                    GLOBAL_LOCKER.release()
-                    self.connection = self.connector()
-                    self.after_connection_hook()
-                    break
+        """legacy method - no longer needed"""
+        self.close()
+        self.get_connection()

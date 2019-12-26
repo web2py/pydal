@@ -1,6 +1,6 @@
-from ._adapt import NOSQL
+from ._adapt import IS_NOSQL
 
-if NOSQL:
+if IS_NOSQL:
     from .nosql import *
 else:
     from .sql import *

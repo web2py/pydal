@@ -28,8 +28,8 @@ class GoogleSQL(GoogleMigratorMixin, MySQL):
         if os.path.isabs(self.folder) and self.folder.startswith(os.getcwd()):
             self.folder = os.path.relpath(self.folder, os.getcwd())
 
-    def _initialize_(self, do_connect):
-        super(GoogleSQL, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(GoogleSQL, self)._initialize_()
         self.folder = self.folder or pjoin(
             '$HOME', THREAD_LOCAL._pydal_folder_.split(
                 os.sep+'applications'+os.sep, 1)[1])
@@ -125,8 +125,8 @@ class GoogleDatastore(NoSQLAdapter):
 
     REGEX_NAMESPACE = '.*://(?P<namespace>.+)'
 
-    def _initialize_(self, do_connect):
-        super(GoogleDatastore, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(GoogleDatastore, self)._initialize_()
         match = re.match(self.REGEX_NAMESPACE, self.uri)
         if match:
             namespace_manager.set_namespace(match.group('namespace'))

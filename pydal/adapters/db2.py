@@ -6,8 +6,8 @@ from . import adapters, with_connection_or_raise
 class DB2(SQLAdapter):
     dbengine = "db2"
 
-    def _initialize_(self, do_connect):
-        super(DB2, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(DB2, self)._initialize_()
         self.ruri = self.uri.split('://', 1)[1]
 
     @with_connection_or_raise

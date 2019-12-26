@@ -12,8 +12,8 @@ class CouchDB(NoSQLAdapter):
 
     uploads_in_blob = True
 
-    def _initialize_(self, do_connect):
-        super(CouchDB, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(CouchDB, self)._initialize_()
         self.ruri = 'http://' + self.uri[10:]
         self.db_codec = 'UTF-8'
 

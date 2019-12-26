@@ -2168,6 +2168,7 @@ class TestConnection(unittest.TestCase):
         dbs = []
         for a in range(10):
             db3 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+            db3._adapter.get_connection()
             dbs.append(db3)
         for db in dbs:
             db.close()

@@ -4,8 +4,7 @@ import random
 from datetime import datetime
 from .._compat import basestring, long
 from ..exceptions import NotOnNOSQLError
-from ..helpers.classes import (
-    FakeCursor, Reference, SQLALL, ConnectionConfigurationMixin)
+from ..helpers.classes import (FakeCursor, Reference, SQLALL)
 from ..helpers.methods import use_common_filters, xorify
 from ..objects import Field, Row, Query, Expression
 from .base import NoSQLAdapter
@@ -21,7 +20,7 @@ except:
 
 
 @adapters.register_for('mongodb')
-class Mongo(ConnectionConfigurationMixin, NoSQLAdapter):
+class Mongo(NoSQLAdapter):
     dbengine = 'mongodb'
     drivers = ('pymongo',)
 
@@ -36,8 +35,8 @@ class Mongo(ConnectionConfigurationMixin, NoSQLAdapter):
             raise RuntimeError(
                 "pydal requires pymongo version >= 3.0, found '%s'" % version)
 
-    def _initialize_(self, do_connect):
-        super(Mongo, self)._initialize_(do_connect)
+    def _initialize_(self):
+        super(Mongo, self)._initialize_()
         #: uri parse
         from pymongo import uri_parser
         m = uri_parser.parse_uri(self.uri)
@@ -65,7 +64,7 @@ class Mongo(ConnectionConfigurationMixin, NoSQLAdapter):
         # synchronous, except when overruled by either this default or
         # function parameter
         self.safe = 1 if self.adapter_args.get('safe', True) else 0
-        self._mock_reconnect()
+        self.get_connection()
 
     def connector(self):
         conn = self.driver.MongoClient(self.uri, w=self.safe)[self._driver_db]
@@ -74,8 +73,8 @@ class Mongo(ConnectionConfigurationMixin, NoSQLAdapter):
         conn.commit = lambda: None
         return conn
 
-    def _configure_on_first_reconnect(self):
-        #: server version
+    def _after_first_connection(self):
+        # server version
         self._server_version = self.connection.command(
             "serverStatus")['version']
         self.server_version = tuple(
