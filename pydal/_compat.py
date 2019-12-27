@@ -28,12 +28,17 @@ if PY2:
     from email.MIMEText import MIMEText
     from email.Charset import add_charset, QP as charset_QP
     from urllib import FancyURLopener, urlencode
-    from urllib import quote as urllib_quote, unquote as urllib_unquote, quote_plus as urllib_quote_plus
+    from urllib import (
+        quote as urllib_quote,
+        unquote as urllib_unquote,
+        quote_plus as urllib_quote_plus,
+    )
     from urllib2 import urlopen
     from string import maketrans
     from types import ClassType
     import cookielib
     from xmlrpclib import ProtocolError
+
     BytesIO = StringIO
     reduce = reduce
     reload = reload
@@ -60,19 +65,20 @@ if PY2:
         del cls.__next__
         return cls
 
-    def to_bytes(obj, charset='utf-8', errors='strict'):
+    def to_bytes(obj, charset="utf-8", errors="strict"):
         if obj is None:
             return None
         if isinstance(obj, (bytes, bytearray, buffer)):
             return bytes(obj)
         if isinstance(obj, unicode):
             return obj.encode(charset, errors)
-        raise TypeError('Expected bytes')
+        raise TypeError("Expected bytes")
 
-    def to_native(obj, charset='utf8', errors='strict'):
+    def to_native(obj, charset="utf8", errors="strict"):
         if obj is None or isinstance(obj, str):
             return obj
         return obj.encode(charset, errors)
+
 
 else:
     import pickle
@@ -98,11 +104,17 @@ else:
     from email.header import Header
     from email.charset import Charset, add_charset, QP as charset_QP
     from urllib.request import FancyURLopener, urlopen
-    from urllib.parse import quote as urllib_quote, unquote as urllib_unquote, urlencode, quote_plus as urllib_quote_plus
+    from urllib.parse import (
+        quote as urllib_quote,
+        unquote as urllib_unquote,
+        urlencode,
+        quote_plus as urllib_quote_plus,
+    )
     from http import cookiejar as cookielib
     from xmlrpc.client import ProtocolError
-    import html # warning, this is the python3 module and not the web2py html module
-    hashlib_md5 = lambda s: hashlib.md5(bytes(s, 'utf8'))
+    import html  # warning, this is the python3 module and not the web2py html module
+
+    hashlib_md5 = lambda s: hashlib.md5(bytes(s, "utf8"))
     iterkeys = lambda d: iter(d.keys())
     itervalues = lambda d: iter(d.values())
     iteritems = lambda d: iter(d.items())
@@ -120,16 +132,16 @@ else:
     implements_iterator = _identity
     implements_bool = _identity
 
-    def to_bytes(obj, charset='utf-8', errors='strict'):
+    def to_bytes(obj, charset="utf-8", errors="strict"):
         if obj is None:
             return None
         if isinstance(obj, (bytes, bytearray, memoryview)):
             return bytes(obj)
         if isinstance(obj, str):
             return obj.encode(charset, errors)
-        raise TypeError('Expected bytes')
+        raise TypeError("Expected bytes")
 
-    def to_native(obj, charset='utf8', errors='strict'):
+    def to_native(obj, charset="utf8", errors="strict"):
         if obj is None or isinstance(obj, str):
             return obj
         return obj.decode(charset, errors)
@@ -148,13 +160,14 @@ def with_metaclass(meta, *bases):
             if this_bases is None:
                 return type.__new__(cls, name, (), d)
             return meta(name, bases, d)
-    return metaclass('temporary_class', None, {})
+
+    return metaclass("temporary_class", None, {})
 
 
-def to_unicode(obj, charset='utf-8', errors='strict'):
+def to_unicode(obj, charset="utf-8", errors="strict"):
     if obj is None:
         return None
-    if not hasattr(obj, 'decode') or not callable(obj.decode):
+    if not hasattr(obj, "decode") or not callable(obj.decode):
         return text_type(obj)
     return obj.decode(charset, errors)
 

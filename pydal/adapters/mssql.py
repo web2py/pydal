@@ -5,6 +5,7 @@ from .base import SQLAdapter
 from ..utils import split_uri_args
 from . import adapters, with_connection_or_raise
 
+
 class Slicer(object):
     def rowslice(self, rows, minimum=0, maximum=None):
         if maximum is None:
@@ -13,29 +14,47 @@ class Slicer(object):
 
 
 class MSSQL(SQLAdapter):
-    dbengine = 'mssql'
-    drivers = ('pyodbc',)
+    dbengine = "mssql"
+    drivers = ("pyodbc",)
 
-    REGEX_DSN = '^.+$'
-    REGEX_URI = \
-         '^(?P<user>[^:@]+)(:(?P<password>[^@]*))?' \
-        r'@(?P<host>[^:/]+|\[[^\]]+\])(:(?P<port>\d+))?' \
-         '/(?P<db>[^?]+)' \
-        r'(\?(?P<uriargs>.*))?$'
+    REGEX_DSN = "^.+$"
+    REGEX_URI = (
+        "^(?P<user>[^:@]+)(:(?P<password>[^@]*))?"
+        r"@(?P<host>[^:/]+|\[[^\]]+\])(:(?P<port>\d+))?"
+        "/(?P<db>[^?]+)"
+        r"(\?(?P<uriargs>.*))?$"
+    )
 
-    def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
-                 credential_decoder=IDENTITY, driver_args={},
-                 adapter_args={}, srid=4326,
-                 after_connection=None):
+    def __init__(
+        self,
+        db,
+        uri,
+        pool_size=0,
+        folder=None,
+        db_codec="UTF-8",
+        credential_decoder=IDENTITY,
+        driver_args={},
+        adapter_args={},
+        srid=4326,
+        after_connection=None,
+    ):
         self.srid = srid
         super(MSSQL, self).__init__(
-            db, uri, pool_size, folder, db_codec, credential_decoder,
-            driver_args, adapter_args, after_connection)
+            db,
+            uri,
+            pool_size,
+            folder,
+            db_codec,
+            credential_decoder,
+            driver_args,
+            adapter_args,
+            after_connection,
+        )
 
     def _initialize_(self):
         super(MSSQL, self)._initialize_()
-        ruri = self.uri.split('://', 1)[1]
-        if '@' not in ruri:
+        ruri = self.uri.split("://", 1)[1]
+        if "@" not in ruri:
             m = re.match(self.REGEX_DSN, ruri)
             if not m:
                 raise SyntaxError("Invalid URI string in DAL")
@@ -43,48 +62,53 @@ class MSSQL(SQLAdapter):
         else:
             m = re.match(self.REGEX_URI, ruri)
             if not m:
-                raise SyntaxError(
-                    "Invalid URI string in DAL: %s" % self.uri)
-            user = self.credential_decoder(m.group('user'))
-            password = self.credential_decoder(m.group('password'))
+                raise SyntaxError("Invalid URI string in DAL: %s" % self.uri)
+            user = self.credential_decoder(m.group("user"))
+            password = self.credential_decoder(m.group("password"))
             if password is None:
-                password = ''
-            host = m.group('host')
-            db = m.group('db')
-            port = m.group('port') or '1433'
+                password = ""
+            host = m.group("host")
+            db = m.group("db")
+            port = m.group("port") or "1433"
             # Parse the optional uri name-value arg pairs after the '?'
             # (in the form of arg1=value1&arg2=value2&...)
             # (drivers like FreeTDS insist on uppercase parameter keys)
-            argsdict = {'DRIVER': '{SQL Server}'}
-            uriargs = m.group('uriargs')
+            argsdict = {"DRIVER": "{SQL Server}"}
+            uriargs = m.group("uriargs")
             if uriargs:
                 for argkey, argvalue in split_uri_args(
-                        uriargs, separators='&', need_equal=True).items():
+                    uriargs, separators="&", need_equal=True
+                ).items():
                     argsdict[argkey.upper()] = argvalue
-            uriargs = ';'.join([
-                '%s=%s' % (ak, av) for (ak, av) in iteritems(argsdict)])
-            self.dsn = 'SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;%s' \
-                % (host, port, db, user, password, uriargs)
+            uriargs = ";".join(["%s=%s" % (ak, av) for (ak, av) in iteritems(argsdict)])
+            self.dsn = "SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;%s" % (
+                host,
+                port,
+                db,
+                user,
+                password,
+                uriargs,
+            )
 
     def connector(self):
         return self.driver.connect(self.dsn, **self.driver_args)
 
     def lastrowid(self, table):
-        self.execute('SELECT SCOPE_IDENTITY();')
+        self.execute("SELECT SCOPE_IDENTITY();")
         return long(self.cursor.fetchone()[0])
 
 
-@adapters.register_for('mssql')
+@adapters.register_for("mssql")
 class MSSQL1(MSSQL, Slicer):
     pass
 
 
-@adapters.register_for('mssql3')
+@adapters.register_for("mssql3")
 class MSSQL3(MSSQL):
     pass
 
 
-@adapters.register_for('mssql4')
+@adapters.register_for("mssql4")
 class MSSQL4(MSSQL):
     pass
 
@@ -92,8 +116,8 @@ class MSSQL4(MSSQL):
 class MSSQLN(MSSQL):
     def represent(self, obj, field_type):
         rv = super(MSSQLN, self).represent(obj, field_type)
-        if field_type in ('string', 'text', 'json') and rv.startswith("'"):
-            rv = 'N' + rv
+        if field_type in ("string", "text", "json") and rv.startswith("'"):
+            rv = "N" + rv
         return rv
 
     @with_connection_or_raise
@@ -104,36 +128,36 @@ class MSSQLN(MSSQL):
         return super(MSSQLN, self).execute(*args, **kwargs)
 
 
-@adapters.register_for('mssqln', 'mssql2')
+@adapters.register_for("mssqln", "mssql2")
 class MSSQL1N(MSSQLN, Slicer):
     pass
 
 
-@adapters.register_for('mssql3n')
+@adapters.register_for("mssql3n")
 class MSSQL3N(MSSQLN):
     pass
 
 
-@adapters.register_for('mssql4n')
+@adapters.register_for("mssql4n")
 class MSSQL4N(MSSQLN):
     pass
 
 
-@adapters.register_for('vertica')
+@adapters.register_for("vertica")
 class Vertica(MSSQL1):
     def lastrowid(self, table):
-        self.execute('SELECT SCOPE_IDENTITY();')
+        self.execute("SELECT SCOPE_IDENTITY();")
         return long(self.cursor.fetchone()[0])
 
 
-@adapters.register_for('sybase')
+@adapters.register_for("sybase")
 class Sybase(MSSQL1):
-    dbengine = 'sybase'
+    dbengine = "sybase"
 
     def _initialize_(self):
         super(MSSQL, self)._initialize_()
-        ruri = self.uri.split('://', 1)[1]
-        if '@' not in ruri:
+        ruri = self.uri.split("://", 1)[1]
+        if "@" not in ruri:
             m = re.match(self.REGEX_DSN, ruri)
             if not m:
                 raise SyntaxError("Invalid URI string in DAL")
@@ -141,16 +165,16 @@ class Sybase(MSSQL1):
         else:
             m = re.match(self.REGEX_URI, ruri)
             if not m:
-                raise SyntaxError(
-                    "Invalid URI string in DAL: %s" % self.uri)
-            user = self.credential_decoder(m.group('user'))
-            password = self.credential_decoder(m.group('password'))
+                raise SyntaxError("Invalid URI string in DAL: %s" % self.uri)
+            user = self.credential_decoder(m.group("user"))
+            password = self.credential_decoder(m.group("password"))
             if password is None:
-                password = ''
-            host = m.group('host')
-            db = m.group('db')
-            port = m.group('port') or '1433'
-            self.dsn = 'sybase:host=%s:%s;dbname=%s' % (host, port, db)
+                password = ""
+            host = m.group("host")
+            db = m.group("db")
+            port = m.group("port") or "1433"
+            self.dsn = "sybase:host=%s:%s;dbname=%s" % (host, port, db)
             self.driver_args.update(
                 user=self.credential_decoder(user),
-                passwd=self.credential_decoder(password))
+                passwd=self.credential_decoder(password),
+            )

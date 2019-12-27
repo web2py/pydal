@@ -7,8 +7,14 @@ import time
 import traceback
 
 from .._compat import (
-    PY2, exists, copyreg, implements_bool, iterkeys, itervalues, iteritems,
-    long
+    PY2,
+    exists,
+    copyreg,
+    implements_bool,
+    iterkeys,
+    itervalues,
+    iteritems,
+    long,
 )
 from .._globals import THREAD_LOCAL
 from .serializers import serializers
@@ -89,16 +95,17 @@ class BasicStorage(object):
 def pickle_basicstorage(s):
     return BasicStorage, (dict(s),)
 
+
 copyreg.pickle(BasicStorage, pickle_basicstorage)
 
 
 class OpRow(object):
-    __slots__ = ('_table', '_fields', '_values')
+    __slots__ = ("_table", "_fields", "_values")
 
     def __init__(self, table):
-        object.__setattr__(self, '_table', table)
-        object.__setattr__(self, '_fields', {})
-        object.__setattr__(self, '_values', {})
+        object.__setattr__(self, "_table", table)
+        object.__setattr__(self, "_fields", {})
+        object.__setattr__(self, "_values", {})
 
     def set_value(self, key, value, field=None):
         self._values[key] = value
@@ -161,13 +168,10 @@ class OpRow(object):
         return iteritems(self._values)
 
     def op_values(self):
-        return [
-            (self._fields[key], value)
-            for key, value in iteritems(self._values)
-        ]
+        return [(self._fields[key], value) for key, value in iteritems(self._values)]
 
     def __repr__(self):
-        return '<OpRow %s>' % repr(self._values)
+        return "<OpRow %s>" % repr(self._values)
 
 
 class Serializable(object):
@@ -190,12 +194,12 @@ class Reference(long):
             self._record = self._table[long(self)]
         if not self._record:
             raise RuntimeError(
-                "Using a recursive select but encountered a broken " +
-                "reference: %s %d" % (self._table, long(self))
+                "Using a recursive select but encountered a broken "
+                + "reference: %s %d" % (self._table, long(self))
             )
 
     def __getattr__(self, key, default=None):
-        if key == 'id':
+        if key == "id":
             return long(self)
         if key in self._table:
             self.__allocate()
@@ -209,14 +213,14 @@ class Reference(long):
         return self.__getattr__(key, default)
 
     def __setattr__(self, key, value):
-        if key.startswith('_'):
+        if key.startswith("_"):
             long.__setattr__(self, key, value)
             return
         self.__allocate()
         self._record[key] = value
 
     def __getitem__(self, key):
-        if key == 'id':
+        if key == "id":
             return long(self)
         self.__allocate()
         return self._record.get(key, None)
@@ -234,8 +238,9 @@ def Reference_pickler(data):
     try:
         marshal_dump = marshal.dumps(long(data))
     except AttributeError:
-        marshal_dump = 'i%s' % struct.pack('<i', long(data))
+        marshal_dump = "i%s" % struct.pack("<i", long(data))
     return (Reference_unpickler, (marshal_dump,))
+
 
 copyreg.pickle(Reference, Reference_pickler, Reference_unpickler)
 
@@ -257,7 +262,7 @@ class SQLALL(object):
         self._table = table
 
     def __str__(self):
-        return ', '.join([str(field) for field in self._table])
+        return ", ".join([str(field) for field in self._table])
 
 
 class SQLCustomType(object):
@@ -289,8 +294,17 @@ class SQLCustomType(object):
 
     """
 
-    def __init__(self, type='string', native=None, encoder=None, decoder=None,
-                 validator=None, _class=None, widget=None, represent=None):
+    def __init__(
+        self,
+        type="string",
+        native=None,
+        encoder=None,
+        decoder=None,
+        validator=None,
+        _class=None,
+        widget=None,
+        represent=None,
+    ):
         self.type = type
         self.native = native
         self.encoder = encoder or (lambda x: x)
@@ -324,8 +338,12 @@ class SQLCustomType(object):
 
 class RecordOperator(object):
     def __init__(self, colset, table, id):
-        self.colset, self.db, self.tablename, self.id = \
-            colset, table._db, table._tablename, id
+        self.colset, self.db, self.tablename, self.id = (
+            colset,
+            table._db,
+            table._tablename,
+            id,
+        )
 
     def __call__(self):
         pass
@@ -333,16 +351,13 @@ class RecordOperator(object):
 
 class RecordUpdater(RecordOperator):
     def __call__(self, **fields):
-        colset, db, tablename, id = self.colset, self.db, self.tablename, \
-            self.id
+        colset, db, tablename, id = self.colset, self.db, self.tablename, self.id
         table = db[tablename]
         newfields = fields or dict(colset)
         for fieldname in list(newfields.keys()):
-            if fieldname not in table.fields or table[fieldname].type == 'id':
+            if fieldname not in table.fields or table[fieldname].type == "id":
                 del newfields[fieldname]
-        table._db(table._id == id, ignore_common_filters=True).update(
-            **newfields
-        )
+        table._db(table._id == id, ignore_common_filters=True).update(**newfields)
         colset.update(newfields)
         return colset
 
@@ -366,6 +381,7 @@ class MethodAdder(object):
         def _decorated(f):
             instance = self.table
             import types
+
             if PY2:
                 method = types.MethodType(f, instance, instance.__class__)
             else:
@@ -373,11 +389,12 @@ class MethodAdder(object):
             name = method_name or f.func_name
             setattr(instance, name, method)
             return f
+
         return _decorated
 
 
 class FakeCursor(object):
-    '''
+    """
     The Python Database API Specification has a cursor() method, which
     NoSql drivers generally don't support.  If the exception in this
     function is taken then it likely means that some piece of
@@ -385,7 +402,8 @@ class FakeCursor(object):
     something is using the cursor.
 
     https://www.python.org/dev/peps/pep-0249/
-    '''
+    """
+
     def warn_bad_usage(self, attr):
         raise Exception("FakeCursor.%s is not implemented" % attr)
 
@@ -421,9 +439,8 @@ class FakeDriver(BasicStorage):
         return None
 
     def __str__(self):
-        state = ["%s=%r" % (attribute, value)
-                 for (attribute, value) in self.items()]
-        return '\n'.join(state)
+        state = ["%s=%r" % (attribute, value) for (attribute, value) in self.items()]
+        return "\n".join(state)
 
 
 class NullDriver(FakeDriver):
@@ -446,8 +463,7 @@ class TimingHandler(ExecutionHandler):
     MAXSTORAGE = 100
 
     def _timings(self):
-        THREAD_LOCAL._pydal_timings_ = getattr(
-            THREAD_LOCAL, '_pydal_timings_', [])
+        THREAD_LOCAL._pydal_timings_ = getattr(THREAD_LOCAL, "_pydal_timings_", [])
         return THREAD_LOCAL._pydal_timings_
 
     @property
@@ -460,7 +476,7 @@ class TimingHandler(ExecutionHandler):
     def after_execute(self, command):
         dt = time.time() - self.t
         self.timings.append((command, dt))
-        del self.timings[:-self.MAXSTORAGE]
+        del self.timings[: -self.MAXSTORAGE]
 
 
 class DatabaseStoredFile:
@@ -473,43 +489,43 @@ class DatabaseStoredFile:
     @staticmethod
     def try_create_web2py_filesystem(db):
         if db._uri not in DatabaseStoredFile.web2py_filesystems:
-            if db._adapter.dbengine == 'mysql':
+            if db._adapter.dbengine == "mysql":
                 sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content LONGTEXT, PRIMARY KEY(path) ) ENGINE=InnoDB;"
-            elif db._adapter.dbengine in ('postgres', 'sqlite'):
+            elif db._adapter.dbengine in ("postgres", "sqlite"):
                 sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content TEXT, PRIMARY KEY(path));"
             db.executesql(sql)
             DatabaseStoredFile.web2py_filesystems.add(db._uri)
 
     def __init__(self, db, filename, mode):
-        if db._adapter.dbengine not in ('mysql', 'postgres', 'sqlite'):
+        if db._adapter.dbengine not in ("mysql", "postgres", "sqlite"):
             raise RuntimeError(
-                "only MySQL/Postgres/SQLite can store metadata .table files" +
-                " in database for now")
+                "only MySQL/Postgres/SQLite can store metadata .table files"
+                + " in database for now"
+            )
         self.db = db
         self.filename = filename
         self.mode = mode
         DatabaseStoredFile.try_create_web2py_filesystem(db)
         self.p = 0
-        self.data = ''
-        if mode in ('r', 'rw', 'rb', 'a'):
-            query = "SELECT content FROM web2py_filesystem WHERE path='%s'" \
-                % filename
+        self.data = ""
+        if mode in ("r", "rw", "rb", "a"):
+            query = "SELECT content FROM web2py_filesystem WHERE path='%s'" % filename
             rows = self.db.executesql(query)
             if rows:
                 self.data = rows[0][0]
             elif exists(filename):
-                datafile = open(filename, 'r')
+                datafile = open(filename, "r")
                 try:
                     self.data = datafile.read()
                 finally:
                     datafile.close()
-            elif mode in ('r', 'rw'):
+            elif mode in ("r", "rw"):
                 raise RuntimeError("File %s does not exist" % filename)
 
     def read(self, bytes=None):
         if bytes is None:
             bytes = len(self.data)
-        data = self.data[self.p:self.p+bytes]
+        data = self.data[self.p : self.p + bytes]
         self.p += len(data)
         return data
 
@@ -517,11 +533,11 @@ class DatabaseStoredFile:
         return self.read(bytes)
 
     def readline(self):
-        i = self.data.find('\n', self.p)+1
+        i = self.data.find("\n", self.p) + 1
         if i > 0:
-            data, self.p = self.data[self.p:i], i
+            data, self.p = self.data[self.p : i], i
         else:
-            data, self.p = self.data[self.p:], len(self.data)
+            data, self.p = self.data[self.p :], len(self.data)
         return data
 
     def write(self, data):
@@ -530,11 +546,12 @@ class DatabaseStoredFile:
     def close_connection(self):
         if self.db is not None:
             self.db.executesql(
-                "DELETE FROM web2py_filesystem WHERE path='%s'" %
-                self.filename
+                "DELETE FROM web2py_filesystem WHERE path='%s'" % self.filename
             )
-            query = "INSERT INTO web2py_filesystem(path,content) VALUES ('%s','%s')"\
-                % (self.filename, self.data.replace("'", "''"))
+            query = "INSERT INTO web2py_filesystem(path,content) VALUES ('%s','%s')" % (
+                self.filename,
+                self.data.replace("'", "''"),
+            )
             self.db.executesql(query)
             self.db.commit()
             self.db = None
@@ -566,8 +583,10 @@ class DatabaseStoredFile:
             if db.executesql(query):
                 return True
         except Exception as e:
-            if not (DatabaseStoredFile.is_operational_error(db, e) or
-                    DatabaseStoredFile.is_programming_error(db, e)):
+            if not (
+                DatabaseStoredFile.is_operational_error(db, e)
+                or DatabaseStoredFile.is_programming_error(db, e)
+            ):
                 raise
             # no web2py_filesystem found?
             tb = traceback.format_exc()

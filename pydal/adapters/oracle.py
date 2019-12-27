@@ -5,31 +5,31 @@ from ..helpers.classes import Reference
 from .base import SQLAdapter
 from . import adapters, with_connection_or_raise
 
-@adapters.register_for('oracle')
+
+@adapters.register_for("oracle")
 class Oracle(SQLAdapter):
-    dbengine = 'oracle'
-    drivers = ('cx_Oracle',)
+    dbengine = "oracle"
+    drivers = ("cx_Oracle",)
 
     REGEX_CLOB = r"[^']*('[^']*'[^']*)*:(?P<clob>CLOB\('([^']+|'')*'\))"
 
     def _initialize_(self):
         super(Oracle, self)._initialize_()
-        self.ruri = self.uri.split('://', 1)[1]
-        if 'threaded' not in self.driver_args:
-            self.driver_args['threaded'] = True
+        self.ruri = self.uri.split("://", 1)[1]
+        if "threaded" not in self.driver_args:
+            self.driver_args["threaded"] = True
 
     def connector(self):
         return self.driver.connect(self.ruri, **self.driver_args)
 
     def after_connection(self):
+        self.execute("ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS';")
         self.execute(
-            "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS';")
-        self.execute(
-            "ALTER SESSION SET NLS_TIMESTAMP_FORMAT = " +
-            "'YYYY-MM-DD HH24:MI:SS';")
+            "ALTER SESSION SET NLS_TIMESTAMP_FORMAT = " + "'YYYY-MM-DD HH24:MI:SS';"
+        )
 
     def test_connection(self):
-        self.execute('SELECT 1 FROM DUAL;')
+        self.execute("SELECT 1 FROM DUAL;")
 
     @with_connection_or_raise
     def execute(self, *args, **kwargs):
@@ -39,11 +39,10 @@ class Oracle(SQLAdapter):
             m = re.match(self.REGEX_CLOB, command)
             if not m:
                 break
-            command = command[:m.start('clob')] + str(i) + \
-                command[m.end('clob'):]
-            args.append(m.group('clob')[6:-2].replace("''", "'"))
+            command = command[: m.start("clob")] + str(i) + command[m.end("clob") :]
+            args.append(m.group("clob")[6:-2].replace("''", "'"))
             i += 1
-        if command[-1:] == ';':
+        if command[-1:] == ";":
             command = command[:-1]
         handlers = self._build_handlers_for_execution()
         for handler in handlers:
@@ -55,7 +54,7 @@ class Oracle(SQLAdapter):
 
     def lastrowid(self, table):
         sequence_name = table._sequence_name
-        self.execute('SELECT %s.currval FROM dual;' % sequence_name)
+        self.execute("SELECT %s.currval FROM dual;" % sequence_name)
         return long(self.cursor.fetchone()[0])
 
     def create_sequence_and_triggers(self, query, table, **args):
@@ -65,12 +64,17 @@ class Oracle(SQLAdapter):
         trigger_name = table._trigger_name
         self.execute(query)
         self.execute(
-            'CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1 NOMAXVALUE MINVALUE -1;'
-            % sequence_name)
-        self.execute(_trigger_sql % dict(
-            trigger_name=trigger_name, tablename=tablename,
-            sequence_name=sequence_name,
-            id=id_name)
+            "CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1 NOMAXVALUE MINVALUE -1;"
+            % sequence_name
+        )
+        self.execute(
+            _trigger_sql
+            % dict(
+                trigger_name=trigger_name,
+                tablename=tablename,
+                sequence_name=sequence_name,
+                id=id_name,
+            )
         )
 
     def _select_aux_execute(self, sql):
@@ -79,38 +83,45 @@ class Oracle(SQLAdapter):
 
     def fetchall(self):
         from ..drivers import cx_Oracle
-        if any(x[1] == cx_Oracle.LOB or x[1] == cx_Oracle.CLOB
-               for x in self.cursor.description):
-            return [tuple(
-                [(c.read() if type(c) == cx_Oracle.LOB else c) for c in r]
-            ) for r in self.cursor]
+
+        if any(
+            x[1] == cx_Oracle.LOB or x[1] == cx_Oracle.CLOB
+            for x in self.cursor.description
+        ):
+            return [
+                tuple([(c.read() if type(c) == cx_Oracle.LOB else c) for c in r])
+                for r in self.cursor
+            ]
         else:
             return self.cursor.fetchall()
 
     def sqlsafe_table(self, tablename, original_tablename=None):
         if original_tablename is not None:
-            return (
-                self.dialect.quote_template + ' ' +
-                self.dialect.quote_template
-            ) % (original_tablename, tablename)
+            return (self.dialect.quote_template + " " + self.dialect.quote_template) % (
+                original_tablename,
+                tablename,
+            )
         return self.dialect.quote(tablename)
 
     def _build_value_for_insert(self, field, value, r_values):
-        if field.type == 'text':
-            r_values[':' + field._rname] = self.expand(value, field.type)
-            return ':' + field._rname
+        if field.type == "text":
+            r_values[":" + field._rname] = self.expand(value, field.type)
+            return ":" + field._rname
         return self.expand(value, field.type)
 
     def _insert(self, table, fields):
         if fields:
             r_values = {}
-            return self.dialect.insert(
-                table._rname,
-                ','.join(el[0]._rname for el in fields),
-                ','.join(
-                    self._build_value_for_insert(f, v, r_values)
-                    for f, v in fields)
-                ), r_values
+            return (
+                self.dialect.insert(
+                    table._rname,
+                    ",".join(el[0]._rname for el in fields),
+                    ",".join(
+                        self._build_value_for_insert(f, v, r_values) for f, v in fields
+                    ),
+                ),
+                r_values,
+            )
         return self.dialect.insert_empty(table._rname), None
 
     def insert(self, table, fields):
@@ -122,23 +133,24 @@ class Oracle(SQLAdapter):
                 self.execute(query, *values)
         except:
             e = sys.exc_info()[1]
-            if hasattr(table, '_on_insert_error'):
+            if hasattr(table, "_on_insert_error"):
                 return table._on_insert_error(table, fields, e)
             raise e
-        if hasattr(table, '_primarykey'):
-            pkdict = dict([
-                (k[0].name, k[1]) for k in fields
-                if k[0].name in table._primarykey])
+        if hasattr(table, "_primarykey"):
+            pkdict = dict(
+                [(k[0].name, k[1]) for k in fields if k[0].name in table._primarykey]
+            )
             if pkdict:
                 return pkdict
         id = self.lastrowid(table)
-        if hasattr(table, '_primarykey') and len(table._primarykey) == 1:
+        if hasattr(table, "_primarykey") and len(table._primarykey) == 1:
             id = {table._primarykey[0]: id}
         if not isinstance(id, integer_types):
             return id
         rid = Reference(id)
         (rid._table, rid._record) = (table, None)
         return rid
+
 
 _trigger_sql = """
 CREATE OR REPLACE TRIGGER %(trigger_name)s BEFORE INSERT ON %(tablename)s FOR EACH ROW

@@ -35,6 +35,7 @@ class SimpleCache(object):
         self.storage[key] = (now, self._encode(value))
         return value
 
+
 class PickleCache(SimpleCache):
     def _encode(self, value):
         return pickle.dumps(value, pickle.HIGHEST_PROTOCOL)
@@ -42,13 +43,14 @@ class PickleCache(SimpleCache):
     def _decode(self, value):
         return pickle.loads(value)
 
+
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestCache(DALtest):
     def testRun(self):
         cache = SimpleCache()
         db = self.connect()
-        db.define_table('tt', Field('aa'))
-        db.tt.insert(aa='1')
+        db.define_table("tt", Field("aa"))
+        db.tt.insert(aa="1")
         r0 = db().select(db.tt.ALL)
         r1 = db().select(db.tt.ALL, cache=(cache, 1000))
         self.assertEqual(len(r0), len(r1))
@@ -63,9 +65,13 @@ class TestCache(DALtest):
     def testPickling(self):
         db = self.connect()
         cache = (PickleCache(), 1000)
-        db.define_table('tt', Field('aa'), Field('bb', type='integer'),
-            Field('cc', type='decimal(5,2)'))
-        db.tt.insert(aa='1', bb=2, cc=3)
+        db.define_table(
+            "tt",
+            Field("aa"),
+            Field("bb", type="integer"),
+            Field("cc", type="decimal(5,2)"),
+        )
+        db.tt.insert(aa="1", bb=2, cc=3)
         r0 = db(db.tt).select(db.tt.ALL)
         csv0 = str(r0)
         r1 = db(db.tt).select(db.tt.ALL, cache=cache)

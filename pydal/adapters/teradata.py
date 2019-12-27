@@ -2,14 +2,14 @@ from .base import SQLAdapter
 from . import adapters
 
 
-@adapters.register_for('teradata')
+@adapters.register_for("teradata")
 class Teradata(SQLAdapter):
-    dbengine = ''
-    drivers = ('pyodbc',)
+    dbengine = ""
+    drivers = ("pyodbc",)
 
     def _initialize_(self):
         super(Teradata, self)._initialize_()
-        self.ruri = self.uri.split('://', 1)[1]
+        self.ruri = self.uri.split("://", 1)[1]
 
     def connector(self):
         return self.driver.connect(self.ruri, **self.driver_args)

@@ -47,45 +47,35 @@ None
 """
 
 MESSAGES = (
-'MIME-Version: 1.0\r\nReceived: by 10.140.91.199 with HTTP; Mon, 27 Jan 2014 13:52:30 -0800 (PST)\r\nDate: Mon, 27 Jan 2014 19:52:30 -0200\r\nDelivered-To: nurse@example.com\r\nMessage-ID: <10101010101010010000010101010001010101001010010000001@mail.example.com>\r\nSubject: spam1\r\nFrom: Mr. Gumby <gumby@example.com>\r\nTo: The nurse <nurse@example.com>\r\nContent-Type: text/plain; charset=ISO-8859-1\r\n\r\nNurse!\r\n\r\n\r\n',
-'MIME-Version: 1.0\r\nReceived: by 10.140.91.199 with HTTP; Mon, 27 Jan 2014 13:52:47 -0800 (PST)\r\nDate: Mon, 27 Jan 2014 19:52:47 -0200\r\nDelivered-To: nurse@example.com\r\nMessage-ID: <101010101010100100000101010100010101010010100100000010@mail.example.com>\r\nSubject: spam2\r\nFrom: Mr. Gumby <gumby@example.com>\r\nTo: The nurse <nurse@example.com>\r\nContent-Type: text/plain; charset=ISO-8859-1\r\n\r\nNurse, nurse!',
-'MIME-Version: 1.0\r\nReceived: by 10.140.91.199 with HTTP; Mon, 27 Jan 2014 13:54:54 -0800 (PST)\r\nDate: Mon, 27 Jan 2014 19:54:54 -0200\r\nDelivered-To: nurse@example.com\r\nMessage-ID: <1010101010101001000001010101000101010100101001000000101@mail.example.com>\r\nSubject: spamalot1\r\nFrom: Mr. Gumby <gumby@example.com>\r\nTo: The nurse <nurse@example.com>\r\nContent-Type: text/plain; charset=ISO-8859-1\r\n\r\nNurse!\r\n\r\n\r\n',
-'MIME-Version: 1.0\r\n\r\nReceived: by 10.140.91.199 with HTTP; Mon, 27 Jan 2014 13:54:54 -0800 (PST)\r\nDate: Mon, 27 Jan 2014 19:54:54 -0200\r\nDelivered-To: nurse@example.com\r\nMessage-ID: <101010101010100100000101010100010101010010100100000010101@mail.example.com>\r\nSubject: spamalot2\r\nFrom: Mr. Gumby <gumby@example.com>\r\nTo: The nurse <nurse@example.com>\r\nContent-Type: text/plain; charset=ISO-8859-1\r\n\r\nNurse! ... Nurse! ... Nurse!\r\n\r\n\r\n')
+    "MIME-Version: 1.0\r\nReceived: by 10.140.91.199 with HTTP; Mon, 27 Jan 2014 13:52:30 -0800 (PST)\r\nDate: Mon, 27 Jan 2014 19:52:30 -0200\r\nDelivered-To: nurse@example.com\r\nMessage-ID: <10101010101010010000010101010001010101001010010000001@mail.example.com>\r\nSubject: spam1\r\nFrom: Mr. Gumby <gumby@example.com>\r\nTo: The nurse <nurse@example.com>\r\nContent-Type: text/plain; charset=ISO-8859-1\r\n\r\nNurse!\r\n\r\n\r\n",
+    "MIME-Version: 1.0\r\nReceived: by 10.140.91.199 with HTTP; Mon, 27 Jan 2014 13:52:47 -0800 (PST)\r\nDate: Mon, 27 Jan 2014 19:52:47 -0200\r\nDelivered-To: nurse@example.com\r\nMessage-ID: <101010101010100100000101010100010101010010100100000010@mail.example.com>\r\nSubject: spam2\r\nFrom: Mr. Gumby <gumby@example.com>\r\nTo: The nurse <nurse@example.com>\r\nContent-Type: text/plain; charset=ISO-8859-1\r\n\r\nNurse, nurse!",
+    "MIME-Version: 1.0\r\nReceived: by 10.140.91.199 with HTTP; Mon, 27 Jan 2014 13:54:54 -0800 (PST)\r\nDate: Mon, 27 Jan 2014 19:54:54 -0200\r\nDelivered-To: nurse@example.com\r\nMessage-ID: <1010101010101001000001010101000101010100101001000000101@mail.example.com>\r\nSubject: spamalot1\r\nFrom: Mr. Gumby <gumby@example.com>\r\nTo: The nurse <nurse@example.com>\r\nContent-Type: text/plain; charset=ISO-8859-1\r\n\r\nNurse!\r\n\r\n\r\n",
+    "MIME-Version: 1.0\r\n\r\nReceived: by 10.140.91.199 with HTTP; Mon, 27 Jan 2014 13:54:54 -0800 (PST)\r\nDate: Mon, 27 Jan 2014 19:54:54 -0200\r\nDelivered-To: nurse@example.com\r\nMessage-ID: <101010101010100100000101010100010101010010100100000010101@mail.example.com>\r\nSubject: spamalot2\r\nFrom: Mr. Gumby <gumby@example.com>\r\nTo: The nurse <nurse@example.com>\r\nContent-Type: text/plain; charset=ISO-8859-1\r\n\r\nNurse! ... Nurse! ... Nurse!\r\n\r\n\r\n",
+)
 
 SPAM = {
     "INBOX": [
-        {"uid": "483209",
-         "headers": MESSAGES[0],
-         "complete": MESSAGES[0],
-         "flags": ""},
-        {"uid": "483211",
-         "headers": MESSAGES[1],
-         "complete": MESSAGES[1],
-         "flags": ""},
-        {"uid": "483225",
-         "headers": MESSAGES[2],
-         "complete": MESSAGES[2],
-         "flags": ""}],
-    "Draft":[
-        {"uid": "483432",
-         "headers": MESSAGES[3],
-         "complete": MESSAGES[3],
-         "flags": ""},]
+        {"uid": "483209", "headers": MESSAGES[0], "complete": MESSAGES[0], "flags": ""},
+        {"uid": "483211", "headers": MESSAGES[1], "complete": MESSAGES[1], "flags": ""},
+        {"uid": "483225", "headers": MESSAGES[2], "complete": MESSAGES[2], "flags": ""},
+    ],
+    "Draft": [
+        {"uid": "483432", "headers": MESSAGES[3], "complete": MESSAGES[3], "flags": ""},
+    ],
 }
 
 RESULTS = {
     # <query string>: [<str uid> | <long id>, ...]
-    "INBOX": {
-        "(ALL)": (1, 2, 3),
-        "(1:3)": (1, 2, 3)},
-    "Draft": {
-        "(1:1)": (1,)},
+    "INBOX": {"(ALL)": (1, 2, 3), "(1:3)": (1, 2, 3)},
+    "Draft": {"(1:1)": (1,)},
 }
+
 
 class Connection(object):
     """Dummy connection object for the imap client.
     By default, uses the module SPAM and RESULT
     sets (use Connection.setup for custom values)"""
+
     def login(self, user, password):
         pass
 
@@ -95,7 +85,7 @@ class Connection(object):
         self.setup()
 
     def list(self):
-        return ('OK', ['(\\HasNoChildren) "/" "%s"' % key for key in self.spam])
+        return ("OK", ['(\\HasNoChildren) "/" "%s"' % key for key in self.spam])
 
     def select(self, tablename, readonly=False):
         self._readonly = readonly
@@ -104,7 +94,7 @@ class Connection(object):
         result[0] = 'OK'
         """
         self._mailbox = tablename
-        return ('OK', (len(SPAM[self._mailbox]), None))
+        return ("OK", (len(SPAM[self._mailbox]), None))
 
     def uid(self, command, uid, arg):
         """ args:
@@ -123,7 +113,10 @@ class Connection(object):
             return self._fetch(uid, arg)
 
     def _search(self, query):
-        return ("OK", (" ".join([str(item["uid"]) for item in self._get_messages(query)]), None))
+        return (
+            "OK",
+            (" ".join([str(item["uid"]) for item in self._get_messages(query)]), None),
+        )
 
     def _fetch(self, value, arg):
         try:
@@ -144,13 +137,19 @@ class Connection(object):
 
     def _get_messages(self, query):
         if query.strip().isdigit():
-            return [self.spam[self._mailbox][int(query.strip()) - 1],]
+            return [
+                self.spam[self._mailbox][int(query.strip()) - 1],
+            ]
         elif query[1:-1].strip().isdigit():
-            return [self.spam[self._mailbox][int(query[1:-1].strip()) -1],]
+            return [
+                self.spam[self._mailbox][int(query[1:-1].strip()) - 1],
+            ]
         elif query[1:-1].replace("UID", "").strip().isdigit():
             for item in self.spam[self._mailbox]:
                 if item["uid"] == query[1:-1].replace("UID", "").strip():
-                    return [item,]
+                    return [
+                        item,
+                    ]
         messages = []
         try:
             for m in self.results[self._mailbox][query]:
@@ -186,7 +185,6 @@ class Connection(object):
             for key in RESULTS:
                 self.results[key] = RESULTS[key].copy()
 
-
     def search(self, first, query):
         """ args:
              first: None
@@ -206,7 +204,7 @@ class Connection(object):
         """
         last = self.spam[mailbox][-1]
         try:
-            uid = int(last["uid"]) +1
+            uid = int(last["uid"]) + 1
         except ValueError:
             alluids = []
             for _mailbox in self.spam.keys():
@@ -220,10 +218,14 @@ class Connection(object):
             else:
                 uid = 1
         flags = "FLAGS " + flags
-        item = {"uid": str(uid), "headers": message, "complete": message, "flags": flags}
+        item = {
+            "uid": str(uid),
+            "headers": message,
+            "complete": message,
+            "flags": flags,
+        }
         self.spam[mailbox].append(item)
         return ("OK", "spam spam %s spam" % uid)
-
 
     def store(self, *args):
         """
@@ -236,7 +238,9 @@ class Connection(object):
         if args[1].strip().startswith("+"):
             message["flags"] = "FLAGS (%s)" % " ".join(set(flags + old_flags))
         elif args[1].strip().startswith("-"):
-            message["flags"] = "FLAGS (%s)" % " ".join([flag for flag in old_flags if not flag in flags])
+            message["flags"] = "FLAGS (%s)" % " ".join(
+                [flag for flag in old_flags if not flag in flags]
+            )
 
     def expunge(self):
         """implements removal of deleted flag messages"""
@@ -247,8 +251,10 @@ class Connection(object):
 
 class IMAP4(object):
     """>>> connection = IMAP4() # creates the dummy imap4 client object"""
+
     def __new__(self, *args, **kwargs):
         # args: (server, port)
         return Connection()
+
 
 IMAP4_SSL = IMAP4

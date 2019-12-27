@@ -66,23 +66,26 @@ logger = logging.getLogger("pydal")
 os_locking = None
 try:
     import google.appengine
-    os_locking = 'gae'
+
+    os_locking = "gae"
 except:
     try:
         import fcntl
-        os_locking = 'posix'
+
+        os_locking = "posix"
     except:
         try:
             import msvcrt
             import ctypes
             from ctypes.wintypes import BOOL, DWORD, HANDLE
             from ctypes import windll
-            os_locking = 'windows'
+
+            os_locking = "windows"
         except:
             pass
 
-if os_locking == 'windows':
-    LOCK_SH = 0    # the default
+if os_locking == "windows":
+    LOCK_SH = 0  # the default
     LOCK_NB = 0x1  # LOCKFILE_FAIL_IMMEDIATELY
     LOCK_EX = 0x2  # LOCKFILE_EXCLUSIVE_LOCK
 
@@ -100,23 +103,20 @@ if os_locking == 'windows':
 
     # --- Union inside Structure by stackoverflow:3480240 ---
     class _OFFSET(ctypes.Structure):
-        _fields_ = [
-            ('Offset', DWORD),
-            ('OffsetHigh', DWORD)]
+        _fields_ = [("Offset", DWORD), ("OffsetHigh", DWORD)]
 
     class _OFFSET_UNION(ctypes.Union):
-        _anonymous_ = ['_offset']
-        _fields_ = [
-            ('_offset', _OFFSET),
-            ('Pointer', PVOID)]
+        _anonymous_ = ["_offset"]
+        _fields_ = [("_offset", _OFFSET), ("Pointer", PVOID)]
 
     class OVERLAPPED(ctypes.Structure):
-        _anonymous_ = ['_offset_union']
+        _anonymous_ = ["_offset_union"]
         _fields_ = [
-            ('Internal', ULONG_PTR),
-            ('InternalHigh', ULONG_PTR),
-            ('_offset_union', _OFFSET_UNION),
-            ('hEvent', HANDLE)]
+            ("Internal", ULONG_PTR),
+            ("InternalHigh", ULONG_PTR),
+            ("_offset_union", _OFFSET_UNION),
+            ("hEvent", HANDLE),
+        ]
 
     LPOVERLAPPED = ctypes.POINTER(OVERLAPPED)
 
@@ -138,7 +138,8 @@ if os_locking == 'windows':
         overlapped = OVERLAPPED()
         UnlockFileEx(hfile, 0, 0, 0xFFFF0000, ctypes.byref(overlapped))
 
-elif os_locking == 'posix':
+
+elif os_locking == "posix":
     LOCK_EX = fcntl.LOCK_EX
     LOCK_SH = fcntl.LOCK_SH
     LOCK_NB = fcntl.LOCK_NB
@@ -151,8 +152,8 @@ elif os_locking == 'posix':
 
 
 else:
-    if os_locking != 'gae':
-        logger.debug('no file locking, this will cause problems')
+    if os_locking != "gae":
+        logger.debug("no file locking, this will cause problems")
 
     LOCK_EX = None
     LOCK_SH = None
@@ -166,25 +167,25 @@ else:
 
 
 def open_file(filename, mode):
-    if PY2 or 'b' in mode:
+    if PY2 or "b" in mode:
         f = open(filename, mode)
     else:
-        f = open(filename, mode, encoding='utf8')
+        f = open(filename, mode, encoding="utf8")
     return f
 
 
 class LockedFile(object):
-    def __init__(self, filename, mode='rb'):
+    def __init__(self, filename, mode="rb"):
         self.filename = filename
         self.mode = mode
         self.file = None
-        if 'r' in mode:
+        if "r" in mode:
             self.file = open_file(filename, mode)
             lock(self.file, LOCK_SH)
-        elif 'w' in mode or 'a' in mode:
-            self.file = open_file(filename, mode.replace('w', 'a'))
+        elif "w" in mode or "a" in mode:
+            self.file = open_file(filename, mode.replace("w", "a"))
             lock(self.file, LOCK_EX)
-            if 'a' not in mode:
+            if "a" not in mode:
                 self.file.seek(0)
                 self.file.truncate(0)
         else:
@@ -218,13 +219,13 @@ class LockedFile(object):
 
 
 def read_locked(filename):
-    fp = LockedFile(filename, 'rb')
+    fp = LockedFile(filename, "rb")
     data = fp.read()
     fp.close()
     return data
 
 
 def write_locked(filename, data):
-    fp = LockedFile(filename, 'wb')
+    fp = LockedFile(filename, "wb")
     data = fp.write(data)
     fp.close()

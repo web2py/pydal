@@ -1,6 +1,6 @@
 #!/bin/env python
 # -*- coding: utf-8 -*-
-#pylint: disable=line-too-long,invalid-name
+# pylint: disable=line-too-long,invalid-name
 
 """
 | This file is part of the web2py Web Framework
@@ -28,62 +28,76 @@ import unicodedata
 import encodings.idna
 from functools import reduce
 
-from ._compat import StringIO, integer_types, basestring, unicodeT, urllib_unquote, \
-    unichr, to_bytes, PY2, to_unicode, to_native, string_types, urlparse, ipaddress
+from ._compat import (
+    StringIO,
+    integer_types,
+    basestring,
+    unicodeT,
+    urllib_unquote,
+    unichr,
+    to_bytes,
+    PY2,
+    to_unicode,
+    to_native,
+    string_types,
+    urlparse,
+    ipaddress,
+)
 from .objects import Field, FieldVirtual, FieldMethod, Table
 
 
 JSONErrors = (NameError, TypeError, ValueError, AttributeError, KeyError)
 
 __all__ = [
-    'ANY_OF',
-    'CLEANUP',
-    'CRYPT',
-    'IS_ALPHANUMERIC',
-    'IS_DATE_IN_RANGE',
-    'IS_DATE',
-    'IS_DATETIME_IN_RANGE',
-    'IS_DATETIME',
-    'IS_DECIMAL_IN_RANGE',
-    'IS_EMAIL',
-    'IS_LIST_OF_EMAILS',
-    'IS_EMPTY_OR',
-    'IS_EXPR',
-    'IS_FILE',
-    'IS_FLOAT_IN_RANGE',
-    'IS_IMAGE',
-    'IS_IN_DB',
-    'IS_IN_SET',
-    'IS_INT_IN_RANGE',
-    'IS_IPV4',
-    'IS_IPV6',
-    'IS_IPADDRESS',
-    'IS_LENGTH',
-    'IS_LIST_OF',
-    'IS_LOWER',
-    'IS_MATCH',
-    'IS_EQUAL_TO',
-    'IS_NOT_EMPTY',
-    'IS_NOT_IN_DB',
-    'IS_NULL_OR',
-    'IS_SLUG',
-    'IS_STRONG',
-    'IS_TIME',
-    'IS_UPLOAD_FILENAME',
-    'IS_UPPER',
-    'IS_URL',
-    'IS_JSON',
+    "ANY_OF",
+    "CLEANUP",
+    "CRYPT",
+    "IS_ALPHANUMERIC",
+    "IS_DATE_IN_RANGE",
+    "IS_DATE",
+    "IS_DATETIME_IN_RANGE",
+    "IS_DATETIME",
+    "IS_DECIMAL_IN_RANGE",
+    "IS_EMAIL",
+    "IS_LIST_OF_EMAILS",
+    "IS_EMPTY_OR",
+    "IS_EXPR",
+    "IS_FILE",
+    "IS_FLOAT_IN_RANGE",
+    "IS_IMAGE",
+    "IS_IN_DB",
+    "IS_IN_SET",
+    "IS_INT_IN_RANGE",
+    "IS_IPV4",
+    "IS_IPV6",
+    "IS_IPADDRESS",
+    "IS_LENGTH",
+    "IS_LIST_OF",
+    "IS_LOWER",
+    "IS_MATCH",
+    "IS_EQUAL_TO",
+    "IS_NOT_EMPTY",
+    "IS_NOT_IN_DB",
+    "IS_NULL_OR",
+    "IS_SLUG",
+    "IS_STRONG",
+    "IS_TIME",
+    "IS_UPLOAD_FILENAME",
+    "IS_UPPER",
+    "IS_URL",
+    "IS_JSON",
 ]
+
 
 def options_sorter(x, y):
     return (str(x[1]).upper() > str(y[1]).upper() and 1) or -1
+
 
 def translate(text):
     return Validator.translator(text)
 
 
 class ValidationError(Exception):
-
     def __init__(self, message):
         Exception.__init__(self, message)
         self.message = message
@@ -148,7 +162,7 @@ class Validator(object):
 
 
 def validator_caller(func, value, record_id=None):
-    validate = getattr(func, 'validate', None)
+    validate = getattr(func, "validate", None)
     if validate and validate is not Validator.validate:
         return validate(value, record_id)
     value, error = func(value)
@@ -192,19 +206,25 @@ class IS_MATCH(Validator):
 
     """
 
-    def __init__(self, expression, error_message='Invalid expression',
-                 strict=False, search=False, extract=False,
-                 is_unicode=False):
+    def __init__(
+        self,
+        expression,
+        error_message="Invalid expression",
+        strict=False,
+        search=False,
+        extract=False,
+        is_unicode=False,
+    ):
 
         if strict or not search:
-            if not expression.startswith('^'):
-                expression = '^(%s)' % expression
+            if not expression.startswith("^"):
+                expression = "^(%s)" % expression
         if strict:
-            if not expression.endswith('$'):
-                expression = '(%s)$' % expression
+            if not expression.endswith("$"):
+                expression = "(%s)$" % expression
         if is_unicode:
             if not isinstance(expression, unicodeT):
-                expression = expression.decode('utf8')
+                expression = expression.decode("utf8")
             self.regex = re.compile(expression, re.UNICODE)
         else:
             self.regex = re.compile(expression)
@@ -218,14 +238,14 @@ class IS_MATCH(Validator):
 
         if self.is_unicode or not PY2:
             if not isinstance(value, unicodeT):
-                match = self.regex.search(str(value).decode('utf8'))
+                match = self.regex.search(str(value).decode("utf8"))
             else:
                 match = self.regex.search(value)
         else:
             if not isinstance(value, unicodeT):
                 match = self.regex.search(str(value))
             else:
-                match = self.regex.search(value.encode('utf8'))
+                match = self.regex.search(value.encode("utf8"))
         if match is not None:
             return self.extract and match.group() or value
         raise ValidationError(self.translator(self.error_message))
@@ -250,7 +270,7 @@ class IS_EQUAL_TO(Validator):
 
     """
 
-    def __init__(self, expression, error_message='No match'):
+    def __init__(self, expression, error_message="No match"):
         self.expression = expression
         self.error_message = error_message
 
@@ -278,7 +298,9 @@ class IS_EXPR(Validator):
 
     """
 
-    def __init__(self, expression, error_message='Invalid expression', environment=None):
+    def __init__(
+        self, expression, error_message="Invalid expression", environment=None
+    ):
         self.expression = expression
         self.error_message = error_message
         self.environment = environment or {}
@@ -291,8 +313,8 @@ class IS_EXPR(Validator):
             return value
         # for backward compatibility
         self.environment.update(value=value)
-        exec('__ret__=' + self.expression, self.environment)
-        if self.environment['__ret__']:
+        exec("__ret__=" + self.expression, self.environment)
+        if self.environment["__ret__"]:
             return value
         raise ValidationError(self.translator(self.error_message))
 
@@ -331,8 +353,12 @@ class IS_LENGTH(Validator):
             ('1234567890', 'enter from 20 to 50 characters')
     """
 
-    def __init__(self, maxsize=255, minsize=0,
-                 error_message='Enter from %(min)g to %(max)g characters'):
+    def __init__(
+        self,
+        maxsize=255,
+        minsize=0,
+        error_message="Enter from %(min)g to %(max)g characters",
+    ):
         self.maxsize = maxsize
         self.minsize = minsize
         self.error_message = error_message
@@ -347,7 +373,7 @@ class IS_LENGTH(Validator):
                 length = len(value)
         elif isinstance(value, unicodeT):
             length = len(value)
-            value = value.encode('utf8')
+            value = value.encode("utf8")
         elif isinstance(value, (bytes, bytearray, tuple, list)):
             length = len(value)
         elif isinstance(value, cgi.FieldStorage):
@@ -355,7 +381,7 @@ class IS_LENGTH(Validator):
                 value.file.seek(0, os.SEEK_END)
                 length = value.file.tell()
                 value.file.seek(0, os.SEEK_SET)
-            elif hasattr(value, 'value'):
+            elif hasattr(value, "value"):
                 val = value.value
                 if val:
                     length = len(val)
@@ -366,7 +392,10 @@ class IS_LENGTH(Validator):
             length = len(str(value))
         if self.minsize <= length <= self.maxsize:
             return value
-        raise ValidationError(self.translator(self.error_message) % dict(min=self.minsize, max=self.maxsize))
+        raise ValidationError(
+            self.translator(self.error_message)
+            % dict(min=self.minsize, max=self.maxsize)
+        )
 
 
 class IS_JSON(Validator):
@@ -384,7 +413,7 @@ class IS_JSON(Validator):
             ('spam1234', 'invalid json')
     """
 
-    def __init__(self, error_message='Invalid json', native_json=False):
+    def __init__(self, error_message="Invalid json", native_json=False):
         self.native_json = native_json
         self.error_message = error_message
 
@@ -392,7 +421,7 @@ class IS_JSON(Validator):
         try:
             if self.native_json:
                 json.loads(value)  # raises error in case of malformed json
-                return value       # the serialized value is not passed
+                return value  # the serialized value is not passed
             else:
                 return json.loads(value)
         except JSONErrors:
@@ -437,20 +466,26 @@ class IS_IN_SET(Validator):
 
     """
 
-    def __init__(self,
-                 theset,
-                 labels=None,
-                 error_message='Value not allowed',
-                 multiple=False,
-                 zero='',
-                 sort=False):
+    def __init__(
+        self,
+        theset,
+        labels=None,
+        error_message="Value not allowed",
+        multiple=False,
+        zero="",
+        sort=False,
+    ):
 
         self.multiple = multiple
         if isinstance(theset, dict):
             self.theset = [str(item) for item in theset]
             self.labels = list(theset.values())
-        elif theset and isinstance(theset, (tuple, list)) \
-                and isinstance(theset[0], (tuple, list)) and len(theset[0]) == 2:
+        elif (
+            theset
+            and isinstance(theset, (tuple, list))
+            and isinstance(theset[0], (tuple, list))
+            and len(theset[0]) == 2
+        ):
             self.theset = [str(item) for item, label in theset]
             self.labels = [str(label) for item, label in theset]
         else:
@@ -468,7 +503,7 @@ class IS_IN_SET(Validator):
         if self.sort:
             items.sort(key=lambda o: str(o[1]).upper())
         if zero and self.zero is not None and not self.multiple:
-            items.insert(0, ('', self.zero))
+            items.insert(0, ("", self.zero))
         return items
 
     def validate(self, value, record_id=None):
@@ -487,8 +522,10 @@ class IS_IN_SET(Validator):
         if failures and self.theset:
             raise ValidationError(self.translator(self.error_message))
         if self.multiple:
-            if isinstance(self.multiple, (tuple, list)) and \
-                    not self.multiple[0] <= len(values) < self.multiple[1]:
+            if (
+                isinstance(self.multiple, (tuple, list))
+                and not self.multiple[0] <= len(values) < self.multiple[1]
+            ):
                 raise ValidationError(self.translator(self.error_message))
             return values
         return value
@@ -505,27 +542,29 @@ class IS_IN_DB(Validator):
     used for reference fields, rendered as a dropbox
     """
 
-    REGEX_TABLE_DOT_FIELD = r'^(\w+)\.(\w+)$'
-    REGEX_INTERP_CONV_SPECIFIER = r'%\((\w+)\)\d*(?:\.\d+)?[a-zA-Z]'
+    REGEX_TABLE_DOT_FIELD = r"^(\w+)\.(\w+)$"
+    REGEX_INTERP_CONV_SPECIFIER = r"%\((\w+)\)\d*(?:\.\d+)?[a-zA-Z]"
 
-    def __init__(self,
-                 dbset,
-                 field,
-                 label=None,
-                 error_message='Value not in database',
-                 orderby=None,
-                 groupby=None,
-                 distinct=None,
-                 cache=None,
-                 multiple=False,
-                 zero='',
-                 sort=False,
-                 _and=None,
-                 left=None,
-                 delimiter=None,
-                 auto_add=False):
+    def __init__(
+        self,
+        dbset,
+        field,
+        label=None,
+        error_message="Value not in database",
+        orderby=None,
+        groupby=None,
+        distinct=None,
+        cache=None,
+        multiple=False,
+        zero="",
+        sort=False,
+        _and=None,
+        left=None,
+        delimiter=None,
+        auto_add=False,
+    ):
 
-        if hasattr(dbset, 'define_table'):
+        if hasattr(dbset, "define_table"):
             self.dbset = dbset()
         else:
             self.dbset = dbset
@@ -533,25 +572,25 @@ class IS_IN_DB(Validator):
         if isinstance(field, Table):
             field = field._id
         elif isinstance(field, str):
-            items = field.split('.')
+            items = field.split(".")
             if len(items) == 1:
-                field = items[0] + '.id'
+                field = items[0] + ".id"
 
-        (ktable, kfield) = str(field).split('.')
+        (ktable, kfield) = str(field).split(".")
         if not label:
-            label = '%%(%s)s' % kfield
+            label = "%%(%s)s" % kfield
         if isinstance(label, str):
-            m =  re.match(self.REGEX_TABLE_DOT_FIELD, label)
+            m = re.match(self.REGEX_TABLE_DOT_FIELD, label)
             if m:
-                label = '%%(%s)s' % m.group(2)
+                label = "%%(%s)s" % m.group(2)
             fieldnames = re.findall(self.REGEX_INTERP_CONV_SPECIFIER, label)
             if kfield not in fieldnames:
                 fieldnames.append(kfield)  # kfield must be last
         elif isinstance(label, Field):
             fieldnames = [label.name, kfield]  # kfield must be last
-            label = '%%(%s)s' % label.name
+            label = "%%(%s)s" % label.name
         elif callable(label):
-            fieldnames = '*'
+            fieldnames = "*"
         else:
             raise NotImplementedError
 
@@ -579,25 +618,30 @@ class IS_IN_DB(Validator):
 
     def build_set(self):
         table = self.dbset.db[self.ktable]
-        if self.fieldnames == '*':
+        if self.fieldnames == "*":
             fields = [f for f in table]
         else:
             fields = [table[k] for k in self.fieldnames]
         ignore = (FieldVirtual, FieldMethod)
         fields = [f for f in fields if not isinstance(f, ignore)]
-        if self.dbset.db._dbname != 'gae':
+        if self.dbset.db._dbname != "gae":
             orderby = self.orderby or reduce(lambda a, b: a | b, fields)
             groupby = self.groupby
             distinct = self.distinct
             left = self.left
-            dd = dict(orderby=orderby, groupby=groupby,
-                      distinct=distinct, cache=self.cache,
-                      cacheable=True, left=left)
+            dd = dict(
+                orderby=orderby,
+                groupby=groupby,
+                distinct=distinct,
+                cache=self.cache,
+                cacheable=True,
+                left=left,
+            )
             records = self.dbset(table).select(*fields, **dd)
         else:
-            orderby = self.orderby or \
-                reduce(lambda a, b: a | b, (
-                    f for f in fields if not f.name == 'id'))
+            orderby = self.orderby or reduce(
+                lambda a, b: a | b, (f for f in fields if not f.name == "id")
+            )
             dd = dict(orderby=orderby, cache=self.cache, cacheable=True)
             records = self.dbset(table).select(table.ALL, **dd)
         self.theset = [str(r[self.kfield]) for r in records]
@@ -612,7 +656,7 @@ class IS_IN_DB(Validator):
         if self.sort:
             items.sort(key=lambda o: str(o[1]).upper())
         if zero and self.zero is not None and not self.multiple:
-            items.insert(0, ('', self.zero))
+            items.insert(0, ("", self.zero))
         return items
 
     def maybe_add(self, table, fieldname, value):
@@ -639,37 +683,44 @@ class IS_IN_DB(Validator):
             else:
                 values = []
 
-            if field.type in ('id', 'integer'):
+            if field.type in ("id", "integer"):
                 new_values = []
                 for value in values:
                     if not (isinstance(value, integer_types) or value.isdigit()):
                         if self.auto_add:
-                            value = str(self.maybe_add(table, self.fieldnames[0], value))
+                            value = str(
+                                self.maybe_add(table, self.fieldnames[0], value)
+                            )
                         else:
                             raise ValidationError(self.translator(self.error_message))
                     new_values.append(value)
                 values = new_values
 
-            if isinstance(self.multiple, (tuple, list)) and \
-                    not self.multiple[0] <= len(values) < self.multiple[1]:
+            if (
+                isinstance(self.multiple, (tuple, list))
+                and not self.multiple[0] <= len(values) < self.multiple[1]
+            ):
                 raise ValidationError(self.translator(self.error_message))
             if self.theset:
                 if not [v for v in values if v not in self.theset]:
                     return values
             else:
+
                 def count(values, s=self.dbset, f=field):
                     return s(f.belongs(list(map(int, values)))).count()
 
                 if self.dbset.db._adapter.dbengine == "google:datastore":
                     range_ids = range(0, len(values), 30)
-                    total = sum(count(values[i:i + 30]) for i in range_ids)
+                    total = sum(count(values[i : i + 30]) for i in range_ids)
                     if total == len(values):
                         return values
                 elif count(values) == len(values):
                     return values
         else:
-            if field.type in ('id', 'integer'):
-                if isinstance(value, integer_types) or (isinstance(value, string_types) and value.isdigit()):
+            if field.type in ("id", "integer"):
+                if isinstance(value, integer_types) or (
+                    isinstance(value, string_types) and value.isdigit()
+                ):
                     value = int(value)
                 elif self.auto_add:
                     value = self.maybe_add(table, self.fieldnames[0], value)
@@ -704,17 +755,19 @@ class IS_NOT_IN_DB(Validator):
     makes the field unique
     """
 
-    def __init__(self,
-                 dbset,
-                 field,
-                 error_message='Value already in database or empty',
-                 allowed_override=[],
-                 ignore_common_filters=False):
+    def __init__(
+        self,
+        dbset,
+        field,
+        error_message="Value already in database or empty",
+        allowed_override=[],
+        ignore_common_filters=False,
+    ):
 
         if isinstance(field, Table):
             field = field._id
 
-        if hasattr(dbset, 'define_table'):
+        if hasattr(dbset, "define_table"):
             self.dbset = dbset()
         else:
             self.dbset = dbset
@@ -735,7 +788,7 @@ class IS_NOT_IN_DB(Validator):
             raise ValidationError(self.translator(self.error_message))
         if value in self.allowed_override:
             return value
-        (tablename, fieldname) = str(self.field).split('.')
+        (tablename, fieldname) = str(self.field).split(".")
         table = self.dbset.db[tablename]
         field = table[fieldname]
         query = field == value
@@ -755,13 +808,13 @@ class IS_NOT_IN_DB(Validator):
 def range_error_message(error_message, what_to_enter, minimum, maximum):
     """build the error message for the number range validators"""
     if error_message is None:
-        error_message = 'Enter ' + what_to_enter
+        error_message = "Enter " + what_to_enter
         if minimum is not None and maximum is not None:
-            error_message += ' between %(min)g and %(max)g'
+            error_message += " between %(min)g and %(max)g"
         elif minimum is not None:
-            error_message += ' greater than or equal to %(min)g'
+            error_message += " greater than or equal to %(min)g"
         elif maximum is not None:
-            error_message += ' less than or equal to %(max)g'
+            error_message += " less than or equal to %(max)g"
     if type(maximum) in integer_types:
         maximum -= 1
     return translate(error_message) % dict(min=minimum, max=maximum)
@@ -807,12 +860,9 @@ class IS_INT_IN_RANGE(Validator):
             ('abc', 'enter an integer')
     """
 
-    REGEX_INT = r'^[+-]?\d+$'
+    REGEX_INT = r"^[+-]?\d+$"
 
-    def __init__(self,
-                 minimum=None,
-                 maximum=None,
-                 error_message=None):
+    def __init__(self, minimum=None, maximum=None, error_message=None):
 
         self.minimum = int(minimum) if minimum is not None else None
         self.maximum = int(maximum) if maximum is not None else None
@@ -821,19 +871,23 @@ class IS_INT_IN_RANGE(Validator):
     def validate(self, value, record_id=None):
         if re.match(self.REGEX_INT, str(value)):
             v = int(value)
-            if ((self.minimum is None or v >= self.minimum) and
-                    (self.maximum is None or v < self.maximum)):
+            if (self.minimum is None or v >= self.minimum) and (
+                self.maximum is None or v < self.maximum
+            ):
                 return v
-        raise ValidationError(range_error_message(
-                self.error_message, 'an integer', self.minimum, self.maximum))
+        raise ValidationError(
+            range_error_message(
+                self.error_message, "an integer", self.minimum, self.maximum
+            )
+        )
 
 
 def str2dec(number):
     s = str(number)
-    if '.' not in s:
-        s += '.00'
+    if "." not in s:
+        s += ".00"
     else:
-        s += '0' * (2 - len(s.split('.')[1]))
+        s += "0" * (2 - len(s.split(".")[1]))
     return s
 
 
@@ -877,11 +931,7 @@ class IS_FLOAT_IN_RANGE(Validator):
             ('abc', 'enter a number')
     """
 
-    def __init__(self,
-                 minimum=None,
-                 maximum=None,
-                 error_message=None,
-                 dot='.'):
+    def __init__(self, minimum=None, maximum=None, error_message=None, dot="."):
 
         self.minimum = float(minimum) if minimum is not None else None
         self.maximum = float(maximum) if maximum is not None else None
@@ -890,22 +940,26 @@ class IS_FLOAT_IN_RANGE(Validator):
 
     def validate(self, value, record_id=None):
         try:
-            if self.dot == '.':
+            if self.dot == ".":
                 v = float(value)
             else:
-                v = float(str(value).replace(self.dot, '.'))
-            if ((self.minimum is None or v >= self.minimum) and
-                    (self.maximum is None or v <= self.maximum)):
+                v = float(str(value).replace(self.dot, "."))
+            if (self.minimum is None or v >= self.minimum) and (
+                self.maximum is None or v <= self.maximum
+            ):
                 return v
         except (ValueError, TypeError):
             pass
-        raise ValidationError(range_error_message(
-                self.error_message, 'a number', self.minimum, self.maximum))
+        raise ValidationError(
+            range_error_message(
+                self.error_message, "a number", self.minimum, self.maximum
+            )
+        )
 
     def formatter(self, value):
         if value is None:
             return None
-        return str2dec(value).replace('.', self.dot)
+        return str2dec(value).replace(".", self.dot)
 
 
 class IS_DECIMAL_IN_RANGE(Validator):
@@ -962,11 +1016,7 @@ class IS_DECIMAL_IN_RANGE(Validator):
             ('abc', 'enter a number')
     """
 
-    def __init__(self,
-                 minimum=None,
-                 maximum=None,
-                 error_message=None,
-                 dot='.'):
+    def __init__(self, minimum=None, maximum=None, error_message=None, dot="."):
 
         self.minimum = decimal.Decimal(str(minimum)) if minimum is not None else None
         self.maximum = decimal.Decimal(str(maximum)) if maximum is not None else None
@@ -976,19 +1026,23 @@ class IS_DECIMAL_IN_RANGE(Validator):
     def validate(self, value, record_id=None):
         try:
             if not isinstance(value, decimal.Decimal):
-                value = decimal.Decimal(str(value).replace(self.dot, '.'))
-            if ((self.minimum is None or value >= self.minimum) and
-                    (self.maximum is None or value <= self.maximum)):
+                value = decimal.Decimal(str(value).replace(self.dot, "."))
+            if (self.minimum is None or value >= self.minimum) and (
+                self.maximum is None or value <= self.maximum
+            ):
                 return value
         except (ValueError, TypeError, decimal.InvalidOperation):
             pass
-        raise ValidationError(range_error_message(
-                self.error_message, 'a number', self.minimum, self.maximum))
+        raise ValidationError(
+            range_error_message(
+                self.error_message, "a number", self.minimum, self.maximum
+            )
+        )
 
     def formatter(self, value):
         if value is None:
             return None
-        return str2dec(value).replace('.', self.dot)
+        return str2dec(value).replace(".", self.dot)
 
 
 def is_empty(value, empty_regex=None):
@@ -997,8 +1051,8 @@ def is_empty(value, empty_regex=None):
     if isinstance(value, (str, unicodeT)):
         value = value.strip()
         if empty_regex is not None and empty_regex.match(value):
-            value = ''
-    if value is None or value == '' or value == b'' or value == []:
+            value = ""
+    if value is None or value == "" or value == b"" or value == []:
         return (_value, True)
     return (_value, False)
 
@@ -1036,7 +1090,7 @@ class IS_NOT_EMPTY(Validator):
             ('abc', None)
     """
 
-    def __init__(self, error_message='Enter a value', empty_regex=None):
+    def __init__(self, error_message="Enter a value", empty_regex=None):
         self.error_message = error_message
         if empty_regex is not None:
             self.empty_regex = re.compile(empty_regex)
@@ -1067,8 +1121,8 @@ class IS_ALPHANUMERIC(IS_MATCH):
             ('!', 'enter only letters, numbers, and underscore')
     """
 
-    def __init__(self, error_message='Enter only letters, numbers, and underscore'):
-        IS_MATCH.__init__(self, r'^[\w]*$', error_message)
+    def __init__(self, error_message="Enter only letters, numbers, and underscore"):
+        IS_MATCH.__init__(self, r"^[\w]*$", error_message)
 
 
 class IS_EMAIL(Validator):
@@ -1162,7 +1216,7 @@ class IS_EMAIL(Validator):
     """
 
     # NOTE: use these with flags = re.VERBOSE | re.IGNORECASE
-    REGEX_BODY = r'''
+    REGEX_BODY = r"""
         ^(?!\.)                           # name may not begin with a dot
         (
           [-a-z0-9!\#$%&'*+/=?^_`{|}~]    # all legal characters except dot
@@ -1170,8 +1224,8 @@ class IS_EMAIL(Validator):
           (?<!\.)\.                       # single dots only
         )+
         (?<!\.)$                          # name may not end with a dot
-    '''
-    REGEX_DOMAIN = r'''
+    """
+    REGEX_DOMAIN = r"""
         (
           localhost
           |
@@ -1185,13 +1239,12 @@ class IS_EMAIL(Validator):
           )+
           [a-z]{2,}       # TLD alpha-only
        )$
-    '''
-    #regex_proposed_but_failed = re.compile(r'^([\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+\.)*[\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+@((((([a-z0-9]{1}[a-z0-9\-]{0,62}[a-z0-9]{1})|[a-z])\.)+[a-z]{2,6})|(\d{1,3}\.){3}\d{1,3}(\:\d{1,5})?)$', re.VERBOSE | re.IGNORECASE)
+    """
+    # regex_proposed_but_failed = re.compile(r'^([\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+\.)*[\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+@((((([a-z0-9]{1}[a-z0-9\-]{0,62}[a-z0-9]{1})|[a-z])\.)+[a-z]{2,6})|(\d{1,3}\.){3}\d{1,3}(\:\d{1,5})?)$', re.VERBOSE | re.IGNORECASE)
 
-    def __init__(self,
-                 banned=None,
-                 forced=None,
-                 error_message='Enter a valid email address'):
+    def __init__(
+        self, banned=None, forced=None, error_message="Enter a valid email address"
+    ):
         if isinstance(banned, str):
             banned = re.compile(banned)
         if isinstance(forced, str):
@@ -1201,10 +1254,14 @@ class IS_EMAIL(Validator):
         self.error_message = error_message
 
     def validate(self, value, record_id=None):
-        if not(isinstance(value, (basestring, unicodeT))) or not value or '@' not in value:
+        if (
+            not (isinstance(value, (basestring, unicodeT)))
+            or not value
+            or "@" not in value
+        ):
             raise ValidationError(self.translator(self.error_message))
 
-        body, domain = value.rsplit('@', 1)
+        body, domain = value.rsplit("@", 1)
 
         try:
             regex_flags = re.VERBOSE | re.IGNORECASE
@@ -1214,7 +1271,7 @@ class IS_EMAIL(Validator):
             if not match_domain:
                 # check for Internationalized Domain Names
                 # see https://docs.python.org/2/library/codecs.html#module-encodings.idna
-                domain_encoded = to_unicode(domain).encode('idna').decode('ascii')
+                domain_encoded = to_unicode(domain).encode("idna").decode("ascii")
                 match_domain = re.match(self.REGEX_DOMAIN, domain_encoded, regex_flags)
 
             match = (match_body is not None) and (match_domain is not None)
@@ -1223,8 +1280,9 @@ class IS_EMAIL(Validator):
             # Example: we're calling ANY_OF formatter and IS_EMAIL is asked to validate a date.
             match = None
         if match:
-            if (not self.banned or not self.banned.match(domain)) \
-                    and (not self.forced or self.forced.match(domain)):
+            if (not self.banned or not self.banned.match(domain)) and (
+                not self.forced or self.forced.match(domain)
+            ):
                 return value
         raise ValidationError(self.translator(self.error_message))
 
@@ -1241,9 +1299,10 @@ class IS_LIST_OF_EMAILS(Validator):
                 XML(', '.join([A(x, _href='mailto:'+x).xml() for x in (v or [])]))
              )
     """
-    REGEX_NOT_EMAIL_SPLITTER = r'[^,;\s]+'
 
-    def __init__(self, error_message='Invalid emails: %s'):
+    REGEX_NOT_EMAIL_SPLITTER = r"[^,;\s]+"
+
+    def __init__(self, error_message="Invalid emails: %s"):
         self.error_message = error_message
 
     def validate(self, value, record_id=None):
@@ -1254,145 +1313,147 @@ class IS_LIST_OF_EMAILS(Validator):
             if error and email not in bad_emails:
                 bad_emails.append(email)
         if bad_emails:
-            raise ValidationError(self.translator(self.error_message) % ', '.join(bad_emails))
+            raise ValidationError(
+                self.translator(self.error_message) % ", ".join(bad_emails)
+            )
         return value
 
     def formatter(self, value, row=None):
-        return ', '.join(value or [])
+        return ", ".join(value or [])
 
 
 # URL scheme source:
 # <http://en.wikipedia.org/wiki/URI_scheme> obtained on 2008-Nov-10
 
 official_url_schemes = [
-    'aaa',
-    'aaas',
-    'acap',
-    'cap',
-    'cid',
-    'crid',
-    'data',
-    'dav',
-    'dict',
-    'dns',
-    'fax',
-    'file',
-    'ftp',
-    'go',
-    'gopher',
-    'h323',
-    'http',
-    'https',
-    'icap',
-    'im',
-    'imap',
-    'info',
-    'ipp',
-    'iris',
-    'iris.beep',
-    'iris.xpc',
-    'iris.xpcs',
-    'iris.lws',
-    'ldap',
-    'mailto',
-    'mid',
-    'modem',
-    'msrp',
-    'msrps',
-    'mtqp',
-    'mupdate',
-    'news',
-    'nfs',
-    'nntp',
-    'opaquelocktoken',
-    'pop',
-    'pres',
-    'prospero',
-    'rtsp',
-    'service',
-    'shttp',
-    'sip',
-    'sips',
-    'snmp',
-    'soap.beep',
-    'soap.beeps',
-    'tag',
-    'tel',
-    'telnet',
-    'tftp',
-    'thismessage',
-    'tip',
-    'tv',
-    'urn',
-    'vemmi',
-    'wais',
-    'xmlrpc.beep',
-    'xmlrpc.beep',
-    'xmpp',
-    'z39.50r',
-    'z39.50s',
+    "aaa",
+    "aaas",
+    "acap",
+    "cap",
+    "cid",
+    "crid",
+    "data",
+    "dav",
+    "dict",
+    "dns",
+    "fax",
+    "file",
+    "ftp",
+    "go",
+    "gopher",
+    "h323",
+    "http",
+    "https",
+    "icap",
+    "im",
+    "imap",
+    "info",
+    "ipp",
+    "iris",
+    "iris.beep",
+    "iris.xpc",
+    "iris.xpcs",
+    "iris.lws",
+    "ldap",
+    "mailto",
+    "mid",
+    "modem",
+    "msrp",
+    "msrps",
+    "mtqp",
+    "mupdate",
+    "news",
+    "nfs",
+    "nntp",
+    "opaquelocktoken",
+    "pop",
+    "pres",
+    "prospero",
+    "rtsp",
+    "service",
+    "shttp",
+    "sip",
+    "sips",
+    "snmp",
+    "soap.beep",
+    "soap.beeps",
+    "tag",
+    "tel",
+    "telnet",
+    "tftp",
+    "thismessage",
+    "tip",
+    "tv",
+    "urn",
+    "vemmi",
+    "wais",
+    "xmlrpc.beep",
+    "xmlrpc.beep",
+    "xmpp",
+    "z39.50r",
+    "z39.50s",
 ]
 unofficial_url_schemes = [
-    'about',
-    'adiumxtra',
-    'aim',
-    'afp',
-    'aw',
-    'callto',
-    'chrome',
-    'cvs',
-    'ed2k',
-    'feed',
-    'fish',
-    'gg',
-    'gizmoproject',
-    'iax2',
-    'irc',
-    'ircs',
-    'itms',
-    'jar',
-    'javascript',
-    'keyparc',
-    'lastfm',
-    'ldaps',
-    'magnet',
-    'mms',
-    'msnim',
-    'mvn',
-    'notes',
-    'nsfw',
-    'psyc',
-    'paparazzi:http',
-    'rmi',
-    'rsync',
-    'secondlife',
-    'sgn',
-    'skype',
-    'ssh',
-    'sftp',
-    'smb',
-    'sms',
-    'soldat',
-    'steam',
-    'svn',
-    'teamspeak',
-    'unreal',
-    'ut2004',
-    'ventrilo',
-    'view-source',
-    'webcal',
-    'wyciwyg',
-    'xfire',
-    'xri',
-    'ymsgr',
+    "about",
+    "adiumxtra",
+    "aim",
+    "afp",
+    "aw",
+    "callto",
+    "chrome",
+    "cvs",
+    "ed2k",
+    "feed",
+    "fish",
+    "gg",
+    "gizmoproject",
+    "iax2",
+    "irc",
+    "ircs",
+    "itms",
+    "jar",
+    "javascript",
+    "keyparc",
+    "lastfm",
+    "ldaps",
+    "magnet",
+    "mms",
+    "msnim",
+    "mvn",
+    "notes",
+    "nsfw",
+    "psyc",
+    "paparazzi:http",
+    "rmi",
+    "rsync",
+    "secondlife",
+    "sgn",
+    "skype",
+    "ssh",
+    "sftp",
+    "smb",
+    "sms",
+    "soldat",
+    "steam",
+    "svn",
+    "teamspeak",
+    "unreal",
+    "ut2004",
+    "ventrilo",
+    "view-source",
+    "webcal",
+    "wyciwyg",
+    "xfire",
+    "xri",
+    "ymsgr",
 ]
 all_url_schemes = [None] + official_url_schemes + unofficial_url_schemes
-http_schemes = [None, 'http', 'https']
+http_schemes = [None, "http", "https"]
 
 # Defined in RFC 3490, Section 3.1, Requirement #1
 # Use this regex to split the authority component of a unicode URL into
 # its component labels
-REGEX_AUTHORITY_SPLITTER = u'[\u002e\u3002\uff0e\uff61]'
+REGEX_AUTHORITY_SPLITTER = u"[\u002e\u3002\uff0e\uff61]"
 
 
 def escape_unicode(string):
@@ -1418,7 +1479,7 @@ def escape_unicode(string):
         code = ord(character)
         if code > 0x7F:
             hexCode = hex(code)
-            returnValue.write('%' + hexCode[2:4] + '%' + hexCode[4:6])
+            returnValue.write("%" + hexCode[2:4] + "%" + hexCode[4:6])
         else:
             returnValue.write(character)
 
@@ -1466,7 +1527,7 @@ def unicode_to_ascii_authority(authority):
             # encodings.idna.ToASCII does not accept an empty string, but
             # it is necessary for us to allow for empty labels so that we
             # don't modify the URL
-            asciiLabels.append('')
+            asciiLabels.append("")
     # RFC 3490, Section 4, Step 5
     return str(reduce(lambda x, y: x + unichr(0x002E) + y, asciiLabels))
 
@@ -1510,16 +1571,18 @@ def unicode_to_ascii_url(url, prepend_scheme):
     # If no authority was found
     if not components.netloc:
         # Try appending a scheme to see if that fixes the problem
-        scheme_to_prepend = prepend_scheme or 'http'
-        components = urlparse.urlparse(to_unicode(scheme_to_prepend) + u'://' + url)
+        scheme_to_prepend = prepend_scheme or "http"
+        components = urlparse.urlparse(to_unicode(scheme_to_prepend) + u"://" + url)
         prepended = True
 
     # if we still can't find the authority
     if not components.netloc:
         # And it's not because the url is a relative url
-        if not url.startswith('/'):
-            raise Exception('No authority component found, ' +
-                            'could not decode unicode to US-ASCII')
+        if not url.startswith("/"):
+            raise Exception(
+                "No authority component found, "
+                + "could not decode unicode to US-ASCII"
+            )
 
     # We're here if we found an authority, let's rebuild the URL
     scheme = components.scheme
@@ -1529,15 +1592,19 @@ def unicode_to_ascii_url(url, prepend_scheme):
     fragment = components.fragment
 
     if prepended:
-        scheme = ''
+        scheme = ""
 
-    unparsed = urlparse.urlunparse((scheme,
-                                    unicode_to_ascii_authority(authority),
-                                    escape_unicode(path),
-                                    '',
-                                    escape_unicode(query),
-                                    str(fragment)))
-    if unparsed.startswith('//'):
+    unparsed = urlparse.urlunparse(
+        (
+            scheme,
+            unicode_to_ascii_authority(authority),
+            escape_unicode(path),
+            "",
+            escape_unicode(query),
+            str(fragment),
+        )
+    )
+    if unparsed.startswith("//"):
         unparsed = unparsed[2:]  # Remove the // urlunparse puts in the beginning
     return unparsed
 
@@ -1582,10 +1649,12 @@ class IS_GENERIC_URL(Validator):
 
     """
 
-    def __init__(self,
-                 error_message='Enter a valid URL',
-                 allowed_schemes=None,
-                 prepend_scheme=None):
+    def __init__(
+        self,
+        error_message="Enter a valid URL",
+        allowed_schemes=None,
+        prepend_scheme=None,
+    ):
 
         self.error_message = error_message
         if allowed_schemes is None:
@@ -1594,8 +1663,10 @@ class IS_GENERIC_URL(Validator):
             self.allowed_schemes = allowed_schemes
         self.prepend_scheme = prepend_scheme
         if self.prepend_scheme not in self.allowed_schemes:
-            raise SyntaxError("prepend_scheme='%s' is not in allowed_schemes=%s"
-                              % (self.prepend_scheme, self.allowed_schemes))
+            raise SyntaxError(
+                "prepend_scheme='%s' is not in allowed_schemes=%s"
+                % (self.prepend_scheme, self.allowed_schemes)
+            )
 
     REGEX_GENERIC_URL = r"%[^0-9A-Fa-f]{2}|%[^0-9A-Fa-f][0-9A-Fa-f]|%[0-9A-Fa-f][^0-9A-Fa-f]|%$|%[0-9A-Fa-f]$|%[^0-9A-Fa-f]$"
     REGEX_GENERIC_URL_VALID = r"[A-Za-z0-9;/?:@&=+$,\-_\.!~*'\(\)%]+$"
@@ -1617,12 +1688,14 @@ class IS_GENERIC_URL(Validator):
         if not value or re.search(self.REGEX_GENERIC_URL, value):
             raise ValidationError(self.translator(self.error_message))
 
-        if '#' in value:
-            url, fragment_part = value.split('#')
+        if "#" in value:
+            url, fragment_part = value.split("#")
         else:
-            url, fragment_part = value, ''
+            url, fragment_part = value, ""
         # if the URL is only composed of valid characters
-        if not re.match(self.REGEX_GENERIC_URL_VALID, url) or (fragment_part and not re.match(self.REGEX_URL_FRAGMENT_VALID, fragment_part)):
+        if not re.match(self.REGEX_GENERIC_URL_VALID, url) or (
+            fragment_part and not re.match(self.REGEX_URL_FRAGMENT_VALID, fragment_part)
+        ):
             raise ValidationError(self.translator(self.error_message))
         # Then parse the URL into its components and check on
         try:
@@ -1631,23 +1704,28 @@ class IS_GENERIC_URL(Validator):
             raise ValidationError(self.translator(self.error_message))
 
         # Clean up the scheme before we check it
-        scheme = components['scheme']
+        scheme = components["scheme"]
         if len(scheme) == 0:
             scheme = None
         else:
-            scheme = components['scheme'].lower()
+            scheme = components["scheme"].lower()
         # If the scheme doesn't really exists
-        if scheme not in self.allowed_schemes or not scheme and ':' in components['path']:
+        if (
+            scheme not in self.allowed_schemes
+            or not scheme
+            and ":" in components["path"]
+        ):
             # for the possible case of abbreviated URLs with
             # ports, check to see if adding a valid scheme fixes
             # the problem (but only do this if it doesn't have
             # one already!)
-            if '://' not in value and None in self.allowed_schemes:
-                schemeToUse = self.prepend_scheme or 'http'
-                new_value = self.validate(schemeToUse + '://' + value)
+            if "://" not in value and None in self.allowed_schemes:
+                schemeToUse = self.prepend_scheme or "http"
+                new_value = self.validate(schemeToUse + "://" + value)
                 return new_value if self.prepend_scheme else value
             raise ValidationError(self.translator(self.error_message))
         return value
+
 
 # Sources (obtained 2017-Nov-11):
 #    http://data.iana.org/TLD/tlds-alpha-by-domain.txt
@@ -1655,286 +1733,1573 @@ class IS_GENERIC_URL(Validator):
 
 official_top_level_domains = [
     # a
-    'aaa', 'aarp', 'abarth', 'abb', 'abbott', 'abbvie', 'abc',
-    'able', 'abogado', 'abudhabi', 'ac', 'academy', 'accenture',
-    'accountant', 'accountants', 'aco', 'active', 'actor', 'ad',
-    'adac', 'ads', 'adult', 'ae', 'aeg', 'aero', 'aetna', 'af',
-    'afamilycompany', 'afl', 'africa', 'ag', 'agakhan', 'agency',
-    'ai', 'aig', 'aigo', 'airbus', 'airforce', 'airtel', 'akdn',
-    'al', 'alfaromeo', 'alibaba', 'alipay', 'allfinanz', 'allstate',
-    'ally', 'alsace', 'alstom', 'am', 'americanexpress',
-    'americanfamily', 'amex', 'amfam', 'amica', 'amsterdam',
-    'analytics', 'android', 'anquan', 'anz', 'ao', 'aol',
-    'apartments', 'app', 'apple', 'aq', 'aquarelle', 'ar', 'arab',
-    'aramco', 'archi', 'army', 'arpa', 'art', 'arte', 'as', 'asda',
-    'asia', 'associates', 'at', 'athleta', 'attorney', 'au',
-    'auction', 'audi', 'audible', 'audio', 'auspost', 'author',
-    'auto', 'autos', 'avianca', 'aw', 'aws', 'ax', 'axa', 'az',
-    'azure',
+    "aaa",
+    "aarp",
+    "abarth",
+    "abb",
+    "abbott",
+    "abbvie",
+    "abc",
+    "able",
+    "abogado",
+    "abudhabi",
+    "ac",
+    "academy",
+    "accenture",
+    "accountant",
+    "accountants",
+    "aco",
+    "active",
+    "actor",
+    "ad",
+    "adac",
+    "ads",
+    "adult",
+    "ae",
+    "aeg",
+    "aero",
+    "aetna",
+    "af",
+    "afamilycompany",
+    "afl",
+    "africa",
+    "ag",
+    "agakhan",
+    "agency",
+    "ai",
+    "aig",
+    "aigo",
+    "airbus",
+    "airforce",
+    "airtel",
+    "akdn",
+    "al",
+    "alfaromeo",
+    "alibaba",
+    "alipay",
+    "allfinanz",
+    "allstate",
+    "ally",
+    "alsace",
+    "alstom",
+    "am",
+    "americanexpress",
+    "americanfamily",
+    "amex",
+    "amfam",
+    "amica",
+    "amsterdam",
+    "analytics",
+    "android",
+    "anquan",
+    "anz",
+    "ao",
+    "aol",
+    "apartments",
+    "app",
+    "apple",
+    "aq",
+    "aquarelle",
+    "ar",
+    "arab",
+    "aramco",
+    "archi",
+    "army",
+    "arpa",
+    "art",
+    "arte",
+    "as",
+    "asda",
+    "asia",
+    "associates",
+    "at",
+    "athleta",
+    "attorney",
+    "au",
+    "auction",
+    "audi",
+    "audible",
+    "audio",
+    "auspost",
+    "author",
+    "auto",
+    "autos",
+    "avianca",
+    "aw",
+    "aws",
+    "ax",
+    "axa",
+    "az",
+    "azure",
     # b
-    'ba', 'baby', 'baidu', 'banamex', 'bananarepublic', 'band',
-    'bank', 'bar', 'barcelona', 'barclaycard', 'barclays',
-    'barefoot', 'bargains', 'baseball', 'basketball', 'bauhaus',
-    'bayern', 'bb', 'bbc', 'bbt', 'bbva', 'bcg', 'bcn', 'bd', 'be',
-    'beats', 'beauty', 'beer', 'bentley', 'berlin', 'best',
-    'bestbuy', 'bet', 'bf', 'bg', 'bh', 'bharti', 'bi', 'bible',
-    'bid', 'bike', 'bing', 'bingo', 'bio', 'biz', 'bj', 'black',
-    'blackfriday', 'blanco', 'blockbuster', 'blog', 'bloomberg',
-    'blue', 'bm', 'bms', 'bmw', 'bn', 'bnl', 'bnpparibas', 'bo',
-    'boats', 'boehringer', 'bofa', 'bom', 'bond', 'boo', 'book',
-    'booking', 'boots', 'bosch', 'bostik', 'boston', 'bot',
-    'boutique', 'box', 'br', 'bradesco', 'bridgestone', 'broadway',
-    'broker', 'brother', 'brussels', 'bs', 'bt', 'budapest',
-    'bugatti', 'build', 'builders', 'business', 'buy', 'buzz', 'bv',
-    'bw', 'by', 'bz', 'bzh',
+    "ba",
+    "baby",
+    "baidu",
+    "banamex",
+    "bananarepublic",
+    "band",
+    "bank",
+    "bar",
+    "barcelona",
+    "barclaycard",
+    "barclays",
+    "barefoot",
+    "bargains",
+    "baseball",
+    "basketball",
+    "bauhaus",
+    "bayern",
+    "bb",
+    "bbc",
+    "bbt",
+    "bbva",
+    "bcg",
+    "bcn",
+    "bd",
+    "be",
+    "beats",
+    "beauty",
+    "beer",
+    "bentley",
+    "berlin",
+    "best",
+    "bestbuy",
+    "bet",
+    "bf",
+    "bg",
+    "bh",
+    "bharti",
+    "bi",
+    "bible",
+    "bid",
+    "bike",
+    "bing",
+    "bingo",
+    "bio",
+    "biz",
+    "bj",
+    "black",
+    "blackfriday",
+    "blanco",
+    "blockbuster",
+    "blog",
+    "bloomberg",
+    "blue",
+    "bm",
+    "bms",
+    "bmw",
+    "bn",
+    "bnl",
+    "bnpparibas",
+    "bo",
+    "boats",
+    "boehringer",
+    "bofa",
+    "bom",
+    "bond",
+    "boo",
+    "book",
+    "booking",
+    "boots",
+    "bosch",
+    "bostik",
+    "boston",
+    "bot",
+    "boutique",
+    "box",
+    "br",
+    "bradesco",
+    "bridgestone",
+    "broadway",
+    "broker",
+    "brother",
+    "brussels",
+    "bs",
+    "bt",
+    "budapest",
+    "bugatti",
+    "build",
+    "builders",
+    "business",
+    "buy",
+    "buzz",
+    "bv",
+    "bw",
+    "by",
+    "bz",
+    "bzh",
     # c
-    'ca', 'cab', 'cafe', 'cal', 'call', 'calvinklein', 'cam',
-    'camera', 'camp', 'cancerresearch', 'canon', 'capetown',
-    'capital', 'capitalone', 'car', 'caravan', 'cards', 'care',
-    'career', 'careers', 'cars', 'cartier', 'casa', 'case', 'caseih',
-    'cash', 'casino', 'cat', 'catering', 'catholic', 'cba', 'cbn',
-    'cbre', 'cbs', 'cc', 'cd', 'ceb', 'center', 'ceo', 'cern', 'cf',
-    'cfa', 'cfd', 'cg', 'ch', 'chanel', 'channel', 'chase', 'chat',
-    'cheap', 'chintai', 'christmas', 'chrome', 'chrysler', 'church',
-    'ci', 'cipriani', 'circle', 'cisco', 'citadel', 'citi', 'citic',
-    'city', 'cityeats', 'ck', 'cl', 'claims', 'cleaning', 'click',
-    'clinic', 'clinique', 'clothing', 'cloud', 'club', 'clubmed',
-    'cm', 'cn', 'co', 'coach', 'codes', 'coffee', 'college',
-    'cologne', 'com', 'comcast', 'commbank', 'community', 'company',
-    'compare', 'computer', 'comsec', 'condos', 'construction',
-    'consulting', 'contact', 'contractors', 'cooking',
-    'cookingchannel', 'cool', 'coop', 'corsica', 'country', 'coupon',
-    'coupons', 'courses', 'cr', 'credit', 'creditcard',
-    'creditunion', 'cricket', 'crown', 'crs', 'cruise', 'cruises',
-    'csc', 'cu', 'cuisinella', 'cv', 'cw', 'cx', 'cy', 'cymru',
-    'cyou', 'cz',
+    "ca",
+    "cab",
+    "cafe",
+    "cal",
+    "call",
+    "calvinklein",
+    "cam",
+    "camera",
+    "camp",
+    "cancerresearch",
+    "canon",
+    "capetown",
+    "capital",
+    "capitalone",
+    "car",
+    "caravan",
+    "cards",
+    "care",
+    "career",
+    "careers",
+    "cars",
+    "cartier",
+    "casa",
+    "case",
+    "caseih",
+    "cash",
+    "casino",
+    "cat",
+    "catering",
+    "catholic",
+    "cba",
+    "cbn",
+    "cbre",
+    "cbs",
+    "cc",
+    "cd",
+    "ceb",
+    "center",
+    "ceo",
+    "cern",
+    "cf",
+    "cfa",
+    "cfd",
+    "cg",
+    "ch",
+    "chanel",
+    "channel",
+    "chase",
+    "chat",
+    "cheap",
+    "chintai",
+    "christmas",
+    "chrome",
+    "chrysler",
+    "church",
+    "ci",
+    "cipriani",
+    "circle",
+    "cisco",
+    "citadel",
+    "citi",
+    "citic",
+    "city",
+    "cityeats",
+    "ck",
+    "cl",
+    "claims",
+    "cleaning",
+    "click",
+    "clinic",
+    "clinique",
+    "clothing",
+    "cloud",
+    "club",
+    "clubmed",
+    "cm",
+    "cn",
+    "co",
+    "coach",
+    "codes",
+    "coffee",
+    "college",
+    "cologne",
+    "com",
+    "comcast",
+    "commbank",
+    "community",
+    "company",
+    "compare",
+    "computer",
+    "comsec",
+    "condos",
+    "construction",
+    "consulting",
+    "contact",
+    "contractors",
+    "cooking",
+    "cookingchannel",
+    "cool",
+    "coop",
+    "corsica",
+    "country",
+    "coupon",
+    "coupons",
+    "courses",
+    "cr",
+    "credit",
+    "creditcard",
+    "creditunion",
+    "cricket",
+    "crown",
+    "crs",
+    "cruise",
+    "cruises",
+    "csc",
+    "cu",
+    "cuisinella",
+    "cv",
+    "cw",
+    "cx",
+    "cy",
+    "cymru",
+    "cyou",
+    "cz",
     # d
-    'dabur', 'dad', 'dance', 'data', 'date', 'dating', 'datsun',
-    'day', 'dclk', 'dds', 'de', 'deal', 'dealer', 'deals', 'degree',
-    'delivery', 'dell', 'deloitte', 'delta', 'democrat', 'dental',
-    'dentist', 'desi', 'design', 'dev', 'dhl', 'diamonds', 'diet',
-    'digital', 'direct', 'directory', 'discount', 'discover', 'dish',
-    'diy', 'dj', 'dk', 'dm', 'dnp', 'do', 'docs', 'doctor', 'dodge',
-    'dog', 'doha', 'domains', 'dot', 'download', 'drive', 'dtv',
-    'dubai', 'duck', 'dunlop', 'duns', 'dupont', 'durban', 'dvag',
-    'dvr', 'dz',
+    "dabur",
+    "dad",
+    "dance",
+    "data",
+    "date",
+    "dating",
+    "datsun",
+    "day",
+    "dclk",
+    "dds",
+    "de",
+    "deal",
+    "dealer",
+    "deals",
+    "degree",
+    "delivery",
+    "dell",
+    "deloitte",
+    "delta",
+    "democrat",
+    "dental",
+    "dentist",
+    "desi",
+    "design",
+    "dev",
+    "dhl",
+    "diamonds",
+    "diet",
+    "digital",
+    "direct",
+    "directory",
+    "discount",
+    "discover",
+    "dish",
+    "diy",
+    "dj",
+    "dk",
+    "dm",
+    "dnp",
+    "do",
+    "docs",
+    "doctor",
+    "dodge",
+    "dog",
+    "doha",
+    "domains",
+    "dot",
+    "download",
+    "drive",
+    "dtv",
+    "dubai",
+    "duck",
+    "dunlop",
+    "duns",
+    "dupont",
+    "durban",
+    "dvag",
+    "dvr",
+    "dz",
     # e
-    'earth', 'eat', 'ec', 'eco', 'edeka', 'edu', 'education', 'ee',
-    'eg', 'email', 'emerck', 'energy', 'engineer', 'engineering',
-    'enterprises', 'epost', 'epson', 'equipment', 'er', 'ericsson',
-    'erni', 'es', 'esq', 'estate', 'esurance', 'et', 'etisalat',
-    'eu', 'eurovision', 'eus', 'events', 'everbank', 'exchange',
-    'expert', 'exposed', 'express', 'extraspace',
+    "earth",
+    "eat",
+    "ec",
+    "eco",
+    "edeka",
+    "edu",
+    "education",
+    "ee",
+    "eg",
+    "email",
+    "emerck",
+    "energy",
+    "engineer",
+    "engineering",
+    "enterprises",
+    "epost",
+    "epson",
+    "equipment",
+    "er",
+    "ericsson",
+    "erni",
+    "es",
+    "esq",
+    "estate",
+    "esurance",
+    "et",
+    "etisalat",
+    "eu",
+    "eurovision",
+    "eus",
+    "events",
+    "everbank",
+    "exchange",
+    "expert",
+    "exposed",
+    "express",
+    "extraspace",
     # f
-    'fage', 'fail', 'fairwinds', 'faith', 'family', 'fan', 'fans',
-    'farm', 'farmers', 'fashion', 'fast', 'fedex', 'feedback',
-    'ferrari', 'ferrero', 'fi', 'fiat', 'fidelity', 'fido', 'film',
-    'final', 'finance', 'financial', 'fire', 'firestone', 'firmdale',
-    'fish', 'fishing', 'fit', 'fitness', 'fj', 'fk', 'flickr',
-    'flights', 'flir', 'florist', 'flowers', 'fly', 'fm', 'fo',
-    'foo', 'food', 'foodnetwork', 'football', 'ford', 'forex',
-    'forsale', 'forum', 'foundation', 'fox', 'fr', 'free',
-    'fresenius', 'frl', 'frogans', 'frontdoor', 'frontier', 'ftr',
-    'fujitsu', 'fujixerox', 'fun', 'fund', 'furniture', 'futbol',
-    'fyi',
+    "fage",
+    "fail",
+    "fairwinds",
+    "faith",
+    "family",
+    "fan",
+    "fans",
+    "farm",
+    "farmers",
+    "fashion",
+    "fast",
+    "fedex",
+    "feedback",
+    "ferrari",
+    "ferrero",
+    "fi",
+    "fiat",
+    "fidelity",
+    "fido",
+    "film",
+    "final",
+    "finance",
+    "financial",
+    "fire",
+    "firestone",
+    "firmdale",
+    "fish",
+    "fishing",
+    "fit",
+    "fitness",
+    "fj",
+    "fk",
+    "flickr",
+    "flights",
+    "flir",
+    "florist",
+    "flowers",
+    "fly",
+    "fm",
+    "fo",
+    "foo",
+    "food",
+    "foodnetwork",
+    "football",
+    "ford",
+    "forex",
+    "forsale",
+    "forum",
+    "foundation",
+    "fox",
+    "fr",
+    "free",
+    "fresenius",
+    "frl",
+    "frogans",
+    "frontdoor",
+    "frontier",
+    "ftr",
+    "fujitsu",
+    "fujixerox",
+    "fun",
+    "fund",
+    "furniture",
+    "futbol",
+    "fyi",
     # g
-    'ga', 'gal', 'gallery', 'gallo', 'gallup', 'game', 'games',
-    'gap', 'garden', 'gb', 'gbiz', 'gd', 'gdn', 'ge', 'gea', 'gent',
-    'genting', 'george', 'gf', 'gg', 'ggee', 'gh', 'gi', 'gift',
-    'gifts', 'gives', 'giving', 'gl', 'glade', 'glass', 'gle',
-    'global', 'globo', 'gm', 'gmail', 'gmbh', 'gmo', 'gmx', 'gn',
-    'godaddy', 'gold', 'goldpoint', 'golf', 'goo', 'goodhands',
-    'goodyear', 'goog', 'google', 'gop', 'got', 'gov', 'gp', 'gq',
-    'gr', 'grainger', 'graphics', 'gratis', 'green', 'gripe',
-    'grocery', 'group', 'gs', 'gt', 'gu', 'guardian', 'gucci',
-    'guge', 'guide', 'guitars', 'guru', 'gw', 'gy',
+    "ga",
+    "gal",
+    "gallery",
+    "gallo",
+    "gallup",
+    "game",
+    "games",
+    "gap",
+    "garden",
+    "gb",
+    "gbiz",
+    "gd",
+    "gdn",
+    "ge",
+    "gea",
+    "gent",
+    "genting",
+    "george",
+    "gf",
+    "gg",
+    "ggee",
+    "gh",
+    "gi",
+    "gift",
+    "gifts",
+    "gives",
+    "giving",
+    "gl",
+    "glade",
+    "glass",
+    "gle",
+    "global",
+    "globo",
+    "gm",
+    "gmail",
+    "gmbh",
+    "gmo",
+    "gmx",
+    "gn",
+    "godaddy",
+    "gold",
+    "goldpoint",
+    "golf",
+    "goo",
+    "goodhands",
+    "goodyear",
+    "goog",
+    "google",
+    "gop",
+    "got",
+    "gov",
+    "gp",
+    "gq",
+    "gr",
+    "grainger",
+    "graphics",
+    "gratis",
+    "green",
+    "gripe",
+    "grocery",
+    "group",
+    "gs",
+    "gt",
+    "gu",
+    "guardian",
+    "gucci",
+    "guge",
+    "guide",
+    "guitars",
+    "guru",
+    "gw",
+    "gy",
     # h
-    'hair', 'hamburg', 'hangout', 'haus', 'hbo', 'hdfc', 'hdfcbank',
-    'health', 'healthcare', 'help', 'helsinki', 'here', 'hermes',
-    'hgtv', 'hiphop', 'hisamitsu', 'hitachi', 'hiv', 'hk', 'hkt',
-    'hm', 'hn', 'hockey', 'holdings', 'holiday', 'homedepot',
-    'homegoods', 'homes', 'homesense', 'honda', 'honeywell', 'horse',
-    'hospital', 'host', 'hosting', 'hot', 'hoteles', 'hotels',
-    'hotmail', 'house', 'how', 'hr', 'hsbc', 'ht', 'hu', 'hughes',
-    'hyatt', 'hyundai',
+    "hair",
+    "hamburg",
+    "hangout",
+    "haus",
+    "hbo",
+    "hdfc",
+    "hdfcbank",
+    "health",
+    "healthcare",
+    "help",
+    "helsinki",
+    "here",
+    "hermes",
+    "hgtv",
+    "hiphop",
+    "hisamitsu",
+    "hitachi",
+    "hiv",
+    "hk",
+    "hkt",
+    "hm",
+    "hn",
+    "hockey",
+    "holdings",
+    "holiday",
+    "homedepot",
+    "homegoods",
+    "homes",
+    "homesense",
+    "honda",
+    "honeywell",
+    "horse",
+    "hospital",
+    "host",
+    "hosting",
+    "hot",
+    "hoteles",
+    "hotels",
+    "hotmail",
+    "house",
+    "how",
+    "hr",
+    "hsbc",
+    "ht",
+    "hu",
+    "hughes",
+    "hyatt",
+    "hyundai",
     # i
-    'ibm', 'icbc', 'ice', 'icu', 'id', 'ie', 'ieee', 'ifm', 'ikano',
-    'il', 'im', 'imamat', 'imdb', 'immo', 'immobilien', 'in',
-    'industries', 'infiniti', 'info', 'ing', 'ink', 'institute',
-    'insurance', 'insure', 'int', 'intel', 'international', 'intuit',
-    'investments', 'io', 'ipiranga', 'iq', 'ir', 'irish', 'is',
-    'iselect', 'ismaili', 'ist', 'istanbul', 'it', 'itau', 'itv',
-    'iveco', 'iwc',
+    "ibm",
+    "icbc",
+    "ice",
+    "icu",
+    "id",
+    "ie",
+    "ieee",
+    "ifm",
+    "ikano",
+    "il",
+    "im",
+    "imamat",
+    "imdb",
+    "immo",
+    "immobilien",
+    "in",
+    "industries",
+    "infiniti",
+    "info",
+    "ing",
+    "ink",
+    "institute",
+    "insurance",
+    "insure",
+    "int",
+    "intel",
+    "international",
+    "intuit",
+    "investments",
+    "io",
+    "ipiranga",
+    "iq",
+    "ir",
+    "irish",
+    "is",
+    "iselect",
+    "ismaili",
+    "ist",
+    "istanbul",
+    "it",
+    "itau",
+    "itv",
+    "iveco",
+    "iwc",
     # j
-    'jaguar', 'java', 'jcb', 'jcp', 'je', 'jeep', 'jetzt', 'jewelry',
-    'jio', 'jlc', 'jll', 'jm', 'jmp', 'jnj', 'jo', 'jobs', 'joburg',
-    'jot', 'joy', 'jp', 'jpmorgan', 'jprs', 'juegos', 'juniper',
+    "jaguar",
+    "java",
+    "jcb",
+    "jcp",
+    "je",
+    "jeep",
+    "jetzt",
+    "jewelry",
+    "jio",
+    "jlc",
+    "jll",
+    "jm",
+    "jmp",
+    "jnj",
+    "jo",
+    "jobs",
+    "joburg",
+    "jot",
+    "joy",
+    "jp",
+    "jpmorgan",
+    "jprs",
+    "juegos",
+    "juniper",
     # k
-    'kaufen', 'kddi', 'ke', 'kerryhotels', 'kerrylogistics',
-    'kerryproperties', 'kfh', 'kg', 'kh', 'ki', 'kia', 'kim',
-    'kinder', 'kindle', 'kitchen', 'kiwi', 'km', 'kn', 'koeln',
-    'komatsu', 'kosher', 'kp', 'kpmg', 'kpn', 'kr', 'krd', 'kred',
-    'kuokgroup', 'kw', 'ky', 'kyoto', 'kz',
+    "kaufen",
+    "kddi",
+    "ke",
+    "kerryhotels",
+    "kerrylogistics",
+    "kerryproperties",
+    "kfh",
+    "kg",
+    "kh",
+    "ki",
+    "kia",
+    "kim",
+    "kinder",
+    "kindle",
+    "kitchen",
+    "kiwi",
+    "km",
+    "kn",
+    "koeln",
+    "komatsu",
+    "kosher",
+    "kp",
+    "kpmg",
+    "kpn",
+    "kr",
+    "krd",
+    "kred",
+    "kuokgroup",
+    "kw",
+    "ky",
+    "kyoto",
+    "kz",
     # l
-    'la', 'lacaixa', 'ladbrokes', 'lamborghini', 'lamer',
-    'lancaster', 'lancia', 'lancome', 'land', 'landrover', 'lanxess',
-    'lasalle', 'lat', 'latino', 'latrobe', 'law', 'lawyer', 'lb',
-    'lc', 'lds', 'lease', 'leclerc', 'lefrak', 'legal', 'lego',
-    'lexus', 'lgbt', 'li', 'liaison', 'lidl', 'life',
-    'lifeinsurance', 'lifestyle', 'lighting', 'like', 'lilly',
-    'limited', 'limo', 'lincoln', 'linde', 'link', 'lipsy', 'live',
-    'living', 'lixil', 'lk', 'loan', 'loans', 'localhost', 'locker',
-    'locus', 'loft', 'lol', 'london', 'lotte', 'lotto', 'love',
-    'lpl', 'lplfinancial', 'lr', 'ls', 'lt', 'ltd', 'ltda', 'lu',
-    'lundbeck', 'lupin', 'luxe', 'luxury', 'lv', 'ly',
+    "la",
+    "lacaixa",
+    "ladbrokes",
+    "lamborghini",
+    "lamer",
+    "lancaster",
+    "lancia",
+    "lancome",
+    "land",
+    "landrover",
+    "lanxess",
+    "lasalle",
+    "lat",
+    "latino",
+    "latrobe",
+    "law",
+    "lawyer",
+    "lb",
+    "lc",
+    "lds",
+    "lease",
+    "leclerc",
+    "lefrak",
+    "legal",
+    "lego",
+    "lexus",
+    "lgbt",
+    "li",
+    "liaison",
+    "lidl",
+    "life",
+    "lifeinsurance",
+    "lifestyle",
+    "lighting",
+    "like",
+    "lilly",
+    "limited",
+    "limo",
+    "lincoln",
+    "linde",
+    "link",
+    "lipsy",
+    "live",
+    "living",
+    "lixil",
+    "lk",
+    "loan",
+    "loans",
+    "localhost",
+    "locker",
+    "locus",
+    "loft",
+    "lol",
+    "london",
+    "lotte",
+    "lotto",
+    "love",
+    "lpl",
+    "lplfinancial",
+    "lr",
+    "ls",
+    "lt",
+    "ltd",
+    "ltda",
+    "lu",
+    "lundbeck",
+    "lupin",
+    "luxe",
+    "luxury",
+    "lv",
+    "ly",
     # m
-    'ma', 'macys', 'madrid', 'maif', 'maison', 'makeup', 'man',
-    'management', 'mango', 'map', 'market', 'marketing', 'markets',
-    'marriott', 'marshalls', 'maserati', 'mattel', 'mba', 'mc',
-    'mckinsey', 'md', 'me', 'med', 'media', 'meet', 'melbourne',
-    'meme', 'memorial', 'men', 'menu', 'meo', 'merckmsd', 'metlife',
-    'mg', 'mh', 'miami', 'microsoft', 'mil', 'mini', 'mint', 'mit',
-    'mitsubishi', 'mk', 'ml', 'mlb', 'mls', 'mm', 'mma', 'mn', 'mo',
-    'mobi', 'mobile', 'mobily', 'moda', 'moe', 'moi', 'mom',
-    'monash', 'money', 'monster', 'mopar', 'mormon', 'mortgage',
-    'moscow', 'moto', 'motorcycles', 'mov', 'movie', 'movistar',
-    'mp', 'mq', 'mr', 'ms', 'msd', 'mt', 'mtn', 'mtr', 'mu',
-    'museum', 'mutual', 'mv', 'mw', 'mx', 'my', 'mz',
+    "ma",
+    "macys",
+    "madrid",
+    "maif",
+    "maison",
+    "makeup",
+    "man",
+    "management",
+    "mango",
+    "map",
+    "market",
+    "marketing",
+    "markets",
+    "marriott",
+    "marshalls",
+    "maserati",
+    "mattel",
+    "mba",
+    "mc",
+    "mckinsey",
+    "md",
+    "me",
+    "med",
+    "media",
+    "meet",
+    "melbourne",
+    "meme",
+    "memorial",
+    "men",
+    "menu",
+    "meo",
+    "merckmsd",
+    "metlife",
+    "mg",
+    "mh",
+    "miami",
+    "microsoft",
+    "mil",
+    "mini",
+    "mint",
+    "mit",
+    "mitsubishi",
+    "mk",
+    "ml",
+    "mlb",
+    "mls",
+    "mm",
+    "mma",
+    "mn",
+    "mo",
+    "mobi",
+    "mobile",
+    "mobily",
+    "moda",
+    "moe",
+    "moi",
+    "mom",
+    "monash",
+    "money",
+    "monster",
+    "mopar",
+    "mormon",
+    "mortgage",
+    "moscow",
+    "moto",
+    "motorcycles",
+    "mov",
+    "movie",
+    "movistar",
+    "mp",
+    "mq",
+    "mr",
+    "ms",
+    "msd",
+    "mt",
+    "mtn",
+    "mtr",
+    "mu",
+    "museum",
+    "mutual",
+    "mv",
+    "mw",
+    "mx",
+    "my",
+    "mz",
     # n
-    'na', 'nab', 'nadex', 'nagoya', 'name', 'nationwide', 'natura',
-    'navy', 'nba', 'nc', 'ne', 'nec', 'net', 'netbank', 'netflix',
-    'network', 'neustar', 'new', 'newholland', 'news', 'next',
-    'nextdirect', 'nexus', 'nf', 'nfl', 'ng', 'ngo', 'nhk', 'ni',
-    'nico', 'nike', 'nikon', 'ninja', 'nissan', 'nissay', 'nl', 'no',
-    'nokia', 'northwesternmutual', 'norton', 'now', 'nowruz',
-    'nowtv', 'np', 'nr', 'nra', 'nrw', 'ntt', 'nu', 'nyc', 'nz',
+    "na",
+    "nab",
+    "nadex",
+    "nagoya",
+    "name",
+    "nationwide",
+    "natura",
+    "navy",
+    "nba",
+    "nc",
+    "ne",
+    "nec",
+    "net",
+    "netbank",
+    "netflix",
+    "network",
+    "neustar",
+    "new",
+    "newholland",
+    "news",
+    "next",
+    "nextdirect",
+    "nexus",
+    "nf",
+    "nfl",
+    "ng",
+    "ngo",
+    "nhk",
+    "ni",
+    "nico",
+    "nike",
+    "nikon",
+    "ninja",
+    "nissan",
+    "nissay",
+    "nl",
+    "no",
+    "nokia",
+    "northwesternmutual",
+    "norton",
+    "now",
+    "nowruz",
+    "nowtv",
+    "np",
+    "nr",
+    "nra",
+    "nrw",
+    "ntt",
+    "nu",
+    "nyc",
+    "nz",
     # o
-    'obi', 'observer', 'off', 'office', 'okinawa', 'olayan',
-    'olayangroup', 'oldnavy', 'ollo', 'om', 'omega', 'one', 'ong',
-    'onl', 'online', 'onyourside', 'ooo', 'open', 'oracle', 'orange',
-    'org', 'organic', 'origins', 'osaka', 'otsuka', 'ott', 'ovh',
+    "obi",
+    "observer",
+    "off",
+    "office",
+    "okinawa",
+    "olayan",
+    "olayangroup",
+    "oldnavy",
+    "ollo",
+    "om",
+    "omega",
+    "one",
+    "ong",
+    "onl",
+    "online",
+    "onyourside",
+    "ooo",
+    "open",
+    "oracle",
+    "orange",
+    "org",
+    "organic",
+    "origins",
+    "osaka",
+    "otsuka",
+    "ott",
+    "ovh",
     # p
-    'pa', 'page', 'panasonic', 'panerai', 'paris', 'pars',
-    'partners', 'parts', 'party', 'passagens', 'pay', 'pccw', 'pe',
-    'pet', 'pf', 'pfizer', 'pg', 'ph', 'pharmacy', 'phd', 'philips',
-    'phone', 'photo', 'photography', 'photos', 'physio', 'piaget',
-    'pics', 'pictet', 'pictures', 'pid', 'pin', 'ping', 'pink',
-    'pioneer', 'pizza', 'pk', 'pl', 'place', 'play', 'playstation',
-    'plumbing', 'plus', 'pm', 'pn', 'pnc', 'pohl', 'poker',
-    'politie', 'porn', 'post', 'pr', 'pramerica', 'praxi', 'press',
-    'prime', 'pro', 'prod', 'productions', 'prof', 'progressive',
-    'promo', 'properties', 'property', 'protection', 'pru',
-    'prudential', 'ps', 'pt', 'pub', 'pw', 'pwc', 'py',
+    "pa",
+    "page",
+    "panasonic",
+    "panerai",
+    "paris",
+    "pars",
+    "partners",
+    "parts",
+    "party",
+    "passagens",
+    "pay",
+    "pccw",
+    "pe",
+    "pet",
+    "pf",
+    "pfizer",
+    "pg",
+    "ph",
+    "pharmacy",
+    "phd",
+    "philips",
+    "phone",
+    "photo",
+    "photography",
+    "photos",
+    "physio",
+    "piaget",
+    "pics",
+    "pictet",
+    "pictures",
+    "pid",
+    "pin",
+    "ping",
+    "pink",
+    "pioneer",
+    "pizza",
+    "pk",
+    "pl",
+    "place",
+    "play",
+    "playstation",
+    "plumbing",
+    "plus",
+    "pm",
+    "pn",
+    "pnc",
+    "pohl",
+    "poker",
+    "politie",
+    "porn",
+    "post",
+    "pr",
+    "pramerica",
+    "praxi",
+    "press",
+    "prime",
+    "pro",
+    "prod",
+    "productions",
+    "prof",
+    "progressive",
+    "promo",
+    "properties",
+    "property",
+    "protection",
+    "pru",
+    "prudential",
+    "ps",
+    "pt",
+    "pub",
+    "pw",
+    "pwc",
+    "py",
     # q
-    'qa', 'qpon', 'quebec', 'quest', 'qvc',
+    "qa",
+    "qpon",
+    "quebec",
+    "quest",
+    "qvc",
     # r
-    'racing', 'radio', 'raid', 're', 'read', 'realestate', 'realtor',
-    'realty', 'recipes', 'red', 'redstone', 'redumbrella', 'rehab',
-    'reise', 'reisen', 'reit', 'reliance', 'ren', 'rent', 'rentals',
-    'repair', 'report', 'republican', 'rest', 'restaurant', 'review',
-    'reviews', 'rexroth', 'rich', 'richardli', 'ricoh',
-    'rightathome', 'ril', 'rio', 'rip', 'rmit', 'ro', 'rocher',
-    'rocks', 'rodeo', 'rogers', 'room', 'rs', 'rsvp', 'ru', 'rugby',
-    'ruhr', 'run', 'rw', 'rwe', 'ryukyu',
+    "racing",
+    "radio",
+    "raid",
+    "re",
+    "read",
+    "realestate",
+    "realtor",
+    "realty",
+    "recipes",
+    "red",
+    "redstone",
+    "redumbrella",
+    "rehab",
+    "reise",
+    "reisen",
+    "reit",
+    "reliance",
+    "ren",
+    "rent",
+    "rentals",
+    "repair",
+    "report",
+    "republican",
+    "rest",
+    "restaurant",
+    "review",
+    "reviews",
+    "rexroth",
+    "rich",
+    "richardli",
+    "ricoh",
+    "rightathome",
+    "ril",
+    "rio",
+    "rip",
+    "rmit",
+    "ro",
+    "rocher",
+    "rocks",
+    "rodeo",
+    "rogers",
+    "room",
+    "rs",
+    "rsvp",
+    "ru",
+    "rugby",
+    "ruhr",
+    "run",
+    "rw",
+    "rwe",
+    "ryukyu",
     # s
-    'sa', 'saarland', 'safe', 'safety', 'sakura', 'sale', 'salon',
-    'samsclub', 'samsung', 'sandvik', 'sandvikcoromant', 'sanofi',
-    'sap', 'sapo', 'sarl', 'sas', 'save', 'saxo', 'sb', 'sbi', 'sbs',
-    'sc', 'sca', 'scb', 'schaeffler', 'schmidt', 'scholarships',
-    'school', 'schule', 'schwarz', 'science', 'scjohnson', 'scor',
-    'scot', 'sd', 'se', 'search', 'seat', 'secure', 'security',
-    'seek', 'select', 'sener', 'services', 'ses', 'seven', 'sew',
-    'sex', 'sexy', 'sfr', 'sg', 'sh', 'shangrila', 'sharp', 'shaw',
-    'shell', 'shia', 'shiksha', 'shoes', 'shop', 'shopping',
-    'shouji', 'show', 'showtime', 'shriram', 'si', 'silk', 'sina',
-    'singles', 'site', 'sj', 'sk', 'ski', 'skin', 'sky', 'skype',
-    'sl', 'sling', 'sm', 'smart', 'smile', 'sn', 'sncf', 'so',
-    'soccer', 'social', 'softbank', 'software', 'sohu', 'solar',
-    'solutions', 'song', 'sony', 'soy', 'space', 'spiegel', 'spot',
-    'spreadbetting', 'sr', 'srl', 'srt', 'st', 'stada', 'staples',
-    'star', 'starhub', 'statebank', 'statefarm', 'statoil', 'stc',
-    'stcgroup', 'stockholm', 'storage', 'store', 'stream', 'studio',
-    'study', 'style', 'su', 'sucks', 'supplies', 'supply', 'support',
-    'surf', 'surgery', 'suzuki', 'sv', 'swatch', 'swiftcover',
-    'swiss', 'sx', 'sy', 'sydney', 'symantec', 'systems', 'sz',
+    "sa",
+    "saarland",
+    "safe",
+    "safety",
+    "sakura",
+    "sale",
+    "salon",
+    "samsclub",
+    "samsung",
+    "sandvik",
+    "sandvikcoromant",
+    "sanofi",
+    "sap",
+    "sapo",
+    "sarl",
+    "sas",
+    "save",
+    "saxo",
+    "sb",
+    "sbi",
+    "sbs",
+    "sc",
+    "sca",
+    "scb",
+    "schaeffler",
+    "schmidt",
+    "scholarships",
+    "school",
+    "schule",
+    "schwarz",
+    "science",
+    "scjohnson",
+    "scor",
+    "scot",
+    "sd",
+    "se",
+    "search",
+    "seat",
+    "secure",
+    "security",
+    "seek",
+    "select",
+    "sener",
+    "services",
+    "ses",
+    "seven",
+    "sew",
+    "sex",
+    "sexy",
+    "sfr",
+    "sg",
+    "sh",
+    "shangrila",
+    "sharp",
+    "shaw",
+    "shell",
+    "shia",
+    "shiksha",
+    "shoes",
+    "shop",
+    "shopping",
+    "shouji",
+    "show",
+    "showtime",
+    "shriram",
+    "si",
+    "silk",
+    "sina",
+    "singles",
+    "site",
+    "sj",
+    "sk",
+    "ski",
+    "skin",
+    "sky",
+    "skype",
+    "sl",
+    "sling",
+    "sm",
+    "smart",
+    "smile",
+    "sn",
+    "sncf",
+    "so",
+    "soccer",
+    "social",
+    "softbank",
+    "software",
+    "sohu",
+    "solar",
+    "solutions",
+    "song",
+    "sony",
+    "soy",
+    "space",
+    "spiegel",
+    "spot",
+    "spreadbetting",
+    "sr",
+    "srl",
+    "srt",
+    "st",
+    "stada",
+    "staples",
+    "star",
+    "starhub",
+    "statebank",
+    "statefarm",
+    "statoil",
+    "stc",
+    "stcgroup",
+    "stockholm",
+    "storage",
+    "store",
+    "stream",
+    "studio",
+    "study",
+    "style",
+    "su",
+    "sucks",
+    "supplies",
+    "supply",
+    "support",
+    "surf",
+    "surgery",
+    "suzuki",
+    "sv",
+    "swatch",
+    "swiftcover",
+    "swiss",
+    "sx",
+    "sy",
+    "sydney",
+    "symantec",
+    "systems",
+    "sz",
     # t
-    'tab', 'taipei', 'talk', 'taobao', 'target', 'tatamotors',
-    'tatar', 'tattoo', 'tax', 'taxi', 'tc', 'tci', 'td', 'tdk',
-    'team', 'tech', 'technology', 'tel', 'telecity', 'telefonica',
-    'temasek', 'tennis', 'teva', 'tf', 'tg', 'th', 'thd', 'theater',
-    'theatre', 'tiaa', 'tickets', 'tienda', 'tiffany', 'tips',
-    'tires', 'tirol', 'tj', 'tjmaxx', 'tjx', 'tk', 'tkmaxx', 'tl',
-    'tm', 'tmall', 'tn', 'to', 'today', 'tokyo', 'tools', 'top',
-    'toray', 'toshiba', 'total', 'tours', 'town', 'toyota', 'toys',
-    'tr', 'trade', 'trading', 'training', 'travel', 'travelchannel',
-    'travelers', 'travelersinsurance', 'trust', 'trv', 'tt', 'tube',
-    'tui', 'tunes', 'tushu', 'tv', 'tvs', 'tw', 'tz',
+    "tab",
+    "taipei",
+    "talk",
+    "taobao",
+    "target",
+    "tatamotors",
+    "tatar",
+    "tattoo",
+    "tax",
+    "taxi",
+    "tc",
+    "tci",
+    "td",
+    "tdk",
+    "team",
+    "tech",
+    "technology",
+    "tel",
+    "telecity",
+    "telefonica",
+    "temasek",
+    "tennis",
+    "teva",
+    "tf",
+    "tg",
+    "th",
+    "thd",
+    "theater",
+    "theatre",
+    "tiaa",
+    "tickets",
+    "tienda",
+    "tiffany",
+    "tips",
+    "tires",
+    "tirol",
+    "tj",
+    "tjmaxx",
+    "tjx",
+    "tk",
+    "tkmaxx",
+    "tl",
+    "tm",
+    "tmall",
+    "tn",
+    "to",
+    "today",
+    "tokyo",
+    "tools",
+    "top",
+    "toray",
+    "toshiba",
+    "total",
+    "tours",
+    "town",
+    "toyota",
+    "toys",
+    "tr",
+    "trade",
+    "trading",
+    "training",
+    "travel",
+    "travelchannel",
+    "travelers",
+    "travelersinsurance",
+    "trust",
+    "trv",
+    "tt",
+    "tube",
+    "tui",
+    "tunes",
+    "tushu",
+    "tv",
+    "tvs",
+    "tw",
+    "tz",
     # u
-    'ua', 'ubank', 'ubs', 'uconnect', 'ug', 'uk', 'unicom',
-    'university', 'uno', 'uol', 'ups', 'us', 'uy', 'uz',
+    "ua",
+    "ubank",
+    "ubs",
+    "uconnect",
+    "ug",
+    "uk",
+    "unicom",
+    "university",
+    "uno",
+    "uol",
+    "ups",
+    "us",
+    "uy",
+    "uz",
     # v
-    'va', 'vacations', 'vana', 'vanguard', 'vc', 've', 'vegas',
-    'ventures', 'verisign', 'versicherung', 'vet', 'vg', 'vi',
-    'viajes', 'video', 'vig', 'viking', 'villas', 'vin', 'vip',
-    'virgin', 'visa', 'vision', 'vista', 'vistaprint', 'viva',
-    'vivo', 'vlaanderen', 'vn', 'vodka', 'volkswagen', 'volvo',
-    'vote', 'voting', 'voto', 'voyage', 'vu', 'vuelos',
+    "va",
+    "vacations",
+    "vana",
+    "vanguard",
+    "vc",
+    "ve",
+    "vegas",
+    "ventures",
+    "verisign",
+    "versicherung",
+    "vet",
+    "vg",
+    "vi",
+    "viajes",
+    "video",
+    "vig",
+    "viking",
+    "villas",
+    "vin",
+    "vip",
+    "virgin",
+    "visa",
+    "vision",
+    "vista",
+    "vistaprint",
+    "viva",
+    "vivo",
+    "vlaanderen",
+    "vn",
+    "vodka",
+    "volkswagen",
+    "volvo",
+    "vote",
+    "voting",
+    "voto",
+    "voyage",
+    "vu",
+    "vuelos",
     # w
-    'wales', 'walmart', 'walter', 'wang', 'wanggou', 'warman',
-    'watch', 'watches', 'weather', 'weatherchannel', 'webcam',
-    'weber', 'website', 'wed', 'wedding', 'weibo', 'weir', 'wf',
-    'whoswho', 'wien', 'wiki', 'williamhill', 'win', 'windows',
-    'wine', 'winners', 'wme', 'wolterskluwer', 'woodside', 'work',
-    'works', 'world', 'wow', 'ws', 'wtc', 'wtf',
+    "wales",
+    "walmart",
+    "walter",
+    "wang",
+    "wanggou",
+    "warman",
+    "watch",
+    "watches",
+    "weather",
+    "weatherchannel",
+    "webcam",
+    "weber",
+    "website",
+    "wed",
+    "wedding",
+    "weibo",
+    "weir",
+    "wf",
+    "whoswho",
+    "wien",
+    "wiki",
+    "williamhill",
+    "win",
+    "windows",
+    "wine",
+    "winners",
+    "wme",
+    "wolterskluwer",
+    "woodside",
+    "work",
+    "works",
+    "world",
+    "wow",
+    "ws",
+    "wtc",
+    "wtf",
     # x
-    'xbox', 'xerox', 'xfinity', 'xihuan', 'xin', 'xn--11b4c3d',
-    'xn--1ck2e1b', 'xn--1qqw23a', 'xn--2scrj9c', 'xn--30rr7y',
-    'xn--3bst00m', 'xn--3ds443g', 'xn--3e0b707e', 'xn--3hcrj9c',
-    'xn--3oq18vl8pn36a', 'xn--3pxu8k', 'xn--42c2d9a', 'xn--45br5cyl',
-    'xn--45brj9c', 'xn--45q11c', 'xn--4gbrim', 'xn--54b7fta0cc',
-    'xn--55qw42g', 'xn--55qx5d', 'xn--5su34j936bgsg', 'xn--5tzm5g',
-    'xn--6frz82g', 'xn--6qq986b3xl', 'xn--80adxhks', 'xn--80ao21a',
-    'xn--80aqecdr1a', 'xn--80asehdb', 'xn--80aswg', 'xn--8y0a063a',
-    'xn--90a3ac', 'xn--90ae', 'xn--90ais', 'xn--9dbq2a',
-    'xn--9et52u', 'xn--9krt00a', 'xn--b4w605ferd',
-    'xn--bck1b9a5dre4c', 'xn--c1avg', 'xn--c2br7g', 'xn--cck2b3b',
-    'xn--cg4bki', 'xn--clchc0ea0b2g2a9gcd', 'xn--czr694b',
-    'xn--czrs0t', 'xn--czru2d', 'xn--d1acj3b', 'xn--d1alf',
-    'xn--e1a4c', 'xn--eckvdtc9d', 'xn--efvy88h', 'xn--estv75g',
-    'xn--fct429k', 'xn--fhbei', 'xn--fiq228c5hs', 'xn--fiq64b',
-    'xn--fiqs8s', 'xn--fiqz9s', 'xn--fjq720a', 'xn--flw351e',
-    'xn--fpcrj9c3d', 'xn--fzc2c9e2c', 'xn--fzys8d69uvgm',
-    'xn--g2xx48c', 'xn--gckr3f0f', 'xn--gecrj9c', 'xn--gk3at1e',
-    'xn--h2breg3eve', 'xn--h2brj9c', 'xn--h2brj9c8c', 'xn--hxt814e',
-    'xn--i1b6b1a6a2e', 'xn--imr513n', 'xn--io0a7i', 'xn--j1aef',
-    'xn--j1amh', 'xn--j6w193g', 'xn--jlq61u9w7b', 'xn--jvr189m',
-    'xn--kcrx77d1x4a', 'xn--kprw13d', 'xn--kpry57d', 'xn--kpu716f',
-    'xn--kput3i', 'xn--l1acc', 'xn--lgbbat1ad8j', 'xn--mgb9awbf',
-    'xn--mgba3a3ejt', 'xn--mgba3a4f16a', 'xn--mgba7c0bbn0a',
-    'xn--mgbaakc7dvf', 'xn--mgbaam7a8h', 'xn--mgbab2bd',
-    'xn--mgbai9azgqp6j', 'xn--mgbayh7gpa', 'xn--mgbb9fbpob',
-    'xn--mgbbh1a', 'xn--mgbbh1a71e', 'xn--mgbc0a9azcg',
-    'xn--mgbca7dzdo', 'xn--mgberp4a5d4ar', 'xn--mgbgu82a',
-    'xn--mgbi4ecexp', 'xn--mgbpl2fh', 'xn--mgbt3dhd', 'xn--mgbtx2b',
-    'xn--mgbx4cd0ab', 'xn--mix891f', 'xn--mk1bu44c', 'xn--mxtq1m',
-    'xn--ngbc5azd', 'xn--ngbe9e0a', 'xn--ngbrx', 'xn--node',
-    'xn--nqv7f', 'xn--nqv7fs00ema', 'xn--nyqy26a', 'xn--o3cw4h',
-    'xn--ogbpf8fl', 'xn--p1acf', 'xn--p1ai', 'xn--pbt977c',
-    'xn--pgbs0dh', 'xn--pssy2u', 'xn--q9jyb4c', 'xn--qcka1pmc',
-    'xn--qxam', 'xn--rhqv96g', 'xn--rovu88b', 'xn--rvc1e0am3e',
-    'xn--s9brj9c', 'xn--ses554g', 'xn--t60b56a', 'xn--tckwe',
-    'xn--tiq49xqyj', 'xn--unup4y', 'xn--vermgensberater-ctb',
-    'xn--vermgensberatung-pwb', 'xn--vhquv', 'xn--vuq861b',
-    'xn--w4r85el8fhu5dnra', 'xn--w4rs40l', 'xn--wgbh1c',
-    'xn--wgbl6a', 'xn--xhq521b', 'xn--xkc2al3hye2a',
-    'xn--xkc2dl3a5ee0h', 'xn--y9a3aq', 'xn--yfro4i67o',
-    'xn--ygbi2ammx', 'xn--zfr164b', 'xperia', 'xxx', 'xyz',
+    "xbox",
+    "xerox",
+    "xfinity",
+    "xihuan",
+    "xin",
+    "xn--11b4c3d",
+    "xn--1ck2e1b",
+    "xn--1qqw23a",
+    "xn--2scrj9c",
+    "xn--30rr7y",
+    "xn--3bst00m",
+    "xn--3ds443g",
+    "xn--3e0b707e",
+    "xn--3hcrj9c",
+    "xn--3oq18vl8pn36a",
+    "xn--3pxu8k",
+    "xn--42c2d9a",
+    "xn--45br5cyl",
+    "xn--45brj9c",
+    "xn--45q11c",
+    "xn--4gbrim",
+    "xn--54b7fta0cc",
+    "xn--55qw42g",
+    "xn--55qx5d",
+    "xn--5su34j936bgsg",
+    "xn--5tzm5g",
+    "xn--6frz82g",
+    "xn--6qq986b3xl",
+    "xn--80adxhks",
+    "xn--80ao21a",
+    "xn--80aqecdr1a",
+    "xn--80asehdb",
+    "xn--80aswg",
+    "xn--8y0a063a",
+    "xn--90a3ac",
+    "xn--90ae",
+    "xn--90ais",
+    "xn--9dbq2a",
+    "xn--9et52u",
+    "xn--9krt00a",
+    "xn--b4w605ferd",
+    "xn--bck1b9a5dre4c",
+    "xn--c1avg",
+    "xn--c2br7g",
+    "xn--cck2b3b",
+    "xn--cg4bki",
+    "xn--clchc0ea0b2g2a9gcd",
+    "xn--czr694b",
+    "xn--czrs0t",
+    "xn--czru2d",
+    "xn--d1acj3b",
+    "xn--d1alf",
+    "xn--e1a4c",
+    "xn--eckvdtc9d",
+    "xn--efvy88h",
+    "xn--estv75g",
+    "xn--fct429k",
+    "xn--fhbei",
+    "xn--fiq228c5hs",
+    "xn--fiq64b",
+    "xn--fiqs8s",
+    "xn--fiqz9s",
+    "xn--fjq720a",
+    "xn--flw351e",
+    "xn--fpcrj9c3d",
+    "xn--fzc2c9e2c",
+    "xn--fzys8d69uvgm",
+    "xn--g2xx48c",
+    "xn--gckr3f0f",
+    "xn--gecrj9c",
+    "xn--gk3at1e",
+    "xn--h2breg3eve",
+    "xn--h2brj9c",
+    "xn--h2brj9c8c",
+    "xn--hxt814e",
+    "xn--i1b6b1a6a2e",
+    "xn--imr513n",
+    "xn--io0a7i",
+    "xn--j1aef",
+    "xn--j1amh",
+    "xn--j6w193g",
+    "xn--jlq61u9w7b",
+    "xn--jvr189m",
+    "xn--kcrx77d1x4a",
+    "xn--kprw13d",
+    "xn--kpry57d",
+    "xn--kpu716f",
+    "xn--kput3i",
+    "xn--l1acc",
+    "xn--lgbbat1ad8j",
+    "xn--mgb9awbf",
+    "xn--mgba3a3ejt",
+    "xn--mgba3a4f16a",
+    "xn--mgba7c0bbn0a",
+    "xn--mgbaakc7dvf",
+    "xn--mgbaam7a8h",
+    "xn--mgbab2bd",
+    "xn--mgbai9azgqp6j",
+    "xn--mgbayh7gpa",
+    "xn--mgbb9fbpob",
+    "xn--mgbbh1a",
+    "xn--mgbbh1a71e",
+    "xn--mgbc0a9azcg",
+    "xn--mgbca7dzdo",
+    "xn--mgberp4a5d4ar",
+    "xn--mgbgu82a",
+    "xn--mgbi4ecexp",
+    "xn--mgbpl2fh",
+    "xn--mgbt3dhd",
+    "xn--mgbtx2b",
+    "xn--mgbx4cd0ab",
+    "xn--mix891f",
+    "xn--mk1bu44c",
+    "xn--mxtq1m",
+    "xn--ngbc5azd",
+    "xn--ngbe9e0a",
+    "xn--ngbrx",
+    "xn--node",
+    "xn--nqv7f",
+    "xn--nqv7fs00ema",
+    "xn--nyqy26a",
+    "xn--o3cw4h",
+    "xn--ogbpf8fl",
+    "xn--p1acf",
+    "xn--p1ai",
+    "xn--pbt977c",
+    "xn--pgbs0dh",
+    "xn--pssy2u",
+    "xn--q9jyb4c",
+    "xn--qcka1pmc",
+    "xn--qxam",
+    "xn--rhqv96g",
+    "xn--rovu88b",
+    "xn--rvc1e0am3e",
+    "xn--s9brj9c",
+    "xn--ses554g",
+    "xn--t60b56a",
+    "xn--tckwe",
+    "xn--tiq49xqyj",
+    "xn--unup4y",
+    "xn--vermgensberater-ctb",
+    "xn--vermgensberatung-pwb",
+    "xn--vhquv",
+    "xn--vuq861b",
+    "xn--w4r85el8fhu5dnra",
+    "xn--w4rs40l",
+    "xn--wgbh1c",
+    "xn--wgbl6a",
+    "xn--xhq521b",
+    "xn--xkc2al3hye2a",
+    "xn--xkc2dl3a5ee0h",
+    "xn--y9a3aq",
+    "xn--yfro4i67o",
+    "xn--ygbi2ammx",
+    "xn--zfr164b",
+    "xperia",
+    "xxx",
+    "xyz",
     # y
-    'yachts', 'yahoo', 'yamaxun', 'yandex', 'ye', 'yodobashi',
-    'yoga', 'yokohama', 'you', 'youtube', 'yt', 'yun',
+    "yachts",
+    "yahoo",
+    "yamaxun",
+    "yandex",
+    "ye",
+    "yodobashi",
+    "yoga",
+    "yokohama",
+    "you",
+    "youtube",
+    "yt",
+    "yun",
     # z
-    'za', 'zappos', 'zara', 'zero', 'zip', 'zippo', 'zm', 'zone',
-    'zuerich', 'zw'
+    "za",
+    "zappos",
+    "zara",
+    "zero",
+    "zip",
+    "zippo",
+    "zm",
+    "zone",
+    "zuerich",
+    "zw",
 ]
 
 
@@ -1992,11 +3357,13 @@ class IS_HTTP_URL(Validator):
     REGEX_GENERIC_VALID_IP = r"([\w.!~*'|;:&=+$,-]+@)?\d+\.\d+\.\d+\.\d+(:\d*)*$"
     REGEX_GENERIC_VALID_DOMAIN = r"([\w.!~*'|;:&=+$,-]+@)?(([A-Za-z0-9]+[A-Za-z0-9\-]*[A-Za-z0-9]+\.)*([A-Za-z0-9]+\.)*)*([A-Za-z]+[A-Za-z0-9\-]*[A-Za-z0-9]+)\.?(:\d*)*$"
 
-    def __init__(self,
-                 error_message='Enter a valid URL',
-                 allowed_schemes=None,
-                 prepend_scheme='http',
-                 allowed_tlds=None):
+    def __init__(
+        self,
+        error_message="Enter a valid URL",
+        allowed_schemes=None,
+        prepend_scheme="http",
+        allowed_tlds=None,
+    ):
 
         self.error_message = error_message
         if allowed_schemes is None:
@@ -2011,12 +3378,15 @@ class IS_HTTP_URL(Validator):
 
         for i in self.allowed_schemes:
             if i not in http_schemes:
-                raise SyntaxError("allowed_scheme value '%s' is not in %s" %
-                                  (i, http_schemes))
+                raise SyntaxError(
+                    "allowed_scheme value '%s' is not in %s" % (i, http_schemes)
+                )
 
         if self.prepend_scheme not in self.allowed_schemes:
-            raise SyntaxError("prepend_scheme='%s' is not in allowed_schemes=%s" %
-                              (self.prepend_scheme, self.allowed_schemes))
+            raise SyntaxError(
+                "prepend_scheme='%s' is not in allowed_schemes=%s"
+                % (self.prepend_scheme, self.allowed_schemes)
+            )
 
     def validate(self, value, record_id=None):
         """
@@ -2030,9 +3400,11 @@ class IS_HTTP_URL(Validator):
         """
         try:
             # if the URL passes generic validation
-            x = IS_GENERIC_URL(error_message=self.error_message,
-                               allowed_schemes=self.allowed_schemes,
-                               prepend_scheme=self.prepend_scheme)
+            x = IS_GENERIC_URL(
+                error_message=self.error_message,
+                allowed_schemes=self.allowed_schemes,
+                prepend_scheme=self.prepend_scheme,
+            )
             if x(value)[1] is None:
                 components = urlparse.urlparse(value)
                 authority = components.netloc
@@ -2045,8 +3417,8 @@ class IS_HTTP_URL(Validator):
                     else:
                         # else if authority is a valid domain name
                         domainMatch = re.match(
-                            self.REGEX_GENERIC_VALID_DOMAIN,
-                            authority)
+                            self.REGEX_GENERIC_VALID_DOMAIN, authority
+                        )
                         if domainMatch:
                             # if the top-level domain really exists
                             if domainMatch.group(5).lower() in self.allowed_tlds:
@@ -2058,12 +3430,12 @@ class IS_HTTP_URL(Validator):
                     path = components.path
                     # relative case: if this is a valid path (if it starts with
                     # a slash)
-                    if not path.startswith('/'):
+                    if not path.startswith("/"):
                         # abbreviated case: if we haven't already, prepend a
                         # scheme and see if it fixes the problem
-                        if '://' not in value and None in self.allowed_schemes:
-                            schemeToUse = self.prepend_scheme or 'http'
-                            new_value = self.validate(schemeToUse + '://' + value)
+                        if "://" not in value and None in self.allowed_schemes:
+                            schemeToUse = self.prepend_scheme or "http"
+                            new_value = self.validate(schemeToUse + "://" + value)
                             return new_value if self.prepend_scheme else value
                     return value
         except:
@@ -2156,16 +3528,18 @@ class IS_URL(Validator):
     @author: Jonathan Benn
     """
 
-    def __init__(self,
-                 error_message='Enter a valid URL',
-                 mode='http',
-                 allowed_schemes=None,
-                 prepend_scheme='http',
-                 allowed_tlds=None):
+    def __init__(
+        self,
+        error_message="Enter a valid URL",
+        mode="http",
+        allowed_schemes=None,
+        prepend_scheme="http",
+        allowed_tlds=None,
+    ):
 
         self.error_message = error_message
         self.mode = mode.lower()
-        if self.mode not in ['generic', 'http']:
+        if self.mode not in ["generic", "http"]:
             raise SyntaxError("invalid mode '%s' in IS_URL" % self.mode)
         self.allowed_schemes = allowed_schemes
         if allowed_tlds is None:
@@ -2175,8 +3549,10 @@ class IS_URL(Validator):
 
         if self.allowed_schemes:
             if prepend_scheme not in self.allowed_schemes:
-                raise SyntaxError("prepend_scheme='%s' is not in allowed_schemes=%s"
-                                  % (prepend_scheme, self.allowed_schemes))
+                raise SyntaxError(
+                    "prepend_scheme='%s' is not in allowed_schemes=%s"
+                    % (prepend_scheme, self.allowed_schemes)
+                )
 
         # if allowed_schemes is None, then we will defer testing
         # prepend_scheme's validity to a sub-method
@@ -2196,15 +3572,19 @@ class IS_URL(Validator):
             may be modified to (1) prepend a scheme, and/or (2) convert a
             non-compliant unicode URL into a compliant US-ASCII version.
         """
-        if self.mode == 'generic':
-            subMethod = IS_GENERIC_URL(error_message=self.error_message,
-                                       allowed_schemes=self.allowed_schemes,
-                                       prepend_scheme=self.prepend_scheme)
-        elif self.mode == 'http':
-            subMethod = IS_HTTP_URL(error_message=self.error_message,
-                                    allowed_schemes=self.allowed_schemes,
-                                    prepend_scheme=self.prepend_scheme,
-                                    allowed_tlds=self.allowed_tlds)
+        if self.mode == "generic":
+            subMethod = IS_GENERIC_URL(
+                error_message=self.error_message,
+                allowed_schemes=self.allowed_schemes,
+                prepend_scheme=self.prepend_scheme,
+            )
+        elif self.mode == "http":
+            subMethod = IS_HTTP_URL(
+                error_message=self.error_message,
+                allowed_schemes=self.allowed_schemes,
+                prepend_scheme=self.prepend_scheme,
+                allowed_tlds=self.allowed_tlds,
+            )
         else:
             raise SyntaxError("invalid mode '%s' in IS_URL" % self.mode)
 
@@ -2261,27 +3641,30 @@ class IS_TIME(Validator):
 
     """
 
-    REGEX_TIME = '((?P<h>[0-9]+))([^0-9 ]+(?P<m>[0-9 ]+))?([^0-9ap ]+(?P<s>[0-9]*))?((?P<d>[ap]m))?'
+    REGEX_TIME = "((?P<h>[0-9]+))([^0-9 ]+(?P<m>[0-9 ]+))?([^0-9ap ]+(?P<s>[0-9]*))?((?P<d>[ap]m))?"
 
-    def __init__(self, error_message='Enter time as hh:mm:ss (seconds, am, pm optional)'):
+    def __init__(
+        self, error_message="Enter time as hh:mm:ss (seconds, am, pm optional)"
+    ):
         self.error_message = error_message
 
     def validate(self, value, record_id=None):
         try:
             ivalue = value
             value = re.match(self.REGEX_TIME, value.lower())
-            (h, m, s) = (int(value.group('h')), 0, 0)
-            if not value.group('m') is None:
-                m = int(value.group('m'))
-            if not value.group('s') is None:
-                s = int(value.group('s'))
-            if value.group('d') == 'pm' and 0 < h < 12:
+            (h, m, s) = (int(value.group("h")), 0, 0)
+            if not value.group("m") is None:
+                m = int(value.group("m"))
+            if not value.group("s") is None:
+                s = int(value.group("s"))
+            if value.group("d") == "pm" and 0 < h < 12:
                 h += 12
-            if value.group('d') == 'am' and h == 12:
+            if value.group("d") == "am" and h == 12:
                 h = 0
-            if not (h in range(24) and m in range(60) and s
-                    in range(60)):
-                raise ValueError('Hours or minutes or seconds are outside of allowed range')
+            if not (h in range(24) and m in range(60) and s in range(60)):
+                raise ValueError(
+                    "Hours or minutes or seconds are outside of allowed range"
+                )
             value = datetime.time(h, m, s)
             return value
         except Exception:
@@ -2291,6 +3674,7 @@ class IS_TIME(Validator):
 # A UTC class.
 class UTC(datetime.tzinfo):
     """UTC"""
+
     ZERO = datetime.timedelta(0)
 
     def utcoffset(self, dt):
@@ -2301,6 +3685,8 @@ class UTC(datetime.tzinfo):
 
     def dst(self, dt):
         return UTC.ZERO
+
+
 utc = UTC()
 
 
@@ -2314,8 +3700,7 @@ class IS_DATE(Validator):
     date has to be in the ISO8960 format YYYY-MM-DD
     """
 
-    def __init__(self, format='%Y-%m-%d',
-                 error_message='Enter date as %(format)s'):
+    def __init__(self, format="%Y-%m-%d", error_message="Enter date as %(format)s"):
         self.format = self.translator(format)
         self.error_message = str(error_message)
         self.extremes = {}
@@ -2324,8 +3709,7 @@ class IS_DATE(Validator):
         if isinstance(value, datetime.date):
             return value
         try:
-            (y, m, d, hh, mm, ss, t0, t1, t2) = \
-                time.strptime(value, str(self.format))
+            (y, m, d, hh, mm, ss, t0, t1, t2) = time.strptime(value, str(self.format))
             value = datetime.date(y, m, d)
             return value
         except:
@@ -2333,13 +3717,13 @@ class IS_DATE(Validator):
             raise ValidationError(self.translator(self.error_message) % self.extremes)
 
     def formatter(self, value):
-        if value is None or value == '':
+        if value is None or value == "":
             return None
         format = self.format
         year = value.year
-        y = '%.4i' % year
-        format = format.replace('%y', y[-2:])
-        format = format.replace('%Y', y)
+        y = "%.4i" % year
+        format = format.replace("%y", y[-2:])
+        format = format.replace("%Y", y)
         if year < 1900:
             year = 2000
         d = datetime.date(year, value.month, value.day)
@@ -2357,28 +3741,33 @@ class IS_DATETIME(Validator):
     timezome must be None or a pytz.timezone("America/Chicago") object
     """
 
-    isodatetime = '%Y-%m-%d %H:%M:%S'
+    isodatetime = "%Y-%m-%d %H:%M:%S"
 
     @staticmethod
     def nice(format):
-        code = (('%Y', '1963'),
-                ('%y', '63'),
-                ('%d', '28'),
-                ('%m', '08'),
-                ('%b', 'Aug'),
-                ('%B', 'August'),
-                ('%H', '14'),
-                ('%I', '02'),
-                ('%p', 'PM'),
-                ('%M', '30'),
-                ('%S', '59'))
+        code = (
+            ("%Y", "1963"),
+            ("%y", "63"),
+            ("%d", "28"),
+            ("%m", "08"),
+            ("%b", "Aug"),
+            ("%B", "August"),
+            ("%H", "14"),
+            ("%I", "02"),
+            ("%p", "PM"),
+            ("%M", "30"),
+            ("%S", "59"),
+        )
         for (a, b) in code:
             format = format.replace(a, b)
         return dict(format=format)
 
-    def __init__(self, format='%Y-%m-%d %H:%M:%S',
-                 error_message='Enter date and time as %(format)s',
-                 timezone=None):
+    def __init__(
+        self,
+        format="%Y-%m-%d %H:%M:%S",
+        error_message="Enter date and time as %(format)s",
+        timezone=None,
+    ):
         self.format = self.translator(format)
         self.error_message = str(error_message)
         self.extremes = {}
@@ -2388,29 +3777,31 @@ class IS_DATETIME(Validator):
         if isinstance(value, datetime.datetime):
             return value
         try:
-            (y, m, d, hh, mm, ss, t0, t1, t2) = \
-                time.strptime(value, str(self.format))
+            (y, m, d, hh, mm, ss, t0, t1, t2) = time.strptime(value, str(self.format))
             value = datetime.datetime(y, m, d, hh, mm, ss)
             if self.timezone is not None:
                 # TODO: https://github.com/web2py/web2py/issues/1094 (temporary solution)
-                value = self.timezone.localize(value).astimezone(utc).replace(tzinfo=None)
+                value = (
+                    self.timezone.localize(value).astimezone(utc).replace(tzinfo=None)
+                )
             return value
         except:
             self.extremes.update(IS_DATETIME.nice(self.format))
             raise ValidationError(self.translator(self.error_message) % self.extremes)
 
     def formatter(self, value):
-        if value is None or value == '':
+        if value is None or value == "":
             return None
         format = self.format
         year = value.year
-        y = '%.4i' % year
-        format = format.replace('%y', y[-2:])
-        format = format.replace('%Y', y)
+        y = "%.4i" % year
+        format = format.replace("%y", y[-2:])
+        format = format.replace("%Y", y)
         if year < 1900:
             year = 2000
-        d = datetime.datetime(year, value.month, value.day,
-                              value.hour, value.minute, value.second)
+        d = datetime.datetime(
+            year, value.month, value.day, value.hour, value.minute, value.second
+        )
         if self.timezone is not None:
             d = d.replace(tzinfo=utc).astimezone(self.timezone)
         return d.strftime(format)
@@ -2439,11 +3830,9 @@ class IS_DATE_IN_RANGE(IS_DATE):
 
     """
 
-    def __init__(self,
-                 minimum=None,
-                 maximum=None,
-                 format='%Y-%m-%d',
-                 error_message=None):
+    def __init__(
+        self, minimum=None, maximum=None, format="%Y-%m-%d", error_message=None
+    ):
         self.minimum = minimum
         self.maximum = maximum
         if error_message is None:
@@ -2453,11 +3842,8 @@ class IS_DATE_IN_RANGE(IS_DATE):
                 error_message = "Enter date on or after %(min)s"
             else:
                 error_message = "Enter date in range %(min)s %(max)s"
-        IS_DATE.__init__(self,
-                         format=format,
-                         error_message=error_message)
-        self.extremes = dict(min=self.formatter(minimum),
-                             max=self.formatter(maximum))
+        IS_DATE.__init__(self, format=format, error_message=error_message)
+        self.extremes = dict(min=self.formatter(minimum), max=self.formatter(maximum))
 
     def validate(self, value, record_id=None):
         value = IS_DATE.validate(self, value, record_id=None)
@@ -2490,12 +3876,14 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
 
     """
 
-    def __init__(self,
-                 minimum=None,
-                 maximum=None,
-                 format='%Y-%m-%d %H:%M:%S',
-                 error_message=None,
-                 timezone=None):
+    def __init__(
+        self,
+        minimum=None,
+        maximum=None,
+        format="%Y-%m-%d %H:%M:%S",
+        error_message=None,
+        timezone=None,
+    ):
         self.minimum = minimum
         self.maximum = maximum
         if error_message is None:
@@ -2505,12 +3893,10 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
                 error_message = "Enter date and time on or after %(min)s"
             else:
                 error_message = "Enter date and time in range %(min)s %(max)s"
-        IS_DATETIME.__init__(self,
-                             format=format,
-                             error_message=error_message,
-                             timezone=timezone)
-        self.extremes = dict(min=self.formatter(minimum),
-                             max=self.formatter(maximum))
+        IS_DATETIME.__init__(
+            self, format=format, error_message=error_message, timezone=timezone
+        )
+        self.extremes = dict(min=self.formatter(minimum), max=self.formatter(maximum))
 
     def validate(self, value, record_id=None):
         value = IS_DATETIME.validate(self, value, record_id=None)
@@ -2522,7 +3908,6 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
 
 
 class IS_LIST_OF(Validator):
-
     def __init__(self, other=None, minimum=None, maximum=None, error_message=None):
         self.other = other
         self.minimum = minimum
@@ -2535,11 +3920,15 @@ class IS_LIST_OF(Validator):
             ivalue = [ivalue]
         ivalue = [i for i in ivalue if str(i).strip()]
         if self.minimum is not None and len(ivalue) < self.minimum:
-            raise ValidationError(self.translator(self.error_message or 'Minimum length is %(min)s') %
-                                  dict(min=self.minimum, max=self.maximum))
+            raise ValidationError(
+                self.translator(self.error_message or "Minimum length is %(min)s")
+                % dict(min=self.minimum, max=self.maximum)
+            )
         if self.maximum is not None and len(ivalue) > self.maximum:
-            raise ValidationError(self.translator(self.error_message or 'Maximum length is %(max)s') %
-                                  dict(min=self.minimum, max=self.maximum))
+            raise ValidationError(
+                self.translator(self.error_message or "Maximum length is %(max)s")
+                % dict(min=self.minimum, max=self.maximum)
+            )
         new_value = []
         other = self.other
         if self.other:
@@ -2602,21 +3991,21 @@ def urlify(s, maxlen=80, keep_underscores=False):
     if (keep_underscores): underscores are retained in the string
     else: underscores are translated to hyphens (default)
     """
-    s = to_unicode(s)                     # to unicode
-    s = s.lower()                         # to lowercase
-    s = unicodedata.normalize('NFKD', s)  # replace special characters
-    s = to_native(s, charset='ascii', errors='ignore')       # encode as ASCII
-    s = re.sub(r'&\w+?;', '', s)           # strip html entities
+    s = to_unicode(s)  # to unicode
+    s = s.lower()  # to lowercase
+    s = unicodedata.normalize("NFKD", s)  # replace special characters
+    s = to_native(s, charset="ascii", errors="ignore")  # encode as ASCII
+    s = re.sub(r"&\w+?;", "", s)  # strip html entities
     if keep_underscores:
-        s = re.sub(r'\s+', '-', s)         # whitespace to hyphens
-        s = re.sub(r'[^\w\-]', '', s)
+        s = re.sub(r"\s+", "-", s)  # whitespace to hyphens
+        s = re.sub(r"[^\w\-]", "", s)
         # strip all but alphanumeric/underscore/hyphen
     else:
-        s = re.sub(r'[\s_]+', '-', s)      # whitespace & underscores to hyphens
-        s = re.sub(r'[^a-z0-9\-]', '', s)  # strip all but alphanumeric/hyphen
-    s = re.sub(r'[-_][-_]+', '-', s)       # collapse strings of hyphens
-    s = s.strip('-')                      # remove leading and trailing hyphens
-    return s[:maxlen]                     # enforce maximum length
+        s = re.sub(r"[\s_]+", "-", s)  # whitespace & underscores to hyphens
+        s = re.sub(r"[^a-z0-9\-]", "", s)  # strip all but alphanumeric/hyphen
+    s = re.sub(r"[-_][-_]+", "-", s)  # collapse strings of hyphens
+    s = s.strip("-")  # remove leading and trailing hyphens
+    return s[:maxlen]  # enforce maximum length
 
 
 class IS_SLUG(Validator):
@@ -2667,7 +4056,13 @@ class IS_SLUG(Validator):
     def urlify(value, maxlen=80, keep_underscores=False):
         return urlify(value, maxlen, keep_underscores)
 
-    def __init__(self, maxlen=80, check=False, error_message='Must be slug', keep_underscores=False):
+    def __init__(
+        self,
+        maxlen=80,
+        check=False,
+        error_message="Must be slug",
+        keep_underscores=False,
+    ):
         self.maxlen = maxlen
         self.check = check
         self.error_message = error_message
@@ -2709,7 +4104,7 @@ class ANY_OF(Validator):
         # Use the formatter of the first subvalidator
         # that validates the value and has a formatter
         for validator in self.subs:
-            if hasattr(validator, 'formatter') and validator(value)[1] is None:
+            if hasattr(validator, "formatter") and validator(value)[1] is None:
                 return validator.formatter(value)
 
 
@@ -2737,24 +4132,24 @@ class IS_EMPTY_OR(Validator):
             self.empty_regex = re.compile(empty_regex)
         else:
             self.empty_regex = None
-        if hasattr(other, 'multiple'):
+        if hasattr(other, "multiple"):
             self.multiple = other.multiple
-        if hasattr(other, 'options'):
+        if hasattr(other, "options"):
             self.options = self._options
 
     def _options(self, *args, **kwargs):
         options = self.other.options(*args, **kwargs)
-        if (not options or options[0][0] != '') and not self.multiple:
-            options.insert(0, ('', ''))
+        if (not options or options[0][0] != "") and not self.multiple:
+            options.insert(0, ("", ""))
         return options
 
     def set_self_id(self, id):
         if isinstance(self.other, (list, tuple)):
             for item in self.other:
-                if hasattr(item, 'set_self_id'):
+                if hasattr(item, "set_self_id"):
                     item.set_self_id(id)
         else:
-            if hasattr(self.other, 'set_self_id'):
+            if hasattr(self.other, "set_self_id"):
                 self.other.set_self_id(id)
 
     def validate(self, value, record_id=None):
@@ -2768,9 +4163,10 @@ class IS_EMPTY_OR(Validator):
         return validator_caller(self.other, value, record_id)
 
     def formatter(self, value):
-        if hasattr(self.other, 'formatter'):
+        if hasattr(self.other, "formatter"):
             return self.other.formatter(value)
         return value
+
 
 IS_NULL_OR = IS_EMPTY_OR  # for backward compatibility
 
@@ -2784,25 +4180,28 @@ class CLEANUP(Validator):
 
     removes special characters on validation
     """
-    REGEX_CLEANUP = '[^\x09\x0a\x0d\x20-\x7e]'
+
+    REGEX_CLEANUP = "[^\x09\x0a\x0d\x20-\x7e]"
 
     def __init__(self, regex=None):
-        self.regex = re.compile(self.REGEX_CLEANUP) if regex is None \
-            else re.compile(regex)
+        self.regex = (
+            re.compile(self.REGEX_CLEANUP) if regex is None else re.compile(regex)
+        )
 
     def validate(self, value, record_id=None):
-        v = self.regex.sub('', str(value).strip())
+        v = self.regex.sub("", str(value).strip())
         return v
 
 
 def pbkdf2_hex(data, salt, iterations=1000, keylen=24, hashfunc=None):
     hashfunc = hashfunc or hashlib.sha1
-    hmac = hashlib.pbkdf2_hmac(hashfunc().name, to_bytes(data),
-                               to_bytes(salt), iterations, keylen)
+    hmac = hashlib.pbkdf2_hmac(
+        hashfunc().name, to_bytes(data), to_bytes(salt), iterations, keylen
+    )
     return binascii.hexlify(hmac)
 
 
-def simple_hash(text, key='', salt='', digest_alg='md5'):
+def simple_hash(text, key="", salt="", digest_alg="md5"):
     """Generate hash with the given text using the specified digest algorithm."""
     text = to_bytes(text)
     key = to_bytes(key)
@@ -2811,10 +4210,11 @@ def simple_hash(text, key='', salt='', digest_alg='md5'):
         raise RuntimeError("simple_hash with digest_alg=None")
     elif not isinstance(digest_alg, str):  # manual approach
         h = digest_alg(text + key + salt)
-    elif digest_alg.startswith('pbkdf2'):  # latest and coolest!
-        iterations, keylen, alg = digest_alg[7:-1].split(',')
-        return to_native(pbkdf2_hex(text, salt, int(iterations),
-                                    int(keylen), get_digest(alg)))
+    elif digest_alg.startswith("pbkdf2"):  # latest and coolest!
+        iterations, keylen, alg = digest_alg[7:-1].split(",")
+        return to_native(
+            pbkdf2_hex(text, salt, int(iterations), int(keylen), get_digest(alg))
+        )
     elif key:  # use hmac
         digest_alg = get_digest(digest_alg)
         h = hmac.new(key + salt, text, digest_alg)
@@ -2828,18 +4228,19 @@ def get_digest(value):
     """Return a hashlib digest algorithm from a string."""
     if isinstance(value, str):
         value = value.lower()
-        if value not in ('md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512'):
+        if value not in ("md5", "sha1", "sha224", "sha256", "sha384", "sha512"):
             raise ValueError("Invalid digest algorithm: %s" % value)
         value = getattr(hashlib, value)
     return value
 
+
 DIGEST_ALG_BY_SIZE = {
-    128 // 4: 'md5',
-    160 // 4: 'sha1',
-    224 // 4: 'sha224',
-    256 // 4: 'sha256',
-    384 // 4: 'sha384',
-    512 // 4: 'sha512',
+    128 // 4: "md5",
+    160 // 4: "sha1",
+    224 // 4: "sha224",
+    256 // 4: "sha256",
+    384 // 4: "sha384",
+    512 // 4: "sha512",
 }
 
 
@@ -2878,21 +4279,21 @@ class LazyCrypt(object):
         if self.crypted:
             return self.crypted
         if self.crypt.key:
-            if ':' in self.crypt.key:
-                digest_alg, key = self.crypt.key.split(':', 1)
+            if ":" in self.crypt.key:
+                digest_alg, key = self.crypt.key.split(":", 1)
             else:
                 digest_alg, key = self.crypt.digest_alg, self.crypt.key
         else:
-            digest_alg, key = self.crypt.digest_alg, ''
+            digest_alg, key = self.crypt.digest_alg, ""
         if self.crypt.salt:
             if self.crypt.salt is True:
-                salt = str(uuid.uuid4()).replace('-', '')[-16:]
+                salt = str(uuid.uuid4()).replace("-", "")[-16:]
             else:
                 salt = self.crypt.salt
         else:
-            salt = ''
+            salt = ""
         hashed = simple_hash(self.password, key, salt, digest_alg)
-        self.crypted = '%s$%s$%s' % (digest_alg, salt, hashed)
+        self.crypted = "%s$%s$%s" % (digest_alg, salt, hashed)
         return self.crypted
 
     def __eq__(self, stored_password):
@@ -2902,30 +4303,31 @@ class LazyCrypt(object):
 
         # LazyCrypt objects comparison
         if isinstance(stored_password, self.__class__):
-            return ((self is stored_password) or
-                    ((self.crypt.key == stored_password.crypt.key) and
-                     (self.password == stored_password.password)))
+            return (self is stored_password) or (
+                (self.crypt.key == stored_password.crypt.key)
+                and (self.password == stored_password.password)
+            )
 
         if self.crypt.key:
-            if ':' in self.crypt.key:
-                key = self.crypt.key.split(':')[1]
+            if ":" in self.crypt.key:
+                key = self.crypt.key.split(":")[1]
             else:
                 key = self.crypt.key
         else:
-            key = ''
+            key = ""
         if stored_password is None:
             return False
-        elif stored_password.count('$') == 2:
-            (digest_alg, salt, hash) = stored_password.split('$')
+        elif stored_password.count("$") == 2:
+            (digest_alg, salt, hash) = stored_password.split("$")
             h = simple_hash(self.password, key, salt, digest_alg)
-            temp_pass = '%s$%s$%s' % (digest_alg, salt, h)
+            temp_pass = "%s$%s$%s" % (digest_alg, salt, h)
         else:  # no salting
             # guess digest_alg
             digest_alg = DIGEST_ALG_BY_SIZE.get(len(stored_password), None)
             if not digest_alg:
                 return False
             else:
-                temp_pass = simple_hash(self.password, key, '', digest_alg)
+                temp_pass = simple_hash(self.password, key, "", digest_alg)
         return temp_pass == stored_password
 
     def __ne__(self, other):
@@ -3011,12 +4413,15 @@ class CRYPT(Validator):
         True
         """
 
-    def __init__(self,
-                 key=None,
-                 digest_alg='pbkdf2(1000,20,sha512)',
-                 min_length=0,
-                 error_message='Too short', salt=True,
-                 max_length=1024):
+    def __init__(
+        self,
+        key=None,
+        digest_alg="pbkdf2(1000,20,sha512)",
+        min_length=0,
+        error_message="Too short",
+        salt=True,
+        max_length=1024,
+    ):
         """
         important, digest_alg='md5' is not the default hashing algorithm for
         web2py. This is only an example of usage of this function.
@@ -3032,27 +4437,27 @@ class CRYPT(Validator):
         self.salt = salt
 
     def validate(self, value, record_id=None):
-        v = value and str(value)[:self.max_length]
+        v = value and str(value)[: self.max_length]
         if not v or len(v) < self.min_length:
             raise ValidationError(self.translator(self.error_message))
         if isinstance(value, LazyCrypt):
             return value
         return LazyCrypt(self, value)
 
+
 #  entropy calculator for IS_STRONG
 #
-lowerset = frozenset(u'abcdefghijklmnopqrstuvwxyz')
-upperset = frozenset(u'ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-numberset = frozenset(u'0123456789')
-sym1set = frozenset(u'!@#$%^&*()')
-sym2set = frozenset(u'~`-_=+[]{}\\|;:\'",.<>?/')
-otherset = frozenset(
-    u'0123456789abcdefghijklmnopqrstuvwxyz')  # anything else
+lowerset = frozenset(u"abcdefghijklmnopqrstuvwxyz")
+upperset = frozenset(u"ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+numberset = frozenset(u"0123456789")
+sym1set = frozenset(u"!@#$%^&*()")
+sym2set = frozenset(u"~`-_=+[]{}\\|;:'\",.<>?/")
+otherset = frozenset(u"0123456789abcdefghijklmnopqrstuvwxyz")  # anything else
 
 
 def calc_entropy(string):
     """ calculates a simple entropy for a given string """
-    alphabet = 0    # alphabet size
+    alphabet = 0  # alphabet size
     other = set()
     seen = set()
     lastset = None
@@ -3069,13 +4474,12 @@ def calc_entropy(string):
             seen.add(inset)
             alphabet += len(inset)  # credit for a new character set
         elif c not in other:
-            alphabet += 1   # credit for unique characters
+            alphabet += 1  # credit for unique characters
             other.add(c)
         if inset is not lastset:
-            alphabet += 1   # credit for set transitions
+            alphabet += 1  # credit for set transitions
             lastset = cset
-    entropy = len(
-        string) * math.log(alphabet) / 0.6931471805599453  # math.log(2)
+    entropy = len(string) * math.log(alphabet) / 0.6931471805599453  # math.log(2)
     return round(entropy, 2)
 
 
@@ -3111,10 +4515,20 @@ class IS_STRONG(Validator):
 
     """
 
-    def __init__(self, min=None, max=None, upper=None, lower=None, number=None,
-                 entropy=None,
-                 special=None, specials=r'~!@#$%^&*()_+-=?<>,.:;{}[]|',
-                 invalid=' "', error_message=None, es=False):
+    def __init__(
+        self,
+        min=None,
+        max=None,
+        upper=None,
+        lower=None,
+        number=None,
+        entropy=None,
+        special=None,
+        specials=r"~!@#$%^&*()_+-=?<>,.:;{}[]|",
+        invalid=' "',
+        error_message=None,
+        es=False,
+    ):
         self.entropy = entropy
         if entropy is None:
             # enforce default requirements
@@ -3135,17 +4549,19 @@ class IS_STRONG(Validator):
         self.specials = specials
         self.invalid = invalid
         self.error_message = error_message
-        self.estring = es   # return error message as string (for doctest)
+        self.estring = es  # return error message as string (for doctest)
 
     def validate(self, value, record_id=None):
         failures = []
-        if value and len(value) == value.count('*') > 4:
+        if value and len(value) == value.count("*") > 4:
             return value
         if self.entropy is not None:
             entropy = calc_entropy(value)
             if entropy < self.entropy:
-                failures.append(self.translator("Entropy (%(have)s) less than required (%(need)s)")
-                                % dict(have=entropy, need=self.entropy))
+                failures.append(
+                    self.translator("Entropy (%(have)s) less than required (%(need)s)")
+                    % dict(have=entropy, need=self.entropy)
+                )
         if isinstance(self.min, int) and self.min > 0:
             if not len(value) >= self.min:
                 failures.append(self.translator("Minimum length is %s") % self.min)
@@ -3156,37 +4572,49 @@ class IS_STRONG(Validator):
             all_special = [ch in value for ch in self.specials]
             if self.special > 0:
                 if not all_special.count(True) >= self.special:
-                    failures.append(self.translator("Must include at least %s of the following: %s")
-                                    % (self.special, self.specials))
+                    failures.append(
+                        self.translator("Must include at least %s of the following: %s")
+                        % (self.special, self.specials)
+                    )
             elif self.special == 0 and self.special is not False:
                 if len(all_special) > 0:
-                    failures.append(self.translator("May not contain any of the following: %s")
-                                    % self.specials)
+                    failures.append(
+                        self.translator("May not contain any of the following: %s")
+                        % self.specials
+                    )
         if self.invalid:
             all_invalid = [ch in value for ch in self.invalid]
             if all_invalid.count(True) > 0:
-                failures.append(self.translator("May not contain any of the following: %s")
-                                % self.invalid)
+                failures.append(
+                    self.translator("May not contain any of the following: %s")
+                    % self.invalid
+                )
         if isinstance(self.upper, int):
             all_upper = re.findall("[A-Z]", value)
             if self.upper > 0:
                 if not len(all_upper) >= self.upper:
-                    failures.append(self.translator("Must include at least %s uppercase")
-                                    % str(self.upper))
+                    failures.append(
+                        self.translator("Must include at least %s uppercase")
+                        % str(self.upper)
+                    )
             elif self.upper == 0 and self.upper is not False:
                 if len(all_upper) > 0:
                     failures.append(
-                        self.translator("May not include any uppercase letters"))
+                        self.translator("May not include any uppercase letters")
+                    )
         if isinstance(self.lower, int):
             all_lower = re.findall("[a-z]", value)
             if self.lower > 0:
                 if not len(all_lower) >= self.lower:
-                    failures.append(self.translator("Must include at least %s lowercase")
-                                    % str(self.lower))
+                    failures.append(
+                        self.translator("Must include at least %s lowercase")
+                        % str(self.lower)
+                    )
             elif self.lower == 0 and self.lower is not False:
                 if len(all_lower) > 0:
                     failures.append(
-                        self.translator("May not include any lowercase letters"))
+                        self.translator("May not include any lowercase letters")
+                    )
         if isinstance(self.number, int):
             all_number = re.findall("[0-9]", value)
             if self.number > 0:
@@ -3194,8 +4622,10 @@ class IS_STRONG(Validator):
                 if self.number > 1:
                     numbers = "numbers"
                 if not len(all_number) >= self.number:
-                    failures.append(self.translator("Must include at least %s %s")
-                                    % (str(self.number), numbers))
+                    failures.append(
+                        self.translator("Must include at least %s %s")
+                        % (str(self.number), numbers)
+                    )
             elif self.number == 0 and self.number is not False:
                 if len(all_number) > 0:
                     failures.append(self.translator("May not include any numbers"))
@@ -3203,8 +4633,8 @@ class IS_STRONG(Validator):
             return value
         if not self.error_message:
             if self.estring:
-                raise ValidationError('|'.join(map(str, failures)))
-            raise ValidationError(', '.join(failures))
+                raise ValidationError("|".join(map(str, failures)))
+            raise ValidationError(", ".join(failures))
         else:
             raise ValidationError(self.translator(self.error_message))
 
@@ -3253,12 +4683,14 @@ class IS_IMAGE(Validator):
                 requires=IS_IMAGE(aspectratio=(16, 9)))
     """
 
-    def __init__(self,
-                 extensions=('bmp', 'gif', 'jpeg', 'png'),
-                 maxsize=(10000, 10000),
-                 minsize=(0, 0),
-                 aspectratio=(-1, -1),
-                 error_message='Invalid image'):
+    def __init__(
+        self,
+        extensions=("bmp", "gif", "jpeg", "png"),
+        maxsize=(10000, 10000),
+        minsize=(0, 0),
+        aspectratio=(-1, -1),
+        error_message="Invalid image",
+    ):
 
         self.extensions = extensions
         self.maxsize = maxsize
@@ -3268,26 +4700,28 @@ class IS_IMAGE(Validator):
 
     def validate(self, value, record_id=None):
         try:
-            extension = value.filename.rfind('.')
+            extension = value.filename.rfind(".")
             assert extension >= 0
-            extension = value.filename[extension + 1:].lower()
-            if extension == 'jpg':
-                extension = 'jpeg'
+            extension = value.filename[extension + 1 :].lower()
+            if extension == "jpg":
+                extension = "jpeg"
             assert extension in self.extensions
-            if extension == 'bmp':
+            if extension == "bmp":
                 width, height = self.__bmp(value.file)
-            elif extension == 'gif':
+            elif extension == "gif":
                 width, height = self.__gif(value.file)
-            elif extension == 'jpeg':
+            elif extension == "jpeg":
                 width, height = self.__jpeg(value.file)
-            elif extension == 'png':
+            elif extension == "png":
                 width, height = self.__png(value.file)
             else:
                 width = -1
                 height = -1
 
-            assert self.minsize[0] <= width <= self.maxsize[0] \
+            assert (
+                self.minsize[0] <= width <= self.maxsize[0]
                 and self.minsize[1] <= height <= self.maxsize[1]
+            )
 
             if self.aspectratio > (-1, -1):
                 target_ratio = (1.0 * self.aspectratio[1]) / self.aspectratio[0]
@@ -3301,33 +4735,32 @@ class IS_IMAGE(Validator):
             raise ValidationError(self.translator(self.error_message))
 
     def __bmp(self, stream):
-        if stream.read(2) == b'BM':
+        if stream.read(2) == b"BM":
             stream.read(16)
             return struct.unpack("<LL", stream.read(8))
         return (-1, -1)
 
     def __gif(self, stream):
-        if stream.read(6) in (b'GIF87a', b'GIF89a'):
+        if stream.read(6) in (b"GIF87a", b"GIF89a"):
             stream = stream.read(5)
             if len(stream) == 5:
                 return tuple(struct.unpack("<HHB", stream)[:-1])
         return (-1, -1)
 
     def __jpeg(self, stream):
-        if stream.read(2) == b'\xFF\xD8':
+        if stream.read(2) == b"\xFF\xD8":
             while True:
                 (marker, code, length) = struct.unpack("!BBH", stream.read(4))
                 if marker != 0xFF:
                     break
                 elif code >= 0xC0 and code <= 0xC3:
-                    return tuple(reversed(
-                        struct.unpack("!xHH", stream.read(5))))
+                    return tuple(reversed(struct.unpack("!xHH", stream.read(5))))
                 else:
                     stream.read(length - 2)
         return (-1, -1)
 
     def __png(self, stream):
-        if stream.read(8) == b'\211PNG\r\n\032\n':
+        if stream.read(8) == b"\211PNG\r\n\032\n":
             stream.read(4)
             if stream.read(4) == b"IHDR":
                 return struct.unpack("!LL", stream.read(8))
@@ -3382,8 +4815,14 @@ class IS_FILE(Validator):
 
     """
 
-    def __init__(self, filename=None, extension=None, lastdot=True, case=1,
-                 error_message='Enter valid filename'):
+    def __init__(
+        self,
+        filename=None,
+        extension=None,
+        lastdot=True,
+        case=1,
+        error_message="Enter valid filename",
+    ):
         self.filename = filename
         self.extension = extension
         self.lastdot = lastdot
@@ -3396,7 +4835,7 @@ class IS_FILE(Validator):
                 if self.match(v, value2):
                     return True
             return False
-        elif callable(getattr(value1, 'match', None)):
+        elif callable(getattr(value1, "match", None)):
             return value1.match(value2)
         elif isinstance(value1, str):
             return value1 == value2
@@ -3411,14 +4850,14 @@ class IS_FILE(Validator):
         elif self.case == 2:
             string = string.upper()
         if self.lastdot:
-            dot = string.rfind('.')
+            dot = string.rfind(".")
         else:
-            dot = string.find('.')
+            dot = string.find(".")
         if dot == -1:
             dot = len(string)
         if self.filename and not self.match(self.filename, string[:dot]):
             raise ValidationError(self.translator(self.error_message))
-        elif self.extension and not self.match(self.extension, string[dot + 1:]):
+        elif self.extension and not self.match(self.extension, string[dot + 1 :]):
             raise ValidationError(self.translator(self.error_message))
         else:
             return value
@@ -3467,8 +4906,14 @@ class IS_UPLOAD_FILENAME(Validator):
 
     """
 
-    def __init__(self, filename=None, extension=None, lastdot=True, case=1,
-                 error_message='Enter valid filename'):
+    def __init__(
+        self,
+        filename=None,
+        extension=None,
+        lastdot=True,
+        case=1,
+        error_message="Enter valid filename",
+    ):
         if isinstance(filename, str):
             filename = re.compile(filename)
         if isinstance(extension, str):
@@ -3489,14 +4934,14 @@ class IS_UPLOAD_FILENAME(Validator):
         elif self.case == 2:
             string = string.upper()
         if self.lastdot:
-            dot = string.rfind('.')
+            dot = string.rfind(".")
         else:
-            dot = string.find('.')
+            dot = string.find(".")
         if dot == -1:
             dot = len(string)
         if self.filename and not self.filename.match(string[:dot]):
             raise ValidationError(self.translator(self.error_message))
-        elif self.extension and not self.extension.match(string[dot + 1:]):
+        elif self.extension and not self.extension.match(string[dot + 1 :]):
             raise ValidationError(self.translator(self.error_message))
         else:
             return value
@@ -3602,32 +5047,39 @@ class IS_IPV4(Validator):
     """
 
     REGEX_IPV4 = re.compile(
-        r'^(([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])\.){3}([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])$')
+        r"^(([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])\.){3}([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])$"
+    )
     numbers = (16777216, 65536, 256, 1)
     localhost = 2130706433
     private = ((2886729728, 2886795263), (3232235520, 3232301055))
     automatic = (2851995648, 2852061183)
 
-    def __init__(self,
-                 minip='0.0.0.0',
-                 maxip='255.255.255.255',
-                 invert=False,
-                 is_localhost=None,
-                 is_private=None,
-                 is_automatic=None,
-                 error_message='Enter valid IPv4 address'):
+    def __init__(
+        self,
+        minip="0.0.0.0",
+        maxip="255.255.255.255",
+        invert=False,
+        is_localhost=None,
+        is_private=None,
+        is_automatic=None,
+        error_message="Enter valid IPv4 address",
+    ):
 
         for n, value in enumerate((minip, maxip)):
             temp = []
             if isinstance(value, str):
-                temp.append(value.split('.'))
+                temp.append(value.split("."))
             elif isinstance(value, (list, tuple)):
-                if len(value) == len([item for item in value if isinstance(item, int)]) == 4:
+                if (
+                    len(value)
+                    == len([item for item in value if isinstance(item, int)])
+                    == 4
+                ):
                     temp.append(value)
                 else:
                     for item in value:
                         if isinstance(item, str):
-                            temp.append(item.split('.'))
+                            temp.append(item.split("."))
                         elif isinstance(item, (list, tuple)):
                             temp.append(item)
             numbers = []
@@ -3649,7 +5101,7 @@ class IS_IPV4(Validator):
     def validate(self, value, record_id=None):
         if re.match(self.REGEX_IPV4, value):
             number = 0
-            for i, j in zip(self.numbers, value.split('.')):
+            for i, j in zip(self.numbers, value.split(".")):
                 number += i * int(j)
             ok = False
 
@@ -3657,12 +5109,19 @@ class IS_IPV4(Validator):
                 if self.invert != (bottom <= number <= top):
                     ok = True
 
-            if ok and self.is_localhost is not None and \
-                    self.is_localhost != (number == self.localhost):
+            if (
+                ok
+                and self.is_localhost is not None
+                and self.is_localhost != (number == self.localhost)
+            ):
                 ok = False
 
-            private = any([private_number[0] <= number <= private_number[1]
-                           for private_number in self.private])
+            private = any(
+                [
+                    private_number[0] <= number <= private_number[1]
+                    for private_number in self.private
+                ]
+            )
             if ok and self.is_private is not None and self.is_private != private:
                 ok = False
 
@@ -3744,16 +5203,18 @@ class IS_IPV6(Validator):
 
     """
 
-    def __init__(self,
-                 is_private=None,
-                 is_link_local=None,
-                 is_reserved=None,
-                 is_multicast=None,
-                 is_routeable=None,
-                 is_6to4=None,
-                 is_teredo=None,
-                 subnets=None,
-                 error_message='Enter valid IPv6 address'):
+    def __init__(
+        self,
+        is_private=None,
+        is_link_local=None,
+        is_reserved=None,
+        is_multicast=None,
+        is_routeable=None,
+        is_6to4=None,
+        is_teredo=None,
+        subnets=None,
+        error_message="Enter valid IPv6 address",
+    ):
 
         self.is_private = is_private
         self.is_link_local = is_link_local
@@ -3781,7 +5242,7 @@ class IS_IPV6(Validator):
                 try:
                     ipnet = ipaddress.IPv6Network(to_unicode(network))
                 except (ipaddress.NetmaskValueError, ipaddress.AddressValueError):
-                    raise ValidationError(self.translator('invalid subnet provided'))
+                    raise ValidationError(self.translator("invalid subnet provided"))
                 if ip in ipnet:
                     ok = True
 
@@ -3790,23 +5251,25 @@ class IS_IPV6(Validator):
             self.is_reserved = False
             self.is_multicast = False
 
-        if ok and self.is_private is not None and \
-                  self.is_private != ip.is_private:
+        if ok and self.is_private is not None and self.is_private != ip.is_private:
             ok = False
-        if ok and self.is_link_local is not None and \
-                  self.is_link_local != ip.is_link_local:
+        if (
+            ok
+            and self.is_link_local is not None
+            and self.is_link_local != ip.is_link_local
+        ):
             ok = False
-        if ok and self.is_reserved is not None and \
-                  self.is_reserved != ip.is_reserved:
+        if ok and self.is_reserved is not None and self.is_reserved != ip.is_reserved:
             ok = False
-        if ok and self.is_multicast is not None and \
-                  self.is_multicast != ip.is_multicast:
+        if (
+            ok
+            and self.is_multicast is not None
+            and self.is_multicast != ip.is_multicast
+        ):
             ok = False
-        if ok and self.is_6to4 is not None and \
-                  self.is_6to4 != bool(ip.sixtofour):
+        if ok and self.is_6to4 is not None and self.is_6to4 != bool(ip.sixtofour):
             ok = False
-        if ok and self.is_teredo is not None and \
-                  self.is_teredo != bool(ip.teredo):
+        if ok and self.is_teredo is not None and self.is_teredo != bool(ip.teredo):
             ok = False
 
         if ok:
@@ -3950,26 +5413,28 @@ class IS_IPADDRESS(Validator):
         ('2001::8ffa:fe22:b3af', 'invalid subnet provided')
     """
 
-    def __init__(self,
-                 minip='0.0.0.0',
-                 maxip='255.255.255.255',
-                 invert=False,
-                 is_localhost=None,
-                 is_private=None,
-                 is_automatic=None,
-                 is_ipv4=None,
-                 is_link_local=None,
-                 is_reserved=None,
-                 is_multicast=None,
-                 is_routeable=None,
-                 is_6to4=None,
-                 is_teredo=None,
-                 subnets=None,
-                 is_ipv6=None,
-                 error_message='Enter valid IP address'):
+    def __init__(
+        self,
+        minip="0.0.0.0",
+        maxip="255.255.255.255",
+        invert=False,
+        is_localhost=None,
+        is_private=None,
+        is_automatic=None,
+        is_ipv4=None,
+        is_link_local=None,
+        is_reserved=None,
+        is_multicast=None,
+        is_routeable=None,
+        is_6to4=None,
+        is_teredo=None,
+        subnets=None,
+        is_ipv6=None,
+        error_message="Enter valid IP address",
+    ):
 
-        self.minip = minip,
-        self.maxip = maxip,
+        self.minip = (minip,)
+        self.maxip = (maxip,)
         self.invert = invert
         self.is_localhost = is_localhost
         self.is_private = is_private
@@ -4008,7 +5473,7 @@ class IS_IPADDRESS(Validator):
                 is_localhost=self.is_localhost,
                 is_private=self.is_private,
                 is_automatic=self.is_automatic,
-                error_message=self.error_message
+                error_message=self.error_message,
             ).validate(value, record_id)
         elif self.is_ipv6 or isinstance(ip, IPv6Address):
             return IS_IPV6(
@@ -4020,7 +5485,7 @@ class IS_IPADDRESS(Validator):
                 is_6to4=self.is_6to4,
                 is_teredo=self.is_teredo,
                 subnets=self.subnets,
-                error_message=self.error_message
+                error_message=self.error_message,
             ).validate(value, record_id)
         else:
             raise ValidationError(self.translator(self.error_message))

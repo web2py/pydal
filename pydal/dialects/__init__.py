@@ -70,9 +70,9 @@ class MetaDialect(type):
         all_sqltypes = OrderedDict()
         all_expressions = OrderedDict()
         for base in reversed(new_class.__mro__[1:]):
-            if hasattr(base, '_declared_sqltypes_'):
+            if hasattr(base, "_declared_sqltypes_"):
                 all_sqltypes.update(base._declared_sqltypes_)
-            if hasattr(base, '_declared_expressions_'):
+            if hasattr(base, "_declared_expressions_"):
                 all_expressions.update(base._declared_expressions_)
         #: set re-constructed attributes
         all_sqltypes.update(declared_sqltypes)
@@ -89,8 +89,9 @@ class Dialect(with_metaclass(MetaDialect)):
         for name, obj in iteritems(self._all_sqltypes_):
             self.types[obj.key] = obj.f(self)
         for name, obj in iteritems(self._all_expressions_):
-            Expression._dialect_expressions_[obj.name] = \
-                ExpressionMethodWrapper(self, obj)
+            Expression._dialect_expressions_[obj.name] = ExpressionMethodWrapper(
+                self, obj
+            )
 
     def expand(self, *args, **kwargs):
         return self.adapter.expand(*args, **kwargs)

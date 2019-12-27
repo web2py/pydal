@@ -132,14 +132,29 @@ import traceback
 import urllib
 from uuid import uuid4
 
-from ._compat import PY2, pickle, hashlib_md5, pjoin, copyreg, integer_types, \
-    with_metaclass, long, unquote, iteritems
+from ._compat import (
+    PY2,
+    pickle,
+    hashlib_md5,
+    pjoin,
+    copyreg,
+    integer_types,
+    with_metaclass,
+    long,
+    unquote,
+    iteritems,
+)
 from ._globals import GLOBAL_LOCKER, THREAD_LOCAL, DEFAULT
 from ._load import OrderedDict
-from .helpers.classes import Serializable, SQLCallableList, BasicStorage, \
-    RecordUpdater, RecordDeleter, TimingHandler
-from .helpers.methods import hide_password, smart_query, auto_validators, \
-    auto_represent
+from .helpers.classes import (
+    Serializable,
+    SQLCallableList,
+    BasicStorage,
+    RecordUpdater,
+    RecordDeleter,
+    TimingHandler,
+)
+from .helpers.methods import hide_password, smart_query, auto_validators, auto_represent
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME
 from .helpers.rest import RestParser
 from .helpers.serializers import serializers
@@ -148,17 +163,39 @@ from .adapters.base import BaseAdapter, NullAdapter
 from .default_validators import default_validators
 
 TABLE_ARGS = set(
-    ('migrate', 'primarykey', 'fake_migrate', 'format', 'redefine',
-     'singular', 'plural', 'trigger_name', 'sequence_name', 'fields',
-     'common_filter', 'polymodel', 'table_class', 'on_define', 'rname'))
+    (
+        "migrate",
+        "primarykey",
+        "fake_migrate",
+        "format",
+        "redefine",
+        "singular",
+        "plural",
+        "trigger_name",
+        "sequence_name",
+        "fields",
+        "common_filter",
+        "polymodel",
+        "table_class",
+        "on_define",
+        "rname",
+    )
+)
 
 
 class MetaDAL(type):
     def __call__(cls, *args, **kwargs):
         #: intercept arguments for DAL customisation on call
         intercepts = [
-            'logger', 'representers', 'serializers', 'uuid', 'validators',
-            'validators_method', 'Table', 'Row']
+            "logger",
+            "representers",
+            "serializers",
+            "uuid",
+            "validators",
+            "validators_method",
+            "Table",
+            "Row",
+        ]
         intercepted = []
         for name in intercepts:
             val = kwargs.get(name)
@@ -246,6 +283,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
 
 
     """
+
     serializers = None
     validators = None
     representers = {}
@@ -258,20 +296,17 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     Rows = Rows
     Row = Row
 
-    record_operators = {
-        'update_record': RecordUpdater,
-        'delete_record': RecordDeleter
-    }
+    record_operators = {"update_record": RecordUpdater, "delete_record": RecordDeleter}
 
     execution_handlers = [TimingHandler]
 
-    def __new__(cls, uri='sqlite://dummy.db', *args, **kwargs):
-        if not hasattr(THREAD_LOCAL, '_pydal_db_instances_'):
+    def __new__(cls, uri="sqlite://dummy.db", *args, **kwargs):
+        if not hasattr(THREAD_LOCAL, "_pydal_db_instances_"):
             THREAD_LOCAL._pydal_db_instances_ = {}
-        if not hasattr(THREAD_LOCAL, '_pydal_db_instances_zombie_'):
+        if not hasattr(THREAD_LOCAL, "_pydal_db_instances_zombie_"):
             THREAD_LOCAL._pydal_db_instances_zombie_ = {}
-        if uri == '<zombie>':
-            db_uid = kwargs['db_uid']  # a zombie must have a db_uid!
+        if uri == "<zombie>":
+            db_uid = kwargs["db_uid"]  # a zombie must have a db_uid!
             if db_uid in THREAD_LOCAL._pydal_db_instances_:
                 db_group = THREAD_LOCAL._pydal_db_instances_[db_uid]
                 db = db_group[-1]
@@ -281,7 +316,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 db = super(DAL, cls).__new__(cls)
                 THREAD_LOCAL._pydal_db_instances_zombie_[db_uid] = db
         else:
-            db_uid = kwargs.get('db_uid', hashlib_md5(repr(uri)).hexdigest())
+            db_uid = kwargs.get("db_uid", hashlib_md5(repr(uri)).hexdigest())
             if db_uid in THREAD_LOCAL._pydal_db_instances_zombie_:
                 db = THREAD_LOCAL._pydal_db_instances_zombie_[db_uid]
                 del THREAD_LOCAL._pydal_db_instances_zombie_[db_uid]
@@ -315,7 +350,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             }
 
         """
-        dbs = getattr(THREAD_LOCAL, '_pydal_db_instances_', {}).items()
+        dbs = getattr(THREAD_LOCAL, "_pydal_db_instances_", {}).items()
         infos = {}
         for db_uid, db_group in dbs:
             for db in db_group:
@@ -325,10 +360,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 infos[k] = dict(
                     dbstats=[(row[0], row[1]) for row in db._timings],
                     dbtables={
-                        'defined': sorted(
+                        "defined": sorted(
                             list(set(db.tables) - set(db._LAZY_TABLES.keys()))
                         ),
-                        'lazy': sorted(db._LAZY_TABLES.keys())}
+                        "lazy": sorted(db._LAZY_TABLES.keys()),
+                    },
                 )
         return infos
 
@@ -336,14 +372,14 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     def distributed_transaction_begin(*instances):
         if not instances:
             return
-        thread_key = '%s.%s' % (
-            socket.gethostname(), threading.currentThread())
-        keys = ['%s.%i' % (thread_key, i) for (i, db) in instances]
+        thread_key = "%s.%s" % (socket.gethostname(), threading.currentThread())
+        keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
         instances = enumerate(instances)
         for (i, db) in instances:
             if not db._adapter.support_distributed_transaction():
                 raise SyntaxError(
-                    'distributed transaction not suported by %s' % db._dbname)
+                    "distributed transaction not suported by %s" % db._dbname
+                )
         for (i, db) in instances:
             db._adapter.distributed_transaction_begin(keys[i])
 
@@ -352,51 +388,64 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         if not instances:
             return
         instances = enumerate(instances)
-        thread_key = '%s.%s' % (
-            socket.gethostname(), threading.currentThread())
-        keys = ['%s.%i' % (thread_key, i) for (i, db) in instances]
+        thread_key = "%s.%s" % (socket.gethostname(), threading.currentThread())
+        keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
         for (i, db) in instances:
             if not db._adapter.support_distributed_transaction():
                 raise SyntaxError(
-                    'distributed transaction not suported by %s' % db._dbanme)
+                    "distributed transaction not suported by %s" % db._dbanme
+                )
         try:
             for (i, db) in instances:
                 db._adapter.prepare(keys[i])
         except:
             for (i, db) in instances:
                 db._adapter.rollback_prepared(keys[i])
-            raise RuntimeError('failure to commit distributed transaction')
+            raise RuntimeError("failure to commit distributed transaction")
         else:
             for (i, db) in instances:
                 db._adapter.commit_prepared(keys[i])
         return
 
-    def __init__(self, uri='sqlite://dummy.db',
-                 pool_size=0, folder=None,
-                 db_codec='UTF-8', check_reserved=None,
-                 migrate=True, fake_migrate=False,
-                 migrate_enabled=True, fake_migrate_all=False,
-                 decode_credentials=False, driver_args=None,
-                 adapter_args=None, attempts=5, auto_import=False,
-                 bigint_id=False, debug=False, lazy_tables=False,
-                 db_uid=None, after_connection=None, tables=None,
-                 ignore_field_case=True, entity_quoting=True, table_hash=None):
+    def __init__(
+        self,
+        uri="sqlite://dummy.db",
+        pool_size=0,
+        folder=None,
+        db_codec="UTF-8",
+        check_reserved=None,
+        migrate=True,
+        fake_migrate=False,
+        migrate_enabled=True,
+        fake_migrate_all=False,
+        decode_credentials=False,
+        driver_args=None,
+        adapter_args=None,
+        attempts=5,
+        auto_import=False,
+        bigint_id=False,
+        debug=False,
+        lazy_tables=False,
+        db_uid=None,
+        after_connection=None,
+        tables=None,
+        ignore_field_case=True,
+        entity_quoting=True,
+        table_hash=None,
+    ):
 
-        if uri == '<zombie>' and db_uid is not None:
+        if uri == "<zombie>" and db_uid is not None:
             return
         super(DAL, self).__init__()
 
         if not issubclass(self.Rows, Rows):
-            raise RuntimeError(
-                '`Rows` class must be a subclass of pydal.objects.Rows'
-            )
+            raise RuntimeError("`Rows` class must be a subclass of pydal.objects.Rows")
 
         if not issubclass(self.Row, Row):
-            raise RuntimeError(
-                '`Row` class must be a subclass of pydal.objects.Row'
-            )
+            raise RuntimeError("`Row` class must be a subclass of pydal.objects.Row")
 
         from .drivers import DRIVERS, is_jdbc
+
         self._drivers_available = DRIVERS
 
         if not decode_credentials:
@@ -410,9 +459,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         self._pool_size = pool_size
         self._db_codec = db_codec
         self._pending_references = {}
-        self._request_tenant = 'request_tenant'
+        self._request_tenant = "request_tenant"
         self._common_fields = []
-        self._referee_name = '%(table)s'
+        self._referee_name = "%(table)s"
         self._bigint_id = bigint_id
         self._debug = debug
         self._migrated = []
@@ -435,24 +484,27 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 for uri in uris:
                     try:
                         from .adapters import adapters
-                        if is_jdbc and not uri.startswith('jdbc:'):
-                            uri = 'jdbc:' + uri
+
+                        if is_jdbc and not uri.startswith("jdbc:"):
+                            uri = "jdbc:" + uri
                         self._dbname = REGEX_DBNAME.match(uri).group()
                         # notice that driver args or {} else driver_args
                         # defaults to {} global, not correct
-                        kwargs = dict(db=self,
-                                      uri=uri,
-                                      pool_size=pool_size,
-                                      folder=folder,
-                                      db_codec=db_codec,
-                                      credential_decoder=credential_decoder,
-                                      driver_args=driver_args or {},
-                                      adapter_args=adapter_args or {},
-                                      after_connection=after_connection,
-                                      entity_quoting=entity_quoting)
+                        kwargs = dict(
+                            db=self,
+                            uri=uri,
+                            pool_size=pool_size,
+                            folder=folder,
+                            db_codec=db_codec,
+                            credential_decoder=credential_decoder,
+                            driver_args=driver_args or {},
+                            adapter_args=adapter_args or {},
+                            after_connection=after_connection,
+                            entity_quoting=entity_quoting,
+                        )
                         adapter = adapters.get_for(self._dbname)
                         self._adapter = adapter(**kwargs)
-                        #self._adapter.ignore_field_case = ignore_field_case
+                        # self._adapter.ignore_field_case = ignore_field_case
                         if bigint_id:
                             self._adapter.dialect._force_bigints()
                         connected = True
@@ -462,8 +514,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     except Exception:
                         tb = traceback.format_exc()
                         self.logger.debug(
-                            'DEBUG: connect attempt %i, connection error:\n%s'
-                            % (k, tb)
+                            "DEBUG: connect attempt %i, connection error:\n%s" % (k, tb)
                         )
                 if connected:
                     break
@@ -475,9 +526,14 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 )
         else:
             self._adapter = NullAdapter(
-                db=self, pool_size=0, uri='None', folder=folder,
-                db_codec=db_codec, after_connection=after_connection,
-                entity_quoting=entity_quoting)
+                db=self,
+                pool_size=0,
+                uri="None",
+                folder=folder,
+                db_codec=db_codec,
+                after_connection=after_connection,
+                entity_quoting=entity_quoting,
+            )
             migrate = fake_migrate = False
             self.validators_method = None
             self.validators = None
@@ -485,6 +541,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         self._uri_hash = table_hash or hashlib_md5(adapter.uri).hexdigest()
         if check_reserved:
             from .contrib.reserved_sql_keywords import ADAPTERS as RSK
+
             self.RSK = RSK
         self._migrate = migrate
         self._fake_migrate = fake_migrate
@@ -494,8 +551,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             for k, v in self.serializers.items():
                 serializers._custom_[k] = v
         if auto_import or tables:
-            self.import_table_definitions(adapter.folder,
-                                          tables=tables)
+            self.import_table_definitions(adapter.folder, tables=tables)
 
     @property
     def tables(self):
@@ -503,37 +559,44 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
 
     @property
     def _timings(self):
-        return getattr(THREAD_LOCAL, '_pydal_timings_', [])
+        return getattr(THREAD_LOCAL, "_pydal_timings_", [])
 
     @property
     def _lastsql(self):
         return self._timings[-1] if self._timings else None
 
-    def import_table_definitions(self, path, migrate=False,
-                                 fake_migrate=False, tables=None):
+    def import_table_definitions(
+        self, path, migrate=False, fake_migrate=False, tables=None
+    ):
         if tables:
             for table in tables:
                 self.define_table(**table)
         else:
-            pattern = pjoin(path, self._uri_hash + '_*.table')
+            pattern = pjoin(path, self._uri_hash + "_*.table")
             for filename in glob.glob(pattern):
-                tfile = self._adapter.migrator.file_open(filename, 'r' if PY2 else 'rb')
+                tfile = self._adapter.migrator.file_open(filename, "r" if PY2 else "rb")
                 try:
                     sql_fields = pickle.load(tfile)
-                    name = filename[len(pattern) - 7:-6]
+                    name = filename[len(pattern) - 7 : -6]
                     mf = [
-                        (value['sortable'], Field(
-                            key,
-                            type=value['type'],
-                            length=value.get('length', None),
-                            notnull=value.get('notnull', False),
-                            unique=value.get('unique', False)))
+                        (
+                            value["sortable"],
+                            Field(
+                                key,
+                                type=value["type"],
+                                length=value.get("length", None),
+                                notnull=value.get("notnull", False),
+                                unique=value.get("unique", False),
+                            ),
+                        )
                         for key, value in iteritems(sql_fields)
                     ]
                     mf.sort(key=lambda a: a[0])
-                    self.define_table(name, *[item[1] for item in mf],
-                                      **dict(migrate=migrate,
-                                             fake_migrate=fake_migrate))
+                    self.define_table(
+                        name,
+                        *[item[1] for item in mf],
+                        **dict(migrate=migrate, fake_migrate=fake_migrate)
+                    )
                 finally:
                     self._adapter.migrator.file_close(tfile)
 
@@ -545,20 +608,21 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         for backend in self._check_reserved:
             if name.upper() in self.RSK[backend]:
                 raise SyntaxError(
-                    'invalid table/column name "%s" is a "%s" reserved SQL/NOSQL keyword' % (name, backend.upper()))
+                    'invalid table/column name "%s" is a "%s" reserved SQL/NOSQL keyword'
+                    % (name, backend.upper())
+                )
 
-    def parse_as_rest(self, patterns, args, vars, queries=None,
-                      nested_select=True):
-        return RestParser(self).parse(
-            patterns, args, vars, queries, nested_select)
+    def parse_as_rest(self, patterns, args, vars, queries=None, nested_select=True):
+        return RestParser(self).parse(patterns, args, vars, queries, nested_select)
 
     def define_table(self, tablename, *fields, **kwargs):
         invalid_kwargs = set(kwargs) - TABLE_ARGS
         if invalid_kwargs:
-            raise SyntaxError('invalid table "%s" attributes: %s' %
-                              (tablename, invalid_kwargs))
-        if not fields and 'fields' in kwargs:
-            fields = kwargs.get('fields',())
+            raise SyntaxError(
+                'invalid table "%s" attributes: %s' % (tablename, invalid_kwargs)
+            )
+        if not fields and "fields" in kwargs:
+            fields = kwargs.get("fields", ())
         if not isinstance(tablename, str):
             if isinstance(tablename, unicode):
                 try:
@@ -567,7 +631,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     raise SyntaxError("invalid unicode table name")
             else:
                 raise SyntaxError("missing table name")
-        redefine = kwargs.get('redefine', False)
+        redefine = kwargs.get("redefine", False)
         if tablename in self.tables:
             if redefine:
                 try:
@@ -575,10 +639,13 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 except:
                     pass
             else:
-                raise SyntaxError('table already defined: %s' % tablename)
-        elif tablename.startswith('_') or tablename in dir(self) or \
-                REGEX_PYTHON_KEYWORDS.match(tablename):
-            raise SyntaxError('invalid table name: %s' % tablename)
+                raise SyntaxError("table already defined: %s" % tablename)
+        elif (
+            tablename.startswith("_")
+            or tablename in dir(self)
+            or REGEX_PYTHON_KEYWORDS.match(tablename)
+        ):
+            raise SyntaxError("invalid table name: %s" % tablename)
         elif self._check_reserved:
             self.check_reserved_keyword(tablename)
         if self._lazy_tables:
@@ -595,10 +662,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         kwargs_get = kwargs.get
         common_fields = self._common_fields
         if common_fields:
-            fields = list(fields) + [f if isinstance(f, Table) else f.clone()
-                                     for f in common_fields]
+            fields = list(fields) + [
+                f if isinstance(f, Table) else f.clone() for f in common_fields
+            ]
 
-        table_class = kwargs_get('table_class', Table)
+        table_class = kwargs_get("table_class", Table)
         table = table_class(self, tablename, *fields, **kwargs)
         table._actual = True
         self[tablename] = table
@@ -610,23 +678,29 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             if field.represent is None:
                 field.represent = auto_represent(field)
 
-        migrate = self._migrate_enabled and kwargs_get('migrate', self._migrate)
-        if migrate and self._uri not in (None, 'None') \
-                or self._adapter.dbengine == 'google:datastore':
-            fake_migrate = self._fake_migrate_all or \
-                kwargs_get('fake_migrate', self._fake_migrate)
-            polymodel = kwargs_get('polymodel', None)
+        migrate = self._migrate_enabled and kwargs_get("migrate", self._migrate)
+        if (
+            migrate
+            and self._uri not in (None, "None")
+            or self._adapter.dbengine == "google:datastore"
+        ):
+            fake_migrate = self._fake_migrate_all or kwargs_get(
+                "fake_migrate", self._fake_migrate
+            )
+            polymodel = kwargs_get("polymodel", None)
             try:
                 GLOBAL_LOCKER.acquire()
                 self._adapter.create_table(
-                    table, migrate=migrate,
+                    table,
+                    migrate=migrate,
                     fake_migrate=fake_migrate,
-                    polymodel=polymodel)
+                    polymodel=polymodel,
+                )
             finally:
                 GLOBAL_LOCKER.release()
         else:
             table._dbt = None
-        on_define = kwargs_get('on_define', None)
+        on_define = kwargs_get("on_define", None)
         if on_define:
             on_define(table)
         return table
@@ -640,15 +714,30 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             uri=uri,
             db_uid=db_uid,
             **dict(
-                [(k, getattr(self, "_" + k, None)) for k in [
-                    'pool_size', 'folder', 'db_codec', 'check_reserved',
-                    'migrate', 'fake_migrate', 'migrate_enabled',
-                    'fake_migrate_all', 'decode_credentials', 'driver_args',
-                    'adapter_args', 'attempts', 'bigint_id', 'debug',
-                    'lazy_tables']]))
+                [
+                    (k, getattr(self, "_" + k, None))
+                    for k in [
+                        "pool_size",
+                        "folder",
+                        "db_codec",
+                        "check_reserved",
+                        "migrate",
+                        "fake_migrate",
+                        "migrate_enabled",
+                        "fake_migrate_all",
+                        "decode_credentials",
+                        "driver_args",
+                        "adapter_args",
+                        "attempts",
+                        "bigint_id",
+                        "debug",
+                        "lazy_tables",
+                    ]
+                ]
+            )
+        )
         for table in self:
-            db_as_dict["tables"].append(table.as_dict(flat=flat,
-                                        sanitize=sanitize))
+            db_as_dict["tables"].append(table.as_dict(flat=flat, sanitize=sanitize))
         return db_as_dict
 
     def __contains__(self, tablename):
@@ -666,20 +755,20 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return self.__getattr__(str(key))
 
     def __getattr__(self, key):
-        if object.__getattribute__(self, '_lazy_tables') and \
-                key in object.__getattribute__(self, '_LAZY_TABLES'):
+        if object.__getattribute__(
+            self, "_lazy_tables"
+        ) and key in object.__getattribute__(self, "_LAZY_TABLES"):
             tablename, fields, kwargs = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename, *fields, **kwargs)
         return BasicStorage.__getattribute__(self, key)
 
     def __setattr__(self, key, value):
-        if key[:1] != '_' and key in self:
-            raise SyntaxError(
-                'Object %s exists and cannot be redefined' % key)
+        if key[:1] != "_" and key in self:
+            raise SyntaxError("Object %s exists and cannot be redefined" % key)
         return super(DAL, self).__setattr__(key, value)
 
     def __repr__(self):
-        if hasattr(self, '_uri'):
+        if hasattr(self, "_uri"):
             return '<DAL uri="%s">' % hide_password(self._adapter.uri)
         else:
             return '<DAL db_uid="%s">' % self._db_uid
@@ -716,8 +805,15 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 del THREAD_LOCAL._pydal_db_instances_[self._db_uid]
         self._adapter._clean_tlocals()
 
-    def executesql(self, query, placeholders=None, as_dict=False,
-                   fields=None, colnames=None, as_ordered_dict=False):
+    def executesql(
+        self,
+        query,
+        placeholders=None,
+        as_dict=False,
+        fields=None,
+        colnames=None,
+        as_ordered_dict=False,
+    ):
         """
         Executes an arbitrary query
 
@@ -771,8 +867,10 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         else:
             adapter.execute(query)
         if as_dict or as_ordered_dict:
-            if not hasattr(adapter.cursor,'description'):
-                raise RuntimeError("database does not support executesql(...,as_dict=True)")
+            if not hasattr(adapter.cursor, "description"):
+                raise RuntimeError(
+                    "database does not support executesql(...,as_dict=True)"
+                )
             # Non-DAL legacy db query, converts cursor results to dict.
             # sequence of 7-item sequences. each sequence tells about a column.
             # first item is always the field name according to Python Database API specs
@@ -780,7 +878,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             # reduce the column info down to just the field names
             fields = colnames or [f[0] for f in columns]
             if len(fields) != len(set(fields)):
-                raise RuntimeError("Result set includes duplicate column names. Specify unique column names using the 'colnames' argument")
+                raise RuntimeError(
+                    "Result set includes duplicate column names. Specify unique column names using the 'colnames' argument"
+                )
             #: avoid bytes strings in columns names (py3)
             if columns and not PY2:
                 for i in range(0, len(fields)):
@@ -815,20 +915,21 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             else:
                 newcolnames = []
                 for tf in colnames:
-                    if '.' in tf:
-                        newcolnames.append('.'.join(adapter.dialect.quote(f)
-                                                    for f in tf.split('.')))
+                    if "." in tf:
+                        newcolnames.append(
+                            ".".join(adapter.dialect.quote(f) for f in tf.split("."))
+                        )
                     else:
                         newcolnames.append(tf)
                 colnames = newcolnames
-            data = adapter.parse(
-                data, fields=extracted_fields, colnames=colnames)
+            data = adapter.parse(data, fields=extracted_fields, colnames=colnames)
         return data
 
     def _remove_references_to(self, thistable):
         for table in self:
-            table._referenced_by = [field for field in table._referenced_by
-                                    if not field.table==thistable]
+            table._referenced_by = [
+                field for field in table._referenced_by if not field.table == thistable
+            ]
 
     def has_representer(self, name):
         return callable(self.representers.get(name))
@@ -837,62 +938,72 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return self.representers[name](*args, **kwargs)
 
     def export_to_csv_file(self, ofile, *args, **kwargs):
-        step = long(kwargs.get('max_fetch_rows,',500))
-        write_colnames = kwargs['write_colnames'] = \
-            kwargs.get("write_colnames", True)
+        step = long(kwargs.get("max_fetch_rows,", 500))
+        write_colnames = kwargs["write_colnames"] = kwargs.get("write_colnames", True)
         for table in self.tables:
-            ofile.write('TABLE %s\r\n' % table)
+            ofile.write("TABLE %s\r\n" % table)
             query = self._adapter.id_query(self[table])
             nrows = self(query).count()
-            kwargs['write_colnames'] = write_colnames
-            for k in range(0,nrows,step):
-                self(query).select(limitby=(k,k+step)).export_to_csv_file(
-                    ofile, *args, **kwargs)
-                kwargs['write_colnames'] = False
-            ofile.write('\r\n\r\n')
-        ofile.write('END')
+            kwargs["write_colnames"] = write_colnames
+            for k in range(0, nrows, step):
+                self(query).select(limitby=(k, k + step)).export_to_csv_file(
+                    ofile, *args, **kwargs
+                )
+                kwargs["write_colnames"] = False
+            ofile.write("\r\n\r\n")
+        ofile.write("END")
 
-    def import_from_csv_file(self, ifile, id_map=None, null='<NULL>',
-                             unique='uuid', map_tablenames=None,
-                             ignore_missing_tables=False,
-                             *args, **kwargs):
-        #if id_map is None: id_map={}
-        id_offset = {} # only used if id_map is None
+    def import_from_csv_file(
+        self,
+        ifile,
+        id_map=None,
+        null="<NULL>",
+        unique="uuid",
+        map_tablenames=None,
+        ignore_missing_tables=False,
+        *args,
+        **kwargs
+    ):
+        # if id_map is None: id_map={}
+        id_offset = {}  # only used if id_map is None
         map_tablenames = map_tablenames or {}
         for line in ifile:
             line = line.strip()
             if not line:
                 continue
-            elif line == 'END':
+            elif line == "END":
                 return
-            elif not line.startswith('TABLE ') :
-                raise SyntaxError('Invalid file format')
-            elif  not line[6:] in self.tables:
-                raise SyntaxError('Unknown table : %s' % line[6:])
+            elif not line.startswith("TABLE "):
+                raise SyntaxError("Invalid file format")
+            elif not line[6:] in self.tables:
+                raise SyntaxError("Unknown table : %s" % line[6:])
             else:
                 tablename = line[6:]
-                tablename = map_tablenames.get(tablename,tablename)
+                tablename = map_tablenames.get(tablename, tablename)
                 if tablename is not None and tablename in self.tables:
                     self[tablename].import_from_csv_file(
-                        ifile, id_map, null, unique, id_offset,
-                        *args, **kwargs)
+                        ifile, id_map, null, unique, id_offset, *args, **kwargs
+                    )
                 elif tablename is None or ignore_missing_tables:
                     # skip all non-empty lines
                     for line in ifile:
                         if not line.strip():
                             break
                 else:
-                    raise RuntimeError("Unable to import table that does not exist.\nTry db.import_from_csv_file(..., map_tablenames={'table':'othertable'},ignore_missing_tables=True)")
+                    raise RuntimeError(
+                        "Unable to import table that does not exist.\nTry db.import_from_csv_file(..., map_tablenames={'table':'othertable'},ignore_missing_tables=True)"
+                    )
 
     def can_join(self):
         return self._adapter.can_join()
 
 
 def DAL_unpickler(db_uid):
-    return DAL('<zombie>', db_uid=db_uid)
+    return DAL("<zombie>", db_uid=db_uid)
 
 
 def DAL_pickler(db):
     return DAL_unpickler, (db._db_uid,)
+
 
 copyreg.pickle(DAL, DAL_pickler, DAL_unpickler)

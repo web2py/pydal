@@ -42,9 +42,9 @@ class MetaParser(type):
         declared_parsers = {}
         declared_before = {}
         for base in reversed(new_class.__mro__[1:]):
-            if hasattr(base, '_declared_parsers_'):
+            if hasattr(base, "_declared_parsers_"):
                 declared_parsers.update(base._declared_parsers_)
-            if hasattr(base, '_declared_before_'):
+            if hasattr(base, "_declared_before_"):
                 declared_before.update(base._declared_before_)
         #: set parsers
         declared_parsers.update(parsers)
@@ -89,9 +89,7 @@ class Parser(with_metaclass(MetaParser)):
                     self, obj.f, self._before_registry_[obj.field_type]
                 )
             else:
-                self.registered[obj.field_type] = ParserMethodWrapper(
-                    self, obj.f
-                )
+                self.registered[obj.field_type] = ParserMethodWrapper(self, obj.f)
 
     def _default(self, value, field_type):
         return value

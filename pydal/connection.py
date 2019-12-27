@@ -17,11 +17,11 @@ class ConnectionPool(object):
 
     @property
     def _connection_uname_(self):
-        return '_pydal_connection_%s_%s' % (id(self), os.getpid())
+        return "_pydal_connection_%s_%s" % (id(self), os.getpid())
 
     @property
     def _cursors_uname_(self):
-        return '_pydal_cursor_%s_%s' % (id(self), os.getpid())
+        return "_pydal_cursor_%s_%s" % (id(self), os.getpid())
 
     @staticmethod
     def set_folder(folder):
@@ -95,7 +95,7 @@ class ConnectionPool(object):
         delattr(THREAD_LOCAL, self._cursors_uname_)
         delattr(THREAD_LOCAL, self._connection_uname_)
 
-    def close(self, action='commit', really=True):
+    def close(self, action="commit", really=True):
         """if we have an action (commit, rollback), try to execute it"""
         # if the connection was never established, nothing to do
         if getattr(THREAD_LOCAL, self._connection_uname_, None) is None:
@@ -137,18 +137,18 @@ class ConnectionPool(object):
     @staticmethod
     def close_all_instances(action):
         """ to close cleanly databases in a multithreaded environment """
-        dbs = getattr(THREAD_LOCAL, '_pydal_db_instances_', {}).items()
+        dbs = getattr(THREAD_LOCAL, "_pydal_db_instances_", {}).items()
         for db_uid, db_group in dbs:
             for db in db_group:
-                if hasattr(db, '_adapter'):
+                if hasattr(db, "_adapter"):
                     db._adapter.close(action)
-        getattr(THREAD_LOCAL, '_pydal_db_instances_', {}).clear()
-        getattr(THREAD_LOCAL, '_pydal_db_instances_zombie_', {}).clear()
+        getattr(THREAD_LOCAL, "_pydal_db_instances_", {}).clear()
+        getattr(THREAD_LOCAL, "_pydal_db_instances_zombie_", {}).clear()
         if callable(action):
             action(None)
 
     def _find_work_folder(self):
-        self.folder = getattr(THREAD_LOCAL, '_pydal_folder_', '')
+        self.folder = getattr(THREAD_LOCAL, "_pydal_folder_", "")
 
     def after_connection_hook(self):
         """Hook for the after_connection parameter"""

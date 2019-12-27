@@ -10,15 +10,15 @@ class SQLiteRepresenter(SQLRepresenter, JSONRepresenter):
 
 @representers.register_for(Spatialite)
 class SpatialiteRepresenter(SQLRepresenter):
-    @before_type('geometry')
+    @before_type("geometry")
     def geometry_extras(self, field_type):
         srid = 4326
-        geotype, params = field_type[:-1].split('(')
-        params = params.split(',')
+        geotype, params = field_type[:-1].split("(")
+        params = params.split(",")
         if len(params) >= 2:
             schema, srid = params[:2]
-        return {'srid': srid}
+        return {"srid": srid}
 
-    @for_type('geometry', adapt=False)
+    @for_type("geometry", adapt=False)
     def _geometry(self, value, srid):
         return "ST_GeomFromText('%s',%s)" % (value, srid)

@@ -1,6 +1,5 @@
 from collections import defaultdict
-from .._compat import PY2, with_metaclass, iteritems, to_unicode, to_bytes, \
-    string_types
+from .._compat import PY2, with_metaclass, iteritems, to_unicode, to_bytes, string_types
 from .._gae import gae
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_TYPE
@@ -76,13 +75,13 @@ class MetaRepresenter(type):
         declared_tbefore = {}
         declared_pres = {}
         for base in reversed(new_class.__mro__[1:]):
-            if hasattr(base, '_declared_trepresenters_'):
+            if hasattr(base, "_declared_trepresenters_"):
                 declared_trepresenters.update(base._declared_trepresenters_)
-            if hasattr(base, '_declared_irepresenters_'):
+            if hasattr(base, "_declared_irepresenters_"):
                 declared_irepresenters.update(base._declared_irepresenters_)
-            if hasattr(base, '_declared_tbefore_'):
+            if hasattr(base, "_declared_tbefore_"):
                 declared_tbefore.update(base._declared_tbefore_)
-            if hasattr(base, '_declared_pres_'):
+            if hasattr(base, "_declared_pres_"):
                 declared_pres.update(base._declared_pres_)
         #: set trepresenters
         declared_trepresenters.update(trepresenters)
@@ -167,8 +166,7 @@ class PreMethodWrapper(object):
         return False, value
 
     def _call_break(self, value, field_type):
-        return self.obj.f(
-            self.representer, value, field_type)
+        return self.obj.f(self.representer, value, field_type)
 
     def _call_nobreak(self, value, field_type):
         return False, self.obj.f(self.representer, value, field_type)
@@ -191,9 +189,7 @@ class Representer(with_metaclass(MetaRepresenter)):
                     self, obj, self._tbefore_registry_[obj.field_type]
                 )
             else:
-                self.registered_t[obj.field_type] = TReprMethodWrapper(
-                    self, obj
-                )
+                self.registered_t[obj.field_type] = TReprMethodWrapper(self, obj)
         self.registered_i = {}
         for name, obj in iteritems(self._declared_irepresenters_):
             self.registered_i[obj.inst_type] = IReprMethodWrapper(self, obj)
@@ -229,7 +225,7 @@ class Representer(with_metaclass(MetaRepresenter)):
             try:
                 value.decode(self.adapter.db_codec)
             except:
-                value = value.decode('latin1').encode(self.adapter.db_codec)
+                value = value.decode("latin1").encode(self.adapter.db_codec)
         else:
             value = to_unicode(value)
         return self.adapter.adapt(value)
@@ -245,8 +241,7 @@ class Representer(with_metaclass(MetaRepresenter)):
                 break
         if pre_end:
             return value
-        repr_type, rv = self.get_representer_for_instance(value)(
-            value, field_type)
+        repr_type, rv = self.get_representer_for_instance(value)(value, field_type)
         if repr_type:
             rv = self.get_representer_for_type(field_type)(rv, field_type)
         return rv
