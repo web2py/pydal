@@ -49,12 +49,6 @@ except ImportError:
     psycopg2_adapt = None
 
 try:
-    import pg8000
-    DRIVERS['pg8000'] = pg8000
-except ImportError:
-    pass
-
-try:
     import cx_Oracle
     DRIVERS['cx_Oracle'] = cx_Oracle
 except ImportError:

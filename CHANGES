@@ -1,6 +1,13 @@
 pyDAL changelog
 ===============
 
+Version 18.0
+
+Released on December 27th 2019
+
+- better internal logic
+- no more PG8000
+
 Version 17.11
 -------------
 

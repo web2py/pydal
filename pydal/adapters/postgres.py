@@ -32,7 +32,7 @@ class Postgre(
     with_metaclass(PostgreMeta, SQLAdapter)
 ):
     dbengine = 'postgres'
-    drivers = ('psycopg2', 'pg8000')
+    drivers = ('psycopg2',)
     support_distributed_transaction = True
 
     REGEX_URI = \
@@ -82,16 +82,12 @@ class Postgre(
                 # libpq used by the driver
                 socket_dir = os.path.abspath(os.path.dirname(socket))
                 self.driver_args['host'] = socket_dir
-            elif self.driver_name == 'pg8000':
-                self.driver_args['unix_sock'] = socket
         else:
             port = int(m.group('port') or 5432)
             self.driver_args.update(host=host, port=port)
             sslmode = uri_args.get('sslmode')
             if sslmode and self.driver_name == 'psycopg2':
                 self.driver_args['sslmode'] = sslmode
-            if 'ssl' in uri_args and self.driver_name == 'pg8000':
-                self.driver_args['ssl'] = True
         if self.driver:
             self.__version__ = "%s %s" % (self.driver.__name__,
                                           self.driver.__version__)
@@ -184,27 +180,6 @@ class PostgrePsyco(Postgre):
         return rv
 
 
-@adapters.register_for('postgres:pg8000')
-class PostgrePG8000(Postgre):
-    drivers = ('pg8000',)
-
-    def _config_json(self):
-        if self.connection._server_version >= "9.2.0":
-            self.dialect = self._get_json_dialect()(self)
-            if self.driver.__version__ >= '1.10.2':
-                self.parser = self._get_json_parser()(self)
-
-    def adapt(self, obj):
-        return "'%s'" % obj.replace("%", "%%").replace("'", "''")
-
-    @with_connection_or_raise
-    def execute(self, *args, **kwargs):
-        if PY2:
-            args = list(args)
-            args[0] = to_unicode(args[0])
-        return super(PostgrePG8000, self).execute(*args, **kwargs)
-
-
 @adapters.register_for('postgres2')
 class PostgreNew(Postgre):
     def _get_json_dialect(self):
@@ -221,11 +196,6 @@ class PostgrePsycoNew(PostgrePsyco, PostgreNew):
     pass
 
 
-@adapters.register_for('postgres2:pg8000')
-class PostgrePG8000New(PostgrePG8000, PostgreNew):
-    pass
-
-
 @adapters.register_for('postgres3')
 class PostgreBoolean(PostgreNew):
     def _get_json_dialect(self):
@@ -239,11 +209,6 @@ class PostgreBoolean(PostgreNew):
 
 @adapters.register_for('postgres3:psycopg2')
 class PostgrePsycoBoolean(PostgrePsycoNew, PostgreBoolean):
-    pass
-
-
-@adapters.register_for('postgres3:pg8000')
-class PostgrePG8000Boolean(PostgrePG8000New, PostgreBoolean):
     pass
 
 
