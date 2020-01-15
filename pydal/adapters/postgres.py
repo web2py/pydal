@@ -66,6 +66,7 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
             adapter_args,
             after_connection,
         )
+        self._config_json()
 
     def _initialize_(self):
         super(Postgre, self)._initialize_()
@@ -136,9 +137,6 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
     def after_connection(self):
         self.execute("SET CLIENT_ENCODING TO 'UTF8'")
         self.execute("SET standard_conforming_strings=on;")
-
-    def _after_first_connection(self):
-        self._config_json()
 
     def lastrowid(self, table):
         if self._last_insert:
