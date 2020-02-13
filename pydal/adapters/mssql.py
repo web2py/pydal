@@ -157,11 +157,11 @@ class PyTDS(MSSQL):
             m = re.match(self.REGEX_URI, ruri)
             if not m:
                 raise SyntaxError("Invalid URI string in DAL: %s" % self.uri)
-            self.dsn = host
+            self.dsn = m.group("host")
             self.driver_args.update(
                 user=self.credential_decoder(m.group("user")),
                 password=self.credential_decoder(m.group("password")) or "",
-                database=m.group("db")
+                database=m.group("db"),
                 port=m.group("port") or "1433",
                 )
 
