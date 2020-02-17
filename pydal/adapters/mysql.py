@@ -55,7 +55,13 @@ class MySQL(SQLAdapter):
             self.driver_args.update(host=host, port=port)
 
     def connector(self):
-        return self.driver.connect(**self.driver_args)
+        cursor_buffered = self.driver_args.get('cursor_buffered')
+        if cursor_buffered:
+            del self.driver_args['cursor_buffered']
+        conn = self.driver.connect(**self.driver_args)
+        if cursor_buffered:
+            conn.cursor = lambda conn=conn: conn.cursor(buffered=True)
+        return conn
 
     def after_connection(self):
         self.execute("SET FOREIGN_KEY_CHECKS=1;")
