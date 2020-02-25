@@ -1,9 +1,7 @@
 from ..adapters.postgres import Postgre, PostgreNew
 from .base import SQLRepresenter, JSONRepresenter
-from .._compat import string_types
 from . import representers, before_type, for_type
 from ..helpers.serializers import serializers
-from .._compat import string_types
 
 
 @representers.register_for(Postgre)
@@ -40,8 +38,6 @@ class PostgreRepresenter(SQLRepresenter, JSONRepresenter):
 
     @for_type("jsonb", encode=True)
     def _jsonb(self, value):
-        if isinstance(value, string_types):
-            return value
         return serializers.json(value)
 
 

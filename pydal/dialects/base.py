@@ -352,7 +352,7 @@ class SQLDialect(CommonDialect):
         return "(%s)" % " || ".join(tmp)
 
     def contains(self, first, second, case_sensitive=True, query_env={}):
-        if first.type in ("string", "text", "json"):
+        if first.type in ("string", "text", "json", "jsonb"):
             if isinstance(second, Expression):
                 second = Expression(
                     second.db,
@@ -395,6 +395,12 @@ class SQLDialect(CommonDialect):
     def eq(self, first, second=None, query_env={}):
         if second is None:
             return "(%s IS NULL)" % self.expand(first, query_env=query_env)
+        if first.type in ("json", "jsonb"):
+            if isinstance(second, (string_types, int, float)):
+                return "(%s = '%s')" % (
+                    self.expand(first, query_env=query_env),
+                    self.expand(second, query_env=query_env)
+                )
         return "(%s = %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, first.type, query_env=query_env),
