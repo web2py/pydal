@@ -1,7 +1,7 @@
 import json
 from base64 import b64encode
 from datetime import date, time, datetime
-from .._compat import PY2, integer_types, to_unicode, to_bytes, basestring
+from .._compat import PY2, integer_types, to_unicode, to_bytes, basestring, string_types
 from ..adapters.base import SQLAdapter, NoSQLAdapter
 from ..helpers.classes import Reference, SQLCustomType
 from ..helpers.methods import bar_encode
@@ -94,6 +94,8 @@ class BaseRepresenter(Representer):
 class JSONRepresenter(Representer):
     @for_type("json", encode=True)
     def _json(self, value):
+        if isinstance(value, string_types):
+            return value
         return serializers.json(value)
 
 
