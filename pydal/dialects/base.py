@@ -1,5 +1,5 @@
 import datetime
-from .._compat import integer_types, basestring
+from .._compat import integer_types, basestring, string_types
 from ..adapters.base import SQLAdapter
 from ..helpers.methods import use_common_filters
 from ..objects import Expression, Field, Table, Select
