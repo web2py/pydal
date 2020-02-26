@@ -409,6 +409,12 @@ class SQLDialect(CommonDialect):
     def ne(self, first, second=None, query_env={}):
         if second is None:
             return "(%s IS NOT NULL)" % self.expand(first, query_env=query_env)
+        if first.type in ("json", "jsonb"):
+            if isinstance(second, (string_types, int, float)):
+                return "(%s <> '%s')" % (
+                    self.expand(first, query_env=query_env),
+                    self.expand(second, query_env=query_env)
+                )
         return "(%s <> %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, first.type, query_env=query_env),
@@ -417,6 +423,12 @@ class SQLDialect(CommonDialect):
     def lt(self, first, second=None, query_env={}):
         if second is None:
             raise RuntimeError("Cannot compare %s < None" % first)
+        if first.type in ("json", "jsonb"):
+            if isinstance(second, (string_types, int, float)):
+                return "(%s < '%s')" % (
+                    self.expand(first, query_env=query_env),
+                    self.expand(second, query_env=query_env)
+                )
         return "(%s < %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, first.type, query_env=query_env),
@@ -425,6 +437,12 @@ class SQLDialect(CommonDialect):
     def lte(self, first, second=None, query_env={}):
         if second is None:
             raise RuntimeError("Cannot compare %s <= None" % first)
+        if first.type in ("json", "jsonb"):
+            if isinstance(second, (string_types, int, float)):
+                return "(%s <= '%s')" % (
+                    self.expand(first, query_env=query_env),
+                    self.expand(second, query_env=query_env)
+                )
         return "(%s <= %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, first.type, query_env=query_env),
@@ -433,6 +451,12 @@ class SQLDialect(CommonDialect):
     def gt(self, first, second=None, query_env={}):
         if second is None:
             raise RuntimeError("Cannot compare %s > None" % first)
+        if first.type in ("json", "jsonb"):
+            if isinstance(second, (string_types, int, float)):
+                return "(%s > '%s')" % (
+                    self.expand(first, query_env=query_env),
+                    self.expand(second, query_env=query_env)
+                )
         return "(%s > %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, first.type, query_env=query_env),
@@ -441,6 +465,12 @@ class SQLDialect(CommonDialect):
     def gte(self, first, second=None, query_env={}):
         if second is None:
             raise RuntimeError("Cannot compare %s >= None" % first)
+        if first.type in ("json", "jsonb"):
+            if isinstance(second, (string_types, int, float)):
+                return "(%s >= '%s')" % (
+                    self.expand(first, query_env=query_env),
+                    self.expand(second, query_env=query_env)
+                )
         return "(%s >= %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, first.type, query_env=query_env),
