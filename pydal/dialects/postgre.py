@@ -324,11 +324,11 @@ class PostgreDialectJSON(PostgreDialect):
 
     def json_path(self, first, path, query_env=None):
         """ Get the json in path which you can use for more queries """
-        return "%s#>%s" % (self.expand(first, query_env=query_env or {}), path)
+        return "%s#>'%s'" % (self.expand(first, query_env=query_env or {}), path)
 
     def json_path_value(self, first, path, query_env=None):
         """ Get the json in path which you can use for more queries """
-        return "%s#>>%s" % (self.expand(first, query_env=query_env or {}), path)
+        return "%s#>>'%s'" % (self.expand(first, query_env=query_env or {}), path)
 
     # JSON Queries
     def json_contains(self, first, jsonvalue, query_env=None):
