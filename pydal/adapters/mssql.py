@@ -15,7 +15,7 @@ class Slicer(object):
 
 class MSSQL(SQLAdapter):
     dbengine = "mssql"
-    drivers = ("pyodbc",)
+    drivers = ("pyodbc", "pytds")
 
     REGEX_DSN = "^.+$"
     REGEX_URI = (
@@ -142,6 +142,31 @@ class MSSQL3N(MSSQLN):
 class MSSQL4N(MSSQLN):
     pass
 
+@adapters.register_for("pytds")
+class PyTDS(MSSQL):
+
+    def _initialize_(self):
+        super(MSSQL, self)._initialize_()
+        ruri = self.uri.split("://", 1)[1]
+        if "@" not in ruri:
+            m = re.match(self.REGEX_DSN, ruri)
+            if not m:
+                raise SyntaxError("Invalid URI string in DAL")
+            self.dsn = m.group()
+        else:
+            m = re.match(self.REGEX_URI, ruri)
+            if not m:
+                raise SyntaxError("Invalid URI string in DAL: %s" % self.uri)
+            self.dsn = m.group("host")
+            self.driver_args.update(
+                user=self.credential_decoder(m.group("user")),
+                password=self.credential_decoder(m.group("password")) or "",
+                database=m.group("db"),
+                port=m.group("port") or "1433",
+                )
+
+    def connector(self):
+        return self.driver.connect(self.dsn, **self.driver_args)
 
 @adapters.register_for("vertica")
 class Vertica(MSSQL1):
