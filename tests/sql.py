@@ -3175,6 +3175,7 @@ class TestJSON(DALtest):
                 u"a": {u"a1": 2, u"a0": 1},
                 u"b": 3,
                 u"c": {u"c0": {u"c01": [2, 4]}},
+                u"str": "foo"
             }
         )
         rec2 = tj.insert(
@@ -3182,6 +3183,7 @@ class TestJSON(DALtest):
                 u"a": {u"a1": 2, u"a0": 2},
                 u"b": 4,
                 u"c": {u"c0": {u"c01": [2, 3]}},
+                u"str": "bar"
             }
         )
         rows = db(db.tj.testjson.json_key("a").json_key_value("a0") == 1).select()
@@ -3192,6 +3194,8 @@ class TestJSON(DALtest):
         rows = db(db.tj.testjson.json_path_value("{a, a0}") == 2).select()
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].id, rec2)
+        rows = db(db.tj.testjson.json_path_value(r"{str}") == "foo").select()
+        self.assertEqual(len(rows), 1)
         rows = db(db.tj.testjson.json_contains('{"c": {"c0":{"c01": [2]}}}')).select()
         self.assertEqual(len(rows), 2)
         rows = db(db.tj.testjson.json_contains('{"c": {"c0":{"c01": [4]}}}')).select()
