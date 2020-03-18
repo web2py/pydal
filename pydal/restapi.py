@@ -535,7 +535,6 @@ class RestAPI(object):
                     row[lkey] = drows.get(row.id, [])
 
         response = {}
-        response["table"] = table._tablename
         if not options_list:
             response["items"] = rows.as_list()
         else:
