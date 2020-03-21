@@ -4577,7 +4577,7 @@ class IS_STRONG(Validator):
                         % (self.special, self.specials)
                     )
             elif self.special == 0 and self.special is not False:
-                if len(all_special) > 0:
+                if len([item for item in all_special if item]) > 0:
                     failures.append(
                         self.translator("May not contain any of the following: %s")
                         % self.specials
