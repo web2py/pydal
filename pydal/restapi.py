@@ -378,6 +378,8 @@ class RestAPI(object):
                     "ge",
                     "le",
                     "startswith",
+                    "contains",
+                    "in"
                 ):
                     key_parts.append("eq")
                 is_negated = key_parts[0] == "not"
