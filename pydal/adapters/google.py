@@ -2,16 +2,23 @@ import os
 import re
 from .._compat import pjoin
 from .._globals import THREAD_LOCAL
-from .._gae import gae, ndb, rdbms, namespace_manager, classobj, NDBPolyModel
 from ..migrator import InDBMigrator
 from ..helpers.classes import FakeDriver, SQLCustomType, SQLALL, Reference
-from ..helpers.gae import NDBDecimalProperty
 from ..helpers.methods import use_common_filters, xorify
 from ..objects import Table, Field, Expression, Query
 from .base import NoSQLAdapter
 from .mysql import MySQL
 from .postgres import PostgrePsyco
 from . import adapters, with_connection_or_raise
+from .._gae import gae
+
+if gae:
+    from .._gae import (ndb,
+                        rdbms,
+                        namespace_manager,
+                        classobj,
+                        NDBPolyModel)
+    from ..helpers.gae import NDBDecimalProperty
 
 
 class GoogleMigratorMixin(object):
