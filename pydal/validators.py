@@ -418,14 +418,17 @@ class IS_JSON(Validator):
         self.error_message = error_message
 
     def validate(self, value, record_id=None):
-        try:
-            if self.native_json:
-                json.loads(value)  # raises error in case of malformed json
-                return value  # the serialized value is not passed
-            else:
-                return json.loads(value)
-        except JSONErrors:
-            raise ValidationError(self.translator(self.error_message))
+        if isinstance(value, (str, bytes)):
+            try:
+                if self.native_json:
+                    json.loads(value)  # raises error in case of malformed json
+                    return value  # the serialized value is not passed
+                else:
+                    return json.loads(value)
+            except JSONErrors:
+                raise ValidationError(self.translator(self.error_message))
+        else:
+            return value
 
     def formatter(self, value):
         if value is None:
