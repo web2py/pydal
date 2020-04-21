@@ -1619,12 +1619,12 @@ class Expression(object):
 
     # GIS expressions
 
-    def st_asgeojson(self, precision=15, options=0, version=1):
+    def st_asgeojson(self, precision=15, options=0):
         return Expression(
             self.db,
             self._dialect.st_asgeojson,
             self,
-            dict(precision=precision, options=options, version=version),
+            dict(precision=precision, options=options),
             "string",
         )
 

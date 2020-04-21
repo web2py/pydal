@@ -154,8 +154,7 @@ class PostgreDialect(SQLDialect):
         return rv
 
     def st_asgeojson(self, first, second, query_env={}):
-        return "ST_AsGeoJSON(%s,%s,%s,%s)" % (
-            second["version"],
+        return "ST_AsGeoJSON(%s,%s,%s)" % (
             self.expand(first, query_env=query_env),
             second["precision"],
             second["options"],
@@ -297,8 +296,7 @@ class PostgreDialectJSON(PostgreDialect):
         return "ST_AsText(%s)" % self.expand(first, query_env=query_env)
 
     def st_asgeojson(self, first, second, query_env={}):
-        return "ST_AsGeoJSON(%s,%s,%s,%s)" % (
-            second["version"],
+        return "ST_AsGeoJSON(%s,%s,%s)" % (
             self.expand(first, query_env=query_env),
             second["precision"],
             second["options"],
