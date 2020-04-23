@@ -240,7 +240,7 @@ class GoogleDatastore(NoSQLAdapter):
             elif obj is None:
                 return None
             else:
-                return ndb.Key(tablename, long(obj))
+                return ndb.Key(tablename, int(obj))
         if isinstance(obj, (Expression, Field)):
             raise SyntaxError("not supported on GAE")
         if isinstance(field_type, gae.Property):
@@ -311,9 +311,19 @@ class GoogleDatastore(NoSQLAdapter):
 
         cursor = args_get("reusecursor")
         cursor = cursor if isinstance(cursor, str) else None
-        qo = ndb.QueryOptions(projection=query_projection, cursor=cursor)
+        # qo = ndb.QueryOptions(projection=query_projection, cursor=cursor)
 
-        if filters == None:
+        # cursor does not seem to be supported by QueryOptions
+        if query_projection and cursor:
+            qo = ndb.QueryOptions(projection=query_projection, cursor=cursor)
+        else:
+            qo = None
+
+        # default_options does not seem to be supported by tableobj  (google.cloud.ndb.model.MetaModel)
+        if filters and not qo:
+            items = tableobj.query(filters)
+
+        elif filters == None:
             items = tableobj.query(default_options=qo)
         elif getattr(filters, "filter_all", None):
             items = []
