@@ -4455,7 +4455,8 @@ upperset = frozenset(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 numberset = frozenset(b"0123456789")
 sym1set = frozenset(b"!@#$%^&*() ")
 sym2set = frozenset(b"~`-_=+[]{}\\|;:'\",.<>?/")
-otherset = frozenset(b''.join(chr(x).encode() for x in range(256)))
+otherset = frozenset(b"".join(chr(x).encode() for x in range(256)))
+
 
 def calc_entropy(string):
     """ calculates a simple entropy for a given string """
@@ -4463,7 +4464,7 @@ def calc_entropy(string):
     other = set()
     seen = set()
     lastset = None
-    string = to_bytes(string or '')
+    string = to_bytes(string or "")
     for c in string:
         # classify this character
         inset = None
@@ -4556,6 +4557,8 @@ class IS_STRONG(Validator):
 
     def validate(self, value, record_id=None):
         failures = []
+        if value is None:
+            value = ""
         if value and len(value) == value.count("*") > 4:
             return value
         if self.entropy is not None:
