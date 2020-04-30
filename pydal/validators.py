@@ -4507,15 +4507,15 @@ class IS_STRONG(Validator):
         >>> IS_STRONG(es=True, entropy=1, min=2)('a')
         ('a', 'Minimum length is 2')
         >>> IS_STRONG(es=True, entropy=100)('abc123')
-        ('abc123', 'Entropy (32.35) less than required (100)')
+        ('abc123', 'Password too simple (32.35/100)')
         >>> IS_STRONG(es=True, entropy=100)('and')
-        ('and', 'Entropy (14.57) less than required (100)')
+        ('and', 'Password too simple (14.57/100)')
         >>> IS_STRONG(es=True, entropy=100)('aaa')
-        ('aaa', 'Entropy (14.42) less than required (100)')
+        ('aaa', 'Password too simple (14.42/100)')
         >>> IS_STRONG(es=True, entropy=100)('a1d')
-        ('a1d', 'Entropy (15.97) less than required (100)')
+        ('a1d', 'Password too simple (15.97/100)')
         >>> IS_STRONG(es=True, entropy=100)('añd')
-        ('a\\xc3\\xb1d', 'Entropy (18.13) less than required (100)')
+        ('a\\xc3\\xb1d', 'Password too simple (18.13/100)')
 
     """
 
@@ -4565,7 +4565,7 @@ class IS_STRONG(Validator):
             entropy = calc_entropy(value)
             if entropy < self.entropy:
                 failures.append(
-                    self.translator("Entropy (%(have)s) less than required (%(need)s)")
+                    self.translator("Password too simple (%(have)s/%(need)s)")
                     % dict(have=entropy, need=self.entropy)
                 )
         if isinstance(self.min, int) and self.min > 0:
