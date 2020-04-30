@@ -4482,7 +4482,7 @@ def calc_entropy(string):
         if inset is not lastset:
             alphabet += 1  # credit for set transitions
             lastset = cset
-    entropy = len(string) * math.log(alphabet) / 0.6931471805599453  # math.log(2)
+    entropy = len(string) * math.log(alphabet or 1) / 0.6931471805599453  # math.log(2)
     return round(entropy, 2)
 
 
