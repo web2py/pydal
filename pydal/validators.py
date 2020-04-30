@@ -4463,7 +4463,7 @@ def calc_entropy(string):
     other = set()
     seen = set()
     lastset = None
-    string = to_bytes(string)
+    string = to_bytes(string or '')
     for c in string:
         # classify this character
         inset = None
