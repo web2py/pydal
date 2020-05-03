@@ -4455,7 +4455,7 @@ upperset = frozenset(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 numberset = frozenset(b"0123456789")
 sym1set = frozenset(b"!@#$%^&*() ")
 sym2set = frozenset(b"~`-_=+[]{}\\|;:'\",.<>?/")
-otherset = frozenset(b"".join(chr(x) if PY2 else chr(r).encode() for x in range(256)))
+otherset = frozenset(b"".join(chr(x) if PY2 else chr(x).encode() for x in range(256)))
 
 
 def calc_entropy(string):
@@ -4515,7 +4515,7 @@ class IS_STRONG(Validator):
         >>> IS_STRONG(es=True, entropy=100)('a1d')
         ('a1d', 'Password too simple (15.97/100)')
         >>> IS_STRONG(es=True, entropy=100)('añd')
-        ('a\\xc3\\xb1d', 'Password too simple (18.13/100)')
+        ('a\\xc3\\xb1d', 'Password too simple (31.26/10)')
 
     """
 

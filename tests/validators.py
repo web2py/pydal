@@ -1058,10 +1058,10 @@ class TestValidators(unittest.TestCase):
         rtn = IS_STRONG(es=True, entropy=100)("añd")
         if PY2:
             self.assertEqual(
-                rtn, ("a\xc3\xb1d", "Password too simple (18.13/100)")
+                rtn, ("a\xc3\xb1d", "Password too simple (32.66/100)")
             )
         else:
-            self.assertEqual(rtn, ("añd", "Password too simple (18.13/100)"))
+            self.assertEqual(rtn, ("añd", "Password too simple (31.26/100)"))
         rtn = IS_STRONG()("********")
         self.assertEqual(rtn, ("********", None))
         rtn = IS_STRONG(es=True, max=4)("abcde")
