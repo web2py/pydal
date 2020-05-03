@@ -4455,7 +4455,7 @@ upperset = frozenset(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 numberset = frozenset(b"0123456789")
 sym1set = frozenset(b"!@#$%^&*() ")
 sym2set = frozenset(b"~`-_=+[]{}\\|;:'\",.<>?/")
-otherset = frozenset(b"".join(chr(x).encode() for x in range(256)))
+otherset = frozenset(b"".join(chr(x) if PY2 else chr(r).encode() for x in range(256)))
 
 
 def calc_entropy(string):
