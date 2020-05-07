@@ -83,10 +83,11 @@ class Policy(object):
 
     def set(self, tablename, method, **attributes):
         method = method.upper()
-        if not method in self.model or any(
-            key not in self.model[method] for key in attributes
-        ):
-            raise InvalidFormat("Invalid policy format")
+        if not method in self.model:
+            raise InvalidFormat("Invalid policy method: %s" % method)
+        invalid_keys = [key for key in attributes if key not in self.model[method]]
+        if invalid_keys:
+            raise InvalidFormat("Invalid keys: %s" % ','.join(invalid_keys))
         if not tablename in self.info:
             self.info[tablename] = copy.deepcopy(self.model)
         self.info[tablename][method].update(attributes)
@@ -249,8 +250,6 @@ class RestAPI(object):
             if fieldnames and not fieldname in fieldnames:
                 continue
             field = table[fieldname]
-            if not field.readable and not field.writable:
-                continue
             item = {"name": field.name, "label": field.label}
             # https://github.com/collection-json/extensions/blob/master/template-validation.md
             item["default"] = (
