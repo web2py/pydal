@@ -914,16 +914,29 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             if not colnames:
                 colnames = [f.sqlsafe for f in extracted_fields]
             else:
+                # extracted_fields is empty we should make it from colnames
+                # what 'col_fields' is for
+                col_fields = [] # [[tablename, fieldname], ....]
                 newcolnames = []
                 for tf in colnames:
                     if "." in tf:
-                        newcolnames.append(
-                            ".".join(adapter.dialect.quote(f) for f in tf.split("."))
-                        )
+                        t_f = tf.split(".")
+                        tf = ".".join(adapter.dialect.quote(f) for f in t_f)
                     else:
-                        newcolnames.append(tf)
+                        t_f = None
+                    if not extracted_fields:
+                        # if we're here, only 'colnames' was passed
+                        # and if so - tf is the name, not expression
+                        # so we should prefix it with ' AS ' to make parser treats it as colname
+                        tf = ' AS ' + tf
+                        col_fields.append(t_f)
+                    newcolnames.append(tf)
                 colnames = newcolnames
-            data = adapter.parse(data, fields=extracted_fields, colnames=colnames)
+            data = adapter.parse(
+                data,
+                fields = extracted_fields or [tf and self[tf[0]][tf[1]] for tf in col_fields],
+                colnames=colnames
+            )
         return data
 
     def _remove_references_to(self, thistable):
