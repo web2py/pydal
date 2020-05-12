@@ -914,7 +914,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             if not colnames:
                 colnames = [f.sqlsafe for f in extracted_fields]
             else:
-                # extracted_fields is empty we should make it from colnames
+                #: extracted_fields is empty we should make it from colnames
                 # what 'col_fields' is for
                 col_fields = [] # [[tablename, fieldname], ....]
                 newcolnames = []
@@ -925,10 +925,6 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     else:
                         t_f = None
                     if not extracted_fields:
-                        # if we're here, only 'colnames' was passed
-                        # and if so - tf is the name, not expression
-                        # so we should prefix it with ' AS ' to make parser treats it as colname
-                        tf = ' AS ' + tf
                         col_fields.append(t_f)
                     newcolnames.append(tf)
                 colnames = newcolnames
