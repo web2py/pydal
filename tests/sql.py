@@ -2246,12 +2246,12 @@ class TestExecuteSQL(DALtest):
         
         # the same as the last 2 above, but with colnames only
         rtn = db.executesql(
-            "select id, b_field, a_field, 7711 AS foo from a_table",
+            "select id, b_field, a_field, b_field AS foo from a_table",
             colnames=["a_table.id", "a_table.b_field", "a_table.a_field", "foo"],
         )
         
         self.assertTrue(all(x in rtn[0].keys() for x in ["id", "b_field", "a_field", "foo"]))
-        self.assertEqual(rtn[0].foo, 7711)
+        self.assertEqual(rtn[0].foo, "bb1")
         
 
 
