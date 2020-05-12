@@ -2251,7 +2251,8 @@ class TestExecuteSQL(DALtest):
         )
         
         self.assertTrue(all(x in rtn[0].keys() for x in ["a_table", "foo"]))
-        self.assertEqual(rtn[0].foo, "bb1")
+        self.assertEqual(rtn[0].a_table.b_field, "bb1")
+        self.assertEqual(rtn[0].a_table.b_field, rtn[0].foo)
         
 
 
