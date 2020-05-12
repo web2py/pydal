@@ -2236,12 +2236,23 @@ class TestExecuteSQL(DALtest):
 
         self.assertTrue(all(x in rtn[0].keys() for x in ["id", "b_field", "a_field"]))
         self.assertEqual(rtn[0].b_field, "bb1")
+        
         rtn = db.executesql(
             "select COUNT(*) from a_table",
             fields=[db.a_table.id.count()],
             colnames=["foo"],
         )
         self.assertEqual(rtn[0].foo, 1)
+        
+        # the same as the last 2 above, but with colnames only
+        rtn = db.executesql(
+            "select id, b_field, a_field, 7711 AS foo from a_table",
+            colnames=["a_table.id", "a_table.b_field", "a_table.a_field", "foo"],
+        )
+        
+        self.assertTrue(all(x in rtn[0].keys() for x in ["id", "b_field", "a_field", "foo"]))
+        self.assertEqual(rtn[0].foo, 7711)
+        
 
 
 class TestRNameTable(DALtest):
