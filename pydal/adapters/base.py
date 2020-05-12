@@ -293,10 +293,13 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     value, f_itype, ftype, blob_decode
                 )
                 extras[colname] = value
-                new_column_match = self._regex_select_as_parser(colname)
-                if new_column_match is not None:
-                    new_column_name = new_column_match.group(1)
-                    new_row[new_column_name] = value
+                if not fields[j]:
+                    new_row[colname] = value
+                else:
+                    new_column_match = self._regex_select_as_parser(colname)
+                    if new_column_match is not None:
+                        new_column_name = new_column_match.group(1)
+                        new_row[new_column_name] = value
         #: add extras if needed (eg. operations results)
         if extras:
             new_row["_extra"] = extras
