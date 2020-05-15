@@ -1616,6 +1616,11 @@ class Expression(object):
 
     def with_alias(self, alias):
         return Expression(self.db, self._dialect._as, self, alias, self.type)
+    
+    @property
+    def alias(self):
+        if self.op == self._dialect._as:
+            return self.second
 
     # GIS expressions
 
