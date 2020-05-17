@@ -11,6 +11,8 @@ python:
   - 'pypy3'
   - '3.5'
   - '3.6'
+  - '3.7'
+  - '3.8'
 
 before_install:
   - if [ "$ADAPTER" = 'oracle' ]; then
@@ -48,6 +50,8 @@ env:
 
 matrix:
   exclude:
+    - python: '2.7'
+      env: ADAPTER=oracle
     - python: 'pypy'
       env: ADAPTER=postgres
     - python: 'pypy'
@@ -68,6 +72,14 @@ matrix:
       env: ADAPTER=google
     - python: '3.6'
       env: ADAPTER=google
+    - python: '3.5'
+      env: ADAPTER=oracle
+    - python: '3.6'
+      env: ADAPTER=oracle
+    - python: '3.7'
+      env: ADAPTER=oracle
+    - python: '3.8'
+      env: ADAPTER=oracle
 
 before_script:
   - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install codecov; fi
