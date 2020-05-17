@@ -1,7 +1,7 @@
 language: python
 
 sudo: required
-dist: trusty
+dist: "xenial"
 
 cache: pip
 
@@ -71,6 +71,10 @@ matrix:
     - python: '3.5'
       env: ADAPTER=google
     - python: '3.6'
+      env: ADAPTER=google
+    - python: '3.7'
+      env: ADAPTER=google
+    - python: '3.8'
       env: ADAPTER=google
     - python: '3.5'
       env: ADAPTER=oracle
