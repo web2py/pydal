@@ -1,14 +1,14 @@
 language: python
 
 sudo: required
-dist: "xenial"
+dist: bionic
 
 cache: pip
 
 python:
   - '2.7'
-  - 'pypy'
-  - 'pypy3'
+#  - 'pypy'
+#  - 'pypy3'
   - '3.5'
   - '3.6'
   - '3.7'
@@ -52,22 +52,26 @@ matrix:
   exclude:
     - python: '2.7'
       env: ADAPTER=oracle
-    - python: 'pypy'
-      env: ADAPTER=postgres
-    - python: 'pypy'
-      env: ADAPTER=postgres3
-    - python: 'pypy'
-      env: ADAPTER=google
-    - python: 'pypy'
-      env: ADAPTER=oracle
-    - python: 'pypy3'
-      env: ADAPTER=google
-    - python: 'pypy3'
-      env: ADAPTER=postgres
-    - python: 'pypy3'
-      env: ADAPTER=postgres3
-    - python: 'pypy3'
-      env: ADAPTER=oracle
+#    - python: 'pypy'
+#      env: ADAPTER=postgres
+#    - python: 'pypy'
+#      env: ADAPTER=postgres3
+#    - python: 'pypy'
+#      env: ADAPTER=google
+#    - python: 'pypy'
+#      env: ADAPTER=oracle
+#    - python: 'pypy'
+#      env: ADAPTER=mongo
+#    - python: 'pypy3'
+#      env: ADAPTER=google
+#    - python: 'pypy3'
+#      env: ADAPTER=postgres
+#    - python: 'pypy3'
+#      env: ADAPTER=postgres3
+#    - python: 'pypy3'
+#      env: ADAPTER=oracle
+#    - python: 'pypy3'
+#      env: ADAPTER=mongo
     - python: '3.5'
       env: ADAPTER=google
     - python: '3.6'
@@ -89,10 +93,13 @@ before_script:
   - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install codecov; fi
   - if [[ $ADAPTER == mongo ]]; then sleep 15; fi;
   - if [[ $ADAPTER == mysql ]]; then mysql -e 'create database pydal;'; fi
-  - if [[ $ADAPTER == postgres* ]]; then psql -c 'create database pydal;' -U postgres; fi
-  - if [[ $ADAPTER == postgres* ]]; then psql -c 'create extension postgis;' -U postgres -d pydal; fi
-  - if [[ $ADAPTER == postgres* ]]; then psql -c 'SHOW SERVER_VERSION' -U postgres; fi
-
+  - if [[ $ADAPTER == postgres* ]]; then
+    sudo apt update;
+    sudo apt install -Y postgis postgresql-11-postgis-3;
+    psql -c 'create database pydal;' -U postgres;
+    psql -c 'create extension postgis;' -U postgres -d pydal;
+    psql -c 'SHOW SERVER_VERSION' -U postgres;
+    fi
   # Install last sdk for app engine (update only whenever a new release is available)
   - if [[ $ADAPTER == google ]]; then wget https://storage.googleapis.com/appengine-sdks/featured/google_appengine_1.9.50.zip -nv; fi
   - if [[ $ADAPTER == google ]]; then unzip -q google_appengine_1.9.50.zip; fi
@@ -114,9 +121,3 @@ services:
   - memcached
   - mysql
   - postgresql
-
-addons:
-  postgresql: "9.6"
-  apt:
-    packages:
-    - postgresql-9.6-postgis-2.3
