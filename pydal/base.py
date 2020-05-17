@@ -469,6 +469,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         self._LAZY_TABLES = {}
         self._lazy_tables = lazy_tables
         self._tables = SQLCallableList()
+        self._aliased_tables = dict()
         self._driver_args = driver_args
         self._adapter_args = adapter_args
         self._check_reserved = check_reserved
@@ -761,6 +762,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         ) and key in object.__getattribute__(self, "_LAZY_TABLES"):
             tablename, fields, kwargs = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename, *fields, **kwargs)
+        aliased = object.__getattribute__(self, "_aliased_tables").get(key, None)
+        if aliased:
+            return aliased
         return BasicStorage.__getattribute__(self, key)
 
     def __setattr__(self, key, value):
@@ -914,16 +918,25 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             if not colnames:
                 colnames = [f.sqlsafe for f in extracted_fields]
             else:
+                #: extracted_fields is empty we should make it from colnames
+                # what 'col_fields' is for
+                col_fields = [] # [[tablename, fieldname], ....]
                 newcolnames = []
                 for tf in colnames:
                     if "." in tf:
-                        newcolnames.append(
-                            ".".join(adapter.dialect.quote(f) for f in tf.split("."))
-                        )
+                        t_f = tf.split(".")
+                        tf = ".".join(adapter.dialect.quote(f) for f in t_f)
                     else:
-                        newcolnames.append(tf)
+                        t_f = None
+                    if not extracted_fields:
+                        col_fields.append(t_f)
+                    newcolnames.append(tf)
                 colnames = newcolnames
-            data = adapter.parse(data, fields=extracted_fields, colnames=colnames)
+            data = adapter.parse(
+                data,
+                fields = extracted_fields or [tf and self[tf[0]][tf[1]] for tf in col_fields],
+                colnames=colnames
+            )
         return data
 
     def _remove_references_to(self, thistable):
