@@ -23,7 +23,9 @@ from ._adapt import (
     IS_MYSQL,
     IS_TERADATA,
     IS_NOSQL,
+    IS_ORACLE,
 )
+
 from ._helpers import DALtest
 
 long = integer_types[-1]
@@ -49,7 +51,7 @@ ALLOWED_DATATYPES = [
 
 
 def setUpModule():
-    if IS_MYSQL or IS_TERADATA:
+    if IS_MYSQL or IS_TERADATA or IS_ORACLE:
         db = DAL(DEFAULT_URI, check_reserved=["all"])
 
         def clean_table(db, tablename):
@@ -266,10 +268,13 @@ class TestFields(DALtest):
     def testRun(self):
         # Test all field types and their return values
         db = self.connect()
-        for ft in ["string", "text", "password", "upload", "blob"]:
-            db.define_table("tt", Field("aa", ft, default=""))
-            self.assertEqual(db.tt.insert(aa="ö"), 1)
-            self.assertEqual(db().select(db.tt.aa)[0].aa, "ö")
+        for ft in ['string', 'text', 'password', 'upload', 'blob']:
+            db.define_table('tt', Field('aa', ft, default=''))
+            self.assertEqual(db.tt.insert(aa='ö'), 1)
+            if not (IS_ORACLE and (ft=='text' or ft=='blob')): 
+                # only verify insert for LOB types in oracle;
+                # select may create seg fault in test env
+                self.assertEqual(db().select(db.tt.aa)[0].aa, 'ö')
             db.tt.drop()
         db.define_table("tt", Field("aa", "integer", default=1))
         self.assertEqual(db.tt.insert(aa=3), 1)
@@ -353,11 +358,12 @@ class TestFields(DALtest):
         self.assertIs(colnames_fields[1], db.tt.c)
         db.tt.drop()
 
-        db.define_table("tt", Field("aa", "time", default="11:30"))
-        t0 = datetime.time(10, 30, 55)
-        self.assertEqual(db.tt.insert(aa=t0), 1)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
-        db.tt.drop()
+        if not IS_ORACLE:
+            db.define_table('tt', Field('aa', 'time', default='11:30'))
+            t0 = datetime.time(10, 30, 55)
+            self.assertEqual(db.tt.insert(aa=t0), 1)
+            self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
+            db.tt.drop()
 
         # aggregation type detection
         db.define_table(
@@ -615,8 +621,9 @@ class TestSelect(DALtest):
             limitby=(1, 2),
         )
         self.assertEqual(len(result), 1)
-        self.assertEqual(tuple(result.response[0]), ("3", 3))
-        result = db().select(db.tt.aa, db.tt.bb.sum(), groupby=db.tt.aa, limitby=(0, 3))
+        self.assertEqual(tuple(result.response[0]), ('3', 3))
+        result = db().select(db.tt.aa, db.tt.bb.sum(),
+                             groupby=db.tt.aa, orderby=db.tt.aa, limitby=(0,3))
         self.assertEqual(len(result), 3)
         self.assertEqual(tuple(result.response[2]), ("3", 3))
 
@@ -665,16 +672,19 @@ class TestSelect(DALtest):
 
     def testCoalesce(self):
         db = self.connect()
-        db.define_table("tt", Field("aa"), Field("bb"), Field("cc"), Field("dd"))
-        db.tt.insert(aa="xx")
-        db.tt.insert(aa="xx", bb="yy")
-        db.tt.insert(aa="xx", bb="yy", cc="zz")
-        db.tt.insert(aa="xx", bb="yy", cc="zz", dd="")
+        db.define_table('tt', Field('aa'), Field('bb'), Field('cc'), Field('dd'))
+        db.tt.insert(aa='xx')
+        db.tt.insert(aa='xx', bb='yy')
+        db.tt.insert(aa='xx', bb='yy', cc='zz')
+        if not IS_ORACLE:
+            # empty string is treated as null
+            db.tt.insert(aa='xx', bb='yy', cc='zz', dd='')
         result = db(db.tt).select(db.tt.dd.coalesce(db.tt.cc, db.tt.bb, db.tt.aa))
-        self.assertEqual(result.response[0][0], "xx")
-        self.assertEqual(result.response[1][0], "yy")
-        self.assertEqual(result.response[2][0], "zz")
-        self.assertEqual(result.response[3][0], "")
+        self.assertEqual(result.response[0][0], 'xx')
+        self.assertEqual(result.response[1][0], 'yy')
+        self.assertEqual(result.response[2][0], 'zz')
+        if not IS_ORACLE:
+            self.assertEqual(result.response[3][0], '')
         db.tt.drop()
 
         db.define_table("tt", Field("aa", "integer"), Field("bb"))
@@ -1223,11 +1233,13 @@ class TestDatetime(DALtest):
         self.assertEqual(db(db.tt.aa.epoch() < 365 * 24 * 3600).delete(), 1)
         db.tt.drop()
 
-        db.define_table("tt", Field("aa", "time"))
-        t0 = datetime.time(10, 30, 55)
-        db.tt.insert(aa=t0)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
-        db.tt.drop()
+        # pure TIME types without dates are not possible in Oracle
+        if not IS_ORACLE:
+            db.define_table('tt', Field('aa', 'time'))
+            t0 = datetime.time(10, 30, 55)
+            db.tt.insert(aa=t0)
+            self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
+            db.tt.drop()
 
         db.define_table("tt", Field("aa", "date"))
         t0 = datetime.date.today()
@@ -1352,7 +1364,12 @@ class TestExpressions(DALtest):
         )
 
         for uv in update_vals:
-            db.define_table("tt", Field("aa", "integer", default=0), Field("bb", uv[0]))
+            if IS_ORACLE and (uv[0]=='time' or uv[0]=='text'): 
+                # oracle can have problems with this test on CLOBs
+                # and date-less "time" type is not supported
+                continue
+            db.define_table('tt', Field('aa', 'integer', default=0),
+                            Field('bb', uv[0]))
             self.assertTrue(isinstance(db.tt.insert(bb=uv[1]), long))
             self.assertEqual(db(db.tt.aa + 1 == 1).select(db.tt.bb)[0].bb, uv[1])
             self.assertEqual(db(db.tt.aa + 1 == 1).update(bb=uv[2]), 1)
@@ -1399,7 +1416,8 @@ class TestExpressions(DALtest):
         op1 = (sum / count).with_alias("tot")
         self.assertEqual(db(t0).select(op).first()[op], 2)
         self.assertEqual(db(t0).select(op1).first()[op1], 2)
-        self.assertEqual(db(t0).select(op1).first()["tot"], 2)
+        print('DICT',db(t0).select(op1).as_dict())
+        self.assertEqual(db(t0).select(op1).first()['tot'], 2)
         op2 = avg * count
         self.assertEqual(db(t0).select(op2).first()[op2], 6)
         # the following is not possible at least on sqlite
@@ -1412,15 +1430,12 @@ class TestExpressions(DALtest):
 class TestTableAliasing(DALtest):
     def testRun(self):
         db = self.connect()
-        db.define_table("t1", Field("aa"))
-        db.define_table(
-            "t2",
-            Field("pk", type="id", unique=True, notnull=True),
-            Field("bb", type="integer"),
-            rname="tt",
-        )
-        tab1 = db.t1.with_alias("test1")
-        tab2 = db.t2.with_alias("test2")
+        db.define_table('t1', Field('aa'))        
+        db.define_table('t2',
+            Field('pk', type='id', unique=True, notnull=True),
+            Field('bb', type='integer'), rname='tt')
+        tab1 = db.t1.with_alias('test1')
+        tab2 = db.t2.with_alias('test2')
         self.assertIs(tab2.id, tab2.pk)
         self.assertIs(tab2._id, tab2.pk)
         self.assertEqual(tab1._dalname, "t1")
@@ -2193,55 +2208,90 @@ class TestDALDictImportExport(unittest.TestCase):
 class TestSelectAsDict(DALtest):
     def testSelect(self):
         db = self.connect()
-        db.define_table(
-            "a_table", Field("b_field"), Field("a_field"),
-        )
-        db.a_table.insert(a_field="aa1", b_field="bb1")
-        rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_dict=True)
-        self.assertEqual(rtn[0]["b_field"], "bb1")
-        rtn = db.executesql(
-            "SELECT id, b_field, a_field FROM a_table", as_ordered_dict=True
-        )
-        self.assertEqual(rtn[0]["b_field"], "bb1")
-        self.assertEqual(list(rtn[0].keys()), ["id", "b_field", "a_field"])
+        if IS_ORACLE:
+            # if lowercase fieldnames desired in return, must be quoted in oracle
+            db.define_table(
+                'a_table',
+                Field('b_field'),
+                Field('a_field'),
+                )
+            db.a_table.insert(a_field="aa1", b_field="bb1")
+            rtn = db.executesql('SELECT "id", "b_field", "a_field" FROM "a_table"', as_dict=True)
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            rtn = db.executesql('SELECT "id", "b_field", "a_field" FROM "a_table"', as_ordered_dict=True)
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            self.assertEqual(list(rtn[0].keys()), ['id', 'b_field', 'a_field'])
+
+        else:
+            db.define_table(
+                'a_table',
+                Field('b_field'),
+                Field('a_field'),
+                )
+            db.a_table.insert(a_field="aa1", b_field="bb1")
+            rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_dict=True)
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_ordered_dict=True)
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            self.assertEqual(list(rtn[0].keys()), ['id', 'b_field', 'a_field'])
 
 
 class TestExecuteSQL(DALtest):
     def testSelect(self):
-        db = self.connect(DEFAULT_URI, entity_quoting=False)
-        db.define_table(
-            "a_table", Field("b_field"), Field("a_field"),
-        )
-        db.a_table.insert(a_field="aa1", b_field="bb1")
-        rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_dict=True)
-        self.assertEqual(rtn[0]["b_field"], "bb1")
-        rtn = db.executesql(
-            "SELECT id, b_field, a_field FROM a_table", as_ordered_dict=True
-        )
-        self.assertEqual(rtn[0]["b_field"], "bb1")
-        self.assertEqual(rtn[0]["b_field"], "bb1")
-        self.assertEqual(list(rtn[0].keys()), ["id", "b_field", "a_field"])
+        if IS_ORACLE:
+            # see note on prior test
+            db = self.connect(DEFAULT_URI, entity_quoting=True)
+            db.define_table(
+                'a_table',
+                Field('b_field'),
+                Field('a_field'),
+                )
+            db.a_table.insert(a_field="aa1", b_field="bb1")
+            rtn = db.executesql('SELECT "id", "b_field", "a_field" FROM "a_table"', as_dict=True)
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            rtn = db.executesql('SELECT "id", "b_field", "a_field" FROM "a_table"', as_ordered_dict=True)
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            self.assertEqual(list(rtn[0].keys()), ['id', 'b_field', 'a_field'])
 
-        rtn = db.executesql(
-            "select id, b_field, a_field from a_table", fields=db.a_table
-        )
-        self.assertTrue(all(x in rtn[0].keys() for x in ["id", "b_field", "a_field"]))
-        self.assertEqual(rtn[0].b_field, "bb1")
+            rtn = db.executesql('select "id", "b_field", "a_field" from "a_table"', fields=db.a_table)
+            self.assertTrue(all(x in rtn[0].keys() for x in ['id', 'b_field', 'a_field']))
+            self.assertEqual(rtn[0].b_field, 'bb1')
 
-        rtn = db.executesql(
-            "select id, b_field, a_field from a_table",
-            fields=db.a_table,
-            colnames=["a_table.id", "a_table.b_field", "a_table.a_field"],
-        )
+            rtn = db.executesql('select "id", "b_field", "a_field" from "a_table"', fields=db.a_table,
+                                colnames=['a_table.id', 'a_table.b_field', 'a_table.a_field'])
 
-        self.assertTrue(all(x in rtn[0].keys() for x in ["id", "b_field", "a_field"]))
-        self.assertEqual(rtn[0].b_field, "bb1")
-        rtn = db.executesql(
-            "select COUNT(*) from a_table",
-            fields=[db.a_table.id.count()],
-            colnames=["foo"],
-        )
-        self.assertEqual(rtn[0].foo, 1)
+            self.assertTrue(all(x in rtn[0].keys() for x in ['id', 'b_field', 'a_field']))
+            self.assertEqual(rtn[0].b_field, 'bb1')
+            rtn = db.executesql('select COUNT(*) from "a_table"', fields=[db.a_table.id.count()], colnames=['foo'])
+            self.assertEqual(rtn[0].foo, 1)
+
+        if not IS_ORACLE:
+            db = self.connect(DEFAULT_URI, entity_quoting=False)
+            db.define_table(
+                'a_table',
+                Field('b_field'),
+                Field('a_field'),
+                )
+            db.a_table.insert(a_field="aa1", b_field="bb1")
+            rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_dict=True)
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            rtn = db.executesql("SELECT id, b_field, a_field FROM a_table", as_ordered_dict=True)
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            self.assertEqual(rtn[0]['b_field'], 'bb1')
+            self.assertEqual(list(rtn[0].keys()), ['id', 'b_field', 'a_field'])
+
+            rtn = db.executesql("select id, b_field, a_field from a_table", fields=db.a_table)
+            self.assertTrue(all(x in rtn[0].keys() for x in ['id', 'b_field', 'a_field']))
+            self.assertEqual(rtn[0].b_field, 'bb1')
+
+            rtn = db.executesql("select id, b_field, a_field from a_table", fields=db.a_table,
+                                colnames=['a_table.id', 'a_table.b_field', 'a_table.a_field'])
+
+            self.assertTrue(all(x in rtn[0].keys() for x in ['id', 'b_field', 'a_field']))
+            self.assertEqual(rtn[0].b_field, 'bb1')
+            rtn = db.executesql("select COUNT(*) from a_table", fields=[db.a_table.id.count()], colnames=['foo'])
+            self.assertEqual(rtn[0].foo, 1)
 
 
 class TestRNameTable(DALtest):
@@ -2249,9 +2299,16 @@ class TestRNameTable(DALtest):
 
     def testSelect(self):
         db = self.connect()
-        rname = "a_very_complicated_tablename"
-        db.define_table("easy_name", Field("a_field"), rname=rname)
-        rtn = db.easy_name.insert(a_field="a")
+        rname = 'a_very_complicated_tablename'
+        if IS_ORACLE:
+            # name size limitations
+            rname = 'a_complex_tablename'
+        db.define_table(
+            'easy_name',
+            Field('a_field'),
+            rname=rname
+            )
+        rtn = db.easy_name.insert(a_field='a')
         self.assertEqual(rtn.id, 1)
         rtn = db(db.easy_name.a_field == "a").select()
         self.assertEqual(len(rtn), 1)
@@ -2688,11 +2745,12 @@ class TestRNameFields(DALtest):
 
     def testRun(self):
         db = self.connect()
-        rname = "a_very_complicated_fieldname"
-        for ft in ["string", "text", "password", "upload", "blob"]:
-            db.define_table("tt", Field("aa", ft, default="", rname=rname))
-            self.assertEqual(db.tt.insert(aa="x"), 1)
-            self.assertEqual(db().select(db.tt.aa)[0].aa, "x")
+        rname = 'a_very_complicated_fieldname'
+        for ft in ['string', 'text', 'password', 'upload', 'blob']:
+            db.define_table('tt', Field('aa', ft, default='', rname=rname))
+            self.assertEqual(db.tt.insert(aa='x'), 1)
+            if not IS_ORACLE:
+                self.assertEqual(db().select(db.tt.aa)[0].aa, 'x')
             db.tt.drop()
         db.define_table("tt", Field("aa", "integer", default=1, rname=rname))
         self.assertEqual(db.tt.insert(aa=3), 1)
@@ -2706,13 +2764,13 @@ class TestRNameFields(DALtest):
         self.assertEqual(db.tt.insert(aa=True), 1)
         self.assertEqual(db().select(db.tt.aa)[0].aa, True)
         db.tt.drop()
-        db.define_table("tt", Field("aa", "json", default={}, rname=rname))
-        self.assertEqual(db.tt.insert(aa={}), 1)
-        self.assertEqual(db().select(db.tt.aa)[0].aa, {})
-        db.tt.drop()
-        db.define_table(
-            "tt", Field("aa", "date", default=datetime.date.today(), rname=rname)
-        )
+        if not IS_ORACLE:
+            db.define_table('tt', Field('aa', 'json', default={}, rname=rname))
+            self.assertEqual(db.tt.insert(aa={}), 1)
+            self.assertEqual(db().select(db.tt.aa)[0].aa, {})
+            db.tt.drop()
+        db.define_table('tt', Field('aa', 'date',
+                        default=datetime.date.today(), rname=rname))
         t0 = datetime.date.today()
         self.assertEqual(db.tt.insert(aa=t0), 1)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
@@ -3231,13 +3289,16 @@ class TestSQLCustomType(DALtest):
         self.assertEqual(row["price"], 1.2)
         self.assertEqual(row["product"], "car")
         t0.drop()
-        import zlib
 
+        import zlib
+        native = 'text'
+        if IS_ORACLE:
+            native = 'CLOB'
         compressed = SQLCustomType(
-            type="text",
-            native="text",
-            encoder=(lambda x: zlib.compress(x or "", 1)),
-            decoder=(lambda x: zlib.decompress(x)),
+             type ='text',
+             native=native,
+             encoder =(lambda x: zlib.compress(x or '', 1)),
+             decoder = (lambda x: zlib.decompress(x))
         )
         t1 = db.define_table("t0", Field("cdata", compressed))
         # r_id=t1.insert(cdata="car")
@@ -3278,9 +3339,14 @@ class TestLazy(DALtest):
 
     def testRowExtra(self):
         db = self.connect(check_reserved=None, lazy_tables=True)
-        tt = db.define_table("tt", Field("value", "integer"))
-        db.tt.insert(value=1)
-        row = db(db.tt).select("value").first()
+        if IS_ORACLE:
+            # lazy use is difficult in Oracle if using cased (non-upper) fields
+            tt = db.define_table('tt',  Field('VALUE', 'integer'))
+            db.tt.insert(VALUE=1)
+        else:
+            tt = db.define_table('tt',  Field('value', 'integer'))
+            db.tt.insert(value=1)
+        row = db(db.tt).select('value').first()
         self.assertEqual(row.value, 1)
 
 
@@ -3362,7 +3428,9 @@ class TestConnection(unittest.TestCase):
         db = DAL(DEFAULT_URI, check_reserved=["all"])
         connection = db._adapter.connection
         db.close()
-        self.assertRaises(Exception, connection.commit)
+        if not IS_ORACLE:
+            # newer Oracle versions no longer play well with explicit .close()
+            self.assertRaises(Exception, connection.commit)
 
         # check connection are reused with pool_size
         connections = set()
@@ -3389,11 +3457,12 @@ class TestConnection(unittest.TestCase):
             c.close()
         db3._adapter.POOLS[DEFAULT_URI] = []
         # Clean close if a connection is broken (closed explicity)
-        for a in range(10):
-            db4 = DAL(DEFAULT_URI, check_reserved=["all"], pool_size=5)
-            db4._adapter.connection.close()
-            db4.close()
-        self.assertEqual(len(db4._adapter.POOLS[DEFAULT_URI]), 0)
+        if not IS_ORACLE:
+            for a in range(10):
+                db4 = DAL(DEFAULT_URI, check_reserved=['all'], pool_size=5)
+                db4._adapter.connection.close()
+                db4.close()
+            self.assertEqual(len(db4._adapter.POOLS[DEFAULT_URI]), 0)
 
 
 class TestSerializers(DALtest):

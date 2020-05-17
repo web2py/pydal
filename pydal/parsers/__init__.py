@@ -102,6 +102,7 @@ from .base import BasicParser
 from .sqlite import SQLiteParser
 from .postgre import PostgreParser
 from .mongo import MongoParser
+from .oracle import OracleParser
 
 if gae is not None:
     from .google import GoogleDatastoreParser
