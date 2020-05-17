@@ -1205,7 +1205,7 @@ class Table(Serializable, BasicStorage):
         if "id" in self and "id" not in other.fields:
             other["id"] = other[self.id.name]
         other._id = other[self._id.name]
-        self._db[alias] = other
+        self._db._aliased_tables[alias] = other
         return other
 
     def on(self, query):
