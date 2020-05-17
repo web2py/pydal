@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
 from ._compat import unittest
-from ._adapt import DEFAULT_URI, drop, IS_MSSQL, IS_IMAP, IS_GAE, IS_TERADATA
+from ._adapt import DEFAULT_URI, drop, IS_MSSQL, IS_IMAP, IS_GAE, IS_TERADATA, IS_ORACLE
 from pydal import DAL, Field
 from pydal._compat import PY2
 
 
 @unittest.skipIf(IS_IMAP, "Reference not Null unsupported on IMAP")
+@unittest.skipIf(IS_ORACLE, "Reference Not Null unsupported on Oracle")
 class TestReferenceNOTNULL(unittest.TestCase):
     # 1:N not null
 
@@ -29,6 +30,7 @@ class TestReferenceNOTNULL(unittest.TestCase):
 
 @unittest.skipIf(IS_IMAP, "Reference Unique unsupported on IMAP")
 @unittest.skipIf(IS_GAE, "Reference Unique unsupported on GAE")
+@unittest.skipIf(IS_ORACLE, "Reference Unique unsupported on Oracle")
 class TestReferenceUNIQUE(unittest.TestCase):
     # 1:1 relation
 
@@ -61,6 +63,7 @@ class TestReferenceUNIQUE(unittest.TestCase):
 
 @unittest.skipIf(IS_IMAP, "Reference Unique not Null unsupported on IMAP")
 @unittest.skipIf(IS_GAE, "Reference Unique not Null unsupported on GAE")
+@unittest.skipIf(IS_ORACLE, "Reference Unique not Null unsupported on Oracle")
 class TestReferenceUNIQUENotNull(unittest.TestCase):
     # 1:1 relation not null
 
