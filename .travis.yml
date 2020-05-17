@@ -62,13 +62,8 @@ matrix:
       env: ADAPTER=postgres
     - python: 'pypy3'
       env: ADAPTER=postgres3
-<<<<<<< HEAD
-=======
     - python: 'pypy3'
       env: ADAPTER=oracle
-    - python: '3.4'
-      env: ADAPTER=google
->>>>>>> a23d4801ff4eba7837e647dc6f113d800c757667
     - python: '3.5'
       env: ADAPTER=google
     - python: '3.6'
