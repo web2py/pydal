@@ -142,9 +142,9 @@ class MSSQL3N(MSSQLN):
 class MSSQL4N(MSSQLN):
     pass
 
+
 @adapters.register_for("pytds")
 class PyTDS(MSSQL):
-
     def _initialize_(self):
         super(MSSQL, self)._initialize_()
         ruri = self.uri.split("://", 1)[1]
@@ -163,10 +163,11 @@ class PyTDS(MSSQL):
                 password=self.credential_decoder(m.group("password")) or "",
                 database=m.group("db"),
                 port=m.group("port") or "1433",
-                )
+            )
 
     def connector(self):
         return self.driver.connect(self.dsn, **self.driver_args)
+
 
 @adapters.register_for("vertica")
 class Vertica(MSSQL1):

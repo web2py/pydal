@@ -87,7 +87,7 @@ class Policy(object):
             raise InvalidFormat("Invalid policy method: %s" % method)
         invalid_keys = [key for key in attributes if key not in self.model[method]]
         if invalid_keys:
-            raise InvalidFormat("Invalid keys: %s" % ','.join(invalid_keys))
+            raise InvalidFormat("Invalid keys: %s" % ",".join(invalid_keys))
         if not tablename in self.info:
             self.info[tablename] = copy.deepcopy(self.model)
         self.info[tablename][method].update(attributes)
@@ -378,7 +378,7 @@ class RestAPI(object):
                     "le",
                     "startswith",
                     "contains",
-                    "in"
+                    "in",
                 ):
                     key_parts.append("eq")
                 is_negated = key_parts[0] == "not"
@@ -540,11 +540,11 @@ class RestAPI(object):
             response["items"] = rows.as_list()
         else:
             if table._format:
-                response["items"] = [dict(value=row.id, text=(
-                    table._format % row)) for row in rows]
+                response["items"] = [
+                    dict(value=row.id, text=(table._format % row)) for row in rows
+                ]
             else:
-                response["items"] = [dict(value=row.id, text=row.id)
-                    for row in rows]
+                response["items"] = [dict(value=row.id, text=row.id) for row in rows]
         if offset == 0:
             response["count"] = db(query).count()
         if model:

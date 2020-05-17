@@ -10,13 +10,13 @@ from . import representers
 @representers.register_for(Oracle)
 class OracleRepresenter(SQLRepresenter, JSONRepresenter):
     def exceptions(self, obj, field_type):
-        if field_type == 'blob':
+        if field_type == "blob":
             # ensure bytes-like before conversion
-            if (type(obj) != bytes):
+            if type(obj) != bytes:
                 obj = to_bytes(obj)
             obj = to_native(b64encode(obj))
             return "utl_raw.cast_to_raw('%s')" % obj
-        elif field_type == 'date':
+        elif field_type == "date":
             if isinstance(obj, (datetime.date, datetime.datetime)):
                 obj = obj.isoformat()[:10]
             else:

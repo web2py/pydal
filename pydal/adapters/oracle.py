@@ -14,19 +14,18 @@ class Oracle(SQLAdapter):
     dbengine = "oracle"
     drivers = ("cx_Oracle",)
 
-    cmd_fix = re.compile(
-        "[^']*('[^']*'[^']*)*\:(?P<clob>(C|B)LOB\('([^']+|'')*'\))")
+    cmd_fix = re.compile("[^']*('[^']*'[^']*)*\:(?P<clob>(C|B)LOB\('([^']+|'')*'\))")
 
     def _initialize_(self, do_connect):
         super(Oracle, self)._initialize_(do_connect)
-        self.ruri = self.uri.split('://', 1)[1]
-        if 'threaded' not in self.driver_args:
-            self.driver_args['threaded'] = True
+        self.ruri = self.uri.split("://", 1)[1]
+        if "threaded" not in self.driver_args:
+            self.driver_args["threaded"] = True
         # set character encoding defaults
-        if 'encoding' not in self.driver_args:
-            self.driver_args['encoding'] = 'UTF-8'
-        if 'nencoding' not in self.driver_args:
-            self.driver_args['nencoding'] = 'UTF-8'
+        if "encoding" not in self.driver_args:
+            self.driver_args["encoding"] = "UTF-8"
+        if "nencoding" not in self.driver_args:
+            self.driver_args["nencoding"] = "UTF-8"
 
     def connector(self):
         return self.driver.connect(self.ruri, **self.driver_args)
@@ -52,16 +51,15 @@ class Oracle(SQLAdapter):
             m = re.match(self.REGEX_CLOB, command)
             if not m:
                 break
-            command = command[:m.start('clob')] + str(i) + \
-                command[m.end('clob'):]
-            args = args + (m.group('clob')[6:-2].replace("''", "'"),)
+            command = command[: m.start("clob")] + str(i) + command[m.end("clob") :]
+            args = args + (m.group("clob")[6:-2].replace("''", "'"),)
             i += 1
         if command[-1:] == ";":
             command = command[:-1]
         handlers = self._build_handlers_for_execution()
         for handler in handlers:
             handler.before_execute(command)
-        if (len(args)>1):
+        if len(args) > 1:
             rv = self.cursor.execute(command, args[1:], **kwargs)
         else:
             rv = self.cursor.execute(command, **kwargs)
@@ -81,20 +79,26 @@ class Oracle(SQLAdapter):
 
     def create_sequence_and_triggers(self, query, table, **args):
         tablename = table._rname
-        if not '_id' in table:
+        if not "_id" in table:
             return self.execute(query)
         id_name = table._id._rname
         sequence_name = table._sequence_name
         trigger_name = table._trigger_name
         self.execute(query)
-        self.execute("""
+        self.execute(
+            """
             CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1 NOMAXVALUE 
-            MINVALUE -1;""" % sequence_name)
-        self.execute(_trigger_sql % dict(
-            trigger_name=self.dialect.quote(trigger_name), 
-            tablename=self.dialect.quote(tablename),
-            sequence_name=self.dialect.quote(sequence_name),
-            id=self.dialect.quote(id_name))
+            MINVALUE -1;"""
+            % sequence_name
+        )
+        self.execute(
+            _trigger_sql
+            % dict(
+                trigger_name=self.dialect.quote(trigger_name),
+                tablename=self.dialect.quote(tablename),
+                sequence_name=self.dialect.quote(sequence_name),
+                id=self.dialect.quote(id_name),
+            )
         )
 
     def _select_aux_execute(self, sql):
@@ -117,9 +121,9 @@ class Oracle(SQLAdapter):
 
     def sqlsafe_table(self, tablename, original_tablename=None):
         if original_tablename is not None:
-            return '%s %s' % (
-                self.dialect.quote(original_tablename), 
-                self.dialect.quote(tablename)
+            return "%s %s" % (
+                self.dialect.quote(original_tablename),
+                self.dialect.quote(tablename),
             )
         return self.dialect.quote(tablename)
 
@@ -130,47 +134,61 @@ class Oracle(SQLAdapter):
                 rv = self.dialect.sqlsafe(expression)
             else:
                 rv = self.dialect.longname(expression)
-            if field_type == 'string' and expression.type not in (
-                    'string', 'text', 'json', 'password'):
-                rv = self.dialect.cast(rv, self.types['text'], query_env)
+            if field_type == "string" and expression.type not in (
+                "string",
+                "text",
+                "json",
+                "password",
+            ):
+                rv = self.dialect.cast(rv, self.types["text"], query_env)
             return str(rv)
         else:
-            return super(Oracle, self)._expand(expression, field_type, colnames, query_env)
+            return super(Oracle, self)._expand(
+                expression, field_type, colnames, query_env
+            )
 
-    def expand(self, expression, field_type=None, colnames=False,
-        query_env={}):
+    def expand(self, expression, field_type=None, colnames=False, query_env={}):
         return self._expand(expression, field_type, colnames, query_env)
 
     def _build_value_for_insert(self, field, value, r_values):
-        if field.type is 'text':
-            _rname = (field._rname[1]=='"') and field._rname[1:-1] or field._rname
+        if field.type is "text":
+            _rname = (field._rname[1] == '"') and field._rname[1:-1] or field._rname
             r_values[_rname] = value
-            return ':' + _rname
+            return ":" + _rname
         return self.expand(value, field.type)
 
     def _update(self, table, query, fields):
-        sql_q = ''
+        sql_q = ""
         query_env = dict(current_scope=[table._tablename])
         if query:
             if use_common_filters(query):
                 query = self.common_filter(query, [table])
             sql_q = self.expand(query, query_env=query_env)
-        sql_v = ','.join([
-            '%s=%s' % (self.dialect.quote(field._rname),
-                self.expand(value, field.type, query_env=query_env))
-            for (field, value) in fields])
+        sql_v = ",".join(
+            [
+                "%s=%s"
+                % (
+                    self.dialect.quote(field._rname),
+                    self.expand(value, field.type, query_env=query_env),
+                )
+                for (field, value) in fields
+            ]
+        )
         return self.dialect.update(table, sql_v, sql_q)
 
     def _insert(self, table, fields):
         if fields:
             r_values = {}
-            return self.dialect.insert(
-                table._rname,
-                ','.join(self.dialect.quote(el[0]._rname) for el in fields),
-                ','.join(
-                    self._build_value_for_insert(f, v, r_values)
-                    for f, v in fields)
-                ), r_values
+            return (
+                self.dialect.insert(
+                    table._rname,
+                    ",".join(self.dialect.quote(el[0]._rname) for el in fields),
+                    ",".join(
+                        self._build_value_for_insert(f, v, r_values) for f, v in fields
+                    ),
+                ),
+                r_values,
+            )
         return self.dialect.insert_empty(table._rname), None
 
     def insert(self, table, fields):
@@ -179,7 +197,7 @@ class Oracle(SQLAdapter):
             if not values:
                 self.execute(query)
             else:
-                if type(values)==dict:
+                if type(values) == dict:
                     self.execute(query, **values)
                 else:
                     self.execute(query, values)
@@ -207,10 +225,11 @@ class Oracle(SQLAdapter):
         return re.compile('\s+"(\S+)"').search(colname)
 
     def parse(self, rows, fields, colnames, blob_decode=True, cacheable=False):
-        if len(rows) and len(rows[0]) == len(fields) + 1 and type(rows[0][-1])==int:
+        if len(rows) and len(rows[0]) == len(fields) + 1 and type(rows[0][-1]) == int:
             # paging has added a trailing rownum column to be discarded
             rows = [row[:-1] for row in rows]
         return super(Oracle, self).parse(rows, fields, colnames, blob_decode, cacheable)
+
 
 _trigger_sql = """
     CREATE OR REPLACE TRIGGER %(trigger_name)s BEFORE INSERT ON %(tablename)s FOR EACH ROW

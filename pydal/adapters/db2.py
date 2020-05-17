@@ -27,7 +27,11 @@ class DB2(SQLAdapter):
         return rv
 
     def lastrowid(self, table):
-        self.execute("SELECT DISTINCT IDENTITY_VAL_LOCAL() FROM %s;" % table._rname if table._rname else table)
+        self.execute(
+            "SELECT DISTINCT IDENTITY_VAL_LOCAL() FROM %s;" % table._rname
+            if table._rname
+            else table
+        )
         return long(self.cursor.fetchone()[0])
 
     def rowslice(self, rows, minimum=0, maximum=None):
@@ -37,6 +41,7 @@ class DB2(SQLAdapter):
 
     def test_connection(self):
         self.execute("select * from sysibm.sysdummy1")
+
 
 @adapters.register_for("db2:ibm_db_dbi")
 class DB2IBM(DB2):
@@ -59,5 +64,5 @@ class DB2Pyodbc(DB2):
 
     def connector(self):
         conn = self.driver.connect(self.ruri, **self.driver_args)
-        conn.setencoding(encoding='utf-8')
+        conn.setencoding(encoding="utf-8")
         return conn

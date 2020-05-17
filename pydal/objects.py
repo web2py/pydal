@@ -804,7 +804,7 @@ class Table(Serializable, BasicStorage):
     @property
     def sql_fullref(self):
         if self._tablename == self._dalname:
-            if (self._db._adapter.dbengine=='oracle'):
+            if self._db._adapter.dbengine == "oracle":
                 return self._db._adapter.dialect.quote(self._rname)
             return self._rname
         return self._db._adapter.sqlsafe_table(self._tablename, self._rname)

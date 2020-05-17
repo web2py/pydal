@@ -319,9 +319,11 @@ class TestRestAPI(unittest.TestCase):
         )
         self.assertEqual(
             api.search("color", {"name.in": "blue,green"}),
-            {"count": 2, "items": [{"id": 2, "name": "green"}, {"id": 3, "name": "blue"}]},
+            {
+                "count": 2,
+                "items": [{"id": 2, "name": "green"}, {"id": 3, "name": "blue"}],
+            },
         )
-
 
     def test_REST(self):
 
