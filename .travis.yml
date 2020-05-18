@@ -7,8 +7,8 @@ cache: pip
 
 python:
   - '2.7'
-  - 'pypy'
-  - 'pypy3'
+#  - 'pypy'
+#  - 'pypy3'
   - '3.5'
   - '3.6'
   - '3.7'
@@ -52,26 +52,26 @@ matrix:
   exclude:
     - python: '2.7'
       env: ADAPTER=oracle
-    - python: 'pypy'
-      env: ADAPTER=postgres
-    - python: 'pypy'
-      env: ADAPTER=postgres3
-    - python: 'pypy'
-      env: ADAPTER=google
-    - python: 'pypy'
-      env: ADAPTER=oracle
-    - python: 'pypy'
-      env: ADAPTER=mongo
-    - python: 'pypy3'
-      env: ADAPTER=google
-    - python: 'pypy3'
-      env: ADAPTER=postgres
-    - python: 'pypy3'
-      env: ADAPTER=postgres3
-    - python: 'pypy3'
-      env: ADAPTER=oracle
-    - python: 'pypy3'
-      env: ADAPTER=mongo
+#    - python: 'pypy'
+#      env: ADAPTER=postgres
+#    - python: 'pypy'
+#      env: ADAPTER=postgres3
+#    - python: 'pypy'
+#      env: ADAPTER=google
+#    - python: 'pypy'
+#      env: ADAPTER=oracle
+#    - python: 'pypy'
+#      env: ADAPTER=mongo
+#    - python: 'pypy3'
+#      env: ADAPTER=google
+#    - python: 'pypy3'
+#      env: ADAPTER=postgres
+#    - python: 'pypy3'
+#      env: ADAPTER=postgres3
+#    - python: 'pypy3'
+#      env: ADAPTER=oracle
+#    - python: 'pypy3'
+#      env: ADAPTER=mongo
     - python: '3.5'
       env: ADAPTER=google
     - python: '3.6'
