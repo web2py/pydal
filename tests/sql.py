@@ -827,7 +827,7 @@ class TestSubselect(DALtest):
             self.assertEqual(result[idx]["tt"]["cnt"], val[2])
 
         # Check "distinct" modifier separately
-        sub = db(db.tt.aa != 2).nested_select(db.tt.aa, distinct=True)
+        sub = db(db.tt.aa != 2).nested_select(db.tt.aa, orderby=db.tt.aa, distinct=True)
         result = sub().as_list()
         self.assertEqual(result, [dict(aa=1), dict(aa=3)])
 
