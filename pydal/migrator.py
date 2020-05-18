@@ -184,7 +184,7 @@ class Migrator(object):
                     else:
                         schema = parms[0]
                     ftype = (
-                        "SELECT AddGeometryColumn ('%%(schema)s', '%%(tablename)s', '%%(fieldname)s', %%(srid)s, '%s', %%(dimension)s);"
+                        "SELECT AddGeometryColumn ('%%(schema)s', '%%(tablename)s', '%%(fieldname)s', %%(srid)s, '%s', %%(dimension)s, false);"
                         % types[geotype]
                     )
                     ftype = ftype % dict(
