@@ -94,7 +94,8 @@ before_script:
   - if [[ $ADAPTER == mongo ]]; then sleep 15; fi;
   - if [[ $ADAPTER == mysql ]]; then mysql -e 'create database pydal;'; fi
   - if [[ $ADAPTER == postgres* ]]; then
-    sudo apt-get install postgis;
+    sudo apt update
+    sudo apt install -Y postgis postgresql-11-postgis-3
     psql -c 'create database pydal;' -U postgres;
     psql -c 'create extension postgis;' -U postgres -d pydal;
     psql -c 'SHOW SERVER_VERSION' -U postgres;
