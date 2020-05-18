@@ -3182,8 +3182,9 @@ class TestQuotesByDefault(unittest.TestCase):
     def testme(self):
         return
 
-
 class TestGis(DALtest):
+
+    @unittest.skipIf(True, "WIP")
     def testGeometry(self):
         from pydal import geoPoint, geoLine, geoPolygon
 
@@ -3224,6 +3225,7 @@ class TestGis(DALtest):
         self.assertEqual(point[x], 1)
         self.assertEqual(point[y], 1)
 
+    @unittest.skipIf(True, "WIP")
     def testGeometryCase(self):
         from pydal import geoPoint, geoLine, geoPolygon
 
@@ -3236,6 +3238,7 @@ class TestGis(DALtest):
         t0.insert(point=geoPoint(1, 1))
         t0.insert(Point=geoPoint(2, 2))
 
+    @unittest.skipIf(True, "WIP")
     def testGisMigration(self):
         if not IS_POSTGRESQL:
             return
