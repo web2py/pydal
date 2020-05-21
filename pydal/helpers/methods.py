@@ -363,6 +363,8 @@ def auto_represent(field):
 def varquote_aux(name, quotestr="%s"):
     return name if REGEX_W.match(name) else quotestr % name
 
+def uuidstr():
+    return str(uuid.uuid4())
 
 def uuid2int(uuidv):
     return uuid.UUID(uuidv).int
