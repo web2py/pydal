@@ -131,7 +131,6 @@ import threading
 import time
 import traceback
 import urllib
-from uuid import uuid4
 
 from ._compat import (
     PY2,
@@ -155,7 +154,7 @@ from .helpers.classes import (
     RecordDeleter,
     TimingHandler,
 )
-from .helpers.methods import hide_password, smart_query, auto_validators, auto_represent
+from .helpers.methods import hide_password, smart_query, auto_validators, auto_represent, uuidstr
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME
 from .helpers.rest import RestParser
 from .helpers.serializers import serializers
@@ -289,7 +288,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     validators = None
     representers = {}
     validators_method = default_validators
-    uuid = lambda x: str(uuid4())
+    uuid = uuidstr
     logger = logging.getLogger("pyDAL")
 
     Field = Field
