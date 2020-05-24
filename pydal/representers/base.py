@@ -263,11 +263,12 @@ class NoSQLRepresenter(BaseRepresenter):
     @for_type("datetime")
     def _datetime(self, value):
         if not isinstance(value, datetime):
-            (y, m, d) = map(int, str(value)[:10].strip().split("-"))
-            time_items = list(map(int, str(value)[11:].strip().split(":")[:3]))
-            while len(time_items) < 3:
-                time_items.append(0)
-            (h, mi, s) = time_items
+            svalue = str(value)[:19]
+            (y, m, d) = map(int, svalue[:10].strip().split("-"))
+            tp = svalue[11:].strip().split(":")[:3]
+            while len(tp) < 3:
+                tp.append(0)
+            (h, mi, s) = map(int, tp)
             value = datetime(y, m, d, h, mi, s)
         return value
 
