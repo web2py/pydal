@@ -763,7 +763,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             tablename, fields, kwargs = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename, *fields, **kwargs)
         aliased_tables = object.__getattribute__(self, "_aliased_tables")
-        aliased = object.__getattribute__(aliased_tables, key, None)
+        aliased = getattr(aliased_tables, key, None)
         if aliased:
             return aliased
         return BasicStorage.__getattribute__(self, key)
