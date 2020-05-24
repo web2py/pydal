@@ -798,9 +798,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
 
     def commit(self):
         self._adapter.commit()
+        object.__getattribute__(self, "_aliased_tables").__dict__.clear()
 
     def rollback(self):
         self._adapter.rollback()
+        object.__getattribute__(self, "_aliased_tables").__dict__.clear()
 
     def close(self):
         self._adapter.close()
