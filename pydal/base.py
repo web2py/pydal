@@ -469,7 +469,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         self._LAZY_TABLES = {}
         self._lazy_tables = lazy_tables
         self._tables = SQLCallableList()
-        self._aliased_tables = dict()
+        self._aliased_tables = threading.local()
         self._driver_args = driver_args
         self._adapter_args = adapter_args
         self._check_reserved = check_reserved
@@ -762,7 +762,8 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         ) and key in object.__getattribute__(self, "_LAZY_TABLES"):
             tablename, fields, kwargs = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename, *fields, **kwargs)
-        aliased = object.__getattribute__(self, "_aliased_tables").get(key, None)
+        aliased_tables = object.__getattribute__(self, "_aliased_tables")
+        aliased = object.__getattribute__(aliased_tables, key, None)
         if aliased:
             return aliased
         return BasicStorage.__getattribute__(self, key)
