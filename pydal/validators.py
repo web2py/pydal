@@ -3780,6 +3780,9 @@ class IS_DATETIME(Validator):
         if isinstance(value, datetime.datetime):
             return value
         try:
+            value = value.replace('T', ' ')
+            if len(value) == 16:
+                value += ':00'
             (y, m, d, hh, mm, ss, t0, t1, t2) = time.strptime(value, str(self.format))
             value = datetime.datetime(y, m, d, hh, mm, ss)
             if self.timezone is not None:
