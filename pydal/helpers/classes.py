@@ -490,10 +490,13 @@ class DatabaseStoredFile:
     @staticmethod
     def try_create_web2py_filesystem(db):
         if db._uri not in DatabaseStoredFile.web2py_filesystems:
+            if db._adapter.dbengine not in ("mysql", "postgres", "sqlite"):
+                raise NotImplementedError(
+                    "DatabaseStoredFile only supported by mysql, potresql, sqlite"
+                )
+            sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content BLOB, PRIMARY KEY(path));"
             if db._adapter.dbengine == "mysql":
-                sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content LONGTEXT, PRIMARY KEY(path) ) ENGINE=InnoDB;"
-            elif db._adapter.dbengine in ("postgres", "sqlite"):
-                sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content TEXT, PRIMARY KEY(path));"
+                sql = sql[:-1] + " ENGINE=InnoDB;"
             db.executesql(sql)
             DatabaseStoredFile.web2py_filesystems.add(db._uri)
 
@@ -549,11 +552,9 @@ class DatabaseStoredFile:
             self.db.executesql(
                 "DELETE FROM web2py_filesystem WHERE path='%s'" % self.filename
             )
-            query = b"INSERT INTO web2py_filesystem(path,content) VALUES ('%s','%s')" % (
-                to_bytes(self.filename),
-                self.data.replace("'", "''"),
-            )
-            self.db.executesql(query)
+            query = "INSERT INTO web2py_filesystem(path,content) VALUES ('%s','%s')"
+            args = (to_bytes(self.filename), self.data)
+            self.db.executesql(query, args)
             self.db.commit()
             self.db = None
 
