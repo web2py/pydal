@@ -16,6 +16,7 @@ from .._compat import (
     iteritems,
     long,
 )
+from .._compat import to_native
 from .._globals import THREAD_LOCAL
 from .serializers import serializers
 
@@ -541,7 +542,7 @@ class DatabaseStoredFile:
         return data
 
     def write(self, data):
-        self.data += data
+        self.data += to_native(data) or ""
 
     def close_connection(self):
         if self.db is not None:
