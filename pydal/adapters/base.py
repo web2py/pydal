@@ -280,8 +280,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 #: additional parsing for 'id' fields
                 if ft == "id" and not cacheable:
                     self._add_operators_to_parsed_row(value, table, colset)
-                    #: table may be 'nested_select' which doesn't have '_reference_by'
-                    if hasattr(table, '_reference_by'):
+                    #: table may be 'nested_select' which doesn't have '_referenced_by'
+                    if hasattr(table, '_referenced_by'):
                         self._add_reference_sets_to_parsed_row(
                             value, table, tablename, colset
                         )
