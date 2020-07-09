@@ -373,8 +373,8 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         if not instances:
             return
         thread_key = "%s.%s" % (socket.gethostname(), threading.currentThread())
-        keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
         instances = enumerate(instances)
+        keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
         for (i, db) in instances:
             if not db._adapter.support_distributed_transaction():
                 raise SyntaxError(
