@@ -433,10 +433,17 @@ class RestAPI(object):
             queries.append(table)
 
         query = functools.reduce(lambda a, b: a & b, queries)
-        tfields = [table[tfieldname] for tfieldname in tfieldnames]
+        tfields = [table[tfieldname] for tfieldname in tfieldnames if
+                   table[tfieldname].type != 'password']
+        passwords = [tfieldname for tfieldname in tfieldnames if
+                     table[tfieldname].type == 'password']
         rows = db(query).select(
             *tfields, limitby=(offset, limit + offset), orderby=orderby
         )
+        if passwords:
+            dpass = {password: '******' for password in passwords}
+            for row in rows:
+                row.update(dpass)
 
         lookup_map = {}
         for key in list(lookup.keys()):
@@ -455,7 +462,8 @@ class RestAPI(object):
                 tfieldnames = filter_fieldnames(ref_table, tfieldnames)
                 check_table_lookup_permission(ref_tablename)
                 ids = [row[key] for row in rows]
-                tfields = [ref_table[tfieldname] for tfieldname in tfieldnames]
+                tfields = [ref_table[tfieldname] for tfieldname in tfieldnames if
+                           ref_table[tfieldname].type == 'password']
                 if not "id" in tfieldnames:
                     tfields.append(ref_table["id"])
                 drows = db(ref_table._id.belongs(ids)).select(*tfields).as_dict()
