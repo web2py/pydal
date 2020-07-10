@@ -463,7 +463,7 @@ class RestAPI(object):
                 check_table_lookup_permission(ref_tablename)
                 ids = [row[key] for row in rows]
                 tfields = [ref_table[tfieldname] for tfieldname in tfieldnames if
-                           ref_table[tfieldname].type == 'password']
+                           ref_table[tfieldname].type != 'password']
                 if not "id" in tfieldnames:
                     tfields.append(ref_table["id"])
                 drows = db(ref_table._id.belongs(ids)).select(*tfields).as_dict()
