@@ -4420,6 +4420,8 @@ class CRYPT(Validator):
         True
         """
 
+    STARS = '******'
+
     def __init__(
         self,
         key=None,
@@ -4444,6 +4446,8 @@ class CRYPT(Validator):
         self.salt = salt
 
     def validate(self, value, record_id=None):
+        if value == self.STARS:
+            return None
         v = value and str(value)[: self.max_length]
         if not v or len(v) < self.min_length:
             raise ValidationError(self.translator(self.error_message))
@@ -4451,6 +4455,8 @@ class CRYPT(Validator):
             return value
         return LazyCrypt(self, value)
 
+    def formatter(self, value):
+        return self.STARS
 
 #  entropy calculator for IS_STRONG
 #

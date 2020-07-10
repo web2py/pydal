@@ -895,6 +895,7 @@ class Table(Serializable, BasicStorage):
         return ret
 
     def _validate_fields(self, fields, defattr="default", id=None):
+        from .validators import CRYPT
         response = Row()
         response.id, response.errors, new_fields = None, Row(), Row()
         for field in self:
@@ -905,10 +906,12 @@ class Table(Serializable, BasicStorage):
                 if callable(default):
                     default = default()
             if not field.compute:
-                value = fields.get(field.name, default)
-                value, error = field.validate(value, id)
+                ovalue = fields.get(field.name, default)
+                value, error = field.validate(ovalue, id)
             if error:
                 response.errors[field.name] = "%s" % error
+            elif field.type == 'password' and ovalue == CRYPT.STARS:
+                pass
             elif field.name in fields:
                 # only write if the field was passed and no error
                 new_fields[field.name] = value
