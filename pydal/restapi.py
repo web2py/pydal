@@ -81,7 +81,7 @@ class Policy(object):
     def __init__(self):
         self.info = {}
 
-    def set(self, tablename, method, **attributes):
+    def set(self, tablename, method='GET', **attributes):
         method = method.upper()
         if not method in self.model:
             raise InvalidFormat("Invalid policy method: %s" % method)
@@ -151,10 +151,10 @@ class Policy(object):
 
     def allowed_fieldnames(self, table, method="GET"):
         method = method.upper()
-        policy = self.info.get(table._tablename) or self.info.get("*")
+        policy = self.info.get(table._tablename) or self.info.get("*", {})
         policy = policy[method]
-        allowed_fieldnames = policy["fields"]
-        if not allowed_fieldnames:
+        allowed_fieldnames = policy.get("fields")
+        if allowed_fieldnames is None:
             allowed_fieldnames = [
                 f.name
                 for f in table
