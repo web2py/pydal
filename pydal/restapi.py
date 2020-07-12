@@ -476,7 +476,7 @@ class RestAPI(object):
                     if new_row and collapsed:
                         del row[key]
                         for rkey in new_row:
-                            row[lkey + "_" + rkey] = new_row[rkey]
+                            row[lkey + "." + rkey] = new_row[rkey]
                     else:
                         row[lkey] = new_row
 
