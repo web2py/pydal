@@ -282,7 +282,7 @@ class RestAPI(object):
     def make_query(field, condition, value):
         expression = {
             "eq": lambda: field == value,
-            "ne": lambda: field == value,
+            "ne": lambda: field != value,
             "lt": lambda: field < value,
             "gt": lambda: field > value,
             "le": lambda: field <= value,
