@@ -131,7 +131,6 @@ import threading
 import time
 import traceback
 import urllib
-from uuid import uuid4
 
 from ._compat import (
     PY2,
@@ -155,7 +154,7 @@ from .helpers.classes import (
     RecordDeleter,
     TimingHandler,
 )
-from .helpers.methods import hide_password, smart_query, auto_validators, auto_represent
+from .helpers.methods import hide_password, smart_query, auto_validators, auto_represent, uuidstr
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME
 from .helpers.rest import RestParser
 from .helpers.serializers import serializers
@@ -289,7 +288,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     validators = None
     representers = {}
     validators_method = default_validators
-    uuid = lambda x: str(uuid4())
+    uuid = uuidstr
     logger = logging.getLogger("pyDAL")
 
     Field = Field
@@ -374,8 +373,8 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         if not instances:
             return
         thread_key = "%s.%s" % (socket.gethostname(), threading.currentThread())
-        keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
         instances = enumerate(instances)
+        keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
         for (i, db) in instances:
             if not db._adapter.support_distributed_transaction():
                 raise SyntaxError(
@@ -469,6 +468,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         self._LAZY_TABLES = {}
         self._lazy_tables = lazy_tables
         self._tables = SQLCallableList()
+        self._aliased_tables = threading.local()
         self._driver_args = driver_args
         self._adapter_args = adapter_args
         self._check_reserved = check_reserved
@@ -761,6 +761,10 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         ) and key in object.__getattribute__(self, "_LAZY_TABLES"):
             tablename, fields, kwargs = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename, *fields, **kwargs)
+        aliased_tables = object.__getattribute__(self, "_aliased_tables")
+        aliased = getattr(aliased_tables, key, None)
+        if aliased:
+            return aliased
         return BasicStorage.__getattribute__(self, key)
 
     def __setattr__(self, key, value):
@@ -793,9 +797,11 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
 
     def commit(self):
         self._adapter.commit()
+        object.__getattribute__(self, "_aliased_tables").__dict__.clear()
 
     def rollback(self):
         self._adapter.rollback()
+        object.__getattribute__(self, "_aliased_tables").__dict__.clear()
 
     def close(self):
         self._adapter.close()
@@ -914,16 +920,25 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             if not colnames:
                 colnames = [f.sqlsafe for f in extracted_fields]
             else:
+                #: extracted_fields is empty we should make it from colnames
+                # what 'col_fields' is for
+                col_fields = [] # [[tablename, fieldname], ....]
                 newcolnames = []
                 for tf in colnames:
                     if "." in tf:
-                        newcolnames.append(
-                            ".".join(adapter.dialect.quote(f) for f in tf.split("."))
-                        )
+                        t_f = tf.split(".")
+                        tf = ".".join(adapter.dialect.quote(f) for f in t_f)
                     else:
-                        newcolnames.append(tf)
+                        t_f = None
+                    if not extracted_fields:
+                        col_fields.append(t_f)
+                    newcolnames.append(tf)
                 colnames = newcolnames
-            data = adapter.parse(data, fields=extracted_fields, colnames=colnames)
+            data = adapter.parse(
+                data,
+                fields = extracted_fields or [tf and self[tf[0]][tf[1]] for tf in col_fields],
+                colnames=colnames
+            )
         return data
 
     def _remove_references_to(self, thistable):

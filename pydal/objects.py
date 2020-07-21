@@ -70,6 +70,7 @@ from .helpers.methods import (
     attempt_upload_on_insert,
     attempt_upload_on_update,
     delete_uploaded_files,
+    uuidstr
 )
 from .helpers.serializers import serializers
 from .utils import deprecated
@@ -86,14 +87,14 @@ DEFAULTLENGTH = {
 }
 
 DEFAULT_REGEX = {
-    "id": "[1-9]\d*",
-    "decimal": "\d{1,10}\.\d{2}",
-    "integer": "[+-]?\d*",
-    "float": "[+-]?\d*(\.\d*)?",
-    "double": "[+-]?\d*(\.\d*)?",
-    "date": "\d{4}\-\d{2}\-\d{2}",
-    "time": "\d{2}\:\d{2}(\:\d{2}(\.\d*)?)?",
-    "datetime": "\d{4}\-\d{2}\-\d{2} \d{2}\:\d{2}(\:\d{2}(\.\d*)?)?",
+    "id": r"[1-9]\d*",
+    "decimal": r"\d{1,10}\.\d{2}",
+    "integer": r"[+-]?\d*",
+    "float": r"[+-]?\d*(\.\d*)?",
+    "double": r"[+-]?\d*(\.\d*)?",
+    "date": r"\d{4}\-\d{2}\-\d{2}",
+    "time": r"\d{2}\:\d{2}(\:\d{2}(\.\d*)?)?",
+    "datetime": r"\d{4}\-\d{2}\-\d{2} \d{2}\:\d{2}(\:\d{2}(\.\d*)?)?",
 }
 
 
@@ -804,6 +805,8 @@ class Table(Serializable, BasicStorage):
     @property
     def sql_fullref(self):
         if self._tablename == self._dalname:
+            if self._db._adapter.dbengine == "oracle":
+                return self._db._adapter.dialect.quote(self._rname)
             return self._rname
         return self._db._adapter.sqlsafe_table(self._tablename, self._rname)
 
@@ -892,6 +895,7 @@ class Table(Serializable, BasicStorage):
         return ret
 
     def _validate_fields(self, fields, defattr="default", id=None):
+        from .validators import CRYPT
         response = Row()
         response.id, response.errors, new_fields = None, Row(), Row()
         for field in self:
@@ -902,10 +906,12 @@ class Table(Serializable, BasicStorage):
                 if callable(default):
                     default = default()
             if not field.compute:
-                value = fields.get(field.name, default)
-                value, error = field.validate(value, id)
+                ovalue = fields.get(field.name, default)
+                value, error = field.validate(ovalue, id)
             if error:
                 response.errors[field.name] = "%s" % error
+            elif field.type == 'password' and ovalue == CRYPT.STARS:
+                pass
             elif field.name in fields:
                 # only write if the field was passed and no error
                 new_fields[field.name] = value
@@ -1205,7 +1211,7 @@ class Table(Serializable, BasicStorage):
         if "id" in self and "id" not in other.fields:
             other["id"] = other[self.id.name]
         other._id = other[self._id.name]
-        self._db[alias] = other
+        setattr(self._db._aliased_tables, alias, other)
         return other
 
     def on(self, query):
@@ -1616,6 +1622,11 @@ class Expression(object):
 
     def with_alias(self, alias):
         return Expression(self.db, self._dialect._as, self, alias, self.type)
+    
+    @property
+    def alias(self):
+        if self.op == self._dialect._as:
+            return self.second
 
     # GIS expressions
 
@@ -2023,10 +2034,12 @@ class Field(Expression, Serializable):
         filename = os.path.basename(filename.replace("/", os.sep).replace("\\", os.sep))
         m = re.search(REGEX_UPLOAD_EXTENSION, filename)
         extension = m and m.group(1) or "txt"
-        uuid_key = self._db.uuid().replace("-", "")[-16:]
+        uuid_key = uuidstr().replace("-", "")[-16:]
         encoded_filename = to_native(base64.b16encode(to_bytes(filename)).lower())
+        # Fields that are not bound to a table use "tmp" as the table name
+        tablename = getattr(self, "_tablename", "tmp")
         newfilename = "%s.%s.%s.%s" % (
-            self._tablename,
+            tablename,
             self.name,
             uuid_key,
             encoded_filename,
@@ -2050,7 +2063,7 @@ class Field(Expression, Serializable):
                     pass
                 elif self.uploadfolder:
                     path = self.uploadfolder
-                elif self.db._adapter.folder:
+                elif self.db is not None and self.db._adapter.folder:
                     path = pjoin(self.db._adapter.folder, "..", "uploads")
                 else:
                     raise RuntimeError(
@@ -2060,7 +2073,7 @@ class Field(Expression, Serializable):
                     if self.uploadfs:
                         raise RuntimeError("not supported")
                     path = pjoin(
-                        path, "%s.%s" % (self._tablename, self.name), uuid_key[:2]
+                        path, "%s.%s" % (tablename, self.name), uuid_key[:2]
                     )
                 if not exists(path):
                     os.makedirs(path)

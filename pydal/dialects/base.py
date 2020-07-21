@@ -399,7 +399,7 @@ class SQLDialect(CommonDialect):
             if isinstance(second, (string_types, int, float)):
                 return "(%s = '%s')" % (
                     self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env)
+                    self.expand(second, query_env=query_env),
                 )
         return "(%s = %s)" % (
             self.expand(first, query_env=query_env),
@@ -413,7 +413,7 @@ class SQLDialect(CommonDialect):
             if isinstance(second, (string_types, int, float)):
                 return "(%s <> '%s')" % (
                     self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env)
+                    self.expand(second, query_env=query_env),
                 )
         return "(%s <> %s)" % (
             self.expand(first, query_env=query_env),
@@ -427,7 +427,7 @@ class SQLDialect(CommonDialect):
             if isinstance(second, (string_types, int, float)):
                 return "(%s < '%s')" % (
                     self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env)
+                    self.expand(second, query_env=query_env),
                 )
         return "(%s < %s)" % (
             self.expand(first, query_env=query_env),
@@ -441,7 +441,7 @@ class SQLDialect(CommonDialect):
             if isinstance(second, (string_types, int, float)):
                 return "(%s <= '%s')" % (
                     self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env)
+                    self.expand(second, query_env=query_env),
                 )
         return "(%s <= %s)" % (
             self.expand(first, query_env=query_env),
@@ -455,7 +455,7 @@ class SQLDialect(CommonDialect):
             if isinstance(second, (string_types, int, float)):
                 return "(%s > '%s')" % (
                     self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env)
+                    self.expand(second, query_env=query_env),
                 )
         return "(%s > %s)" % (
             self.expand(first, query_env=query_env),
@@ -469,7 +469,7 @@ class SQLDialect(CommonDialect):
             if isinstance(second, (string_types, int, float)):
                 return "(%s >= '%s')" % (
                     self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env)
+                    self.expand(second, query_env=query_env),
                 )
         return "(%s >= %s)" % (
             self.expand(first, query_env=query_env),

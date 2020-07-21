@@ -3780,6 +3780,10 @@ class IS_DATETIME(Validator):
         if isinstance(value, datetime.datetime):
             return value
         try:
+            if self.format == self.isodatetime:
+                value = value.replace('T', ' ')
+                if len(value) == 16:
+                    value += ':00'
             (y, m, d, hh, mm, ss, t0, t1, t2) = time.strptime(value, str(self.format))
             value = datetime.datetime(y, m, d, hh, mm, ss)
             if self.timezone is not None:
@@ -4416,6 +4420,8 @@ class CRYPT(Validator):
         True
         """
 
+    STARS = '******'
+
     def __init__(
         self,
         key=None,
@@ -4440,6 +4446,8 @@ class CRYPT(Validator):
         self.salt = salt
 
     def validate(self, value, record_id=None):
+        if value == self.STARS:
+            return None
         v = value and str(value)[: self.max_length]
         if not v or len(v) < self.min_length:
             raise ValidationError(self.translator(self.error_message))
@@ -4447,15 +4455,17 @@ class CRYPT(Validator):
             return value
         return LazyCrypt(self, value)
 
+    def formatter(self, value):
+        return self.STARS
 
 #  entropy calculator for IS_STRONG
 #
-lowerset = frozenset(u"abcdefghijklmnopqrstuvwxyz")
-upperset = frozenset(u"ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-numberset = frozenset(u"0123456789")
-sym1set = frozenset(u"!@#$%^&*()")
-sym2set = frozenset(u"~`-_=+[]{}\\|;:'\",.<>?/")
-otherset = frozenset(u"0123456789abcdefghijklmnopqrstuvwxyz")  # anything else
+lowerset = frozenset(b"abcdefghijklmnopqrstuvwxyz")
+upperset = frozenset(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+numberset = frozenset(b"0123456789")
+sym1set = frozenset(b"!@#$%^&*() ")
+sym2set = frozenset(b"~`-_=+[]{}\\|;:'\",.<>?/")
+otherset = frozenset(b"".join(chr(x) if PY2 else chr(x).encode() for x in range(256)))
 
 
 def calc_entropy(string):
@@ -4464,14 +4474,15 @@ def calc_entropy(string):
     other = set()
     seen = set()
     lastset = None
-    string = to_unicode(string)
+    string = to_bytes(string or "")
     for c in string:
         # classify this character
-        inset = otherset
-        for cset in (lowerset, upperset, numberset, sym1set, sym2set):
+        inset = None
+        for cset in (lowerset, upperset, numberset, sym1set, sym2set, otherset):
             if c in cset:
                 inset = cset
                 break
+        assert inset is not None
         # calculate effect of character on alphabet size
         if inset not in seen:
             seen.add(inset)
@@ -4482,7 +4493,7 @@ def calc_entropy(string):
         if inset is not lastset:
             alphabet += 1  # credit for set transitions
             lastset = cset
-    entropy = len(string) * math.log(alphabet) / 0.6931471805599453  # math.log(2)
+    entropy = len(string) * math.log(alphabet or 1) / 0.6931471805599453  # math.log(2)
     return round(entropy, 2)
 
 
@@ -4506,15 +4517,15 @@ class IS_STRONG(Validator):
         >>> IS_STRONG(es=True, entropy=1, min=2)('a')
         ('a', 'Minimum length is 2')
         >>> IS_STRONG(es=True, entropy=100)('abc123')
-        ('abc123', 'Entropy (32.35) less than required (100)')
+        ('abc123', 'Password too simple (32.35/100)')
         >>> IS_STRONG(es=True, entropy=100)('and')
-        ('and', 'Entropy (14.57) less than required (100)')
+        ('and', 'Password too simple (14.57/100)')
         >>> IS_STRONG(es=True, entropy=100)('aaa')
-        ('aaa', 'Entropy (14.42) less than required (100)')
+        ('aaa', 'Password too simple (14.42/100)')
         >>> IS_STRONG(es=True, entropy=100)('a1d')
-        ('a1d', 'Entropy (15.97) less than required (100)')
+        ('a1d', 'Password too simple (15.97/100)')
         >>> IS_STRONG(es=True, entropy=100)('añd')
-        ('a\\xc3\\xb1d', 'Entropy (18.13) less than required (100)')
+        ('a\\xc3\\xb1d', 'Password too simple (31.26/10)')
 
     """
 
@@ -4556,13 +4567,15 @@ class IS_STRONG(Validator):
 
     def validate(self, value, record_id=None):
         failures = []
+        if value is None:
+            value = ""
         if value and len(value) == value.count("*") > 4:
             return value
         if self.entropy is not None:
             entropy = calc_entropy(value)
             if entropy < self.entropy:
                 failures.append(
-                    self.translator("Entropy (%(have)s) less than required (%(need)s)")
+                    self.translator("Password too simple (%(have)s/%(need)s)")
                     % dict(have=entropy, need=self.entropy)
                 )
         if isinstance(self.min, int) and self.min > 0:
@@ -4624,6 +4637,7 @@ class IS_STRONG(Validator):
                 numbers = "number"
                 if self.number > 1:
                     numbers = "numbers"
+                numbers = self.translator(number)
                 if not len(all_number) >= self.number:
                     failures.append(
                         self.translator("Must include at least %s %s")

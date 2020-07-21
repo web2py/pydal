@@ -13,11 +13,7 @@ from . import adapters, with_connection_or_raise
 from .._gae import gae
 
 if gae:
-    from .._gae import (ndb,
-                        rdbms,
-                        namespace_manager,
-                        classobj,
-                        NDBPolyModel)
+    from .._gae import ndb, rdbms, namespace_manager, classobj, NDBPolyModel
     from ..helpers.gae import NDBDecimalProperty
 
 

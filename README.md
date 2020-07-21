@@ -16,21 +16,25 @@ pyDAL comes from the original web2py's DAL, with the aim of being compatible wit
 
 You can install pyDAL using `pip`:
 
-    pip install pyDAL
+```bash
+pip install pyDAL
+```
 
 ## Usage and Documentation
 
 Here is a quick example:
 
-    >>> from pydal import DAL, Field
-    >>> db = DAL('sqlite://storage.db')
-    >>> db.define_table('thing', Field('name'))
-    >>> db.thing.insert(name='Chair')
-    >>> query = db.thing.name.startswith('C')
-    >>> rows = db(query).select()
-    >>> print rows[0].name
-    Chair
-    >>> db.commit()
+```pycon
+>>> from pydal import DAL, Field
+>>> db = DAL('sqlite://storage.db')
+>>> db.define_table('thing', Field('name'))
+>>> db.thing.insert(name='Chair')
+>>> query = db.thing.name.startswith('C')
+>>> rows = db(query).select()
+>>> print rows[0].name
+Chair
+>>> db.commit()
+```
 
 The complete documentation is available on http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer
 

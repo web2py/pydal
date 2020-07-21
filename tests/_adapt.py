@@ -9,6 +9,7 @@ IS_SQLITE = "sqlite" in DEFAULT_URI
 IS_MSSQL = "mssql" in DEFAULT_URI
 IS_MYSQL = "mysql" in DEFAULT_URI
 IS_TERADATA = "teradata" in DEFAULT_URI
+IS_ORACLE = "oracle" in DEFAULT_URI
 IS_NOSQL = IS_GAE or IS_MONGODB or IS_IMAP
 
 

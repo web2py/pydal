@@ -4,6 +4,7 @@ import datetime
 import fnmatch
 import functools
 import re
+import traceback
 
 __version__ = "0.1"
 
@@ -42,14 +43,17 @@ def error_wrapper(func):
                 data["message"] = "Validation Errors"
                 data["code"] = 422
         except PolicyViolation as e:
+            print(traceback.format_exc())
             data["status"] = "error"
             data["message"] = str(e)
             data["code"] = 401
         except NotFound as e:
+            print(traceback.format_exc())
             data["status"] = "error"
             data["message"] = str(e)
             data["code"] = 404
         except (InvalidFormat, KeyError, ValueError) as e:
+            print(traceback.format_exc())
             data["status"] = "error"
             data["message"] = str(e)
             data["code"] = 400
@@ -81,12 +85,13 @@ class Policy(object):
     def __init__(self):
         self.info = {}
 
-    def set(self, tablename, method, **attributes):
+    def set(self, tablename, method='GET', **attributes):
         method = method.upper()
-        if not method in self.model or any(
-            key not in self.model[method] for key in attributes
-        ):
-            raise InvalidFormat("Invalid policy format")
+        if not method in self.model:
+            raise InvalidFormat("Invalid policy method: %s" % method)
+        invalid_keys = [key for key in attributes if key not in self.model[method]]
+        if invalid_keys:
+            raise InvalidFormat("Invalid keys: %s" % ",".join(invalid_keys))
         if not tablename in self.info:
             self.info[tablename] = copy.deepcopy(self.model)
         self.info[tablename][method].update(attributes)
@@ -150,10 +155,10 @@ class Policy(object):
 
     def allowed_fieldnames(self, table, method="GET"):
         method = method.upper()
-        policy = self.info.get(table._tablename) or self.info.get("*")
+        policy = self.info.get(table._tablename) or self.info.get("*", {})
         policy = policy[method]
-        allowed_fieldnames = policy["fields"]
-        if not allowed_fieldnames:
+        allowed_fieldnames = policy.get("fields")
+        if allowed_fieldnames is None:
             allowed_fieldnames = [
                 f.name
                 for f in table
@@ -194,12 +199,14 @@ class RestAPI(object):
     def __init__(self, db, policy):
         self.db = db
         self.policy = policy
+        self.allow_count = 'legacy'
 
     @error_wrapper
-    def __call__(self, method, tablename, id=None, get_vars=None, post_vars=None):
+    def __call__(self, method, tablename, id=None, get_vars=None, post_vars=None, allow_count='legacy'):
         method = method.upper()
         get_vars = get_vars or {}
         post_vars = post_vars or {}
+        self.allow_count = allow_count
         # validate incoming request
         tname, tfieldnames = RestAPI.parse_table_and_fields(tablename)
         if not tname in self.db.tables:
@@ -249,8 +256,6 @@ class RestAPI(object):
             if fieldnames and not fieldname in fieldnames:
                 continue
             field = table[fieldname]
-            if not field.readable and not field.writable:
-                continue
             item = {"name": field.name, "label": field.label}
             # https://github.com/collection-json/extensions/blob/master/template-validation.md
             item["default"] = (
@@ -283,7 +288,7 @@ class RestAPI(object):
     def make_query(field, condition, value):
         expression = {
             "eq": lambda: field == value,
-            "ne": lambda: field == value,
+            "ne": lambda: field != value,
             "lt": lambda: field < value,
             "gt": lambda: field > value,
             "le": lambda: field <= value,
@@ -346,6 +351,7 @@ class RestAPI(object):
         model_fieldnames = tfieldnames
         lookup = {}
         orderby = None
+        do_count = False
         for key, value in vars.items():
             if key == "@offset":
                 offset = int(value)
@@ -360,7 +366,7 @@ class RestAPI(object):
                 orderby = [
                     ~table[f[1:]] if f[:1] == "~" else table[f]
                     for f in value.split(",")
-                    if (f[1:] if f[:1] == "~" else f) in table.fields
+                    if f.lstrip("~") in table.fields
                 ] or None
             elif key == "@lookup":
                 lookup = {item[0]: {} for item in RestAPI.re_lookups.findall(value)}
@@ -368,6 +374,9 @@ class RestAPI(object):
                 model = str(value).lower()[:1] == "t"
             elif key == "@options_list":
                 options_list = str(value).lower()[:1] == "t"
+            elif key == "@count":
+                if self.allow_count:
+                    do_count = str(value).lower()[:1] == "t"
             else:
                 key_parts = key.rsplit(".")
                 if not key_parts[-1] in (
@@ -379,7 +388,7 @@ class RestAPI(object):
                     "le",
                     "startswith",
                     "contains",
-                    "in"
+                    "in",
                 ):
                     key_parts.append("eq")
                 is_negated = key_parts[0] == "not"
@@ -434,10 +443,17 @@ class RestAPI(object):
             queries.append(table)
 
         query = functools.reduce(lambda a, b: a & b, queries)
-        tfields = [table[tfieldname] for tfieldname in tfieldnames]
+        tfields = [table[tfieldname] for tfieldname in tfieldnames if
+                   table[tfieldname].type != 'password']
+        passwords = [tfieldname for tfieldname in tfieldnames if
+                     table[tfieldname].type == 'password']
         rows = db(query).select(
             *tfields, limitby=(offset, limit + offset), orderby=orderby
         )
+        if passwords:
+            dpass = {password: '******' for password in passwords}
+            for row in rows:
+                row.update(dpass)
 
         lookup_map = {}
         for key in list(lookup.keys()):
@@ -456,7 +472,8 @@ class RestAPI(object):
                 tfieldnames = filter_fieldnames(ref_table, tfieldnames)
                 check_table_lookup_permission(ref_tablename)
                 ids = [row[key] for row in rows]
-                tfields = [ref_table[tfieldname] for tfieldname in tfieldnames]
+                tfields = [ref_table[tfieldname] for tfieldname in tfieldnames if
+                           ref_table[tfieldname].type != 'password']
                 if not "id" in tfieldnames:
                     tfields.append(ref_table["id"])
                 drows = db(ref_table._id.belongs(ids)).select(*tfields).as_dict()
@@ -466,10 +483,10 @@ class RestAPI(object):
                 lkey, collapsed = lookup_map[key]["name"], lookup_map[key]["collapsed"]
                 for row in rows:
                     new_row = drows.get(row[key])
-                    if new_row and collapsed:
-                        del row[key]
-                        for rkey in new_row:
-                            row[lkey + "_" + rkey] = new_row[rkey]
+                    if collapsed:
+                        del row[key]                        
+                        for rkey in tfieldnames:
+                            row[lkey + "." + rkey] = new_row[rkey] if new_row else None
                     else:
                         row[lkey] = new_row
 
@@ -541,13 +558,13 @@ class RestAPI(object):
             response["items"] = rows.as_list()
         else:
             if table._format:
-                response["items"] = [dict(value=row.id, text=(
-                    table._format % row)) for row in rows]
+                response["items"] = [
+                    dict(value=row.id, text=(table._format % row)) for row in rows
+                ]
             else:
-                response["items"] = [dict(value=row.id, text=row.id)
-                    for row in rows]
-        if offset == 0:
-            response["count"] = db(query).count()
+                response["items"] = [dict(value=row.id, text=row.id) for row in rows]
+        if do_count or (self.allow_count == 'legacy' and offset == 0):
+            response["count"] = db(query).count()            
         if model:
             response["model"] = self.table_model(table, model_fieldnames)
         return response
