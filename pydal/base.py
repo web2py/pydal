@@ -508,6 +508,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                         # self._adapter.ignore_field_case = ignore_field_case
                         if bigint_id:
                             self._adapter.dialect._force_bigints()
+                        # if there are multiple URIs to try in sequence, do not defer connection
+                        if len(uris) > 1:
+                            self._adapter.connector()
                         connected = True
                         break
                     except SyntaxError:
