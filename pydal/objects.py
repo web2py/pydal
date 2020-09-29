@@ -29,7 +29,6 @@ from ._compat import (
     copyreg,
     reduce,
     to_bytes,
-    to_native,
     to_unicode,
     long,
     text_type,
@@ -2035,7 +2034,7 @@ class Field(Expression, Serializable):
         m = re.search(REGEX_UPLOAD_EXTENSION, filename)
         extension = m and m.group(1) or "txt"
         uuid_key = uuidstr().replace("-", "")[-16:]
-        encoded_filename = to_native(base64.b16encode(to_bytes(filename)).lower())
+        encoded_filename = to_unicode(base64.b64encode(to_bytes(filename)))
         # Fields that are not bound to a table use "tmp" as the table name
         tablename = getattr(self, "_tablename", "tmp")
         newfilename = "%s.%s.%s.%s" % (
@@ -2132,13 +2131,13 @@ class Field(Expression, Serializable):
         self_uploadfield = self.uploadfield
         if self.custom_retrieve_file_properties:
             return self.custom_retrieve_file_properties(name, path)
-        if m.group("name"):
+        try:
             try:
-                filename = base64.b16decode(m.group("name"), True).decode("utf-8")
-                filename = re.sub(REGEX_UPLOAD_CLEANUP, "_", filename)
-            except (TypeError, AttributeError, binascii.Error):
-                filename = name
-        else:
+                filename = to_unicode(base64.b16decode(m.group("name"), True)) # Legacy file encoding is base 16 lowercase
+            except binascii.Error: 
+                filename = to_unicode(base64.b64decode(m.group("name"))) # New encoding is base 64
+            filename = re.sub(REGEX_UPLOAD_CLEANUP, "_", filename)
+        except (TypeError, AttributeError):
             filename = name
         # ## if file is in DB
         if isinstance(self_uploadfield, (str, Field)):
