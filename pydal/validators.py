@@ -565,6 +565,7 @@ class IS_IN_DB(Validator):
         left=None,
         delimiter=None,
         auto_add=False,
+        ignore_common_filters=False,
     ):
 
         if hasattr(dbset, "define_table"):
@@ -614,6 +615,7 @@ class IS_IN_DB(Validator):
         self.left = left
         self.delimiter = delimiter
         self.auto_add = auto_add
+        self.ignore_common_filters = ignore_common_filters
 
     def set_self_id(self, id):
         if self._and:
@@ -621,6 +623,7 @@ class IS_IN_DB(Validator):
 
     def build_set(self):
         table = self.dbset.db[self.ktable]
+        if self.ignore_common_filters: table._common_filter = None
         if self.fieldnames == "*":
             fields = [f for f in table]
         else:
