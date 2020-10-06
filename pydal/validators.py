@@ -623,7 +623,11 @@ class IS_IN_DB(Validator):
 
     def build_set(self):
         table = self.dbset.db[self.ktable]
-        if self.ignore_common_filters: table._common_filter = None
+        if self.ignore_common_filters or ( 
+            self.dbset.query 
+            and self.dbset.query.ignore_common_filters
+        ):
+            table._common_filter = None
         if self.fieldnames == "*":
             fields = [f for f in table]
         else:
