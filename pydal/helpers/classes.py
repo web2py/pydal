@@ -14,9 +14,10 @@ from .._compat import (
     iterkeys,
     itervalues,
     iteritems,
+    to_bytes,
     long,
 )
-from .._compat import to_bytes
+
 from .._globals import THREAD_LOCAL
 from .serializers import serializers
 
@@ -537,7 +538,7 @@ class DatabaseStoredFile:
         return self.read(bytes)
 
     def readline(self):
-        i = self.data.find("\n", self.p) + 1
+        i = self.data.find(b"\n", self.p) + 1
         if i > 0:
             data, self.p = self.data[self.p : i], i
         else:
@@ -552,7 +553,7 @@ class DatabaseStoredFile:
             self.db.executesql(
                 "DELETE FROM web2py_filesystem WHERE path='%s'" % self.filename
             )
-            query = "INSERT INTO web2py_filesystem(path,content) VALUES ('%s','%s')"
+            query = "INSERT INTO web2py_filesystem(path,content) VALUES (%s, %s)"
             args = (to_bytes(self.filename), self.data)
             self.db.executesql(query, args)
             self.db.commit()
