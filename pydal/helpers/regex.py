@@ -8,7 +8,7 @@ REGEX_W = re.compile(r"^\w+$")
 REGEX_TABLE_DOT_FIELD = re.compile(r"^(\w+)\.(\w+)$")
 REGEX_TABLE_DOT_FIELD_OPTIONAL_QUOTES = r'^"?(\w+)"?\."?(\w+)"?$'
 REGEX_UPLOAD_PATTERN = (
-    r"(?P<table>\w+)\.(?P<field>\w+)\.(?P<uuidkey>[\w-]+)(\.(?P<name>\w+))?\.\w+$"
+    r"(?P<table>\w+)\.(?P<field>\w+)\.(?P<uuidkey>[\w-]+)(\.(?P<name>\S+))?\.\w+$"
 )
 REGEX_UPLOAD_CLEANUP = "['\"\\s;]+"
 REGEX_UNPACK = r"(?<!\|)\|(?!\|)"
