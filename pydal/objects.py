@@ -29,7 +29,6 @@ from ._compat import (
     copyreg,
     reduce,
     to_bytes,
-    to_native,
     to_unicode,
     long,
     text_type,
