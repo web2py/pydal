@@ -1621,7 +1621,7 @@ class Expression(object):
 
     def with_alias(self, alias):
         return Expression(self.db, self._dialect._as, self, alias, self.type)
-    
+
     @property
     def alias(self):
         if self.op == self._dialect._as:
@@ -2034,7 +2034,7 @@ class Field(Expression, Serializable):
         m = re.search(REGEX_UPLOAD_EXTENSION, filename)
         extension = m and m.group(1) or "txt"
         uuid_key = uuidstr().replace("-", "")[-16:]
-        encoded_filename = to_unicode(base64.b64encode(to_bytes(filename)))
+        encoded_filename = to_unicode(base64.urlsafe_b64encode(to_bytes(filename)))
         # Fields that are not bound to a table use "tmp" as the table name
         tablename = getattr(self, "_tablename", "tmp")
         newfilename = "%s.%s.%s.%s" % (
@@ -2134,8 +2134,8 @@ class Field(Expression, Serializable):
         try:
             try:
                 filename = to_unicode(base64.b16decode(m.group("name"), True)) # Legacy file encoding is base 16 lowercase
-            except binascii.Error: 
-                filename = to_unicode(base64.b64decode(m.group("name"))) # New encoding is base 64
+            except binascii.Error:
+                filename = to_unicode(base64.urlsafe_b64decode(m.group("name"))) # New encoding is base 64
             filename = re.sub(REGEX_UPLOAD_CLEANUP, "_", filename)
         except (TypeError, AttributeError):
             filename = name
