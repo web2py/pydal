@@ -151,7 +151,7 @@ class Oracle(SQLAdapter):
         return self._expand(expression, field_type, colnames, query_env)
 
     def _build_value_for_insert(self, field, value, r_values):
-        if field.type is "text":
+        if field.type == "text":
             _rname = (field._rname[1] == '"') and field._rname[1:-1] or field._rname
             r_values[_rname] = value
             return ":" + _rname
