@@ -2,6 +2,7 @@ import locale
 import platform
 import re
 import sys
+import uuid
 from datetime import datetime
 from time import mktime
 from .._compat import PY2, pjoin
@@ -21,7 +22,7 @@ class SQLite(SQLAdapter):
             sys.getfilesystemencoding() or locale.getdefaultlocale()[1] or "utf8"
         )
         if ":memory" in self.uri.split("://", 1)[0]:
-            self.dbpath = ":memory:"
+            self.dbpath = "file:%s?mode=memory&cache=shared" % uuid.uuid4()
         else:
             self.dbpath = self.uri.split("://", 1)[1]
             if self.dbpath[0] != "/":
