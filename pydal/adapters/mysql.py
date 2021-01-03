@@ -4,6 +4,9 @@ from ..utils import split_uri_args
 from . import adapters, with_connection
 
 
+@adapters.register_for("mysql:mysqlconnector")
+@adapters.register_for("mysql:pymysql")
+@adapters.register_for("mysql:MySQLdb")
 @adapters.register_for("mysql")
 class MySQL(SQLAdapter):
     dbengine = "mysql"
