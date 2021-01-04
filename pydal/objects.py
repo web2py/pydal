@@ -3593,7 +3593,7 @@ class IterRows(BasicRows):
 
         # fetch and drop the first key - 1 elements
         for i in xrange(n_to_drop):
-            self.cursor._fetchone()
+            self.cursor.fetchone()
         row = next(self)
         if row is None:
             raise IndexError
