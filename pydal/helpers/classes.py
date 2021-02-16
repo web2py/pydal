@@ -415,6 +415,9 @@ class FakeCursor(object):
     def __setattr__(self, attr, value):
         self.warn_bad_usage(attr)
 
+    def close(self):
+        return
+
 
 class NullCursor(FakeCursor):
     lastrowid = 1
