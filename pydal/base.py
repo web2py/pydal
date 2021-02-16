@@ -574,7 +574,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         else:
             self._adapter.commit()
         finally:
-            self.close()
+            self._adapter.close()
 
     @property
     def tables(self):
