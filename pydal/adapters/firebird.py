@@ -44,8 +44,8 @@ class FireBird(SQLAdapter):
         return self.driver.connect(**self.driver_args)
 
     def test_connection(self):
-        self.execute('select current_timestamp from RDB$DATABASE')
-    
+        self.execute("select current_timestamp from RDB$DATABASE")
+
     def lastrowid(self, table):
         sequence_name = table._sequence_name
         self.execute("SELECT gen_id(%s, 0) FROM rdb$database" % sequence_name)

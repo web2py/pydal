@@ -85,7 +85,7 @@ class Policy(object):
     def __init__(self):
         self.info = {}
 
-    def set(self, tablename, method='GET', **attributes):
+    def set(self, tablename, method="GET", **attributes):
         method = method.upper()
         if not method in self.model:
             raise InvalidFormat("Invalid policy method: %s" % method)
@@ -199,10 +199,18 @@ class RestAPI(object):
     def __init__(self, db, policy):
         self.db = db
         self.policy = policy
-        self.allow_count = 'legacy'
+        self.allow_count = "legacy"
 
     @error_wrapper
-    def __call__(self, method, tablename, id=None, get_vars=None, post_vars=None, allow_count='legacy'):
+    def __call__(
+        self,
+        method,
+        tablename,
+        id=None,
+        get_vars=None,
+        post_vars=None,
+        allow_count="legacy",
+    ):
         method = method.upper()
         get_vars = get_vars or {}
         post_vars = post_vars or {}
@@ -443,15 +451,21 @@ class RestAPI(object):
             queries.append(table)
 
         query = functools.reduce(lambda a, b: a & b, queries)
-        tfields = [table[tfieldname] for tfieldname in tfieldnames if
-                   table[tfieldname].type != 'password']
-        passwords = [tfieldname for tfieldname in tfieldnames if
-                     table[tfieldname].type == 'password']
+        tfields = [
+            table[tfieldname]
+            for tfieldname in tfieldnames
+            if table[tfieldname].type != "password"
+        ]
+        passwords = [
+            tfieldname
+            for tfieldname in tfieldnames
+            if table[tfieldname].type == "password"
+        ]
         rows = db(query).select(
             *tfields, limitby=(offset, limit + offset), orderby=orderby
         )
         if passwords:
-            dpass = {password: '******' for password in passwords}
+            dpass = {password: "******" for password in passwords}
             for row in rows:
                 row.update(dpass)
 
@@ -472,8 +486,11 @@ class RestAPI(object):
                 tfieldnames = filter_fieldnames(ref_table, tfieldnames)
                 check_table_lookup_permission(ref_tablename)
                 ids = [row[key] for row in rows]
-                tfields = [ref_table[tfieldname] for tfieldname in tfieldnames if
-                           ref_table[tfieldname].type != 'password']
+                tfields = [
+                    ref_table[tfieldname]
+                    for tfieldname in tfieldnames
+                    if ref_table[tfieldname].type != "password"
+                ]
                 if not "id" in tfieldnames:
                     tfields.append(ref_table["id"])
                 drows = db(ref_table._id.belongs(ids)).select(*tfields).as_dict()
@@ -484,7 +501,7 @@ class RestAPI(object):
                 for row in rows:
                     new_row = drows.get(row[key])
                     if collapsed:
-                        del row[key]                        
+                        del row[key]
                         for rkey in tfieldnames:
                             row[lkey + "." + rkey] = new_row[rkey] if new_row else None
                     else:
@@ -563,8 +580,8 @@ class RestAPI(object):
                 ]
             else:
                 response["items"] = [dict(value=row.id, text=row.id) for row in rows]
-        if do_count or (self.allow_count == 'legacy' and offset == 0):
-            response["count"] = db(query).count()            
+        if do_count or (self.allow_count == "legacy" and offset == 0):
+            response["count"] = db(query).count()
         if model:
             response["model"] = self.table_model(table, model_fieldnames)
         return response

@@ -281,17 +281,17 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 if ft == "id" and not cacheable:
                     self._add_operators_to_parsed_row(value, table, colset)
                     #: table may be 'nested_select' which doesn't have '_referenced_by'
-                    if hasattr(table, '_referenced_by'):
+                    if hasattr(table, "_referenced_by"):
                         self._add_reference_sets_to_parsed_row(
                             value, table, tablename, colset
                         )
             #: otherwise we set the value in extras
             else:
                 #: fields[j] may be None if only 'colnames' was specified in db.executesql()
-                f_itype, ftype = fields[j] and [fields[j]._itype, fields[j].type] or [None, None]
-                value = self.parse_value(
-                    value, f_itype, ftype, blob_decode
+                f_itype, ftype = (
+                    fields[j] and [fields[j]._itype, fields[j].type] or [None, None]
                 )
+                value = self.parse_value(value, f_itype, ftype, blob_decode)
                 extras[colname] = value
                 if not fields[j]:
                     new_row[colname] = value

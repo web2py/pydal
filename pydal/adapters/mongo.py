@@ -86,9 +86,9 @@ class Mongo(NoSQLAdapter):
         )
 
     def object_id(self, arg=None):
-        """ Convert input to a valid Mongodb ObjectId instance
+        """Convert input to a valid Mongodb ObjectId instance
 
-        self.object_id("<random>") -> ObjectId (not unique) instance """
+        self.object_id("<random>") -> ObjectId (not unique) instance"""
         if not arg:
             arg = 0
         if isinstance(arg, basestring):

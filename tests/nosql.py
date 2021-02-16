@@ -90,8 +90,7 @@ def tearDownModule():
 
 @unittest.skipIf(not IS_MONGODB, "Skipping MongoDB Tests")
 class TestMongo(unittest.TestCase):
-    """ Tests specific to MongoDB,  error and side path exercisers, etc
-    """
+    """Tests specific to MongoDB,  error and side path exercisers, etc"""
 
     def testVersionCheck(self):
         driver_args = {"fake_version": "2.9 Phony"}
@@ -1921,7 +1920,9 @@ class TestSelectAsDict(unittest.TestCase):
     def testSelect(self):
         db = DAL(DEFAULT_URI, check_reserved=["all"])
         db.define_table(
-            "a_table", Field("b_field"), Field("a_field"),
+            "a_table",
+            Field("b_field"),
+            Field("a_field"),
         )
         db.a_table.insert(a_field="aa1", b_field="bb1")
         rtn = (
@@ -2219,7 +2220,15 @@ class TestRNameFields(unittest.TestCase):
             "tt",
             Field("aa", "datetime", default=datetime.datetime.today(), rname=rname),
         )
-        t0 = datetime.datetime(1971, 12, 21, 10, 30, 55, 0,)
+        t0 = datetime.datetime(
+            1971,
+            12,
+            21,
+            10,
+            30,
+            55,
+            0,
+        )
         id = db.tt.insert(aa=t0)
         self.assertEqual(db().select(db.tt.aa)[0].aa, t0)
 
@@ -2638,7 +2647,9 @@ class TestLazy(unittest.TestCase):
         db = DAL(DEFAULT_URI, lazy_tables=True)
         db.define_table("tt", Field("value", "integer"))
         db.define_table(
-            "ttt", Field("value", "integer"), Field("tt_id", "reference tt"),
+            "ttt",
+            Field("value", "integer"),
+            Field("tt_id", "reference tt"),
         )
         # Force table definition
         db.ttt.value.writable = False

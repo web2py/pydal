@@ -69,7 +69,7 @@ from .helpers.methods import (
     attempt_upload_on_insert,
     attempt_upload_on_update,
     delete_uploaded_files,
-    uuidstr
+    uuidstr,
 )
 from .helpers.serializers import serializers
 from .utils import deprecated
@@ -895,6 +895,7 @@ class Table(Serializable, BasicStorage):
 
     def _validate_fields(self, fields, defattr="default", id=None):
         from .validators import CRYPT
+
         response = Row()
         response.id, response.errors, new_fields = None, Row(), Row()
         for field in self:
@@ -909,7 +910,7 @@ class Table(Serializable, BasicStorage):
                 value, error = field.validate(ovalue, id)
             if error:
                 response.errors[field.name] = "%s" % error
-            elif field.type == 'password' and ovalue == CRYPT.STARS:
+            elif field.type == "password" and ovalue == CRYPT.STARS:
                 pass
             elif field.name in fields:
                 # only write if the field was passed and no error
@@ -1607,13 +1608,17 @@ class Expression(object):
                 return self.contains("")
             else:
                 return reduce(all and AND or OR, subqueries)
-        if self.type not in (
-            "string",
-            "text",
-            "json",
-            "jsonb",
-            "upload",
-        ) and not self.type.startswith("list:"):
+        if (
+            self.type
+            not in (
+                "string",
+                "text",
+                "json",
+                "jsonb",
+                "upload",
+            )
+            and not self.type.startswith("list:")
+        ):
             raise SyntaxError("contains used with incompatible field type")
         return Query(
             self.db, self._dialect.contains, self, value, case_sensitive=case_sensitive
@@ -2072,9 +2077,7 @@ class Field(Expression, Serializable):
                 if self.uploadseparate:
                     if self.uploadfs:
                         raise RuntimeError("not supported")
-                    path = pjoin(
-                        path, "%s.%s" % (tablename, self.name), uuid_key[:2]
-                    )
+                    path = pjoin(path, "%s.%s" % (tablename, self.name), uuid_key[:2])
                 if not exists(path):
                     os.makedirs(path)
                 pathfilename = pjoin(path, newfilename)
@@ -2134,9 +2137,13 @@ class Field(Expression, Serializable):
             return self.custom_retrieve_file_properties(name, path)
         try:
             try:
-                filename = to_unicode(base64.b16decode(m.group("name"), True)) # Legacy file encoding is base 16 lowercase
+                filename = to_unicode(
+                    base64.b16decode(m.group("name"), True)
+                )  # Legacy file encoding is base 16 lowercase
             except (binascii.Error, TypeError):
-                filename = to_unicode(base64.urlsafe_b64decode(m.group("name"))) # New encoding is base 64
+                filename = to_unicode(
+                    base64.urlsafe_b64decode(m.group("name"))
+                )  # New encoding is base 64
             filename = re.sub(REGEX_UPLOAD_CLEANUP, "_", filename)
         except (TypeError, AttributeError):
             filename = name

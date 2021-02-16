@@ -536,9 +536,9 @@ class MongoDialect(NoSQLDialect):
         return {"$toUpper": self.expand(first, query_env=query_env)}
 
     def regexp(self, first, second, case_sensitive=True, query_env={}):
-        """ MongoDB provides regular expression capabilities for pattern
-            matching strings in queries. MongoDB uses Perl compatible
-            regular expressions (i.e. 'PCRE') version 8.36 with UTF-8 support.
+        """MongoDB provides regular expression capabilities for pattern
+        matching strings in queries. MongoDB uses Perl compatible
+        regular expressions (i.e. 'PCRE') version 8.36 with UTF-8 support.
         """
         if isinstance(first, Field) and first.type in [
             "integer",
@@ -606,7 +606,7 @@ class MongoDialect(NoSQLDialect):
 
     @property
     def random(self):
-        """ ORDER BY RANDOM()
+        """ORDER BY RANDOM()
 
         Mongo has released the '$sample' pipeline stage in V3.2
         https://docs.mongodb.org/manual/reference/operator/aggregation/sample/

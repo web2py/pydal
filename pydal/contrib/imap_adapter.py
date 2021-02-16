@@ -16,7 +16,7 @@ long = integer_types[-1]
 
 class IMAPAdapter(NoSQLAdapter):
 
-    """ IMAP server adapter
+    """IMAP server adapter
 
     This class is intended as an interface with
     email IMAP servers to perform simple queries in the
@@ -549,11 +549,15 @@ class IMAPAdapter(NoSQLAdapter):
         pass
 
     def select(self, query, fields, attributes):
-        """  Searches and Fetches records and return web2py rows
-        """
+        """Searches and Fetches records and return web2py rows"""
         # move this statement elsewhere (upper-level)
         if use_common_filters(query):
-            query = self.common_filter(query, [self.get_query_mailbox(query),])
+            query = self.common_filter(
+                query,
+                [
+                    self.get_query_mailbox(query),
+                ],
+            )
 
         import email
 
@@ -878,7 +882,12 @@ class IMAPAdapter(NoSQLAdapter):
         rowcount = 0
         tablename = table._dalname
         if use_common_filters(query):
-            query = self.common_filter(query, [tablename,])
+            query = self.common_filter(
+                query,
+                [
+                    tablename,
+                ],
+            )
         mark = []
         unmark = []
         if query:
@@ -922,7 +931,12 @@ class IMAPAdapter(NoSQLAdapter):
         tablename = self.get_query_mailbox(query)
         if query and tablename is not None:
             if use_common_filters(query):
-                query = self.common_filter(query, [tablename,])
+                query = self.common_filter(
+                    query,
+                    [
+                        tablename,
+                    ],
+                )
             result, data = self.connection.select(
                 self.connection.mailbox_names[tablename]
             )
@@ -939,7 +953,12 @@ class IMAPAdapter(NoSQLAdapter):
         tablename = table._dalname
         if query:
             if use_common_filters(query):
-                query = self.common_filter(query, [tablename,])
+                query = self.common_filter(
+                    query,
+                    [
+                        tablename,
+                    ],
+                )
             result, data = self.connection.select(
                 self.connection.mailbox_names[tablename]
             )

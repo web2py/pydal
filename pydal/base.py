@@ -154,7 +154,13 @@ from .helpers.classes import (
     RecordDeleter,
     TimingHandler,
 )
-from .helpers.methods import hide_password, smart_query, auto_validators, auto_represent, uuidstr
+from .helpers.methods import (
+    hide_password,
+    smart_query,
+    auto_validators,
+    auto_represent,
+    uuidstr,
+)
 from .helpers.regex import REGEX_PYTHON_KEYWORDS, REGEX_DBNAME
 from .helpers.rest import RestParser
 from .helpers.serializers import serializers
@@ -925,7 +931,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             else:
                 #: extracted_fields is empty we should make it from colnames
                 # what 'col_fields' is for
-                col_fields = [] # [[tablename, fieldname], ....]
+                col_fields = []  # [[tablename, fieldname], ....]
                 newcolnames = []
                 for tf in colnames:
                     if "." in tf:
@@ -939,8 +945,9 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 colnames = newcolnames
             data = adapter.parse(
                 data,
-                fields = extracted_fields or [tf and self[tf[0]][tf[1]] for tf in col_fields],
-                colnames=colnames
+                fields=extracted_fields
+                or [tf and self[tf[0]][tf[1]] for tf in col_fields],
+                colnames=colnames,
             )
         return data
 

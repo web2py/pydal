@@ -97,7 +97,7 @@ class Connection(object):
         return ("OK", (len(SPAM[self._mailbox]), None))
 
     def uid(self, command, uid, arg):
-        """ args:
+        """args:
               command: "search" | "fetch"
               uid: None | uid
               parts: "(ALL)" | "(RFC822 FLAGS)" | "(RFC822.HEADER FLAGS)"
@@ -186,7 +186,7 @@ class Connection(object):
                 self.results[key] = RESULTS[key].copy()
 
     def search(self, first, query):
-        """ args:
+        """args:
              first: None
              query: string with mailbox query (flags, date, uid, id, ...)
                 example: '2:15723 BEFORE 27-Jan-2014 FROM "gumby"'
@@ -198,9 +198,9 @@ class Connection(object):
 
     def append(self, mailbox, flags, struct_time, message):
         """
-            result, data = self.connection.append(mailbox, flags, struct_time, message)
-            if result == "OK":
-                uid = int(re.findall("\d+", str(data))[-1])
+        result, data = self.connection.append(mailbox, flags, struct_time, message)
+        if result == "OK":
+            uid = int(re.findall("\d+", str(data))[-1])
         """
         last = self.spam[mailbox][-1]
         try:

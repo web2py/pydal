@@ -529,10 +529,10 @@ class _IPAddressBase(_TotalOrderingMixin):
     @property
     def reverse_pointer(self):
         """The name of the reverse DNS pointer for the IP address, e.g.:
-            >>> ipaddress.ip_address("127.0.0.1").reverse_pointer
-            '1.0.0.127.in-addr.arpa'
-            >>> ipaddress.ip_address("2001:db8::1").reverse_pointer
-            '1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa'
+        >>> ipaddress.ip_address("127.0.0.1").reverse_pointer
+        '1.0.0.127.in-addr.arpa'
+        >>> ipaddress.ip_address("2001:db8::1").reverse_pointer
+        '1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa'
 
         """
         return self._reverse_pointer()
@@ -1433,9 +1433,9 @@ class IPv4Address(_BaseV4, _BaseAddress):
     def is_reserved(self):
         """Test if the address is otherwise IETF reserved.
 
-         Returns:
-             A boolean, True if the address is within the
-             reserved IPv4 Network range.
+        Returns:
+            A boolean, True if the address is within the
+            reserved IPv4 Network range.
 
         """
         return self in self._constants._reserved_network
@@ -2375,8 +2375,8 @@ class IPv6Network(_BaseV6, _BaseNetwork):
     def hosts(self):
         """Generate Iterator over usable hosts in a network.
 
-          This is like __iter__ except it doesn't return the
-          Subnet-Router anycast address.
+        This is like __iter__ except it doesn't return the
+        Subnet-Router anycast address.
 
         """
         network = int(self.network_address)
