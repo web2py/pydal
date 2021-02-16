@@ -2135,7 +2135,7 @@ class Field(Expression, Serializable):
         try:
             try:
                 filename = to_unicode(base64.b16decode(m.group("name"), True)) # Legacy file encoding is base 16 lowercase
-            except binascii.Error:
+            except (binascii.Error, TypeError):
                 filename = to_unicode(base64.urlsafe_b64decode(m.group("name"))) # New encoding is base 64
             filename = re.sub(REGEX_UPLOAD_CLEANUP, "_", filename)
         except (TypeError, AttributeError):
