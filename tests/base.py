@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import tempfile
+import shutil
+
 from ._compat import unittest
 from ._adapt import DEFAULT_URI, drop, IS_MSSQL, IS_IMAP, IS_GAE, IS_TERADATA, IS_ORACLE
 from pydal import DAL, Field
@@ -197,3 +200,29 @@ class TestNullAdapter(unittest.TestCase):
         self.assertIsInstance(db.no_table.aa, Field)
         self.assertIsInstance(db.no_table["aa"], Field)
         db.close()
+
+
+class TestSingleTransaction(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp_folder = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp_folder)
+
+    def test_single_transaction(self):
+        
+        db = DAL('sqlite://storage.sqlite', folder=self.tmp_folder)
+        db.define_table('tt', Field('aa'))
+        self.assertEqual(db(db.tt).count(), 0)
+        db.commit()
+        try:
+            with db.single_transaction():
+                db.tt.insert(aa='test')
+                1/0
+        except ZeroDivisionError:
+            pass
+        self.assertEqual(db(db.tt).count(), 0)
+        with db.single_transaction():
+            db.tt.insert(aa='test')
+        self.assertEqual(db(db.tt).count(), 1)

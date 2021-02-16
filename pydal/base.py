@@ -131,6 +131,7 @@ import threading
 import time
 import traceback
 import urllib
+import contextlib
 
 from ._compat import (
     PY2,
@@ -562,6 +563,18 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 serializers._custom_[k] = v
         if auto_import or tables:
             self.import_table_definitions(adapter.folder, tables=tables)
+
+    @contextlib.contextmanager
+    def single_transaction(self):
+        self._adapter.reconnect()
+        try:
+            yield self
+        except Exception:
+            self._adapter.rollback()
+        else:
+            self._adapter.commit()
+        finally:
+            self.close()
 
     @property
     def tables(self):

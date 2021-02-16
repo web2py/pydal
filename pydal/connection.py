@@ -111,6 +111,8 @@ class ConnectionPool(object):
             except:
                 #: connection had some problems, we want to drop it
                 succeeded = False
+        # close the cursor
+        self.cursor.close()
         # if we have pools, we should recycle the connection (but only when
         # we succeded in `action`, if any and `len(pool)` is good)
         if self.pool_size and succeeded:
