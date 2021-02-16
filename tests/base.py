@@ -202,17 +202,12 @@ class TestNullAdapter(unittest.TestCase):
         db.close()
 
 
+@unittest.skip("")
 class TestSingleTransaction(unittest.TestCase):
-
-    def setUp(self):
-        self.tmp_folder = tempfile.mkdtemp("single_transnaction_")
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp_folder)
 
     def test_single_transaction(self):
         
-        db = DAL('sqlite://storage.sqlite', folder=self.tmp_folder)
+        db = DAL(DEFAULT_URI)
         db.define_table('tt', Field('aa'))
         self.assertEqual(db(db.tt).count(), 0)
         db.commit()
