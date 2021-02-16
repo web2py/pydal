@@ -205,7 +205,7 @@ class TestNullAdapter(unittest.TestCase):
 class TestSingleTransaction(unittest.TestCase):
 
     def setUp(self):
-        self.tmp_folder = tempfile.mkdtemp()
+        self.tmp_folder = tempfile.mkdtemp("single_transnaction_")
 
     def tearDown(self):
         shutil.rmtree(self.tmp_folder)
