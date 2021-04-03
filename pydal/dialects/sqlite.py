@@ -44,6 +44,7 @@ class SQLiteDialect(SQLDialect):
         limitby=None,
         distinct=False,
         for_update=False,
+        with_cte= ""
     ):
         if distinct and distinct is not True:
             raise SyntaxError("DISTINCT ON is not supported by SQLite")
@@ -57,6 +58,7 @@ class SQLiteDialect(SQLDialect):
             limitby,
             distinct,
             for_update,
+            with_cte
         )
 
     def truncate(self, table, mode=""):
