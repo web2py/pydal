@@ -650,10 +650,6 @@ class SQLAdapter(BaseAdapter):
             tablemap,
         )
 
-    def _make_cte(self, cte_list, cte_collector):
-        [t.cte(cte_collector) for t in cte_list]
-        return cte_collector  # ['', ', '.join(cte_stack)]
-
     def _select_wcols(
         self,
         query,
