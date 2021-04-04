@@ -694,9 +694,6 @@ class SQLAdapter(BaseAdapter):
         if len(tablemap) < 1:
             raise SyntaxError("Set: no tables selected")
 
-        [t.cte(cte_collector) for t in tablemap.values() if getattr(t, 'is_cte', None)]
-
-
         query_tables = list(tablemap)
         #: check for_update argument
         # [Note - gi0baro] I think this should be removed since useless?
@@ -826,6 +823,7 @@ class SQLAdapter(BaseAdapter):
             )
 
         #: build CTE
+        [t.cte(cte_collector) for t in tablemap.values() if getattr(t, 'is_cte', None)]
         if is_toplevel and cte_collector['stack']:
             with_cte = [
                 cte_collector['is_recursive'],

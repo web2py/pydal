@@ -196,7 +196,7 @@ class SQLDialect(CommonDialect):
         limitby=None,
         distinct=False,
         for_update=False,
-        with_cte=None  # ['recursive' | '', ]
+        with_cte=None  # ['recursive' | '', sql]
     ):
         dst, whr, grp, order, limit, offset, upd = "", "", "", "", "", "", ""
         if distinct is True:
