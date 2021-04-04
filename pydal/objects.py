@@ -1502,6 +1502,13 @@ class Expression(object):
 
     def __add__(self, other):
         return Expression(self.db, self._dialect.add, self, other, self.type)
+    
+    def __radd__(self, other):
+        if not hasattr(other, "type"):
+            if isinstance(other, str):
+                other = self._dialect.quote(other)
+            other = Expression(self.db, other, type = self.type)
+        return Expression(self.db, self._dialect.add, other, self, self.type)
 
     def __sub__(self, other):
         if self.type in ("integer", "bigint"):
