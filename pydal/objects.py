@@ -14,6 +14,7 @@ import sys
 import types
 import re
 from collections import OrderedDict
+from io import TextIOWrapper
 from ._compat import (
     PY2,
     StringIO,
@@ -99,7 +100,7 @@ DEFAULT_REGEX = {
 
 def csv_reader(utf8_data, dialect=csv.excel, encoding="utf-8", **kwargs):
     """like csv.reader but allows to specify an encoding, defaults to utf-8"""
-    csv_reader = csv.reader(utf8_data, dialect=dialect, **kwargs)
+    csv_reader = csv.reader(TextIOWrapper(utf8_data,encoding), dialect=dialect, **kwargs)
     for row in csv_reader:
         yield [to_unicode(cell, encoding) for cell in row]
 
@@ -1501,6 +1502,13 @@ class Expression(object):
 
     def __add__(self, other):
         return Expression(self.db, self._dialect.add, self, other, self.type)
+    
+    def __radd__(self, other):
+        if not hasattr(other, "type"):
+            if isinstance(other, str):
+                other = self._dialect.quote(other)
+            other = Expression(self.db, other, type = self.type)
+        return Expression(self.db, self._dialect.add, other, self, self.type)
 
     def __sub__(self, other):
         if self.type in ("integer", "bigint"):
