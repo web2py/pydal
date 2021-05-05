@@ -195,6 +195,7 @@ class OracleDialect(SQLDialect):
         limitby=None,
         distinct=False,
         for_update=False,
+        with_cte=None
     ):
         dst, whr, grp, order, limit, offset, upd = "", "", "", "", "", "", ""
         if distinct is True:
@@ -209,6 +210,14 @@ class OracleDialect(SQLDialect):
                 grp += " HAVING %s" % having
         if orderby:
             order = " ORDER BY %s" % orderby
+
+        if with_cte:
+            recursive, cte = with_cte
+            recursive = ' RECURSIVE' if recursive else ''
+            with_cte = "WITH%s %s " % (recursive, cte)
+        else:
+            with_cte = ""
+
         if limitby:
             (lmin, lmax) = limitby
             if whr:
@@ -216,12 +225,13 @@ class OracleDialect(SQLDialect):
             else:
                 whr2 = self.where("w_row > %i" % lmin)
             return """
-                SELECT%s * FROM (
+                %sSELECT%s * FROM (
                     SELECT w_tmp.*, ROWNUM w_row FROM (
                         SELECT %s FROM %s%s%s%s
-                    ) w_tmp 
+                    ) w_tmp
                 ) WHERE w_row<=%i and w_row>%i
             """ % (
+                with_cte,
                 dst,
                 fields,
                 tables,
@@ -233,7 +243,8 @@ class OracleDialect(SQLDialect):
             )
         if for_update:
             upd = " FOR UPDATE"
-        return "SELECT%s %s FROM %s%s%s%s%s%s%s;" % (
+        return "%sSELECT%s %s FROM %s%s%s%s%s%s%s;" % (
+            with_cte,
             dst,
             fields,
             tables,
