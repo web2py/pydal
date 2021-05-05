@@ -1345,7 +1345,9 @@ class Select(BasicStorage):
         return colnames, sql
 
     def union(self, recursive, union_type = 'UNION'):
-        if not isinstance(recursive, (list,tuple)):
+        if callable(recursive):
+            recursive = recursive(self)
+        if not isinstance(recursive, (list, tuple)):
             recursive = [recursive]
         if not self._cte_recursive:
             self._cte_recursive = []
@@ -1354,7 +1356,6 @@ class Select(BasicStorage):
 
     def union_all(self, recursive):
         return self.union(recursive, 'UNION ALL')
-
 
     def cte(self, cte_collector):
         if not self._tablename:
@@ -1554,7 +1555,7 @@ class Expression(object):
 
     def __add__(self, other):
         return Expression(self.db, self._dialect.add, self, other, self.type)
-    
+
     def __radd__(self, other):
         if not hasattr(other, "type"):
             if isinstance(other, str):

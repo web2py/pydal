@@ -778,6 +778,50 @@ class TestSubselect(DALtest):
         self.assertEqual(sub.sql_shortref, db._adapter.dialect.quote("foo"))
         self.assertIsInstance(sub.on(sub.aa != None), Expression)
 
+    def testCTE(self):
+        db = self.connect()
+        db.define_table('org', Field('name'), Field('boss', 'reference org'))
+        org = db.org
+        def insert_workers(boss, *names):
+            return [org.insert(name = name, boss = boss) for name in names]
+        alice = org.insert(name = 'Alice')
+        jim, tim = insert_workers(alice, 'Jim', 'Tim')
+        jessy, jenny =  insert_workers(jim, 'Jessy', 'Jenny')
+        insert_workers(tim, 'Tom')
+        insert_workers(jessy, 'John', 'Jacob')
+
+        works_for = db(org.name == 'Alice').cte(
+            'works_for',
+            org.id,
+            org.name.with_alias('top_boss'),  # i.e. Alice is top_boss
+            org.name,
+            org.boss,
+            Expression(db, '0', type = 'integer').with_alias('xdepth'),
+            Expression(db, '" "', type = 'string').with_alias('boss_chain')
+        ).union( lambda works_for: \
+            db((org.boss == works_for.id) & (org.id != org.boss)).nested_select(
+                org.id,
+                works_for.top_boss,
+                org.name,
+                org.boss,
+                (works_for.xdepth + 1).with_alias('xdepth'),
+                (' ' + works_for.name + works_for.boss_chain).with_alias('boss_chain')
+            )
+        )
+        rows = db().select(works_for.ALL).as_dict()
+        #  reconstruct boss_chain/depth and test them against query result
+        for row in rows.values():
+            r = row
+            boss_chain = []
+            while True:
+                r = rows.get(r['boss'])
+                if not r:
+                    break
+                boss_chain.append(r['name'])
+            depth = len(boss_chain)
+            self.assertEqual(depth, row['xdepth'])
+            self.assertEqual(' '.join(boss_chain), row['boss_chain'].strip())
+
     def testSelectArguments(self):
         db = self.connect()
         db.define_table("tt", Field("aa", "integer"), Field("bb"))
