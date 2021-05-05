@@ -159,7 +159,7 @@ def smart_query(fields, text):
         text = "%s#%i%s" % (text[: m.start()], i, text[m.end() :])
         constants[str(i)] = m.group()[1:-1]
         i += 1
-    text = re.sub("\s+", " ", text).lower()
+    text = re.sub(r"\s+", " ", text).lower()
     for a, b in [
         ("&", "and"),
         ("|", "or"),
@@ -197,8 +197,9 @@ def smart_query(fields, text):
         if a[0] == " ":
             text = text.replace(" is" + a, " %s " % b)
         text = text.replace(a, " %s " % b)
-    text = re.sub("\s+", " ", text).lower()
-    text = re.sub("(?P<a>[\<\>\!\=])\s+(?P<b>[\<\>\!\=])", "\g<a>\g<b>", text)
+    text = re.sub(r"\s+", " ", text).lower()
+    text = re.sub(r"(?P<a>[\<\>\!\=])\s+(?P<b>[\<\>\!\=])",
+                  r"\g<a>\g<b>", text)
     query = field = neg = op = logic = None
     for item in text.split():
         if field is None:
