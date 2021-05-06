@@ -3,7 +3,6 @@ from ._adapt import IS_NOSQL
 if IS_NOSQL:
     from .nosql import *
 else:
-    from .sql import TestSubselect
     from .sql import *
     from .indexes import *
 
