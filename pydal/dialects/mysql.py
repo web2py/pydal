@@ -107,5 +107,5 @@ class MySQLDialect(SQLDialect):
             "SET FOREIGN_KEY_CHECKS=1;",
         ]
 
-    def drop_index(self, name, table):
+    def drop_index(self, name, table, if_exists = False):
         return "DROP INDEX %s ON %s;" % (self.quote(name), table._rname)

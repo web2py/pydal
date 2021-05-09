@@ -1221,8 +1221,8 @@ class Table(Serializable, BasicStorage):
     def create_index(self, name, *fields, **kwargs):
         return self._db._adapter.create_index(self, name, *fields, **kwargs)
 
-    def drop_index(self, name):
-        return self._db._adapter.drop_index(self, name)
+    def drop_index(self, name, if_exists = False):
+        return self._db._adapter.drop_index(self, name, if_exists)
 
 
 class Select(BasicStorage):
@@ -1502,7 +1502,7 @@ class Expression(object):
 
     def __add__(self, other):
         return Expression(self.db, self._dialect.add, self, other, self.type)
-    
+
     def __radd__(self, other):
         if not hasattr(other, "type"):
             if isinstance(other, str):

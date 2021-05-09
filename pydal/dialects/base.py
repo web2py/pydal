@@ -606,8 +606,9 @@ class SQLDialect(CommonDialect):
             )
         return rv
 
-    def drop_index(self, name, table):
-        return "DROP INDEX %s;" % self.quote(name)
+    def drop_index(self, name, table, if_exists = False):
+        if_exists = "IF EXISTS " if if_exists else ""
+        return "DROP INDEX %s%s;" % (if_exists, self.quote(name))
 
     def constraint_name(self, table, fieldname):
         return "%s_%s__constraint" % (table, fieldname)
