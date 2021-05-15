@@ -379,7 +379,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     def distributed_transaction_begin(*instances):
         if not instances:
             return
-        thread_key = "%s.%s" % (socket.gethostname(), threading.currentThread())
+        thread_key = "%s.%s" % (socket.gethostname(), threading.current_thread())
         instances = enumerate(instances)
         keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
         for (i, db) in instances:
@@ -395,7 +395,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         if not instances:
             return
         instances = enumerate(instances)
-        thread_key = "%s.%s" % (socket.gethostname(), threading.currentThread())
+        thread_key = "%s.%s" % (socket.gethostname(), threading.current_thread())
         keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
         for (i, db) in instances:
             if not db._adapter.support_distributed_transaction():
