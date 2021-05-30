@@ -668,7 +668,18 @@ class SQLAdapter(BaseAdapter):
         cache=None,
         cacheable=None,
         processor=None,
+        cte_collector=None,
     ):
+        if cte_collector is None:
+            cte_collector = dict(
+                stack = [],
+                seen = set(),
+                is_recursive = False
+            )
+            is_toplevel = True
+        else:
+            is_toplevel = False
+
         #: parse tablemap
         tablemap = self.tables(query)
         #: apply common filters if needed
@@ -682,6 +693,7 @@ class SQLAdapter(BaseAdapter):
             tablemap.pop(item, None)
         if len(tablemap) < 1:
             raise SyntaxError("Set: no tables selected")
+
         query_tables = list(tablemap)
         #: check for_update argument
         # [Note - gi0baro] I think this should be removed since useless?
@@ -723,19 +735,19 @@ class SQLAdapter(BaseAdapter):
         if join and not left:
             cross_joins = iexcluded + list(itables_to_merge)
             tokens = [table_alias(cross_joins[0])]
-            tokens += [
+            tokens.extend([
                 self.dialect.cross_join(table_alias(t), query_env)
                 for t in cross_joins[1:]
-            ]
-            tokens += [self.dialect.join(t, query_env) for t in ijoin_on]
+            ])
+            tokens.extend([self.dialect.join(t, query_env) for t in ijoin_on])
             sql_t = " ".join(tokens)
         elif not join and left:
             cross_joins = excluded + list(tables_to_merge)
             tokens = [table_alias(cross_joins[0])]
-            tokens += [
+            tokens.extend([
                 self.dialect.cross_join(table_alias(t), query_env)
                 for t in cross_joins[1:]
-            ]
+            ])
             # FIXME: WTF? This is not correct syntax at least on PostgreSQL
             if join_tables:
                 tokens.append(
@@ -743,7 +755,7 @@ class SQLAdapter(BaseAdapter):
                         ",".join([table_alias(t) for t in join_tables]), query_env
                     )
                 )
-            tokens += [self.dialect.left_join(t, query_env) for t in join_on]
+            tokens.extend([self.dialect.left_join(t, query_env) for t in join_on])
             sql_t = " ".join(tokens)
         elif join and left:
             all_tables_in_query = set(
@@ -754,11 +766,11 @@ class SQLAdapter(BaseAdapter):
                 all_tables_in_query.difference(tables_in_joinon)
             )
             tokens = [table_alias(tables_not_in_joinon[0])]
-            tokens += [
+            tokens.extend([
                 self.dialect.cross_join(table_alias(t), query_env)
                 for t in tables_not_in_joinon[1:]
-            ]
-            tokens += [self.dialect.join(t, query_env) for t in ijoin_on]
+            ])
+            tokens.extend([self.dialect.join(t, query_env) for t in ijoin_on])
             # FIXME: WTF? This is not correct syntax at least on PostgreSQL
             if join_tables:
                 tokens.append(
@@ -766,7 +778,7 @@ class SQLAdapter(BaseAdapter):
                         ",".join([table_alias(t) for t in join_tables]), query_env
                     )
                 )
-            tokens += [self.dialect.left_join(t, query_env) for t in join_on]
+            tokens.extend([self.dialect.left_join(t, query_env) for t in join_on])
             sql_t = " ".join(tokens)
         else:
             sql_t = ", ".join(table_alias(t) for t in query_tables)
@@ -804,12 +816,22 @@ class SQLAdapter(BaseAdapter):
                     for t in query_tables
                     if not isinstance(tablemap[t], Select)
                     for x in (
-                        hasattr(tablemap[t], "_primarykey")
-                        and tablemap[t]._primarykey
+                        getattr(tablemap[t], "_primarykey", None)
                         or ["_id"]
                     )
                 ]
             )
+
+        #: build CTE
+        [t.cte(cte_collector) for t in tablemap.values() if getattr(t, 'is_cte', None)]
+        if is_toplevel and cte_collector['stack']:
+            with_cte = [
+                cte_collector['is_recursive'],
+                ', '.join(cte_collector['stack'])
+            ]
+        else:
+            with_cte = None
+
         #: build sql using dialect
         return (
             colnames,
@@ -823,6 +845,7 @@ class SQLAdapter(BaseAdapter):
                 limitby,
                 distinct,
                 for_update and self.can_select_for_update,
+                with_cte
             ),
         )
 

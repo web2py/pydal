@@ -1242,6 +1242,7 @@ class Select(BasicStorage):
         self.virtualfields = []
         self._sql_cache = None
         self._colnames_cache = None
+        self._cte_recursive = None
         fieldcheck = set()
 
         for item in fields:
@@ -1321,13 +1322,15 @@ class Select(BasicStorage):
             raise SyntaxError("Subselect must be aliased for use in a JOIN")
         return Expression(self._db, self._db._adapter.dialect.on, self, query)
 
-    def _compile(self, outer_scoped=[], with_alias=False):
+    def _compile(self, outer_scoped=[], with_alias=False, cte_collector = None):
         if not self._correlated:
             outer_scoped = []
         if outer_scoped or not self._sql_cache:
             adapter = self._db._adapter
             attributes = self._attributes.copy()
             attributes["outer_scoped"] = outer_scoped
+            attributes["cte_collector"] = cte_collector
+            attributes.pop('cte', None)
             colnames, sql = adapter._select_wcols(
                 self._query, self._qfields, **attributes
             )
@@ -1341,9 +1344,55 @@ class Select(BasicStorage):
             sql = self._db._adapter.dialect.alias(sql, self._tablename)
         return colnames, sql
 
+    def union(self, recursive, union_type = 'UNION'):
+        if callable(recursive):
+            recursive = recursive(self)
+        if not isinstance(recursive, (list, tuple)):
+            recursive = [recursive]
+        if not self._cte_recursive:
+            self._cte_recursive = []
+        self._cte_recursive.extend([[union_type, r] for r in recursive])
+        return self
+
+    def union_all(self, recursive):
+        return self.union(recursive, 'UNION ALL')
+
+    def cte(self, cte_collector):
+        if not self._tablename:
+            raise SyntaxError("cte must be aliased for use in a query/select")
+        if cte_collector:
+            if self._tablename in cte_collector['seen']:
+                return
+            else:
+                # must be here to prevent infinite recursion
+                cte_collector['seen'].add(self._tablename)
+        colnames, sql = self._compile(cte_collector = cte_collector)
+        sql = sql[:-1]
+        #sql_fields = ", ".join(adapter._geoexpand(x, {}) for x in self._qfields)
+
+        sql_fields = ", ".join([
+            getattr(f, 'alias', None) or getattr(f, 'name', None) or str(f)
+            for f in self._qfields
+        ])
+        recursive = self._cte_recursive
+        if recursive:
+            for r in recursive:
+                if isinstance(r[1], self.__class__):
+                    _, r_sql = r[1]._compile(cte_collector = cte_collector)
+                    r[1] = r_sql[:-1]
+        sql = self._db._adapter.dialect.cte(self._tablename, sql_fields, sql, recursive)
+        if cte_collector:
+            cte_collector['stack'].append(sql)
+            # cte_collector['seen'].add(self._tablename) - see above
+            if not cte_collector['is_recursive']:
+                cte_collector['is_recursive'] = recursive and True or False
+        return sql
+
     def query_name(self, outer_scoped=[]):
         if self._tablename is None:
-            raise SyntaxError("Subselect must be aliased for use in a JOIN")
+            raise SyntaxError("Subselect/cte must be aliased for use in a JOIN")
+        if self._attributes.get('cte'):
+            return (self.sql_shortref,)
         colnames, sql = self._compile(outer_scoped, True)
         # This method should also return list of placeholder values
         # in the future
@@ -1352,7 +1401,7 @@ class Select(BasicStorage):
     @property
     def sql_shortref(self):
         if self._tablename is None:
-            raise SyntaxError("Subselect must be aliased for use in a JOIN")
+            raise SyntaxError("Subselect/cte must be aliased for use in a JOIN")
         return self._db._adapter.dialect.quote(self._tablename)
 
     def _filter_fields(self, record, id=False):
@@ -1363,6 +1412,10 @@ class Select(BasicStorage):
                 if k in self.fields and (self[k].type != "id" or id)
             ]
         )
+
+    @property
+    def is_cte(self):
+        return self._attributes.get('cte')
 
 
 def _expression_wrap(wrapper):
@@ -2685,6 +2738,21 @@ class Set(Serializable):
         )
         fields = adapter.expand_all(fields, tablenames)
         return adapter.nested_select(self.query, fields, attributes)
+
+    def cte(self, name, *fields, **attributes):
+        adapter = self.db._adapter
+        tablenames = adapter.tables(
+            self.query,
+            attributes.get("join", None),
+            attributes.get("left", None),
+            attributes.get("orderby", None),
+            attributes.get("groupby", None),
+        )
+        attributes['cte'] = True
+        fields = adapter.expand_all(fields, tablenames)
+        return adapter.nested_select(self.query, fields, attributes).with_alias(name)
+
+
 
     def delete(self):
         db = self.db

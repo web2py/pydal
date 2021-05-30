@@ -166,6 +166,25 @@ class SQLDialect(CommonDialect):
             whr = " %s" % self.where(where)
         return "DELETE FROM %s%s;" % (tablename, whr)
 
+
+    def cte(self, tname, fields, sql, recursive = None):
+        '''
+        recursive:list = [union_type, recursive_sql]
+        '''
+        if recursive:
+            r_sql_parts = ['%s %s'%(union, sql) for union, sql in recursive]
+            recursive = ' '.join(r_sql_parts)
+            cte_select = '{select} {recursive}'
+        else:
+            cte_select = '{select}'
+
+        return ('{tname}({fields}) AS (%s)' % cte_select).format(
+            tname = tname,
+            fields = fields,
+            select = sql,
+            recursive = recursive
+        )
+
     def select(
         self,
         fields,
@@ -177,6 +196,7 @@ class SQLDialect(CommonDialect):
         limitby=None,
         distinct=False,
         for_update=False,
+        with_cte=None  # ['recursive' | '', sql]
     ):
         dst, whr, grp, order, limit, offset, upd = "", "", "", "", "", "", ""
         if distinct is True:
@@ -197,7 +217,14 @@ class SQLDialect(CommonDialect):
             offset = " OFFSET %i" % lmin
         if for_update:
             upd = " FOR UPDATE"
-        return "SELECT%s %s FROM %s%s%s%s%s%s%s;" % (
+        if with_cte:
+            recursive, cte = with_cte
+            recursive = ' RECURSIVE' if recursive else ''
+            with_cte = "WITH%s %s " % (recursive, cte)
+        else:
+            with_cte = ""
+        return "%sSELECT%s %s FROM %s%s%s%s%s%s%s;" % (
+            with_cte,
             dst,
             fields,
             tables,
