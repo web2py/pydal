@@ -966,8 +966,8 @@ class SQLAdapter(BaseAdapter):
             raise RuntimeError(err % (index_name, str(e), sql))
         return True
 
-    def drop_index(self, table, index_name):
-        sql = self.dialect.drop_index(index_name, table)
+    def drop_index(self, table, index_name, if_exists = False):
+        sql = self.dialect.drop_index(index_name, table, if_exists)
         try:
             self.execute(sql)
             self.commit()

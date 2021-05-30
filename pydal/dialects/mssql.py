@@ -237,7 +237,7 @@ class MSSQLDialect(SQLDialect):
     def concat_add(self, tablename):
         return "; ALTER TABLE %s ADD " % tablename
 
-    def drop_index(self, name, table):
+    def drop_index(self, name, table, if_exists = False):
         return "DROP INDEX %s ON %s;" % (self.quote(name), table._rname)
 
     def st_astext(self, first, query_env={}):
