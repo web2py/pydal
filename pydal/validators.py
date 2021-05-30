@@ -820,7 +820,7 @@ def range_error_message(error_message, what_to_enter, minimum, maximum):
             error_message += " less than or equal to %(max)g"
     if type(maximum) in integer_types:
         maximum -= 1
-    return translate(error_message) % dict(min=minimum, max=maximum)
+    return str(translate(error_message)) % dict(min=minimum, max=maximum)
 
 
 class IS_INT_IN_RANGE(Validator):
