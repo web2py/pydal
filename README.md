@@ -7,8 +7,7 @@ It dynamically generates the SQL/noSQL in realtime using the specified dialect f
 pyDAL comes from the original web2py's DAL, with the aim of being compatible with any Python program. pyDAL doesn't require web2py and can be used in any Python context.
 
 [![pip version](https://img.shields.io/pypi/v/pydal.svg?style=flat-square)](https://pypi.python.org/pypi/pydal)
-[![Build Status](https://img.shields.io/travis/web2py/pydal/master.svg?style=flat-square&label=Travis-CI)](https://travis-ci.org/web2py/pydal)
-[![MS Build Status](https://img.shields.io/appveyor/ci/web2py/pydal/master.svg?style=flat-square&label=Appveyor-CI)](https://ci.appveyor.com/project/web2py/pydal)
+[![Build Status](https://img.shields.io/travis/web2py/pydal/master.svg?style=flat-square&label=Travis-CI)](https://travis-ci.com/web2py/pydal)
 [![Coverage Status](https://img.shields.io/codecov/c/github/web2py/pydal.svg?style=flat-square)](https://codecov.io/github/web2py/pydal)
 [![API Docs Status](https://readthedocs.org/projects/pydal/badge/?version=latest&style=flat-square)](http://pydal.rtfd.org/)
 
