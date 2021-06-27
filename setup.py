@@ -47,6 +47,7 @@ setup(
         "pydal.parsers",
         "pydal.representers",
         "pydal.contrib",
+        "pydal.tools",
     ],
     include_package_data=True,
     zip_safe=False,
