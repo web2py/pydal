@@ -14,3 +14,4 @@ from .contribs import *
 from .validators import *
 from .is_url_validators import *
 from .restapi import *
+from .tags import *
