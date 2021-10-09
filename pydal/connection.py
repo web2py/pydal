@@ -119,7 +119,7 @@ class ConnectionPool(object):
             try:
                 GLOBAL_LOCKER.acquire()
                 pool = ConnectionPool.POOLS[self.uri]
-                if len(pool) < self.pool_size:
+                if len(pool) < int(self.pool_size):
                     pool.append(self.connection)
                     really = False
             finally:
