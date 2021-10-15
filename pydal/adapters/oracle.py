@@ -17,7 +17,7 @@ class Oracle(SQLAdapter):
     def _initialize_(self):
         super(Oracle, self)._initialize_()
         self.ruri = self.uri.split("://", 1)[1]
-        self.REGEX_CLOB = re.compile("[^']*('[^']*'[^']*)*\:(?P<clob>(C|B)LOB\('([^']+|'')*'\))")
+        self.REGEX_CLOB = re.compile("[^']*('[^']*'[^']*)*\:(?P<clob>(C|B)LOB\('([^']|'')*'\))")
         if "threaded" not in self.driver_args:
             self.driver_args["threaded"] = True
         # set character encoding defaults
