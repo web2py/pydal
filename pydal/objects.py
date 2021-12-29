@@ -1429,6 +1429,8 @@ def _expression_wrap(wrapper):
 
 class Expression(object):
     _dialect_expressions_ = {}
+    
+    __hash__ = object.__hash__
 
     def __new__(cls, *args, **kwargs):
         for name, wrapper in iteritems(cls._dialect_expressions_):
