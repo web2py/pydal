@@ -39,7 +39,7 @@ init:
   - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
 
 install:
-  - ps: Start-FileDownload https://bootstrap.pypa.io/%PY_VER%/get-pip.py
+  - appveyor DownloadFile https://bootstrap.pypa.io/%PY_VER%/get-pip.py
   - python get-pip.py
   - pip install tox==1.9.2
   - pip install codecov
