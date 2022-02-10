@@ -6,21 +6,29 @@ services:
 environment:
   matrix:
     - PYTHON: "C:/Python27"
+      PY_VER: "2.7"
       adapter: "mssql"
     - PYTHON: "C:/Python27"
+      PY_VER: "2.7"
       adapter: "mssqln"
     - PYTHON: "C:/Python34"
+      PY_VER: "3.4"
       adapter: "mssql"
     - PYTHON: "C:/Python34"
+      PY_VER: "3.4"
       adapter: "mssqln"
     - PYTHON: "C:/Python35"
+      PY_VER: "3.5"
       adapter: "mssql"
     - PYTHON: "C:/Python35"
+      PY_VER: "3.5"
       adapter: "mssqln"
     - PYTHON: "C:/Python36-x64"
+      PY_VER: "3.6"
       PYTHON_ARCH: "64"
       adapter: "mssql"
     - PYTHON: "C:/Python36-x64"
+      PY_VER: "3.6"
       PYTHON_ARCH: "64"
       adapter: "mssqln"
 
@@ -31,7 +39,7 @@ init:
   - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
 
 install:
-  - ps: Start-FileDownload https://bootstrap.pypa.io/get-pip.py
+  - appveyor DownloadFile https://bootstrap.pypa.io/pip/%PY_VER%/get-pip.py
   - python get-pip.py
   - pip install tox==1.9.2
   - pip install codecov
