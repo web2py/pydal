@@ -1,7 +1,6 @@
 import re
-from .._gae import gae
 from ..helpers._internals import Dispatcher
-
+from ..ndb import have_ndb
 
 class Adapters(Dispatcher):
     def register_for(self, *uris):
@@ -85,5 +84,6 @@ from .oracle import Oracle
 from .sap import SAPDB
 from .teradata import Teradata
 from .couchdb import CouchDB
-
-from .google import GoogleSQL
+from .google import GoogleSQL, GoogleDatastore
+if have_ndb:
+    from .ndb import GoogleNDB

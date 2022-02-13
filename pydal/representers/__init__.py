@@ -1,8 +1,8 @@
 from collections import defaultdict
 from .._compat import PY2, with_metaclass, iteritems, to_unicode, to_bytes, string_types
-from .._gae import gae
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_TYPE
+from ..ndb import have_ndb
 
 representers = Dispatcher("representer")
 
@@ -257,6 +257,6 @@ from .db2 import DB2Representer
 from .informix import InformixRepresenter
 from .oracle import OracleRepresenter
 from .couchdb import CouchDBRepresenter
-
-if gae is not None:
-    from .google import GoogleDatastoreRepresenter
+from .google import GoogleDatastoreRepresenter
+if have_ndb:
+    from .ndb import GoogleNDBRepresenter

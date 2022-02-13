@@ -35,7 +35,6 @@ from ._compat import (
     text_type,
 )
 from ._globals import DEFAULT, IDENTITY, AND, OR
-from ._gae import Key
 from .exceptions import NotFoundException, NotAuthorizedException
 from .helpers.regex import (
     REGEX_TABLE_DOT_FIELD,
@@ -654,7 +653,7 @@ class Table(Serializable, BasicStorage):
         return query
 
     def __getitem__(self, key):
-        if str(key).isdigit() or (Key is not None and isinstance(key, Key)):
+        if str(key).isdigit():
             # non negative key or gae
             return (
                 self._db(self._id == str(key))

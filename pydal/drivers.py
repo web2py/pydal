@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
+from .ndb import have_ndb, gae
 
 DRIVERS = {}
 
-from ._gae import gae
+# The gae logic here should be removed, serves no purpose
 
-if gae is not None:
+if have_ndb:
     DRIVERS["google"] = gae
-    psycopg2_adapt = None
-    cx_Oracle = None
-    pyodbc = None
-    couchdb = None
-    is_jdbc = False
+else:
+    try:
+        from google.cloud import datastore
+        DRIVERS["google"] = datastore
+    except:
+        pass
 
 try:
     from pysqlite2 import dbapi2 as sqlite2
