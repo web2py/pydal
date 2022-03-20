@@ -23,6 +23,7 @@ class SQLite(SQLAdapter):
         )
         if ":memory" in self.uri.split("://", 1)[0]:
             self.dbpath = "file:%s?mode=memory&cache=shared" % uuid.uuid4()
+            self.driver_args["uri"] = True
         else:
             self.dbpath = self.uri.split("://", 1)[1]
             if self.dbpath[0] != "/":
