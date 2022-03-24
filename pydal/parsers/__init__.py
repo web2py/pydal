@@ -1,8 +1,7 @@
 from collections import defaultdict
 from .._compat import with_metaclass, iteritems
-from .._gae import gae
 from ..helpers._internals import Dispatcher
-
+from ..ndb import have_ndb
 
 parsers = Dispatcher("parser")
 
@@ -103,6 +102,6 @@ from .sqlite import SQLiteParser
 from .postgre import PostgreParser
 from .mongo import MongoParser
 from .oracle import OracleParser
-
-if gae is not None:
-    from .google import GoogleDatastoreParser
+from .google import GoogleDatastoreParser
+if have_ndb:
+    from .ndb import GoogleNDBParser
