@@ -3,7 +3,7 @@ import json
 from .base import BasicParser, ListsParser
 from datetime import datetime, date, time, timedelta
 from base64 import b64decode
-from .._compat import to_native
+from .._compat import to_bytes, to_native
 from . import parsers, for_type
 
 
@@ -22,7 +22,8 @@ class OracleParser(BasicParser):
 
     @for_type("blob")
     def _blob(self, value):
-        decoded = b64decode(value.read())
+        # decoded = b64decode(value.read())
+        decoded = b64decode(to_bytes(value))
         try:
             decoded = to_native(decoded)
         except:

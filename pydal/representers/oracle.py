@@ -15,7 +15,8 @@ class OracleRepresenter(SQLRepresenter, JSONRepresenter):
             if type(obj) != bytes:
                 obj = to_bytes(obj)
             obj = to_native(b64encode(obj))
-            return "utl_raw.cast_to_raw('%s')" % obj
+            # return "utl_raw.cast_to_raw('%s')" % obj
+            return ":CLOB('%s')" % obj
         elif field_type == "date":
             if isinstance(obj, (datetime.date, datetime.datetime)):
                 obj = obj.isoformat()[:10]

@@ -33,6 +33,7 @@ from ._compat import (
     to_unicode,
     long,
     text_type,
+    to_native,
 )
 from ._globals import DEFAULT, IDENTITY, AND, OR
 from ._gae import Key
@@ -2098,15 +2099,15 @@ class Field(Expression, Serializable):
             file = file.file
         elif not filename:
             filename = file.name
-        filename = os.path.basename(filename.replace("/", os.sep).replace("\\", os.sep))
+        filename = os.path.basename(filename.replace(
+            "/", os.sep).replace("\\", os.sep))
         m = re.search(REGEX_UPLOAD_EXTENSION, filename)
         extension = m and m.group(1) or "txt"
-        uuid_key = uuidstr().replace("-", "")[-16:]
-        encoded_filename = to_unicode(base64.urlsafe_b64encode(to_bytes(filename)))
-        # Fields that are not bound to a table use "tmp" as the table name
-        tablename = getattr(self, "_tablename", "tmp")
+        uuid_key = self._db.uuid().replace("-", "")[-16:]
+        encoded_filename = to_native(
+            base64.b16encode(to_bytes(filename)).lower())
         newfilename = "%s.%s.%s.%s" % (
-            tablename,
+            self._tablename,
             self.name,
             uuid_key,
             encoded_filename,
@@ -2130,9 +2131,8 @@ class Field(Expression, Serializable):
                     pass
                 elif self.uploadfolder:
                     path = self.uploadfolder
-                elif self.db is not None and self.db._adapter.folder:
+                elif self.db._adapter.folder:
                     path = pjoin(self.db._adapter.folder, "..", "uploads")
-                    path = os.path.abspath(path)
                 else:
                     raise RuntimeError(
                         "you must specify a Field(..., uploadfolder=...)"
@@ -2140,7 +2140,10 @@ class Field(Expression, Serializable):
                 if self.uploadseparate:
                     if self.uploadfs:
                         raise RuntimeError("not supported")
-                    path = pjoin(path, "%s.%s" % (tablename, self.name), uuid_key[:2])
+                    path = pjoin(
+                        path, "%s.%s" % (
+                            self._tablename, self.name), uuid_key[:2]
+                    )
                 if not exists(path):
                     os.makedirs(path)
                 pathfilename = pjoin(path, newfilename)
