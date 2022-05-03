@@ -34,6 +34,14 @@ except ImportError:
     pass
 
 try:
+    import snowflake.connector as snowflakeconnector
+
+    DRIVERS["snowflakeconnector"] = snowflakeconnector
+
+except ImportError:
+    pass
+
+try:
     import MySQLdb
 
     DRIVERS["MySQLdb"] = MySQLdb
