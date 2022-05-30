@@ -2106,8 +2106,7 @@ class Field(Expression, Serializable):
         m = re.search(REGEX_UPLOAD_EXTENSION, filename)
         extension = m and m.group(1) or "txt"
         uuid_key = self._db.uuid().replace("-", "")[-16:]
-        encoded_filename = to_native(
-            base64.b16encode(to_bytes(filename)).lower())
+        encoded_filename = to_native(base64.urlsafe_b64encode(to_bytes(filename)))
         newfilename = "%s.%s.%s.%s" % (
             self._tablename,
             self.name,
