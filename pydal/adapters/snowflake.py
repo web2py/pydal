@@ -2,11 +2,14 @@ import re
 import os.path
 from .._compat import PY2, with_metaclass, iterkeys, to_unicode, long
 from .._globals import IDENTITY, THREAD_LOCAL
-from ..drivers import snowflakeconnector
 from .base import SQLAdapter
 from ..utils import split_uri_args
 from . import AdapterMeta, adapters, with_connection, with_connection_or_raise
 
+try:
+    from ..drivers import snowflakeconnector
+except ImportError:
+    snowflakeconnector = None
 
 @adapters.register_for("snowflake")
 class Snowflake(SQLAdapter):
