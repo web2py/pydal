@@ -85,5 +85,6 @@ from .oracle import Oracle
 from .sap import SAPDB
 from .teradata import Teradata
 from .couchdb import CouchDB
+from .snowflake import Snowflake
 
 from .google import GoogleSQL

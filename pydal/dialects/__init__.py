@@ -111,6 +111,7 @@ from .oracle import OracleDialect
 from .sap import SAPDBDialect
 from .teradata import TeradataDialect
 from .couchdb import CouchDBDialect
+from .snowflake import  SnowflakeDialect
 
 if gae is not None:
     from .google import GoogleDatastoreDialect
