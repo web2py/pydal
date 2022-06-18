@@ -295,7 +295,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
     validators = None
     representers = {}
     validators_method = default_validators
-    uuid = uuidstr
+    uuid = staticmethod(uuidstr)
     logger = logging.getLogger("pyDAL")
 
     Field = Field
