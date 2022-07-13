@@ -29,6 +29,7 @@ class Migrator(object):
         db = table._db
         table._migrate = migrate
         fields = []
+        reffs = str()
         # PostGIS geo fields are added after the table has been created
         postcreation_fields = []
         sql_fields = {}
@@ -112,7 +113,7 @@ class Migrator(object):
                                 + rfield_rname
                                 + ")"
                             )
-                        ftype = ftype + types["reference FK"] % dict(
+                        reffs = reffs + types["reference FK"] % dict(
                             # should be quoted
                             constraint_name=constraint_name,
                             foreign_key=fk,
@@ -247,7 +248,7 @@ class Migrator(object):
             engine = self.adapter.adapter_args.get("engine", "InnoDB")
             other = " ENGINE=%s CHARACTER SET utf8;" % engine
 
-        fields = ",\n    ".join(fields)
+        fields = ",\n    ".join(fields) + reffs
         for rtablename in TFK:
             rtable = db[rtablename]
             rfields = TFK[rtablename]
