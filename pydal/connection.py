@@ -60,7 +60,7 @@ class ConnectionPool(object):
                 GLOBAL_LOCKER.release()
 
         # if still no connection, make a new one and run the hooks
-        # note we serialize actual connectons to protect hooks
+        # note we serialize actual connections to protect hooks
         if connection is None:
             connection = self.connector()
             self.set_connection(connection, run_hooks=True)
