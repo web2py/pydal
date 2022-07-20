@@ -1955,6 +1955,7 @@ class Field(Expression, Serializable):
         required=False,
         requires=DEFAULT,
         ondelete="CASCADE",
+        onupdate="CASCADE",
         notnull=False,
         unique=False,
         uploadfield=True,
@@ -2019,6 +2020,7 @@ class Field(Expression, Serializable):
         self.default = default if default is not DEFAULT else (update or None)
         self.required = required  # is this field required
         self.ondelete = ondelete.upper()  # this is for reference fields only
+        self.onupdate = onupdate.upper()  # this is for reference fields only
         self.notnull = notnull
         self.unique = unique
         # split to deal with decimal(,)
@@ -2273,6 +2275,7 @@ class Field(Expression, Serializable):
             "authorize",
             "represent",
             "ondelete",
+            "onupdate",
             "custom_store",
             "autodelete",
             "custom_retrieve",

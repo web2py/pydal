@@ -119,6 +119,7 @@ class Migrator(object):
                             table_name=table._rname,
                             field_name=field._rname,
                             on_delete_action=field.ondelete,
+                            on_update_action=field.onupdate,
                         )
                 else:
                     # make a guess here for circular references
@@ -149,6 +150,7 @@ class Migrator(object):
                         constraint_name=self.dialect.quote(constraint_name),
                         foreign_key="%s (%s)" % (real_referenced, rfield_rname),
                         on_delete_action=field.ondelete,
+                        on_update_action=field.onupdate,
                     )
                     ftype_info["null"] = (
                         " NOT NULL" if field.notnull else self.dialect.allow_null
@@ -258,9 +260,15 @@ class Migrator(object):
                 table._raw_rname, "_".join(f._raw_rname for f in fk_fields)
             )
             on_delete = list(set(f.ondelete for f in fk_fields))
+            on_update = list(set(f.onupdate for f in fk_fields))
             if len(on_delete) > 1:
                 raise SyntaxError(
                     "Table %s has incompatible ON DELETE actions in multi-field foreign key."
+                    % table._dalname
+                )
+            if len(on_update) > 1:
+                raise SyntaxError(
+                    "Table %s has incompatible ON UPDATE actions in multi-field foreign key."
                     % table._dalname
                 )
             tfk_field_name = ", ".join(fkeys)
@@ -283,6 +291,7 @@ class Migrator(object):
                     foreign_table=tfk_foreign_table,
                     foreign_key=tfk_foreign_key,
                     on_delete_action=on_delete[0],
+                    on_update_action=on_update[0],
                 )
             )
 
