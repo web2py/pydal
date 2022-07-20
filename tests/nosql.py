@@ -1234,7 +1234,7 @@ class TestExpressions(unittest.TestCase):
             self.assertEqual(db(db.tt.cc == "cc11").count(), 1)
             self.assertEqual(db(db.tt.aa == 3).count(), 1)
 
-            # test comparsion expression based count
+            # test comparison expression based count
             self.assertEqual(db(db.tt.aa != db.tt.aa).count(), 0)
             self.assertEqual(db(db.tt.aa == db.tt.aa).count(), 3)
 

@@ -146,7 +146,7 @@ class GoogleDatastore(NoSQLAdapter):
                 continue
             attr = {}
             if isinstance(field.custom_qualifier, dict):
-                # this is custom properties to add to the GAE field declartion
+                # this is custom properties to add to the GAE field declaration
                 attr = field.custom_qualifier
             field_type = field.type
             if isinstance(field_type, SQLCustomType):
