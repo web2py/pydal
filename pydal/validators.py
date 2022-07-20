@@ -705,7 +705,7 @@ class IS_IN_DB(Validator):
             ):
                 raise ValidationError(self.translator(self.error_message))
             if self.theset:
-                if not [v for v in values if v not in self.theset]:
+                if not [v for v in values if str(v) not in self.theset]:
                     return values
             else:
 
