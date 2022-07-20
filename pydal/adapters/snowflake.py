@@ -17,7 +17,7 @@ class Snowflake(SQLAdapter):
     drivers = ("snowflakeconnector",)
 
     REGEX_URI = (
-        "(?P<user>[^:]+):(?P<password>[^:]+):"
+        "(?P<user>[^:]+):(?P<password>[^:]+):(?P<role>[^:]+):"
         "(?P<warehouse>[^:@]+)(:(?P<account>[^@]*))?"
         r"@(?P<schema>[^:/]+|\[[^\]]+\])/(?P<db>[^?]+)$"
     )
@@ -29,16 +29,36 @@ class Snowflake(SQLAdapter):
         if not m:
             raise SyntaxError("Invalid URI string in DAL")
         user = self.credential_decoder(m.group("user"))
+        role = self.credential_decoder(m.group("role"))
         password = self.credential_decoder(m.group("password"))
         if password is None:
             password = ""
         account = m.group("account")
         schema = m.group("schema")
         warehouse = m.group("warehouse")
-
         db = m.group("db")
-        self.driver_args.update(user=user, password=password, database=db, account=account, schema=schema, warehouse=warehouse)
 
+        password_detect=password[0:5]
+
+        if password_detect=='token':
+             password = password[5:]
+             token=password
+             if role != "default":
+                      self.driver_args.update(user=user,role=role, database=db, account=account, schema=schema, warehouse=warehouse,authenticator='oauth',token=token)
+             else:
+                      self.driver_args.update(user=user, database=db, account=account, schema=schema, warehouse=warehouse,authenticator='oauth',token=token)
+        
+        elif password_detect=='prkey':
+             priv_key = password[5:]
+             if role != "default":
+                    self.driver_args.update(user=user, private_key=priv_key, role=role, database=db, account=account, schema=schema, warehouse=warehouse)
+             else:
+                    self.driver_args.update(user=user, private_key=priv_key, database=db, account=account, schema=schema, warehouse=warehouse)
+        else:
+             if role != "default":
+                    self.driver_args.update(user=user, password=password, database=db, role=role, account=account, schema=schema, warehouse=warehouse)
+             else:
+                    self.driver_args.update(user=user, password=password, database=db, account=account, schema=schema, warehouse=warehouse)
 
     def connector(self):
         return self.driver.connect(**self.driver_args)
