@@ -1,6 +1,7 @@
 import datetime
 import functools
-from .. import Field, Field
+
+from .. import Field
 from ..validators import *
 
 
@@ -9,7 +10,9 @@ class Tags:
         self.table = table
         db = table._db
         self.tag_table = db.define_table(
-            table._tablename + "_tag_" + name, Field("tagpath"), Field("record_id", table)
+            table._tablename + "_tag_" + name,
+            Field("tagpath"),
+            Field("record_id", table),
         )
         db.commit()
 
@@ -26,8 +29,9 @@ class Tags:
             tags = [tags]
         for tag in tags:
             path = "/%s/" % tag.strip("/")
-            if not db((tag_table.record_id == record_id)&
-                      (tag_table.tagpath == path)).count():
+            if not db(
+                (tag_table.record_id == record_id) & (tag_table.tagpath == path)
+            ).count():
                 tag_table.insert(record_id=record_id, tagpath=path)
 
     def remove(self, record_id, tags):
@@ -36,8 +40,9 @@ class Tags:
         if not isinstance(tags, list):
             tags = [tags]
         paths = ["/%s/" % tag.strip("/") for tag in tags]
-        db((tag_table.record_id == record_id)&
-           (tag_table.tagpath.belongs(paths))).delete()
+        db(
+            (tag_table.record_id == record_id) & (tag_table.tagpath.belongs(paths))
+        ).delete()
 
     def find(self, tags, mode="and"):
         table = self.table
@@ -48,7 +53,9 @@ class Tags:
             tags = [tags]
         for tag in tags:
             path = "/%s/" % tag.strip("/")
-            subquery = db(tag_table.tagpath.startswith(path))._select(tag_table.record_id)
+            subquery = db(tag_table.tagpath.startswith(path))._select(
+                tag_table.record_id
+            )
             queries.append(table.id.belongs(subquery))
         func = lambda a, b: (a & b) if mode == "and" else (a | b)
         return functools.reduce(func, queries)

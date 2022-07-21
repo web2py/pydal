@@ -1,8 +1,9 @@
 import base64
 import datetime
+
 from ..adapters.db2 import DB2
-from .base import SQLRepresenter
 from . import representers
+from .base import SQLRepresenter
 
 
 @representers.register_for(DB2)

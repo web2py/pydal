@@ -1,13 +1,15 @@
 import json
 from base64 import b64encode
-from datetime import date, time, datetime
-from .._compat import PY2, integer_types, to_unicode, to_bytes, basestring
-from ..adapters.base import SQLAdapter, NoSQLAdapter
+from datetime import date, datetime, time
+
+from .._compat import PY2, basestring, integer_types, to_bytes, to_unicode
+from ..adapters.base import NoSQLAdapter, SQLAdapter
 from ..helpers.classes import Reference, SQLCustomType
 from ..helpers.methods import bar_encode
 from ..helpers.serializers import serializers
-from ..objects import Row, Expression, Field
-from . import Representer, representers, for_type, before_type, for_instance, pre
+from ..objects import Expression, Field, Row
+from . import (Representer, before_type, for_instance, for_type, pre,
+               representers)
 
 long = integer_types[-1]
 NoneType = type(None)

@@ -1,12 +1,13 @@
+import os
 import re
 import sys
-import os
+
 from .._compat import integer_types, long
 from ..helpers.classes import Reference
 from ..helpers.methods import use_common_filters
-from .base import SQLAdapter
-from ..objects import Table, Field, Expression, Query
+from ..objects import Expression, Field, Query, Table
 from . import adapters, with_connection, with_connection_or_raise
+from .base import SQLAdapter
 
 
 @adapters.register_for("oracle")
@@ -17,7 +18,9 @@ class Oracle(SQLAdapter):
     def _initialize_(self):
         super(Oracle, self)._initialize_()
         self.ruri = self.uri.split("://", 1)[1]
-        self.REGEX_CLOB = re.compile("[^']*('[^']*'[^']*)*\:(?P<clob>(C|B)LOB\('([^']|'')*'\))")
+        self.REGEX_CLOB = re.compile(
+            "[^']*('[^']*'[^']*)*\:(?P<clob>(C|B)LOB\('([^']|'')*'\))"
+        )
         if "threaded" not in self.driver_args:
             self.driver_args["threaded"] = True
         # set character encoding defaults

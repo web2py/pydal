@@ -1,7 +1,8 @@
 import datetime
+
 from ..adapters.informix import Informix
-from .base import SQLRepresenter
 from . import representers
+from .base import SQLRepresenter
 
 
 @representers.register_for(Informix)

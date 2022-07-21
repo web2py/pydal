@@ -1,8 +1,9 @@
 import datetime
-from .._compat import integer_types, basestring, string_types
+
+from .._compat import basestring, integer_types, string_types
 from ..adapters.base import SQLAdapter
 from ..helpers.methods import use_common_filters
-from ..objects import Expression, Field, Table, Select
+from ..objects import Expression, Field, Select, Table
 from . import Dialect, dialects, sqltype_for
 
 long = integer_types[-1]
@@ -166,23 +167,19 @@ class SQLDialect(CommonDialect):
             whr = " %s" % self.where(where)
         return "DELETE FROM %s%s;" % (tablename, whr)
 
-
-    def cte(self, tname, fields, sql, recursive = None):
-        '''
+    def cte(self, tname, fields, sql, recursive=None):
+        """
         recursive:list = [union_type, recursive_sql]
-        '''
+        """
         if recursive:
-            r_sql_parts = ['%s %s'%(union, sql) for union, sql in recursive]
-            recursive = ' '.join(r_sql_parts)
-            cte_select = '{select} {recursive}'
+            r_sql_parts = ["%s %s" % (union, sql) for union, sql in recursive]
+            recursive = " ".join(r_sql_parts)
+            cte_select = "{select} {recursive}"
         else:
-            cte_select = '{select}'
+            cte_select = "{select}"
 
-        return ('{tname}({fields}) AS (%s)' % cte_select).format(
-            tname = tname,
-            fields = fields,
-            select = sql,
-            recursive = recursive
+        return ("{tname}({fields}) AS (%s)" % cte_select).format(
+            tname=tname, fields=fields, select=sql, recursive=recursive
         )
 
     def select(
@@ -196,7 +193,7 @@ class SQLDialect(CommonDialect):
         limitby=None,
         distinct=False,
         for_update=False,
-        with_cte=None  # ['recursive' | '', sql]
+        with_cte=None,  # ['recursive' | '', sql]
     ):
         dst, whr, grp, order, limit, offset, upd = "", "", "", "", "", "", ""
         if distinct is True:
@@ -219,7 +216,7 @@ class SQLDialect(CommonDialect):
             upd = " FOR UPDATE"
         if with_cte:
             recursive, cte = with_cte
-            recursive = ' RECURSIVE' if recursive else ''
+            recursive = " RECURSIVE" if recursive else ""
             with_cte = "WITH%s %s " % (recursive, cte)
         else:
             with_cte = ""
@@ -633,7 +630,7 @@ class SQLDialect(CommonDialect):
             )
         return rv
 
-    def drop_index(self, name, table, if_exists = False):
+    def drop_index(self, name, table, if_exists=False):
         if_exists = "IF EXISTS " if if_exists else ""
         return "DROP INDEX %s%s;" % (if_exists, self.quote(name))
 

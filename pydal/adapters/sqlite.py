@@ -5,9 +5,10 @@ import sys
 import uuid
 from datetime import datetime
 from time import mktime
+
 from .._compat import PY2, pjoin
-from .base import SQLAdapter
 from . import adapters
+from .base import SQLAdapter
 
 
 @adapters.register_for("sqlite", "sqlite:memory")

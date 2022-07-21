@@ -1,12 +1,13 @@
 import json
 from base64 import b64decode
-from datetime import datetime, date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from .._compat import PY2, integer_types, basestring, to_bytes, to_native
+
+from .._compat import PY2, basestring, integer_types, to_bytes, to_native
 from ..adapters.base import SQLAdapter
 from ..helpers.classes import Reference
-from ..helpers.methods import bar_decode_string, bar_decode_integer
-from . import Parser, parsers, for_type, before_parse
+from ..helpers.methods import bar_decode_integer, bar_decode_string
+from . import Parser, before_parse, for_type, parsers
 
 long = integer_types[-1]
 

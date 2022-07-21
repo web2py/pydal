@@ -1,7 +1,7 @@
 from .._compat import basestring
 from ..adapters.db2 import DB2
-from .base import SQLDialect
 from . import dialects, sqltype_for
+from .base import SQLDialect
 
 
 @dialects.register_for(DB2)
@@ -104,7 +104,7 @@ class DB2Dialect(SQLDialect):
 
         if with_cte:
             recursive, cte = with_cte
-            recursive = ' RECURSIVE' if recursive else ''
+            recursive = " RECURSIVE" if recursive else ""
             with_cte = "WITH%s %s " % (recursive, cte)
         else:
             with_cte = ""

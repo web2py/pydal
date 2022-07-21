@@ -1,11 +1,12 @@
-import re
 import os.path
-from .._compat import PY2, with_metaclass, iterkeys, to_unicode, long
+import re
+
+from .._compat import PY2, iterkeys, long, to_unicode, with_metaclass
 from .._globals import IDENTITY, THREAD_LOCAL
 from ..drivers import psycopg2_adapt
-from .base import SQLAdapter
 from ..utils import split_uri_args
 from . import AdapterMeta, adapters, with_connection, with_connection_or_raise
+from .base import SQLAdapter
 
 
 class PostgreMeta(AdapterMeta):

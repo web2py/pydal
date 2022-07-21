@@ -1,8 +1,8 @@
 from .._gae import ndb
 from ..adapters.google import GoogleDatastore
 from ..helpers.gae import NDBDecimalProperty
-from .base import NoSQLDialect
 from . import dialects, sqltype_for
+from .base import NoSQLDialect
 
 
 @dialects.register_for(GoogleDatastore)

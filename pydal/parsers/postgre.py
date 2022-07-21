@@ -1,6 +1,6 @@
-from ..adapters.postgres import Postgre, PostgreNew, PostgreBoolean
-from .base import BasicParser, ListsParser, JSONParser
-from . import parsers, for_type
+from ..adapters.postgres import Postgre, PostgreBoolean, PostgreNew
+from . import for_type, parsers
+from .base import BasicParser, JSONParser, ListsParser
 
 
 @parsers.register_for(Postgre)

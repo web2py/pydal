@@ -1,6 +1,6 @@
 from .._compat import integer_types, long
-from .base import SQLAdapter
 from . import adapters, with_connection_or_raise
+from .base import SQLAdapter
 
 
 class DB2(SQLAdapter):

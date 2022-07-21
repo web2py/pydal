@@ -3,19 +3,11 @@
 import os
 import re
 import uuid
-from .._compat import (
-    PY2,
-    BytesIO,
-    iteritems,
-    integer_types,
-    string_types,
-    to_bytes,
-    pjoin,
-    exists,
-    text_type,
-)
-from .regex import REGEX_CREDENTIALS, REGEX_UNPACK, REGEX_CONST_STRING, REGEX_W
+
+from .._compat import (PY2, BytesIO, exists, integer_types, iteritems, pjoin,
+                       string_types, text_type, to_bytes)
 from .classes import SQLCustomType
+from .regex import REGEX_CONST_STRING, REGEX_CREDENTIALS, REGEX_UNPACK, REGEX_W
 
 UNIT_SEPARATOR = "\x1f"  # ASCII unit separater for delimiting data
 
@@ -198,8 +190,7 @@ def smart_query(fields, text):
             text = text.replace(" is" + a, " %s " % b)
         text = text.replace(a, " %s " % b)
     text = re.sub(r"\s+", " ", text).lower()
-    text = re.sub(r"(?P<a>[\<\>\!\=])\s+(?P<b>[\<\>\!\=])",
-                  r"\g<a>\g<b>", text)
+    text = re.sub(r"(?P<a>[\<\>\!\=])\s+(?P<b>[\<\>\!\=])", r"\g<a>\g<b>", text)
     query = field = neg = op = logic = None
     for item in text.split():
         if field is None:

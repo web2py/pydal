@@ -1,7 +1,8 @@
 import re
-from .base import SQLAdapter
+
 from ..utils import split_uri_args
 from . import adapters, with_connection
+from .base import SQLAdapter
 
 
 @adapters.register_for("mysql:mysqlconnector")

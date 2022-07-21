@@ -1,9 +1,9 @@
+from .._compat import basestring, integer_types
 from ..adapters.snowflake import Snowflake
-from .._compat import integer_types, basestring
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
+from . import dialects, register_expression, sqltype_for
 from .base import SQLDialect
-from . import dialects, sqltype_for, register_expression
 
 
 @dialects.register_for(Snowflake)
@@ -27,11 +27,9 @@ class SnowflakeDialect(SQLDialect):
     def type_id(self):
         return "NUMBER PRIMARY KEY AUTOINCREMENT"
 
-
     @sqltype_for("big-id")
     def type_big_id(self):
         return "NUMBER PRIMARY KEY AUTOINCREMENT"
-
 
     @sqltype_for("big-reference")
     def type_big_reference(self):
@@ -61,7 +59,6 @@ class SnowflakeDialect(SQLDialect):
 
     def sequence_name(self, tablename):
         return self.quote("%s_id_seq" % tablename)
-
 
     def insert(self, table, fields, values):
         return "INSERT INTO %s(%s) VALUES (%s);" % (table, fields, values)
@@ -98,8 +95,6 @@ class SnowflakeDialect(SQLDialect):
                 whr2 = whr + " AND w_row > %i" % lmin
             else:
                 whr2 = self.where("w_row > %i" % lmin)
-
-
 
         return "SELECT%s%s%s %s FROM %s%s%s%s;" % (
             dst,
@@ -160,7 +155,7 @@ class SnowflakeDialect(SQLDialect):
             second = self.expand(second, "string", query_env=query_env)
             if escape is None:
                 escape = r"\\ "
-                #second = second.replace(escape, escape * 2)
+                # second = second.replace(escape, escape * 2)
             check = r"\ "
             check = check.strip()
             if escape == check:
@@ -188,10 +183,10 @@ class SnowflakeDialect(SQLDialect):
             if escape is None:
                 escape = r"\\ "
                 escape = escape.strip()
-                #second = second.replace(escape, escape * 2)
-            check= r"\ "
-            check=check.strip()
-            if escape == check :
+                # second = second.replace(escape, escape * 2)
+            check = r"\ "
+            check = check.strip()
+            if escape == check:
                 escape = r"\\ "
                 escape = escape.strip()
         if first.type not in ("string", "text", "json", "jsonb", "list:string"):

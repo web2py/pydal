@@ -1,6 +1,7 @@
 import re
-from .regex import REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
+
 from .._compat import long
+from .regex import REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
 
 
 def to_num(num):

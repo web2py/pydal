@@ -1,5 +1,5 @@
-from .base import SQLAdapter
 from . import adapters
+from .base import SQLAdapter
 
 
 @adapters.register_for("ingres")

@@ -1,10 +1,11 @@
 import datetime
+
 from .._compat import PY2, basestring, to_bytes
 from ..adapters.mongo import Mongo, MongoBlob
 from ..helpers.classes import Reference
 from ..objects import Row
+from . import for_type, representers
 from .base import NoSQLRepresenter
-from . import representers, for_type
 
 
 @representers.register_for(Mongo)

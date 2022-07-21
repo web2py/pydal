@@ -1,8 +1,8 @@
-from ..helpers.classes import FakeCursor, SQLALL
+from ..helpers.classes import SQLALL, FakeCursor
 from ..helpers.methods import uuid2int
-from ..objects import Query, Field
-from .base import NoSQLAdapter, SQLAdapter
+from ..objects import Field, Query
 from . import adapters
+from .base import NoSQLAdapter, SQLAdapter
 
 
 @adapters.register_for("couchdb")

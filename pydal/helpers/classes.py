@@ -6,18 +6,8 @@ import threading
 import time
 import traceback
 
-from .._compat import (
-    PY2,
-    exists,
-    copyreg,
-    implements_bool,
-    iterkeys,
-    itervalues,
-    iteritems,
-    to_bytes,
-    long,
-)
-
+from .._compat import (PY2, copyreg, exists, implements_bool, iteritems,
+                       iterkeys, itervalues, long, to_bytes)
 from .._globals import THREAD_LOCAL
 from .serializers import serializers
 

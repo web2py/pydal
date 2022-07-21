@@ -1,5 +1,5 @@
-from .base import SQLAdapter
 from . import adapters, with_connection_or_raise
+from .base import SQLAdapter
 
 
 @adapters.register_for("informix")

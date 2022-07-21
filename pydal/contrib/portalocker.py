@@ -55,8 +55,8 @@ Web2py Changes
      solution
 
 """
-import sys
 import logging
+import sys
 
 PY2 = sys.version_info[0] == 2
 
@@ -75,10 +75,10 @@ except:
         os_locking = "posix"
     except:
         try:
-            import msvcrt
             import ctypes
-            from ctypes.wintypes import BOOL, DWORD, HANDLE
+            import msvcrt
             from ctypes import windll
+            from ctypes.wintypes import BOOL, DWORD, HANDLE
 
             os_locking = "windows"
         except:

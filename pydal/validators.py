@@ -11,40 +11,27 @@
 Validators
 -----------
 """
-import os
-import re
-import math
-import datetime
-import time
+import binascii
 import cgi
-import uuid
+import datetime
+import decimal
+import encodings.idna
 import hashlib
 import hmac
 import json
+import math
+import os
+import re
 import struct
-import decimal
-import binascii
+import time
 import unicodedata
-import encodings.idna
+import uuid
 from functools import reduce
 
-from ._compat import (
-    StringIO,
-    integer_types,
-    basestring,
-    unicodeT,
-    urllib_unquote,
-    unichr,
-    to_bytes,
-    PY2,
-    to_unicode,
-    to_native,
-    string_types,
-    urlparse,
-    ipaddress,
-)
-from .objects import Field, FieldVirtual, FieldMethod, Table
-
+from ._compat import (PY2, StringIO, basestring, integer_types, ipaddress,
+                      string_types, to_bytes, to_native, to_unicode, unichr,
+                      unicodeT, urllib_unquote, urlparse)
+from .objects import Field, FieldMethod, FieldVirtual, Table
 
 JSONErrors = (NameError, TypeError, ValueError, AttributeError, KeyError)
 

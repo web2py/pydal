@@ -1,6 +1,6 @@
 from ..adapters.couchdb import CouchDB
-from .base import NoSQLDialect
 from . import dialects
+from .base import NoSQLDialect
 
 
 @dialects.register_for(CouchDB)

@@ -1,8 +1,8 @@
 from collections import defaultdict
-from .._compat import with_metaclass, iteritems
+
+from .._compat import iteritems, with_metaclass
 from .._gae import gae
 from ..helpers._internals import Dispatcher
-
 
 parsers = Dispatcher("parser")
 
@@ -99,10 +99,10 @@ class Parser(with_metaclass(MetaParser)):
 
 
 from .base import BasicParser
-from .sqlite import SQLiteParser
-from .postgre import PostgreParser
 from .mongo import MongoParser
 from .oracle import OracleParser
+from .postgre import PostgreParser
+from .sqlite import SQLiteParser
 
 if gae is not None:
     from .google import GoogleDatastoreParser

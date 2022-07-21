@@ -1,7 +1,7 @@
 from ..adapters.firebird import FireBird
 from ..objects import Expression
-from .base import SQLDialect
 from . import dialects, sqltype_for
+from .base import SQLDialect
 
 
 @dialects.register_for(FireBird)
@@ -120,7 +120,7 @@ class FireBirdDialect(SQLDialect):
 
         if with_cte:
             recursive, cte = with_cte
-            recursive = ' RECURSIVE' if recursive else ''
+            recursive = " RECURSIVE" if recursive else ""
             with_cte = "WITH%s %s " % (recursive, cte)
         else:
             with_cte = ""

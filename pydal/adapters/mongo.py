@@ -1,14 +1,15 @@
-import re
 import copy
 import random
+import re
 from datetime import datetime
+
 from .._compat import basestring, long
 from ..exceptions import NotOnNOSQLError
-from ..helpers.classes import FakeCursor, Reference, SQLALL
+from ..helpers.classes import SQLALL, FakeCursor, Reference
 from ..helpers.methods import use_common_filters, xorify
-from ..objects import Field, Row, Query, Expression
-from .base import NoSQLAdapter
+from ..objects import Expression, Field, Query, Row
 from . import adapters
+from .base import NoSQLAdapter
 
 try:
     from bson import Binary

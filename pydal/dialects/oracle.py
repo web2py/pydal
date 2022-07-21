@@ -1,8 +1,9 @@
-from ..adapters.oracle import Oracle
-from .._compat import integer_types, basestring
-from .base import SQLDialect
-from . import dialects, sqltype_for
 import re
+
+from .._compat import basestring, integer_types
+from ..adapters.oracle import Oracle
+from . import dialects, sqltype_for
+from .base import SQLDialect
 
 
 @dialects.register_for(Oracle)
@@ -195,7 +196,7 @@ class OracleDialect(SQLDialect):
         limitby=None,
         distinct=False,
         for_update=False,
-        with_cte=None
+        with_cte=None,
     ):
         dst, whr, grp, order, limit, offset, upd = "", "", "", "", "", "", ""
         if distinct is True:
@@ -213,7 +214,7 @@ class OracleDialect(SQLDialect):
 
         if with_cte:
             recursive, cte = with_cte
-            recursive = ' RECURSIVE' if recursive else ''
+            recursive = " RECURSIVE" if recursive else ""
             with_cte = "WITH%s %s " % (recursive, cte)
         else:
             with_cte = ""

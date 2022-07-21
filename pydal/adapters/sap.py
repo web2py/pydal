@@ -1,7 +1,8 @@
 import re
+
 from .._compat import integer_types, long
-from .base import SQLAdapter
 from . import adapters
+from .base import SQLAdapter
 
 
 @adapters.register_for("sapdb")

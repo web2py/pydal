@@ -1,6 +1,6 @@
 from ..adapters.mysql import MySQL
-from .base import SQLRepresenter, JSONRepresenter
 from . import representers
+from .base import JSONRepresenter, SQLRepresenter
 
 
 @representers.register_for(MySQL)

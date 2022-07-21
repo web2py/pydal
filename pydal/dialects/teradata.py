@@ -1,7 +1,7 @@
 from .._compat import basestring
 from ..adapters.teradata import Teradata
-from .base import SQLDialect
 from . import dialects, sqltype_for
+from .base import SQLDialect
 
 
 @dialects.register_for(Teradata)
@@ -109,7 +109,7 @@ class TeradataDialect(SQLDialect):
 
         if with_cte:
             recursive, cte = with_cte
-            recursive = ' RECURSIVE' if recursive else ''
+            recursive = " RECURSIVE" if recursive else ""
             with_cte = "WITH%s %s " % (recursive, cte)
         else:
             with_cte = ""

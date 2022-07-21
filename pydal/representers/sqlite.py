@@ -1,6 +1,6 @@
-from ..adapters.sqlite import SQLite, Spatialite
-from .base import SQLRepresenter, JSONRepresenter
-from . import representers, before_type, for_type
+from ..adapters.sqlite import Spatialite, SQLite
+from . import before_type, for_type, representers
+from .base import JSONRepresenter, SQLRepresenter
 
 
 @representers.register_for(SQLite)

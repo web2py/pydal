@@ -1,6 +1,6 @@
 from ..adapters.google import GoogleDatastore
+from . import for_type, parsers
 from .base import BasicParser, JSONParser
-from . import parsers, for_type
 
 
 @parsers.register_for(GoogleDatastore)

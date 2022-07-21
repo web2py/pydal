@@ -1,4 +1,5 @@
 import decimal
+
 from .._gae import ndb
 
 

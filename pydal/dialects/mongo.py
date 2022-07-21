@@ -1,10 +1,11 @@
 import re
+
 from .._compat import PY2, basestring
 from ..adapters.mongo import Mongo
 from ..exceptions import NotOnNOSQLError
 from ..objects import Field
-from .base import NoSQLDialect
 from . import dialects
+from .base import NoSQLDialect
 
 _aggregate_map = {
     "SUM": "$sum",

@@ -1,9 +1,8 @@
-from .._compat import with_metaclass, iteritems
+from .._compat import iteritems, with_metaclass
 from .._gae import gae
 from .._load import OrderedDict
 from ..helpers._internals import Dispatcher
 from ..objects import Expression
-
 
 dialects = Dispatcher("dialect")
 
@@ -98,20 +97,20 @@ class Dialect(with_metaclass(MetaDialect)):
 
 
 from .base import SQLDialect
-from .sqlite import SQLiteDialect, SpatialiteDialect
-from .postgre import PostgreDialect
-from .mysql import MySQLDialect
-from .mssql import MSSQLDialect
-from .mongo import MongoDialect
+from .couchdb import CouchDBDialect
 from .db2 import DB2Dialect
 from .firebird import FireBirdDialect
 from .informix import InformixDialect
 from .ingres import IngresDialect
+from .mongo import MongoDialect
+from .mssql import MSSQLDialect
+from .mysql import MySQLDialect
 from .oracle import OracleDialect
+from .postgre import PostgreDialect
 from .sap import SAPDBDialect
+from .snowflake import SnowflakeDialect
+from .sqlite import SpatialiteDialect, SQLiteDialect
 from .teradata import TeradataDialect
-from .couchdb import CouchDBDialect
-from .snowflake import  SnowflakeDialect
 
 if gae is not None:
     from .google import GoogleDatastoreDialect

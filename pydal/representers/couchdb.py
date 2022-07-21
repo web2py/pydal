@@ -3,8 +3,8 @@ from ..adapters.couchdb import CouchDB
 from ..helpers.classes import Reference
 from ..helpers.serializers import serializers
 from ..objects import Row
+from . import for_type, representers
 from .base import NoSQLRepresenter
-from . import representers, for_type
 
 long = integer_types[-1]
 

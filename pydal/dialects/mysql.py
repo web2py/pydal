@@ -1,7 +1,7 @@
 from ..adapters.mysql import MySQL
 from ..helpers.methods import varquote_aux
-from .base import SQLDialect
 from . import dialects, sqltype_for
+from .base import SQLDialect
 
 
 @dialects.register_for(MySQL)
@@ -107,5 +107,5 @@ class MySQLDialect(SQLDialect):
             "SET FOREIGN_KEY_CHECKS=1;",
         ]
 
-    def drop_index(self, name, table, if_exists = False):
+    def drop_index(self, name, table, if_exists=False):
         return "DROP INDEX %s ON %s;" % (self.quote(name), table._rname)

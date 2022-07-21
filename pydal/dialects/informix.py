@@ -1,6 +1,6 @@
 from ..adapters.informix import Informix, InformixSE
-from .firebird import FireBirdDialect
 from . import dialects, sqltype_for
+from .firebird import FireBirdDialect
 
 
 @dialects.register_for(Informix)

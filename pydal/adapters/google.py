@@ -1,19 +1,20 @@
 import os
 import re
+
 from .._compat import pjoin
+from .._gae import gae
 from .._globals import THREAD_LOCAL
-from ..migrator import InDBMigrator
-from ..helpers.classes import FakeDriver, SQLCustomType, SQLALL, Reference
+from ..helpers.classes import SQLALL, FakeDriver, Reference, SQLCustomType
 from ..helpers.methods import use_common_filters, xorify
-from ..objects import Table, Field, Expression, Query
+from ..migrator import InDBMigrator
+from ..objects import Expression, Field, Query, Table
+from . import adapters, with_connection_or_raise
 from .base import NoSQLAdapter
 from .mysql import MySQL
 from .postgres import PostgrePsyco
-from . import adapters, with_connection_or_raise
-from .._gae import gae
 
 if gae:
-    from .._gae import ndb, rdbms, namespace_manager, classobj, NDBPolyModel
+    from .._gae import NDBPolyModel, classobj, namespace_manager, ndb, rdbms
     from ..helpers.gae import NDBDecimalProperty
 
 

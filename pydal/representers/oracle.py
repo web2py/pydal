@@ -1,10 +1,11 @@
 import base64
 import datetime
-from ..adapters.oracle import Oracle
-from .._compat import to_native, to_bytes
 from base64 import b64encode
-from .base import SQLRepresenter, JSONRepresenter
+
+from .._compat import to_bytes, to_native
+from ..adapters.oracle import Oracle
 from . import representers
+from .base import JSONRepresenter, SQLRepresenter
 
 
 @representers.register_for(Oracle)

@@ -1,8 +1,8 @@
 from .._compat import integer_types, to_unicode
 from ..adapters.google import GoogleDatastore
 from ..helpers.serializers import serializers
+from . import for_type, pre, representers
 from .base import NoSQLRepresenter
-from . import representers, pre, for_type
 
 long = integer_types[-1]
 

@@ -3,43 +3,21 @@ import sys
 import types
 from collections import defaultdict
 from contextlib import contextmanager
-from .._compat import (
-    PY2,
-    with_metaclass,
-    iterkeys,
-    iteritems,
-    hashlib_md5,
-    integer_types,
-    basestring,
-)
+
+from .._compat import (PY2, basestring, hashlib_md5, integer_types, iteritems,
+                       iterkeys, with_metaclass)
 from .._globals import IDENTITY
 from ..connection import ConnectionPool
 from ..exceptions import NotOnNOSQLError
-from ..helpers.classes import (
-    Reference,
-    ExecutionHandler,
-    SQLCustomType,
-    SQLALL,
-    NullDriver,
-)
-from ..helpers.methods import use_common_filters, xorify, merge_tablemaps
+from ..helpers.classes import (SQLALL, ExecutionHandler, NullDriver, Reference,
+                               SQLCustomType)
+from ..helpers.methods import merge_tablemaps, use_common_filters, xorify
 from ..helpers.regex import REGEX_SELECT_AS_PARSER, REGEX_TABLE_DOT_FIELD
 from ..migrator import Migrator
-from ..objects import (
-    Table,
-    Field,
-    Expression,
-    Query,
-    Rows,
-    IterRows,
-    LazySet,
-    LazyReferenceGetter,
-    VirtualCommand,
-    Select,
-)
+from ..objects import (Expression, Field, IterRows, LazyReferenceGetter,
+                       LazySet, Query, Rows, Select, Table, VirtualCommand)
 from ..utils import deprecated
 from . import AdapterMeta, with_connection, with_connection_or_raise
-
 
 CALLABLETYPES = (
     types.LambdaType,
@@ -671,11 +649,7 @@ class SQLAdapter(BaseAdapter):
         cte_collector=None,
     ):
         if cte_collector is None:
-            cte_collector = dict(
-                stack = [],
-                seen = set(),
-                is_recursive = False
-            )
+            cte_collector = dict(stack=[], seen=set(), is_recursive=False)
             is_toplevel = True
         else:
             is_toplevel = False
@@ -735,19 +709,23 @@ class SQLAdapter(BaseAdapter):
         if join and not left:
             cross_joins = iexcluded + list(itables_to_merge)
             tokens = [table_alias(cross_joins[0])]
-            tokens.extend([
-                self.dialect.cross_join(table_alias(t), query_env)
-                for t in cross_joins[1:]
-            ])
+            tokens.extend(
+                [
+                    self.dialect.cross_join(table_alias(t), query_env)
+                    for t in cross_joins[1:]
+                ]
+            )
             tokens.extend([self.dialect.join(t, query_env) for t in ijoin_on])
             sql_t = " ".join(tokens)
         elif not join and left:
             cross_joins = excluded + list(tables_to_merge)
             tokens = [table_alias(cross_joins[0])]
-            tokens.extend([
-                self.dialect.cross_join(table_alias(t), query_env)
-                for t in cross_joins[1:]
-            ])
+            tokens.extend(
+                [
+                    self.dialect.cross_join(table_alias(t), query_env)
+                    for t in cross_joins[1:]
+                ]
+            )
             # FIXME: WTF? This is not correct syntax at least on PostgreSQL
             if join_tables:
                 tokens.append(
@@ -766,10 +744,12 @@ class SQLAdapter(BaseAdapter):
                 all_tables_in_query.difference(tables_in_joinon)
             )
             tokens = [table_alias(tables_not_in_joinon[0])]
-            tokens.extend([
-                self.dialect.cross_join(table_alias(t), query_env)
-                for t in tables_not_in_joinon[1:]
-            ])
+            tokens.extend(
+                [
+                    self.dialect.cross_join(table_alias(t), query_env)
+                    for t in tables_not_in_joinon[1:]
+                ]
+            )
             tokens.extend([self.dialect.join(t, query_env) for t in ijoin_on])
             # FIXME: WTF? This is not correct syntax at least on PostgreSQL
             if join_tables:
@@ -815,19 +795,16 @@ class SQLAdapter(BaseAdapter):
                     tablemap[t][x].sqlsafe
                     for t in query_tables
                     if not isinstance(tablemap[t], Select)
-                    for x in (
-                        getattr(tablemap[t], "_primarykey", None)
-                        or ["_id"]
-                    )
+                    for x in (getattr(tablemap[t], "_primarykey", None) or ["_id"])
                 ]
             )
 
         #: build CTE
-        [t.cte(cte_collector) for t in tablemap.values() if getattr(t, 'is_cte', None)]
-        if is_toplevel and cte_collector['stack']:
+        [t.cte(cte_collector) for t in tablemap.values() if getattr(t, "is_cte", None)]
+        if is_toplevel and cte_collector["stack"]:
             with_cte = [
-                cte_collector['is_recursive'],
-                ', '.join(cte_collector['stack'])
+                cte_collector["is_recursive"],
+                ", ".join(cte_collector["stack"]),
             ]
         else:
             with_cte = None
@@ -845,7 +822,7 @@ class SQLAdapter(BaseAdapter):
                 limitby,
                 distinct,
                 for_update and self.can_select_for_update,
-                with_cte
+                with_cte,
             ),
         )
 
@@ -989,7 +966,7 @@ class SQLAdapter(BaseAdapter):
             raise RuntimeError(err % (index_name, str(e), sql))
         return True
 
-    def drop_index(self, table, index_name, if_exists = False):
+    def drop_index(self, table, index_name, if_exists=False):
         sql = self.dialect.drop_index(index_name, table, if_exists)
         try:
             self.execute(sql)

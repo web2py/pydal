@@ -9,8 +9,8 @@
     :license: BSD, see LICENSE for more details.
 """
 
-import warnings
 import re
+import warnings
 
 
 class RemovedInNextVersionWarning(DeprecationWarning):

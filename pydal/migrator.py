@@ -4,9 +4,10 @@ import locale
 import os
 import pickle
 import sys
-from ._compat import PY2, string_types, pjoin, iteritems, to_bytes, exists
+
+from ._compat import PY2, exists, iteritems, pjoin, string_types, to_bytes
 from ._load import portalocker
-from .helpers.classes import SQLCustomType, DatabaseStoredFile
+from .helpers.classes import DatabaseStoredFile, SQLCustomType
 
 
 class Migrator(object):

@@ -1,6 +1,6 @@
 from ..adapters.sap import SAPDB
-from .base import SQLDialect
 from . import dialects, sqltype_for
+from .base import SQLDialect
 
 
 @dialects.register_for(SAPDB)

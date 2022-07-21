@@ -1,8 +1,9 @@
 from datetime import datetime
+
 from .._compat import PY2, integer_types
 from ..adapters.mongo import Mongo, MongoBlob
 from ..helpers.classes import Reference
-from . import Parser, parsers, for_type, before_parse
+from . import Parser, before_parse, for_type, parsers
 
 long = integer_types[-1]
 

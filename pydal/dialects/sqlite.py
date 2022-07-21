@@ -1,6 +1,6 @@
-from ..adapters.sqlite import SQLite, Spatialite
-from .base import SQLDialect
+from ..adapters.sqlite import Spatialite, SQLite
 from . import dialects, sqltype_for
+from .base import SQLDialect
 
 
 @dialects.register_for(SQLite)
@@ -44,7 +44,7 @@ class SQLiteDialect(SQLDialect):
         limitby=None,
         distinct=False,
         for_update=False,
-        with_cte= ""
+        with_cte="",
     ):
         if distinct and distinct is not True:
             raise SyntaxError("DISTINCT ON is not supported by SQLite")
@@ -58,7 +58,7 @@ class SQLiteDialect(SQLDialect):
             limitby,
             distinct,
             for_update,
-            with_cte
+            with_cte,
         )
 
     def truncate(self, table, mode=""):

@@ -1,9 +1,9 @@
-from ..adapters.postgres import Postgre, PostgreNew, PostgreBoolean
-from .._compat import integer_types, basestring
+from .._compat import basestring, integer_types
+from ..adapters.postgres import Postgre, PostgreBoolean, PostgreNew
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
+from . import dialects, register_expression, sqltype_for
 from .base import SQLDialect
-from . import dialects, sqltype_for, register_expression
 
 
 @dialects.register_for(Postgre)
