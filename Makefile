@@ -2,14 +2,14 @@
 
 clean:
 	rm dist/* || echo ''
-	python3 setup.py clean
+	python setup.py clean
 build: clean
-	python3 setup.py build
+	python setup.py build
 install: build
-	python3 setup.py install
+	python setup.py install
 test.sql: install
-	python3 -m unittest tests.sql
+	python -m unittest tests.sql
 deploy: build
 	#http://guide.python-distribute.org/creation.html
-	python3 setup.py sdist
+	python setup.py sdist
 	twine upload dist/*

@@ -22,8 +22,12 @@ class SQLite(SQLAdapter):
             sys.getfilesystemencoding() or locale.getdefaultlocale()[1] or "utf8"
         )
         if ":memory" in self.uri.split("://", 1)[0]:
-            self.dbpath = "file:%s?mode=memory&cache=shared" % uuid.uuid4()
-            self.driver_args["uri"] = True
+            if PY2:
+                # because python2.7 sqlite3 does not support uri=True
+                self.dbpath = ":memory:"
+            else:
+                self.dbpath = "file:%s?mode=memory&cache=shared" % uuid.uuid4()
+                self.driver_args["uri"] = True
         else:
             self.dbpath = self.uri.split("://", 1)[1]
             if self.dbpath[0] != "/":
