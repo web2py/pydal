@@ -1470,7 +1470,6 @@ class TestExpressions(DALtest):
         op1 = (sum / count).with_alias("tot")
         self.assertEqual(db(t0).select(op).first()[op], 2)
         self.assertEqual(db(t0).select(op1).first()[op1], 2)
-        print("DICT", db(t0).select(op1).as_dict())
         self.assertEqual(db(t0).select(op1).first()["tot"], 2)
         op2 = avg * count
         self.assertEqual(db(t0).select(op2).first()[op2], 6)

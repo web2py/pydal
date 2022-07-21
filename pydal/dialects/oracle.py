@@ -150,9 +150,9 @@ class OracleDialect(SQLDialect):
         return constraint_name
 
     def primary_key(self, key):
-        if len(re.split(",\s*", key)) > 1:
+        if len(re.split(r",\s*", key)) > 1:
             return "PRIMARY KEY(%s)" % ", ".join(
-                [self.quote(k) for k in re.split(",\s*", key)]
+                [self.quote(k) for k in re.split(r",\s*", key)]
             )
         return "PRIMARY KEY(%s)" % key
 
