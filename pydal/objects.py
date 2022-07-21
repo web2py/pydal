@@ -257,7 +257,7 @@ class Row(BasicStorage):
 
 
 def pickle_row(s):
-    return Row, ({k: v for k, v in s.items() if not callable(v)},)
+    return Row, (dict(s),)
 
 
 copyreg.pickle(Row, pickle_row)
