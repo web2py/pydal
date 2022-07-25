@@ -813,6 +813,12 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 del THREAD_LOCAL._pydal_db_instances_[self._db_uid]
         self._adapter._clean_tlocals()
 
+    def get_connection_from_pool_or_new(self):
+        self._adapter.reconnect()
+
+    def recycle_connection_in_pool_or_close(self, action="commit"):
+        self._adapter.close(action, really=True)
+
     def executesql(
         self,
         query,
