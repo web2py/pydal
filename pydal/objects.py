@@ -2069,10 +2069,10 @@ class Field(Expression, Serializable):
         filename = os.path.basename(filename.replace("/", os.sep).replace("\\", os.sep))
         m = re.search(REGEX_UPLOAD_EXTENSION, filename)
         extension = m and m.group(1) or "txt"
-        uuid_key = self._db.uuid().replace("-", "")[-16:]
+        uuid_key = self._db.uuid().replace("-", "")[-16:] if self._db else uuidstr()
         encoded_filename = to_native(base64.urlsafe_b64encode(to_bytes(filename)))
         newfilename = "%s.%s.%s.%s" % (
-            self._tablename,
+            self._tablename if '_tablename' in self.__dir__() and self._tablename else 'no_table',
             self.name,
             uuid_key,
             encoded_filename,
