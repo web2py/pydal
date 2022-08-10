@@ -488,7 +488,8 @@ class DatabaseStoredFile:
                 raise NotImplementedError(
                     "DatabaseStoredFile only supported by mysql, potresql, sqlite"
                 )
-            sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content BLOB, PRIMARY KEY(path));"
+            blobType = "BLOB" if not db._adapter.dbengine == "postgres" else "BYTEA"
+            sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content %(blobType)s, PRIMARY KEY(path));" % {"blobType": blobType}
             if db._adapter.dbengine == "mysql":
                 sql = sql[:-1] + " ENGINE=InnoDB;"
             db.executesql(sql)
