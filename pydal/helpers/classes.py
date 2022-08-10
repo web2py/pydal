@@ -548,7 +548,7 @@ class DatabaseStoredFile:
                 "DELETE FROM web2py_filesystem WHERE path='%s'" % self.filename
             )
             query = "INSERT INTO web2py_filesystem(path,content) VALUES (%s, %s)"
-            args = (to_bytes(self.filename), self.data)
+            args = (self.filename, self.data)
             self.db.executesql(query, args)
             self.db.commit()
             self.db = None
