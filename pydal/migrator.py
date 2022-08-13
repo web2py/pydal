@@ -318,6 +318,7 @@ class Migrator(object):
         if isinstance(self, InDBMigrator):
             # No filesystem path should be used when storing table details in database.
             dbpath = ''
+            self.adapter.folder = ''
         elif uri.startswith("sqlite:///") or uri.startswith("spatialite:///"):
             if PY2:
                 path_encoding = (
@@ -585,7 +586,7 @@ class Migrator(object):
         writelog = bool(logfilename)
         if writelog:
             isabs = os.path.isabs(logfilename)
-        if table and table._dbt and writelog and self.adapter.folder:
+        if table and table._dbt and writelog and (self.adapter.folder or isinstance(self, InDBMigrator)):
             if isabs:
                 table._loggername = logfilename
             else:
