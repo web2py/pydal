@@ -315,7 +315,10 @@ class Migrator(object):
             query = "CREATE TABLE %s(\n    %s\n)%s" % (table_rname, fields, other)
 
         uri = self.adapter.uri
-        if uri.startswith("sqlite:///") or uri.startswith("spatialite:///"):
+        if isinstance(self, InDBMigrator):
+            # No filesystem path should be used when storing table details in database.
+            dbpath = ''
+        elif uri.startswith("sqlite:///") or uri.startswith("spatialite:///"):
             if PY2:
                 path_encoding = (
                     sys.getfilesystemencoding()
