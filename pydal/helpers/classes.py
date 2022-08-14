@@ -488,7 +488,8 @@ class DatabaseStoredFile:
                 raise NotImplementedError(
                     "DatabaseStoredFile only supported by mysql, potresql, sqlite"
                 )
-            sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content BLOB, PRIMARY KEY(path));"
+            blobType = "BYTEA" if db._adapter.dbengine == "postgres" else "BLOB" 
+            sql = "CREATE TABLE IF NOT EXISTS web2py_filesystem (path VARCHAR(255), content %(blobType)s, PRIMARY KEY(path));" % {"blobType": blobType}
             if db._adapter.dbengine == "mysql":
                 sql = sql[:-1] + " ENGINE=InnoDB;"
             db.executesql(sql)
@@ -547,7 +548,7 @@ class DatabaseStoredFile:
                 "DELETE FROM web2py_filesystem WHERE path='%s'" % self.filename
             )
             query = "INSERT INTO web2py_filesystem(path,content) VALUES (%s, %s)"
-            args = (to_bytes(self.filename), self.data)
+            args = (self.filename, self.data)
             self.db.executesql(query, args)
             self.db.commit()
             self.db = None
