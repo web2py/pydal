@@ -1579,8 +1579,8 @@ class Expression(object):
     def ilike(self, value, escape=None):
         return self.like(value, case_sensitive=False, escape=escape)
 
-    def regexp(self, value):
-        return Query(self.db, self._dialect.regexp, self, value)
+    def regexp(self, value,match_parameter=None):
+        return Query(self.db, self._dialect.regexp, self, value, match_parameter=match_parameter)
 
     def belongs(self, *value, **kwattr):
         """
