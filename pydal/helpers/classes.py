@@ -547,7 +547,8 @@ class DatabaseStoredFile:
             self.db.executesql(
                 "DELETE FROM web2py_filesystem WHERE path='%s'" % self.filename
             )
-            query = "INSERT INTO web2py_filesystem(path,content) VALUES (%s, %s)"
+            placeholder = "?" if self.db._adapter.dbengine == "sqlite" else "%s" 
+            query = "INSERT INTO web2py_filesystem(path,content) VALUES (%(placeholder)s, %(placeholder)s)" % {"placeholder": placeholder}
             args = (self.filename, self.data)
             self.db.executesql(query, args)
             self.db.commit()
