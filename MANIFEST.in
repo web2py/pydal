@@ -1,4 +1,4 @@
-include LICENSE
+include LICENSE.txt
 include AUTHORS
 include CHANGES
 recursive-include tests *
