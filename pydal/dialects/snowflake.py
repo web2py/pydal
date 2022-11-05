@@ -10,6 +10,7 @@ from .base import SQLDialect
 class SnowflakeDialect(SQLDialect):
     true_exp = "TRUE"
     false_exp = "FALSE"
+    quote_template = " %s "
 
     @sqltype_for("blob")
     def type_blob(self):
@@ -58,9 +59,10 @@ class SnowflakeDialect(SQLDialect):
         return varquote_aux(val, '"%s"')
 
     def sequence_name(self, tablename):
-        return self.quote("%s_id_seq" % tablename)
+        return "%s_id_seq" % tablename
 
     def insert(self, table, fields, values):
+        print ("INSERT INTO %s(%s) VALUES (%s);" % (table, fields, values))
         return "INSERT INTO %s(%s) VALUES (%s);" % (table, fields, values)
 
     def select(
@@ -83,6 +85,7 @@ class SnowflakeDialect(SQLDialect):
             dst = " DISTINCT ON (%s)" % distinct
         if where:
             whr = " %s" % self.where(where)
+
         if groupby:
             grp = " GROUP BY %s" % groupby
             if having:
@@ -95,6 +98,18 @@ class SnowflakeDialect(SQLDialect):
                 whr2 = whr + " AND w_row > %i" % lmin
             else:
                 whr2 = self.where("w_row > %i" % lmin)
+
+
+        print ("SELECT%s%s%s %s FROM %s%s%s%s;" % (
+            dst,
+            limit,
+            offset,
+            fields,
+            tables,
+            whr,
+            grp,
+            order,
+        ))
 
         return "SELECT%s%s%s %s FROM %s%s%s%s;" % (
             dst,
@@ -216,7 +231,7 @@ class SnowflakeDialect(SQLDialect):
         with self.adapter.index_expander():
             rv = "CREATE%s INDEX %s ON %s (%s)%s;" % (
                 uniq,
-                self.quote(name),
+                name,
                 table._rname,
                 ",".join(self.expand(field) for field in expressions),
                 whr,
@@ -229,6 +244,11 @@ class SnowflakeDialect(SQLDialect):
             second["precision"],
             second["options"],
         )
+    
+    def unquote(self, val):
+        if (val[0] == '"' and val[-1] == '"'):
+            val=val.replace('"','')
+        return val
 
     def st_astext(self, first, query_env={}):
         return "ST_AsText(%s)" % self.expand(first, query_env=query_env)
