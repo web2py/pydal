@@ -62,7 +62,6 @@ class SnowflakeDialect(SQLDialect):
         return "%s_id_seq" % tablename
 
     def insert(self, table, fields, values):
-        print ("INSERT INTO %s(%s) VALUES (%s);" % (table, fields, values))
         return "INSERT INTO %s(%s) VALUES (%s);" % (table, fields, values)
 
     def select(
@@ -99,17 +98,6 @@ class SnowflakeDialect(SQLDialect):
             else:
                 whr2 = self.where("w_row > %i" % lmin)
 
-
-        print ("SELECT%s%s%s %s FROM %s%s%s%s;" % (
-            dst,
-            limit,
-            offset,
-            fields,
-            tables,
-            whr,
-            grp,
-            order,
-        ))
 
         return "SELECT%s%s%s %s FROM %s%s%s%s;" % (
             dst,
