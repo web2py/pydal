@@ -1112,7 +1112,7 @@ class IS_ALPHANUMERIC(IS_MATCH):
     """
 
     def __init__(self, error_message="Enter only letters, numbers, and underscore"):
-        IS_MATCH.__init__(self, r"^[\w_]*$", error_message)
+        IS_MATCH.__init__(self, r"^[\w]*$", error_message)
 
 
 class IS_EMAIL(Validator):
