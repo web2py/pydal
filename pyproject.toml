@@ -1,0 +1,17 @@
+[project]
+name = "pydal"
+version = "20230507.3"
+authors = [{ name="Massimo Di Pierro", email="massimo.dipierro@gmail.com" },]
+description = 'pyDAL is a Database Abstraction Layer. It generates queries for SQlite, PotsgreSQL, MySQL, and other backends. It was originally part of the web2py frameworks but it is now an independent project. Example: db.define_table("thing",Field("name")) and db.thing.insert(name="Pizza")'
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+      "Programming Language :: Python :: 3",
+      "License :: OSI Approved :: BSD License",
+      "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/web2py/pydal"
+"Bug Tracker" = "https://github.com/web2py/pydal/issues"
+"Documentation" = "https://py4web.com/_documentation/static/en/chapter-07.html"
