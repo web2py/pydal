@@ -65,11 +65,11 @@ def default_validators(db, field):
         elif field_type == "double" or field_type == "float":
             requires.append(validators.IS_FLOAT_IN_RANGE(-1e100, 1e100))
         elif field_type == "integer":
-            requires.append(validators.IS_INT_IN_RANGE(-(2 ** 31), 2 ** 31))
+            requires.append(validators.IS_INT_IN_RANGE(-(2**31), 2**31))
         elif field_type == "bigint":
-            requires.append(validators.IS_INT_IN_RANGE(-(2 ** 63), 2 ** 63))
+            requires.append(validators.IS_INT_IN_RANGE(-(2**63), 2**63))
         elif field_type.startswith("decimal"):
-            requires.append(validators.IS_DECIMAL_IN_RANGE(-(10 ** 10), 10 ** 10))
+            requires.append(validators.IS_DECIMAL_IN_RANGE(-(10**10), 10**10))
         elif field_type == "date":
             requires.append(validators.IS_DATE())
         elif field_type == "time":

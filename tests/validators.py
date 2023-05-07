@@ -3,15 +3,15 @@
 
 """Unit tests for http.py """
 
-import unittest
 import datetime
 import decimal
 import re
+import unittest
 
 from pydal import DAL, Field
-from pydal.validators import *
 from pydal._compat import PY2, to_bytes
-from pydal.validators import options_sorter, Validator, UTC
+from pydal.validators import *
+from pydal.validators import UTC, Validator, options_sorter
 
 
 class TestValidators(unittest.TestCase):
@@ -21,7 +21,7 @@ class TestValidators(unittest.TestCase):
         return getattr(self, "assertRegex")(*args, **kwargs)
 
     def test_MISC(self):
-        """ Test miscelaneous utility functions and some general behavior guarantees """
+        """Test miscelaneous utility functions and some general behavior guarantees"""
 
         self.assertEqual(options_sorter(("a", "a"), ("a", "a")), -1)
         self.assertEqual(options_sorter(("A", "A"), ("a", "a")), -1)
@@ -56,18 +56,18 @@ class TestValidators(unittest.TestCase):
         self.assertEqual(rtn, ("hellas", "Invalid expression"))
         rtn = IS_MATCH("^.hell$", strict=True)("shell")
         self.assertEqual(rtn, ("shell", None))
-        rtn = IS_MATCH(u"hell", is_unicode=True)("àòè")
+        rtn = IS_MATCH("hell", is_unicode=True)("àòè")
         if PY2:
             self.assertEqual(rtn, ("\xc3\xa0\xc3\xb2\xc3\xa8", "Invalid expression"))
         else:
             self.assertEqual(rtn, ("àòè", "Invalid expression"))
-        rtn = IS_MATCH(u"hell", is_unicode=True)(u"hell")
-        self.assertEqual(rtn, (u"hell", None))
-        rtn = IS_MATCH("hell", is_unicode=True)(u"hell")
-        self.assertEqual(rtn, (u"hell", None))
+        rtn = IS_MATCH("hell", is_unicode=True)("hell")
+        self.assertEqual(rtn, ("hell", None))
+        rtn = IS_MATCH("hell", is_unicode=True)("hell")
+        self.assertEqual(rtn, ("hell", None))
         # regr test for #1044
-        rtn = IS_MATCH("hello")(u"\xff")
-        self.assertEqual(rtn, (u"\xff", "Invalid expression"))
+        rtn = IS_MATCH("hello")("\xff")
+        self.assertEqual(rtn, ("\xff", "Invalid expression"))
 
     def test_IS_EQUAL_TO(self):
         rtn = IS_EQUAL_TO("aaa")("aaa")
@@ -107,7 +107,7 @@ class TestValidators(unittest.TestCase):
         rtn = IS_LENGTH(minsize=1)([1])
         self.assertEqual(rtn, ([1], None))
         # test non utf-8 str
-        cpstr = u"lálá".encode("cp1252")
+        cpstr = "lálá".encode("cp1252")
         rtn = IS_LENGTH(minsize=4)(cpstr)
         self.assertEqual(rtn, (cpstr, None))
         rtn = IS_LENGTH(maxsize=4)(cpstr)
@@ -115,16 +115,16 @@ class TestValidators(unittest.TestCase):
         rtn = IS_LENGTH(minsize=0, maxsize=3)(cpstr)
         self.assertEqual(rtn, (cpstr, "Enter from 0 to 3 characters"))
         # test unicode
-        rtn = IS_LENGTH(2)(u"°2")
+        rtn = IS_LENGTH(2)("°2")
         if PY2:
             self.assertEqual(rtn, ("\xc2\xb02", None))
         else:
-            self.assertEqual(rtn, (u"°2", None))
-        rtn = IS_LENGTH(2)(u"°12")
+            self.assertEqual(rtn, ("°2", None))
+        rtn = IS_LENGTH(2)("°12")
         if PY2:
-            self.assertEqual(rtn, (u"\xb012", "Enter from 0 to 2 characters"))
+            self.assertEqual(rtn, ("\xb012", "Enter from 0 to 2 characters"))
         else:
-            self.assertEqual(rtn, (u"°12", "Enter from 0 to 2 characters"))
+            self.assertEqual(rtn, ("°12", "Enter from 0 to 2 characters"))
         # test automatic str()
         rtn = IS_LENGTH(minsize=1)(1)
         self.assertEqual(rtn, ("1", None))
@@ -158,7 +158,7 @@ class TestValidators(unittest.TestCase):
 
     def test_IS_JSON(self):
         rtn = IS_JSON()('{"a": 100}')
-        self.assertEqual(rtn, ({u"a": 100}, None))
+        self.assertEqual(rtn, ({"a": 100}, None))
         rtn = IS_JSON()("spam1234")
         self.assertEqual(rtn, ("spam1234", "Invalid json"))
         rtn = IS_JSON(native_json=True)('{"a": 100}')
@@ -412,9 +412,9 @@ class TestValidators(unittest.TestCase):
         self.assertEqual(rtn, ("  ", "oops"))
         rtn = IS_NOT_IN_DB(db, "person.name")("jerry")
         self.assertEqual(rtn, ("jerry", None))
-        rtn = IS_NOT_IN_DB(db, "person.name")(u"jerry")
+        rtn = IS_NOT_IN_DB(db, "person.name")("jerry")
         self.assertEqual(rtn, ("jerry", None))
-        rtn = IS_NOT_IN_DB(db(db.person.id > 0), "person.name")(u"jerry")
+        rtn = IS_NOT_IN_DB(db(db.person.id > 0), "person.name")("jerry")
         self.assertEqual(rtn, ("jerry", None))
         rtn = IS_NOT_IN_DB(db, db.person, error_message="oops")(1)
         self.assertEqual(rtn, (1, "oops"))
@@ -958,14 +958,14 @@ class TestValidators(unittest.TestCase):
         self.assertEqual(rtn, "12/14/1834")
 
     class CustomValidator(Validator):
-        """ Custom Validator not overloading .validate() """
+        """Custom Validator not overloading .validate()"""
 
         def __call__(self, value):
             return (value, None) if value else (value, "invalid!")
 
     @staticmethod
     def custom_validator_func(value):
-        """ Validation function instead of Validator subclass """
+        """Validation function instead of Validator subclass"""
         return (value, None) if value else (value, "invalid!")
 
     def test_IS_EMPTY_OR(self):
@@ -1128,8 +1128,8 @@ class TestValidators(unittest.TestCase):
     def test_IS_IMAGE(self):
         class DummyImageFile(object):
             def __init__(self, filename, ext, width, height):
-                from io import BytesIO
                 import struct
+                from io import BytesIO
 
                 self.filename = filename + "." + ext
                 self.file = BytesIO()

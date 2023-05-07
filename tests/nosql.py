@@ -4,18 +4,20 @@
 """
 
 from __future__ import print_function
-import sys
-import os
-import glob
-import datetime
-from ._compat import unittest
 
-from pydal._compat import PY2, basestring, StringIO, to_bytes, long
+import datetime
+import glob
+import os
+import sys
+
 from pydal import DAL, Field
-from pydal.objects import Table, Query, Expression
-from pydal.helpers.classes import SQLALL, OpRow
+from pydal._compat import PY2, StringIO, basestring, long, to_bytes
 from pydal.exceptions import NotOnNOSQLError
-from ._adapt import DEFAULT_URI, IS_IMAP, drop, IS_GAE, IS_MONGODB, _quote
+from pydal.helpers.classes import SQLALL, OpRow
+from pydal.objects import Expression, Query, Table
+
+from ._adapt import DEFAULT_URI, IS_GAE, IS_IMAP, IS_MONGODB, _quote, drop
+from ._compat import unittest
 
 if IS_IMAP:
     from pydal.adapters import IMAPAdapter
@@ -300,14 +302,14 @@ class TestFields(unittest.TestCase):
         # Check that Field names don't allow a unicode string
         non_valid_examples = non_valid_examples = [
             "ℙƴ☂ℌøἤ",
-            u"ℙƴ☂ℌøἤ",
-            u"àè",
-            u"ṧøмℯ",
-            u"тεṧт",
-            u"♥αłüℯṧ",
-            u"ℊεᾔ℮яαт℮∂",
-            u"♭ƴ",
-            u"ᾔ☤ρℌℓ☺ḓ",
+            "ℙƴ☂ℌøἤ",
+            "àè",
+            "ṧøмℯ",
+            "тεṧт",
+            "♥αłüℯṧ",
+            "ℊεᾔ℮яαт℮∂",
+            "♭ƴ",
+            "ᾔ☤ρℌℓ☺ḓ",
         ]
         for a in non_valid_examples:
             self.assertRaises(SyntaxError, Field, a, "string")
@@ -504,14 +506,14 @@ class TestTables(unittest.TestCase):
         # Check that Table names don't allow a unicode string
         non_valid_examples = [
             "ℙƴ☂ℌøἤ",
-            u"ℙƴ☂ℌøἤ",
-            u"àè",
-            u"ṧøмℯ",
-            u"тεṧт",
-            u"♥αłüℯṧ",
-            u"ℊεᾔ℮яαт℮∂",
-            u"♭ƴ",
-            u"ᾔ☤ρℌℓ☺ḓ",
+            "ℙƴ☂ℌøἤ",
+            "àè",
+            "ṧøмℯ",
+            "тεṧт",
+            "♥αłüℯṧ",
+            "ℊεᾔ℮яαт℮∂",
+            "♭ƴ",
+            "ᾔ☤ρℌℓ☺ḓ",
         ]
         for a in non_valid_examples:
             self.assertRaises(SyntaxError, Table, None, a)

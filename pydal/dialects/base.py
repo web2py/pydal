@@ -501,17 +501,13 @@ class SQLDialect(CommonDialect):
         )
 
     def _is_numerical(self, field_type):
-        return (
-            field_type
-            in (
-                "integer",
-                "float",
-                "double",
-                "bigint",
-                "boolean",
-            )
-            or field_type.startswith("decimal")
-        )
+        return field_type in (
+            "integer",
+            "float",
+            "double",
+            "bigint",
+            "boolean",
+        ) or field_type.startswith("decimal")
 
     def add(self, first, second, query_env={}):
         if self._is_numerical(first.type) or isinstance(first.type, Field):

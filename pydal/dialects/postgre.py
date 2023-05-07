@@ -303,7 +303,7 @@ class PostgreDialectJSON(PostgreDialect):
         )
 
     def json_key(self, first, key, query_env=None):
-        """ Get the json in key which you can use for more queries """
+        """Get the json in key which you can use for more queries"""
         if isinstance(key, basestring):
             key = self.expand(key, "string", query_env=query_env)
         elif not isinstance(key, integer_types):
@@ -311,7 +311,7 @@ class PostgreDialectJSON(PostgreDialect):
         return "%s->%s" % (self.expand(first, query_env=query_env or {}), key)
 
     def json_key_value(self, first, key, query_env=None):
-        """ Get the value int or text in key """
+        """Get the value int or text in key"""
         if isinstance(key, basestring):
             key = self.expand(key, "string", query_env=query_env)
         elif isinstance(key, integer_types):
@@ -321,11 +321,11 @@ class PostgreDialectJSON(PostgreDialect):
         return "%s->>%s" % (self.expand(first, query_env=query_env or {}), key)
 
     def json_path(self, first, path, query_env=None):
-        """ Get the json in path which you can use for more queries """
+        """Get the json in path which you can use for more queries"""
         return "%s#>'%s'" % (self.expand(first, query_env=query_env or {}), path)
 
     def json_path_value(self, first, path, query_env=None):
-        """ Get the json in path which you can use for more queries """
+        """Get the json in path which you can use for more queries"""
         return "%s#>>'%s'" % (self.expand(first, query_env=query_env or {}), path)
 
     # JSON Queries

@@ -6,8 +6,8 @@ Unit tests for IS_URL()
 
 import unittest
 
-from pydal.validators import IS_URL, IS_HTTP_URL, IS_GENERIC_URL
-from pydal.validators import unicode_to_ascii_authority
+from pydal.validators import (IS_GENERIC_URL, IS_HTTP_URL, IS_URL,
+                              unicode_to_ascii_authority)
 
 
 class TestIsUrl(unittest.TestCase):
@@ -561,42 +561,42 @@ class TestUnicode(unittest.TestCase):
 
     def testUnicodeToAsciiUrl(self):
         self.assertEqual(
-            unicode_to_ascii_authority(u"www.Alliancefran\xe7aise.nu"),
+            unicode_to_ascii_authority("www.Alliancefran\xe7aise.nu"),
             "www.xn--alliancefranaise-npb.nu",
         )
-        self.assertEqual(unicode_to_ascii_authority(u"www.benn.ca"), "www.benn.ca")
+        self.assertEqual(unicode_to_ascii_authority("www.benn.ca"), "www.benn.ca")
         self.assertRaises(
-            UnicodeError, unicode_to_ascii_authority, u"\u4e2d" * 1000
+            UnicodeError, unicode_to_ascii_authority, "\u4e2d" * 1000
         )  # label is too long
 
     def testValidUrls(self):
         self.assertEqual(
-            self.x(u"www.Alliancefrancaise.nu"),
+            self.x("www.Alliancefrancaise.nu"),
             ("http://www.Alliancefrancaise.nu", None),
         )
         self.assertEqual(
-            self.x(u"www.Alliancefran\xe7aise.nu"),
+            self.x("www.Alliancefran\xe7aise.nu"),
             ("http://www.xn--alliancefranaise-npb.nu", None),
         )
         self.assertEqual(
-            self.x(u"www.Alliancefran\xe7aise.nu:8080"),
+            self.x("www.Alliancefran\xe7aise.nu:8080"),
             ("http://www.xn--alliancefranaise-npb.nu:8080", None),
         )
         self.assertEqual(
-            self.x(u"http://www.Alliancefran\xe7aise.nu"),
+            self.x("http://www.Alliancefran\xe7aise.nu"),
             ("http://www.xn--alliancefranaise-npb.nu", None),
         )
         self.assertEqual(
-            self.x(u"http://www.Alliancefran\xe7aise.nu/parnaise/blue"),
+            self.x("http://www.Alliancefran\xe7aise.nu/parnaise/blue"),
             ("http://www.xn--alliancefranaise-npb.nu/parnaise/blue", None),
         )
         self.assertEqual(
-            self.x(u"http://www.Alliancefran\xe7aise.nu/parnaise/blue#fragment"),
+            self.x("http://www.Alliancefran\xe7aise.nu/parnaise/blue#fragment"),
             ("http://www.xn--alliancefranaise-npb.nu/parnaise/blue#fragment", None),
         )
         self.assertEqual(
             self.x(
-                u"http://www.Alliancefran\xe7aise.nu/parnaise/blue?query=value#fragment"
+                "http://www.Alliancefran\xe7aise.nu/parnaise/blue?query=value#fragment"
             ),
             (
                 "http://www.xn--alliancefranaise-npb.nu/parnaise/blue?query=value#fragment",
@@ -605,7 +605,7 @@ class TestUnicode(unittest.TestCase):
         )
         self.assertEqual(
             self.x(
-                u"http://www.Alliancefran\xe7aise.nu:8080/parnaise/blue?query=value#fragment"
+                "http://www.Alliancefran\xe7aise.nu:8080/parnaise/blue?query=value#fragment"
             ),
             (
                 "http://www.xn--alliancefranaise-npb.nu:8080/parnaise/blue?query=value#fragment",
@@ -613,104 +613,104 @@ class TestUnicode(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            self.x(u"www.Alliancefran\xe7aise.nu/parnaise/blue?query=value#fragment"),
+            self.x("www.Alliancefran\xe7aise.nu/parnaise/blue?query=value#fragment"),
             (
                 "http://www.xn--alliancefranaise-npb.nu/parnaise/blue?query=value#fragment",
                 None,
             ),
         )
         self.assertEqual(
-            self.x(u"http://\u4e2d\u4fd4.com"), ("http://xn--fiq13b.com", None)
+            self.x("http://\u4e2d\u4fd4.com"), ("http://xn--fiq13b.com", None)
         )
         self.assertEqual(
-            self.x(u"http://\u4e2d\u4fd4.com/\u4e86"),
+            self.x("http://\u4e2d\u4fd4.com/\u4e86"),
             ("http://xn--fiq13b.com/%4e%86", None),
         )
         self.assertEqual(
-            self.x(u"http://\u4e2d\u4fd4.com/\u4e86?query=\u4e86"),
+            self.x("http://\u4e2d\u4fd4.com/\u4e86?query=\u4e86"),
             ("http://xn--fiq13b.com/%4e%86?query=%4e%86", None),
         )
         self.assertEqual(
-            self.x(u"http://\u4e2d\u4fd4.com/\u4e86?query=\u4e86#fragment"),
+            self.x("http://\u4e2d\u4fd4.com/\u4e86?query=\u4e86#fragment"),
             ("http://xn--fiq13b.com/%4e%86?query=%4e%86#fragment", None),
         )
         self.assertEqual(
-            self.x(u"http://\u4e2d\u4fd4.com?query=\u4e86#fragment"),
+            self.x("http://\u4e2d\u4fd4.com?query=\u4e86#fragment"),
             ("http://xn--fiq13b.com?query=%4e%86#fragment", None),
         )
         self.assertEqual(
-            self.x(u"http://B\xfccher.ch"), ("http://xn--bcher-kva.ch", None)
+            self.x("http://B\xfccher.ch"), ("http://xn--bcher-kva.ch", None)
         )
         self.assertEqual(
-            self.x(u"http://\xe4\xf6\xfc\xdf.com"), ("http://xn--ss-uia6e4a.com", None)
+            self.x("http://\xe4\xf6\xfc\xdf.com"), ("http://xn--ss-uia6e4a.com", None)
         )
         self.assertEqual(
-            self.x(u"http://visegr\xe1d.com"), ("http://xn--visegrd-mwa.com", None)
+            self.x("http://visegr\xe1d.com"), ("http://xn--visegrd-mwa.com", None)
         )
         self.assertEqual(
-            self.x(u"http://h\xe1zipatika.com"), ("http://xn--hzipatika-01a.com", None)
+            self.x("http://h\xe1zipatika.com"), ("http://xn--hzipatika-01a.com", None)
         )
         self.assertEqual(
-            self.x(u"http://www.\xe7ukurova.com"),
+            self.x("http://www.\xe7ukurova.com"),
             ("http://www.xn--ukurova-txa.com", None),
         )
         self.assertEqual(
-            self.x(u"http://nixier\xf6hre.nixieclock-tube.com"),
+            self.x("http://nixier\xf6hre.nixieclock-tube.com"),
             ("http://xn--nixierhre-57a.nixieclock-tube.com", None),
         )
-        self.assertEqual(self.x(u"google.ca."), ("http://google.ca.", None))
+        self.assertEqual(self.x("google.ca."), ("http://google.ca.", None))
 
-        self.assertEqual(self.y(u"https://google.ca"), ("https://google.ca", None))
+        self.assertEqual(self.y("https://google.ca"), ("https://google.ca", None))
         self.assertEqual(
-            self.y(u"https://\u4e2d\u4fd4.com"), ("https://xn--fiq13b.com", None)
+            self.y("https://\u4e2d\u4fd4.com"), ("https://xn--fiq13b.com", None)
         )
 
-        self.assertEqual(self.z(u"google.ca"), ("google.ca", None))
+        self.assertEqual(self.z("google.ca"), ("google.ca", None))
 
     def testInvalidUrls(self):
-        self.assertEqual(self.x(u"://ABC.com"), (u"://ABC.com", "Enter a valid URL"))
+        self.assertEqual(self.x("://ABC.com"), ("://ABC.com", "Enter a valid URL"))
         self.assertEqual(
-            self.x(u"http://\u4e2d\u4fd4.dne"),
-            (u"http://\u4e2d\u4fd4.dne", "Enter a valid URL"),
+            self.x("http://\u4e2d\u4fd4.dne"),
+            ("http://\u4e2d\u4fd4.dne", "Enter a valid URL"),
         )
         self.assertEqual(
-            self.x(u"https://google.dne"), (u"https://google.dne", "Enter a valid URL")
+            self.x("https://google.dne"), ("https://google.dne", "Enter a valid URL")
         )
         self.assertEqual(
-            self.x(u"https://google..ca"), (u"https://google..ca", "Enter a valid URL")
+            self.x("https://google..ca"), ("https://google..ca", "Enter a valid URL")
         )
-        self.assertEqual(self.x(u"google..ca"), (u"google..ca", "Enter a valid URL"))
+        self.assertEqual(self.x("google..ca"), ("google..ca", "Enter a valid URL"))
         self.assertEqual(
-            self.x(u"http://" + u"\u4e2d" * 1000 + u".com"),
-            (u"http://" + u"\u4e2d" * 1000 + u".com", "Enter a valid URL"),
-        )
-
-        self.assertEqual(
-            self.x(u"http://google.com#fragment_\u4e86"),
-            (u"http://google.com#fragment_\u4e86", "Enter a valid URL"),
-        )
-        self.assertEqual(
-            self.x(u"http\u4e86://google.com"),
-            (u"http\u4e86://google.com", "Enter a valid URL"),
-        )
-        self.assertEqual(
-            self.x(u"http\u4e86://google.com#fragment_\u4e86"),
-            (u"http\u4e86://google.com#fragment_\u4e86", "Enter a valid URL"),
+            self.x("http://" + "\u4e2d" * 1000 + ".com"),
+            ("http://" + "\u4e2d" * 1000 + ".com", "Enter a valid URL"),
         )
 
         self.assertEqual(
-            self.y(u"http://\u4e2d\u4fd4.com/\u4e86"),
-            (u"http://\u4e2d\u4fd4.com/\u4e86", "Enter a valid URL"),
+            self.x("http://google.com#fragment_\u4e86"),
+            ("http://google.com#fragment_\u4e86", "Enter a valid URL"),
+        )
+        self.assertEqual(
+            self.x("http\u4e86://google.com"),
+            ("http\u4e86://google.com", "Enter a valid URL"),
+        )
+        self.assertEqual(
+            self.x("http\u4e86://google.com#fragment_\u4e86"),
+            ("http\u4e86://google.com#fragment_\u4e86", "Enter a valid URL"),
+        )
+
+        self.assertEqual(
+            self.y("http://\u4e2d\u4fd4.com/\u4e86"),
+            ("http://\u4e2d\u4fd4.com/\u4e86", "Enter a valid URL"),
         )
         # self.assertEqual(self.y(u'google.ca'), (u'google.ca', 'Enter a valid URL'))
 
         self.assertEqual(
-            self.z(u"invalid.domain..com"),
-            (u"invalid.domain..com", "Enter a valid URL"),
+            self.z("invalid.domain..com"),
+            ("invalid.domain..com", "Enter a valid URL"),
         )
         self.assertEqual(
-            self.z(u"invalid.\u4e2d\u4fd4.blargg"),
-            (u"invalid.\u4e2d\u4fd4.blargg", "Enter a valid URL"),
+            self.z("invalid.\u4e2d\u4fd4.blargg"),
+            ("invalid.\u4e2d\u4fd4.blargg", "Enter a valid URL"),
         )
 
 

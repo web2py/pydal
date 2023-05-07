@@ -138,7 +138,6 @@ if os_locking == "windows":
         overlapped = OVERLAPPED()
         UnlockFileEx(hfile, 0, 0, 0xFFFF0000, ctypes.byref(overlapped))
 
-
 elif os_locking == "posix":
     LOCK_EX = fcntl.LOCK_EX
     LOCK_SH = fcntl.LOCK_SH
@@ -149,7 +148,6 @@ elif os_locking == "posix":
 
     def unlock(file):
         fcntl.flock(file.fileno(), fcntl.LOCK_UN)
-
 
 else:
     if os_locking != "gae":

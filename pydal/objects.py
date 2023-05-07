@@ -46,8 +46,8 @@ DEFAULTLENGTH = {
     "string": 512,
     "password": 512,
     "upload": 512,
-    "text": 2 ** 15,
-    "blob": 2 ** 31,
+    "text": 2**15,
+    "blob": 2**31,
 }
 
 DEFAULT_REGEX = {
@@ -600,7 +600,7 @@ class Table(Serializable, BasicStorage):
         )
 
     def _build_query(self, key):
-        """ for keyed table only """
+        """for keyed table only"""
         query = None
         for k, v in iteritems(key):
             if k in self._primarykey:
@@ -885,7 +885,7 @@ class Table(Serializable, BasicStorage):
     def validate_and_insert(self, **fields):
         response, new_fields = self._validate_fields(fields, "default")
         if not response.get("errors"):
-            response["id"]= self.insert(**new_fields)
+            response["id"] = self.insert(**new_fields)
         return response
 
     def validate_and_update(self, _key, **fields):
@@ -1580,7 +1580,9 @@ class Expression(object):
         return self.like(value, case_sensitive=False, escape=escape)
 
     def regexp(self, value, match_parameter=None):
-        return Query(self.db, self._dialect.regexp, self, value, match_parameter=match_parameter)
+        return Query(
+            self.db, self._dialect.regexp, self, value, match_parameter=match_parameter
+        )
 
     def belongs(self, *value, **kwattr):
         """
@@ -1637,17 +1639,13 @@ class Expression(object):
                 return self.contains("")
             else:
                 return reduce(all and AND or OR, subqueries)
-        if (
-            self.type
-            not in (
-                "string",
-                "text",
-                "json",
-                "jsonb",
-                "upload",
-            )
-            and not self.type.startswith("list:")
-        ):
+        if self.type not in (
+            "string",
+            "text",
+            "json",
+            "jsonb",
+            "upload",
+        ) and not self.type.startswith("list:"):
             raise SyntaxError("contains used with incompatible field type")
         return Query(
             self.db, self._dialect.contains, self, value, case_sensitive=case_sensitive
@@ -2072,7 +2070,9 @@ class Field(Expression, Serializable):
         uuid_key = self._db.uuid().replace("-", "")[-16:] if self._db else uuidstr()
         encoded_filename = to_native(base64.urlsafe_b64encode(to_bytes(filename)))
         newfilename = "%s.%s.%s.%s" % (
-            self._tablename if '_tablename' in self.__dir__() and self._tablename else 'no_table',
+            self._tablename
+            if "_tablename" in self.__dir__() and self._tablename
+            else "no_table",
             self.name,
             uuid_key,
             encoded_filename,

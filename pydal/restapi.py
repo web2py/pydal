@@ -253,7 +253,7 @@ class RestAPI(object):
             return {"deleted": deleted}
 
     def table_model(self, table, fieldnames):
-        """ converts a table into its form template """
+        """converts a table into its form template"""
         items = []
         fields = post_fields = put_fields = table.fields
         if self.policy:

@@ -1,11 +1,13 @@
 import os
 import threading
 import time
-from ._compat import unittest
-from ._adapt import IS_GAE
+
 from pydal._compat import to_bytes
-from pydal.contrib.portalocker import lock, unlock, read_locked, write_locked
-from pydal.contrib.portalocker import LockedFile, LOCK_EX
+from pydal.contrib.portalocker import (LOCK_EX, LockedFile, lock, read_locked,
+                                       unlock, write_locked)
+
+from ._adapt import IS_GAE
+from ._compat import unittest
 
 
 def tearDownModule():

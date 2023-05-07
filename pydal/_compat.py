@@ -81,7 +81,6 @@ if PY2:
             return obj
         return obj.encode(charset, errors)
 
-
 else:
     import _thread as thread
     import builtins as builtin
