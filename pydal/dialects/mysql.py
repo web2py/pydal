@@ -88,7 +88,7 @@ class MySQLDialect(SQLDialect):
         tmp = (self.expand(x, "string", query_env=query_env) for x in items)
         return "CONCAT(%s)" % ",".join(tmp)
 
-    def regexp(self, first, second, query_env={}):
+    def regexp(self, first, second, match_parameter=None, query_env={}):
         return "(%s REGEXP %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, "string", query_env=query_env),

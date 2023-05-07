@@ -83,7 +83,7 @@ class PostgreDialect(SQLDialect):
                 self.expand(second, first.type, query_env=query_env),
             )
 
-    def regexp(self, first, second, query_env={}):
+    def regexp(self, first, second, match_parameter=None, query_env={}):
         return "(%s ~ %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, "string", query_env=query_env),
