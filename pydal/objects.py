@@ -861,8 +861,8 @@ class Table(Serializable, BasicStorage):
     def _validate_fields(self, fields, defattr="default", id=None):
         from .validators import CRYPT
 
-        response = Row()
-        response.id, response.errors, new_fields = None, Row(), Row()
+        response = {"id": None, "errors": {}}
+        new_fields = Row()
         for field in self:
             # we validate even if not passed in case it is required
             error = default = None
@@ -874,7 +874,7 @@ class Table(Serializable, BasicStorage):
                 ovalue = fields.get(field.name, default)
                 value, error = field.validate(ovalue, id)
             if error:
-                response.errors[field.name] = "%s" % error
+                response["errors"][field.name] = "%s" % error
             elif field.type == "password" and ovalue == CRYPT.STARS:
                 pass
             elif field.name in fields:
@@ -884,15 +884,15 @@ class Table(Serializable, BasicStorage):
 
     def validate_and_insert(self, **fields):
         response, new_fields = self._validate_fields(fields, "default")
-        if not response.errors:
-            response.id = self.insert(**new_fields)
+        if not response.get("errors"):
+            response["id"]= self.insert(**new_fields)
         return response
 
     def validate_and_update(self, _key, **fields):
         record = self(**_key) if isinstance(_key, dict) else self(_key)
         response, new_fields = self._validate_fields(fields, "update", record.id)
         #: do the update
-        if not response.errors and record:
+        if not response.get("errors") and record:
             if "_id" in self:
                 myset = self._db(self._id == record[self._id.name])
             else:
@@ -903,9 +903,9 @@ class Table(Serializable, BasicStorage):
                     else:
                         query = query & (getattr(self, key) == value)
                 myset = self._db(query)
-            response.updated = myset.update(**new_fields)
+            response["updated"] = myset.update(**new_fields)
         if record:
-            response.id = record.id
+            response["id"] = record.id
         return response
 
     def update_or_insert(self, _key=DEFAULT, **values):
