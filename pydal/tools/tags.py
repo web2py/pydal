@@ -6,10 +6,13 @@ from ..validators import *
 
 
 class Tags:
-    def __init__(self, table, name="default"):
+    def __init__(self, table, name="default", tag_table=None):
         self.table = table
         db = table._db
-        self.tag_table = db.define_table(
+        self.tag_table = tag_table or self._make_tag_table()
+
+    def _make_tag_table(self):
+        db.define_table(
             table._tablename + "_tag_" + name,
             Field("tagpath"),
             Field("record_id", table),
