@@ -723,7 +723,7 @@ class Table(Serializable, BasicStorage):
             elif isinstance(value, FieldMethod):
                 value.bind(self, str(key))
                 self._virtual_methods.append(value)
-            self.__dict__[str(key)] = value
+            object.__setattr__(self, str(key), value)
 
     def __setattr__(self, key, value):
         if key[:1] != "_" and key in self:
