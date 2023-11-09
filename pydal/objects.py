@@ -723,7 +723,7 @@ class Table(Serializable, BasicStorage):
             elif isinstance(value, FieldMethod):
                 value.bind(self, str(key))
                 self._virtual_methods.append(value)
-            self.__dict__[str(key)] = value
+            object.__setattr__(self, str(key), value)
 
     def __setattr__(self, key, value):
         if key[:1] != "_" and key in self:
@@ -949,7 +949,7 @@ class Table(Serializable, BasicStorage):
                 primary_keys = {}
                 for key in self._primarykey:
                     primary_keys[key] = getattr(record, key)
-                response.id = primary_keys
+                response["id"] = primary_keys
         else:
             response = self.validate_and_insert(**fields)
         return response
@@ -2765,17 +2765,17 @@ class Set(Serializable):
 
     def validate_and_update(self, **update_fields):
         table = self.db._adapter.get_table(self.query)
-        response = Row()
-        response.errors = Row()
+        response = {}
+        response["errors"] = {}
         new_fields = copy.copy(update_fields)
         for key, value in iteritems(update_fields):
             value, error = table[key].validate(value, update_fields.get("id"))
             if error:
-                response.errors[key] = "%s" % error
+                response["errors"][key] = "%s" % error
             else:
                 new_fields[key] = value
-        if response.errors:
-            response.updated = None
+        if response["errors"]:
+            response["updated"] = 0
         else:
             row = table._fields_and_values_for_update(new_fields)
             if not row._values:
@@ -2785,7 +2785,7 @@ class Set(Serializable):
             else:
                 ret = self.db._adapter.update(table, self.query, row.op_values())
                 ret and [f(self, row) for f in table._after_update]
-            response.updated = ret
+            response["updated"] = ret
         return response
 
 
