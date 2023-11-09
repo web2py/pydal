@@ -139,7 +139,7 @@ class ConnectionPool(object):
 
     @staticmethod
     def close_all_instances(action):
-        """ to close cleanly databases in a multithreaded environment """
+        """to close cleanly databases in a multithreaded environment"""
         dbs = getattr(THREAD_LOCAL, "_pydal_db_instances_", {}).items()
         for db_uid, db_group in dbs:
             for db in db_group:

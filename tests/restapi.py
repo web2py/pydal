@@ -1,8 +1,9 @@
 import unittest
 
 from pydal import DAL, Field
+from pydal.restapi import (ALLOW_ALL_POLICY, DENY_ALL_POLICY, RestAPI,
+                           __version__)
 from pydal.validators import IS_NOT_IN_DB
-from pydal.restapi import RestAPI, ALLOW_ALL_POLICY, DENY_ALL_POLICY, __version__
 
 
 class TestRestAPI(unittest.TestCase):

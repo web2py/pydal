@@ -4,29 +4,23 @@
 """
 
 from __future__ import print_function
-import os
-import glob
+
 import datetime
+import glob
 import json
+import os
 import pickle
 from unittest import skipIf
 
-from pydal._compat import basestring, StringIO, integer_types, xrange, BytesIO, to_bytes, PY2
 from pydal import DAL, Field
+from pydal._compat import (PY2, BytesIO, StringIO, basestring, integer_types,
+                           to_bytes, xrange)
 from pydal.helpers.classes import SQLALL, OpRow
-from pydal.objects import Table, Expression, Row
-from ._compat import unittest
-from ._adapt import (
-    DEFAULT_URI,
-    IS_POSTGRESQL,
-    IS_SQLITE,
-    IS_MSSQL,
-    IS_MYSQL,
-    IS_TERADATA,
-    IS_NOSQL,
-    IS_ORACLE,
-)
+from pydal.objects import Expression, Row, Table
 
+from ._adapt import (DEFAULT_URI, IS_MSSQL, IS_MYSQL, IS_NOSQL, IS_ORACLE,
+                     IS_POSTGRESQL, IS_SQLITE, IS_TERADATA)
+from ._compat import unittest
 from ._helpers import DALtest
 
 long = integer_types[-1]
@@ -132,14 +126,14 @@ class TestFields(DALtest):
         # Check that Field names don't allow a unicode string
         non_valid_examples = non_valid_examples = [
             "ℙƴ☂ℌøἤ",
-            u"ℙƴ☂ℌøἤ",
-            u"àè",
-            u"ṧøмℯ",
-            u"тεṧт",
-            u"♥αłüℯṧ",
-            u"ℊεᾔ℮яαт℮∂",
-            u"♭ƴ",
-            u"ᾔ☤ρℌℓ☺ḓ",
+            "ℙƴ☂ℌøἤ",
+            "àè",
+            "ṧøмℯ",
+            "тεṧт",
+            "♥αłüℯṧ",
+            "ℊεᾔ℮яαт℮∂",
+            "♭ƴ",
+            "ᾔ☤ρℌℓ☺ḓ",
         ]
         for a in non_valid_examples:
             self.assertRaises(SyntaxError, Field, a, "string")
@@ -428,14 +422,14 @@ class TestTables(unittest.TestCase):
         # Check that Table names don't allow a unicode string
         non_valid_examples = [
             "ℙƴ☂ℌøἤ",
-            u"ℙƴ☂ℌøἤ",
-            u"àè",
-            u"ṧøмℯ",
-            u"тεṧт",
-            u"♥αłüℯṧ",
-            u"ℊεᾔ℮яαт℮∂",
-            u"♭ƴ",
-            u"ᾔ☤ρℌℓ☺ḓ",
+            "ℙƴ☂ℌøἤ",
+            "àè",
+            "ṧøмℯ",
+            "тεṧт",
+            "♥αłüℯṧ",
+            "ℊεᾔ℮яαт℮∂",
+            "♭ƴ",
+            "ᾔ☤ρℌℓ☺ḓ",
         ]
         for a in non_valid_examples:
             self.assertRaises(SyntaxError, Table, None, a)
@@ -782,32 +776,42 @@ class TestSubselect(DALtest):
     @skipIf(PY2, "sqlite3 on py2 does not allow circular references")
     def testCTE(self):
         db = self.connect()
-        db.define_table('org', Field('name'), Field('boss', 'reference org'))
+        db.define_table("org", Field("name"), Field("boss", "reference org"))
         org = db.org
-        def insert_workers(boss, *names):
-            return [org.insert(name = name, boss = boss) for name in names]
-        alice = org.insert(name = 'Alice')
-        jim, tim = insert_workers(alice, 'Jim', 'Tim')
-        jessy, jenny =  insert_workers(jim, 'Jessy', 'Jenny')
-        insert_workers(tim, 'Tom')
-        insert_workers(jessy, 'John', 'Jacob')
 
-        works_for = db(org.name == 'Alice').cte(
-            'works_for',
-            org.id,
-            org.name.with_alias('top_boss'),  # i.e. Alice is top_boss
-            org.name,
-            org.boss,
-            Expression(db, '0', type = 'integer').with_alias('xdepth'),
-            Expression(db, '" "', type = 'string').with_alias('boss_chain')
-        ).union( lambda works_for: \
-            db((org.boss == works_for.id) & (org.id != org.boss)).nested_select(
+        def insert_workers(boss, *names):
+            return [org.insert(name=name, boss=boss) for name in names]
+
+        alice = org.insert(name="Alice")
+        jim, tim = insert_workers(alice, "Jim", "Tim")
+        jessy, jenny = insert_workers(jim, "Jessy", "Jenny")
+        insert_workers(tim, "Tom")
+        insert_workers(jessy, "John", "Jacob")
+
+        works_for = (
+            db(org.name == "Alice")
+            .cte(
+                "works_for",
                 org.id,
-                works_for.top_boss,
+                org.name.with_alias("top_boss"),  # i.e. Alice is top_boss
                 org.name,
                 org.boss,
-                (works_for.xdepth + 1).with_alias('xdepth'),
-                (' ' + works_for.name + works_for.boss_chain).with_alias('boss_chain')
+                Expression(db, "0", type="integer").with_alias("xdepth"),
+                Expression(db, '" "', type="string").with_alias("boss_chain"),
+            )
+            .union(
+                lambda works_for: db(
+                    (org.boss == works_for.id) & (org.id != org.boss)
+                ).nested_select(
+                    org.id,
+                    works_for.top_boss,
+                    org.name,
+                    org.boss,
+                    (works_for.xdepth + 1).with_alias("xdepth"),
+                    (" " + works_for.name + works_for.boss_chain).with_alias(
+                        "boss_chain"
+                    ),
+                )
             )
         )
         rows = db().select(works_for.ALL).as_dict()
@@ -816,13 +820,13 @@ class TestSubselect(DALtest):
             r = row
             boss_chain = []
             while True:
-                r = rows.get(r['boss'])
+                r = rows.get(r["boss"])
                 if not r:
                     break
-                boss_chain.append(r['name'])
+                boss_chain.append(r["name"])
             depth = len(boss_chain)
-            self.assertEqual(depth, row['xdepth'])
-            self.assertEqual(' '.join(boss_chain), row['boss_chain'].strip())
+            self.assertEqual(depth, row["xdepth"])
+            self.assertEqual(" ".join(boss_chain), row["boss_chain"].strip())
 
     def testSelectArguments(self):
         db = self.connect()
@@ -3255,7 +3259,7 @@ class TestQuotesByDefault(unittest.TestCase):
 class TestGis(DALtest):
     @unittest.skipIf(True, "WIP")
     def testGeometry(self):
-        from pydal import geoPoint, geoLine, geoPolygon
+        from pydal import geoLine, geoPoint, geoPolygon
 
         if not IS_POSTGRESQL:
             return
@@ -3296,7 +3300,7 @@ class TestGis(DALtest):
 
     @unittest.skipIf(True, "WIP")
     def testGeometryCase(self):
-        from pydal import geoPoint, geoLine, geoPolygon
+        from pydal import geoLine, geoPoint, geoPolygon
 
         if not IS_POSTGRESQL:
             return
@@ -3336,18 +3340,18 @@ class TestJSON(DALtest):
         tj = db.define_table("tj", Field("testjson", "json"))
         rec1 = tj.insert(
             testjson={
-                u"a": {u"a1": 2, u"a0": 1},
-                u"b": 3,
-                u"c": {u"c0": {u"c01": [2, 4]}},
-                u"str": "foo",
+                "a": {"a1": 2, "a0": 1},
+                "b": 3,
+                "c": {"c0": {"c01": [2, 4]}},
+                "str": "foo",
             }
         )
         rec2 = tj.insert(
             testjson={
-                u"a": {u"a1": 2, u"a0": 2},
-                u"b": 4,
-                u"c": {u"c0": {u"c01": [2, 3]}},
-                u"str": "bar",
+                "a": {"a1": 2, "a0": 2},
+                "b": 4,
+                "c": {"c0": {"c01": [2, 3]}},
+                "str": "bar",
             }
         )
         rows = db(db.tj.testjson.json_key("a").json_key_value("a0") == 1).select()

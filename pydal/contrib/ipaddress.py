@@ -31,7 +31,6 @@ if b"\0"[0] == 0:  # Python 3 semantics
     def _compat_bytes_to_byte_vals(byt):
         return byt
 
-
 else:
 
     def _compat_bytes_to_byte_vals(byt):
@@ -55,11 +54,11 @@ def _compat_to_bytes(intval, length, endianess):
     assert isinstance(intval, _compat_int_types)
     assert endianess == "big"
     if length == 4:
-        if intval < 0 or intval >= 2 ** 32:
+        if intval < 0 or intval >= 2**32:
             raise struct.error("integer out of range for 'I' format code")
         return struct.pack(b"!I", intval)
     elif length == 16:
-        if intval < 0 or intval >= 2 ** 128:
+        if intval < 0 or intval >= 2**128:
             raise struct.error("integer out of range for 'QQ' format code")
         return struct.pack(b"!QQ", intval >> 64, intval & 0xFFFFFFFFFFFFFFFF)
     else:
@@ -70,7 +69,6 @@ if hasattr(int, "bit_length"):
     # Not int.bit_length , since that won't work in 2.7 where long exists
     def _compat_bit_length(i):
         return i.bit_length()
-
 
 else:
 
@@ -1225,7 +1223,7 @@ class _BaseV4(object):
     __slots__ = ()
     _version = 4
     # Equivalent to 255.255.255.255 or 32 bits of 1's.
-    _ALL_ONES = (2 ** IPV4LENGTH) - 1
+    _ALL_ONES = (2**IPV4LENGTH) - 1
     _DECIMAL_DIGITS = frozenset("0123456789")
 
     # the valid octets for host and netmasks. only useful for IPv4.
@@ -1740,7 +1738,7 @@ class _BaseV6(object):
 
     __slots__ = ()
     _version = 6
-    _ALL_ONES = (2 ** IPV6LENGTH) - 1
+    _ALL_ONES = (2**IPV6LENGTH) - 1
     _HEXTET_COUNT = 8
     _HEX_DIGITS = frozenset("0123456789ABCDEFabcdef")
     _max_prefixlen = IPV6LENGTH

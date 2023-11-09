@@ -536,7 +536,9 @@ class MongoDialect(NoSQLDialect):
     def upper(self, first, query_env={}):
         return {"$toUpper": self.expand(first, query_env=query_env)}
 
-    def regexp(self, first, second, case_sensitive=True, query_env={}):
+    def regexp(
+        self, first, second, match_parameter=None, case_sensitive=True, query_env={}
+    ):
         """MongoDB provides regular expression capabilities for pattern
         matching strings in queries. MongoDB uses Perl compatible
         regular expressions (i.e. 'PCRE') version 8.36 with UTF-8 support.

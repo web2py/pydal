@@ -46,8 +46,8 @@ DEFAULTLENGTH = {
     "string": 512,
     "password": 512,
     "upload": 512,
-    "text": 2 ** 15,
-    "blob": 2 ** 31,
+    "text": 2**15,
+    "blob": 2**31,
 }
 
 DEFAULT_REGEX = {
@@ -600,7 +600,7 @@ class Table(Serializable, BasicStorage):
         )
 
     def _build_query(self, key):
-        """ for keyed table only """
+        """for keyed table only"""
         query = None
         for k, v in iteritems(key):
             if k in self._primarykey:
@@ -861,8 +861,8 @@ class Table(Serializable, BasicStorage):
     def _validate_fields(self, fields, defattr="default", id=None):
         from .validators import CRYPT
 
-        response = Row()
-        response.id, response.errors, new_fields = None, Row(), Row()
+        response = {"id": None, "errors": {}}
+        new_fields = Row()
         for field in self:
             # we validate even if not passed in case it is required
             error = default = None
@@ -874,7 +874,7 @@ class Table(Serializable, BasicStorage):
                 ovalue = fields.get(field.name, default)
                 value, error = field.validate(ovalue, id)
             if error:
-                response.errors[field.name] = "%s" % error
+                response["errors"][field.name] = "%s" % error
             elif field.type == "password" and ovalue == CRYPT.STARS:
                 pass
             elif field.name in fields:
@@ -884,15 +884,15 @@ class Table(Serializable, BasicStorage):
 
     def validate_and_insert(self, **fields):
         response, new_fields = self._validate_fields(fields, "default")
-        if not response.errors:
-            response.id = self.insert(**new_fields)
+        if not response.get("errors"):
+            response["id"] = self.insert(**new_fields)
         return response
 
     def validate_and_update(self, _key, **fields):
         record = self(**_key) if isinstance(_key, dict) else self(_key)
         response, new_fields = self._validate_fields(fields, "update", record.id)
         #: do the update
-        if not response.errors and record:
+        if not response.get("errors") and record:
             if "_id" in self:
                 myset = self._db(self._id == record[self._id.name])
             else:
@@ -903,9 +903,9 @@ class Table(Serializable, BasicStorage):
                     else:
                         query = query & (getattr(self, key) == value)
                 myset = self._db(query)
-            response.updated = myset.update(**new_fields)
+            response["updated"] = myset.update(**new_fields)
         if record:
-            response.id = record.id
+            response["id"] = record.id
         return response
 
     def update_or_insert(self, _key=DEFAULT, **values):
@@ -949,7 +949,7 @@ class Table(Serializable, BasicStorage):
                 primary_keys = {}
                 for key in self._primarykey:
                     primary_keys[key] = getattr(record, key)
-                response.id = primary_keys
+                response["id"] = primary_keys
         else:
             response = self.validate_and_insert(**fields)
         return response
@@ -1579,8 +1579,10 @@ class Expression(object):
     def ilike(self, value, escape=None):
         return self.like(value, case_sensitive=False, escape=escape)
 
-    def regexp(self, value,match_parameter=None):
-        return Query(self.db, self._dialect.regexp, self, value, match_parameter=match_parameter)
+    def regexp(self, value, match_parameter=None):
+        return Query(
+            self.db, self._dialect.regexp, self, value, match_parameter=match_parameter
+        )
 
     def belongs(self, *value, **kwattr):
         """
@@ -1637,17 +1639,13 @@ class Expression(object):
                 return self.contains("")
             else:
                 return reduce(all and AND or OR, subqueries)
-        if (
-            self.type
-            not in (
-                "string",
-                "text",
-                "json",
-                "jsonb",
-                "upload",
-            )
-            and not self.type.startswith("list:")
-        ):
+        if self.type not in (
+            "string",
+            "text",
+            "json",
+            "jsonb",
+            "upload",
+        ) and not self.type.startswith("list:"):
             raise SyntaxError("contains used with incompatible field type")
         return Query(
             self.db, self._dialect.contains, self, value, case_sensitive=case_sensitive
@@ -2072,7 +2070,9 @@ class Field(Expression, Serializable):
         uuid_key = self._db.uuid().replace("-", "")[-16:] if self._db else uuidstr()
         encoded_filename = to_native(base64.urlsafe_b64encode(to_bytes(filename)))
         newfilename = "%s.%s.%s.%s" % (
-            self._tablename if '_tablename' in self.__dir__() and self._tablename else 'no_table',
+            self._tablename
+            if "_tablename" in self.__dir__() and self._tablename
+            else "no_table",
             self.name,
             uuid_key,
             encoded_filename,
@@ -2765,17 +2765,17 @@ class Set(Serializable):
 
     def validate_and_update(self, **update_fields):
         table = self.db._adapter.get_table(self.query)
-        response = Row()
-        response.errors = Row()
+        response = {}
+        response["errors"] = {}
         new_fields = copy.copy(update_fields)
         for key, value in iteritems(update_fields):
             value, error = table[key].validate(value, update_fields.get("id"))
             if error:
-                response.errors[key] = "%s" % error
+                response["errors"][key] = "%s" % error
             else:
                 new_fields[key] = value
-        if response.errors:
-            response.updated = None
+        if response["errors"]:
+            response["updated"] = 0
         else:
             row = table._fields_and_values_for_update(new_fields)
             if not row._values:
@@ -2785,7 +2785,7 @@ class Set(Serializable):
             else:
                 ret = self.db._adapter.update(table, self.query, row.op_values())
                 ret and [f(self, row) for f in table._after_update]
-            response.updated = ret
+            response["updated"] = ret
         return response
 
 

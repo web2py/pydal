@@ -1,6 +1,7 @@
-from ._compat import unittest
-from ._adapt import DEFAULT_URI, drop
 from pydal import DAL
+
+from ._adapt import DEFAULT_URI, drop
+from ._compat import unittest
 
 
 class DALtest(unittest.TestCase):

@@ -27,7 +27,7 @@ class SQLiteDialect(SQLDialect):
             self.expand(field, query_env=query_env),
         )
 
-    def regexp(self, first, second, query_env={}):
+    def regexp(self, first, second, match_parameter=None, query_env={}):
         return "(%s REGEXP %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, "string", query_env=query_env),

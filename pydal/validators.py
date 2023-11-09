@@ -1443,7 +1443,7 @@ http_schemes = [None, "http", "https"]
 # Defined in RFC 3490, Section 3.1, Requirement #1
 # Use this regex to split the authority component of a unicode URL into
 # its component labels
-REGEX_AUTHORITY_SPLITTER = u"[\u002e\u3002\uff0e\uff61]"
+REGEX_AUTHORITY_SPLITTER = "[\u002e\u3002\uff0e\uff61]"
 
 
 def escape_unicode(string):
@@ -1562,7 +1562,7 @@ def unicode_to_ascii_url(url, prepend_scheme):
     if not components.netloc:
         # Try appending a scheme to see if that fixes the problem
         scheme_to_prepend = prepend_scheme or "http"
-        components = urlparse.urlparse(to_unicode(scheme_to_prepend) + u"://" + url)
+        components = urlparse.urlparse(to_unicode(scheme_to_prepend) + "://" + url)
         prepended = True
 
     # if we still can't find the authority
@@ -4457,7 +4457,7 @@ otherset = frozenset(b"".join(chr(x) if PY2 else chr(x).encode() for x in range(
 
 
 def calc_entropy(string):
-    """ calculates a simple entropy for a given string """
+    """calculates a simple entropy for a given string"""
     alphabet = 0  # alphabet size
     other = set()
     seen = set()

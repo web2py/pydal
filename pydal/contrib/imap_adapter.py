@@ -407,7 +407,7 @@ class IMAPAdapter(NoSQLAdapter):
         return text
 
     def encode_text(self, text, charset, errors="replace"):
-        """ convert text for mail to unicode"""
+        """convert text for mail to unicode"""
         if text is None:
             text = ""
         if PY2:
@@ -429,7 +429,7 @@ class IMAPAdapter(NoSQLAdapter):
         return charset
 
     def get_mailboxes(self):
-        """ Query the mail database for mailbox names """
+        """Query the mail database for mailbox names"""
         if self.static_names:
             # statically defined mailbox names
             self.connection.mailbox_names = self.static_names

@@ -172,14 +172,16 @@ class OracleDialect(SQLDialect):
 
     def regexp(self, first, second, match_parameter, query_env={}):
         if match_parameter:
-            _match_parameter = ","+self.expand(match_parameter, "string", query_env=query_env)
+            _match_parameter = "," + self.expand(
+                match_parameter, "string", query_env=query_env
+            )
         else:
             _match_parameter = ""
 
         return "REGEXP_LIKE(%s, %s %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, "string", query_env=query_env),
-            _match_parameter
+            _match_parameter,
         )
 
     def insert(self, table, fields, values):

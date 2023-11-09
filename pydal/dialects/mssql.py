@@ -197,7 +197,7 @@ class MSSQLDialect(SQLDialect):
         tmp = (self.expand(x, "string", query_env=query_env) for x in items)
         return "(%s)" % " + ".join(tmp)
 
-    def regexp(self, first, second, query_env={}):
+    def regexp(self, first, second, match_parameter=None, query_env={}):
         second = self.expand(second, "string", query_env=query_env)
         second = second.replace("\\", "\\\\")
         second = second.replace(r"%", r"\%").replace("*", "%").replace(".", "_")

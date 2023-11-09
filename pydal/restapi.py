@@ -232,13 +232,13 @@ class RestAPI(object):
             return self.search(tablename, get_vars)
         elif method == "POST":
             table = self.db[tablename]
-            return table.validate_and_insert(**post_vars).as_dict()
+            return table.validate_and_insert(**post_vars)
         elif method == "PUT":
             id = id or post_vars["id"]
             if not id:
                 raise InvalidFormat("No item id specified")
             table = self.db[tablename]
-            data = table.validate_and_update(id, **post_vars).as_dict()
+            data = table.validate_and_update(id, **post_vars)
             if not data.get("errors") and not data.get("updated"):
                 raise NotFound("Item not found")
             return data
@@ -253,7 +253,7 @@ class RestAPI(object):
             return {"deleted": deleted}
 
     def table_model(self, table, fieldnames):
-        """ converts a table into its form template """
+        """converts a table into its form template"""
         items = []
         fields = post_fields = put_fields = table.fields
         if self.policy:

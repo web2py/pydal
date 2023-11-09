@@ -98,7 +98,6 @@ class SnowflakeDialect(SQLDialect):
             else:
                 whr2 = self.where("w_row > %i" % lmin)
 
-
         return "SELECT%s%s%s %s FROM %s%s%s%s;" % (
             dst,
             limit,
@@ -145,7 +144,7 @@ class SnowflakeDialect(SQLDialect):
                 self.expand(second, first.type, query_env=query_env),
             )
 
-    def regexp(self, first, second, query_env={}):
+    def regexp(self, first, second, match_parameter=None, query_env={}):
         return "(%s ~ %s)" % (
             self.expand(first, query_env=query_env),
             self.expand(second, "string", query_env=query_env),
@@ -232,10 +231,10 @@ class SnowflakeDialect(SQLDialect):
             second["precision"],
             second["options"],
         )
-    
+
     def unquote(self, val):
-        if (val[0] == '"' and val[-1] == '"'):
-            val=val.replace('"','')
+        if val[0] == '"' and val[-1] == '"':
+            val = val.replace('"', "")
         return val
 
     def st_astext(self, first, query_env={}):

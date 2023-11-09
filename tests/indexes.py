@@ -1,6 +1,7 @@
 from pydal import DAL, Field
-from ._compat import unittest
+
 from ._adapt import DEFAULT_URI, IS_POSTGRESQL, drop
+from ._compat import unittest
 
 
 class TestIndexesBasic(unittest.TestCase):
