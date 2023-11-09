@@ -233,6 +233,7 @@ class RestAPI(object):
         elif method == "POST":
             table = self.db[tablename]
             return table.validate_and_insert(**post_vars)
+
         elif method == "PUT":
             id = id or post_vars["id"]
             if not id:
