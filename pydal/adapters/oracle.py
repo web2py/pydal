@@ -19,7 +19,7 @@ class Oracle(SQLAdapter):
         super(Oracle, self)._initialize_()
         self.ruri = self.uri.split("://", 1)[1]
         self.REGEX_CLOB = re.compile(
-            "[^']*('[^']*'[^']*)*\:(?P<clob>(C|B)LOB\('([^']|'')*'\))"
+            r"[^']*('[^']*'[^']*)*\:(?P<clob>(C|B)LOB\('([^']|'')*'\))"
         )
         if "threaded" not in self.driver_args:
             self.driver_args["threaded"] = True
@@ -224,7 +224,7 @@ class Oracle(SQLAdapter):
         return rid
 
     def _regex_select_as_parser(self, colname):
-        return re.compile('\s+"(\S+)"').search(colname)
+        return re.compile(r'\s+"(\S+)"').search(colname)
 
     def parse(self, rows, fields, colnames, blob_decode=True, cacheable=False):
         if len(rows) and len(rows[0]) == len(fields) + 1 and type(rows[0][-1]) == int:
