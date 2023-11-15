@@ -4,9 +4,10 @@ venv:
 	python -m venv venv
 test: venv
 	venv/bin/python -m unittest tests.sql
-build:
-	python -m pip install --upgrade build
-	python -m pip install --upgrade twine
-	python -m build
+build: venv
+	rm -rf dist/*
+	venv/bin/pip install --upgrade build
+	venv/bin/pip install --upgrade twine
+	venv/bin/python -m build
 deploy: build
-	python -m twine upload dist/*
+	venv/bin/python -m twine upload dist/*
