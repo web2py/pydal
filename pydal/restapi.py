@@ -66,7 +66,6 @@ def error_wrapper(func):
 
 
 class Policy(object):
-
     model = {
         "POST": {"authorize": False, "fields": None},
         "PUT": {"authorize": False, "fields": None},
@@ -189,7 +188,6 @@ ALLOW_ALL_POLICY.set(tablename="*", method="DELETE", authorize=True)
 
 
 class RestAPI(object):
-
     re_table_and_fields = re.compile(r"\w+([\w+(,\w+)+])?")
     re_lookups = re.compile(
         r"((\w*\!?\:)?(\w+(\[\w+(,\w+)*\])?)(\.\w+(\[\w+(,\w+)*\])?)*)"

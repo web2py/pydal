@@ -8,8 +8,7 @@ from ..helpers.classes import Reference, SQLCustomType
 from ..helpers.methods import bar_encode
 from ..helpers.serializers import serializers
 from ..objects import Expression, Field, Row
-from . import (Representer, before_type, for_instance, for_type, pre,
-               representers)
+from . import Representer, before_type, for_instance, for_type, pre, representers
 
 long = integer_types[-1]
 NoneType = type(None)

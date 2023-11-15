@@ -13,13 +13,28 @@ import pickle
 from unittest import skipIf
 
 from pydal import DAL, Field
-from pydal._compat import (PY2, BytesIO, StringIO, basestring, integer_types,
-                           to_bytes, xrange)
+from pydal._compat import (
+    PY2,
+    BytesIO,
+    StringIO,
+    basestring,
+    integer_types,
+    to_bytes,
+    xrange,
+)
 from pydal.helpers.classes import SQLALL, OpRow
 from pydal.objects import Expression, Row, Table
 
-from ._adapt import (DEFAULT_URI, IS_MSSQL, IS_MYSQL, IS_NOSQL, IS_ORACLE,
-                     IS_POSTGRESQL, IS_SQLITE, IS_TERADATA)
+from ._adapt import (
+    DEFAULT_URI,
+    IS_MSSQL,
+    IS_MYSQL,
+    IS_NOSQL,
+    IS_ORACLE,
+    IS_POSTGRESQL,
+    IS_SQLITE,
+    IS_TERADATA,
+)
 from ._compat import unittest
 from ._helpers import DALtest
 
@@ -139,7 +154,6 @@ class TestFields(DALtest):
             self.assertRaises(SyntaxError, Field, a, "string")
 
     def testFieldTypes(self):
-
         # Check that string, and password default length is 512
         for typ in ["string", "password"]:
             self.assertTrue(
@@ -160,7 +174,6 @@ class TestFields(DALtest):
         )
 
     def testFieldLabels(self):
-
         # Check that a label is successfully built from the supplied fieldname
         self.assertTrue(
             Field("abc", "string").label == "Abc", "Label built is incorrect"
@@ -170,7 +183,6 @@ class TestFields(DALtest):
         )
 
     def testFieldFormatters(self):  # Formatter should be called Validator
-
         # Test the default formatters
         for typ in ALLOWED_DATATYPES:
             f = Field("abc", typ)
@@ -446,7 +458,6 @@ class TestAll(unittest.TestCase):
 
 class TestTable(DALtest):
     def testTableCreation(self):
-
         # Check for error when not passing type other than Field or Table
 
         self.assertRaises(SyntaxError, Table, None, "test", None)
@@ -863,7 +874,7 @@ class TestSubselect(DALtest):
             orderby=order,
             groupby=group,
             having=having,
-            limitby=limit
+            limitby=limit,
         )
         result = sub()
         self.assertEqual(len(result), len(expected))
@@ -1803,7 +1814,6 @@ class TestMigrations(unittest.TestCase):
         db.close()
 
         if not IS_SQLITE:
-
             # Change field type
             db = DAL(DEFAULT_URI, check_reserved=["all"])
             db.define_table(
@@ -1832,7 +1842,6 @@ class TestMigrations(unittest.TestCase):
             db.close()
 
         if not IS_SQLITE:
-
             # Change field rname
             db = DAL(DEFAULT_URI, check_reserved=["all"])
             db.define_table(
@@ -1890,7 +1899,7 @@ class TestReference(DALtest):
             (False, "CASCADE"),
             (False, "SET NULL"),
         )
-        for (b, ondelete) in scenarios:
+        for b, ondelete in scenarios:
             db = self.connect(bigint_id=b)
             if DEFAULT_URI.startswith("mssql"):
                 # multiple cascade gotcha
@@ -3104,7 +3113,6 @@ class TestRNameFields(DALtest):
 
 
 class TestQuoting(DALtest):
-
     # tests for case sensitivity
     def testCase(self):
         db = self.connect(ignore_field_case=False, entity_quoting=True)
@@ -3148,7 +3156,6 @@ class TestQuoting(DALtest):
         self.assertEqual(t0[1].a_A, "a_A")
 
     def testPKFK(self):
-
         # test primary keys
 
         db = self.connect(ignore_field_case=False)
@@ -3194,7 +3201,6 @@ class TestQuoting(DALtest):
             t4.drop()
 
     def testPKFK2(self):
-
         # test reference to reference
 
         db = self.connect(ignore_field_case=False)

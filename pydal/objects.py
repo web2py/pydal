@@ -16,26 +16,64 @@ import types
 from collections import OrderedDict
 from io import TextIOWrapper
 
-from ._compat import (PY2, BytesIO, StringIO, basestring, copyreg, exists,
-                      hashlib_md5, implements_bool, implements_iterator,
-                      iteritems, long, pjoin, reduce, text_type, to_bytes,
-                      to_native, to_unicode, xrange)
+from ._compat import (
+    PY2,
+    BytesIO,
+    StringIO,
+    basestring,
+    copyreg,
+    exists,
+    hashlib_md5,
+    implements_bool,
+    implements_iterator,
+    iteritems,
+    long,
+    pjoin,
+    reduce,
+    text_type,
+    to_bytes,
+    to_native,
+    to_unicode,
+    xrange,
+)
 from ._gae import Key
 from ._globals import AND, DEFAULT, IDENTITY, OR
 from .exceptions import NotAuthorizedException, NotFoundException
-from .helpers.classes import (SQLALL, BasicStorage, MethodAdder, OpRow,
-                              Reference, Serializable, SQLCallableList,
-                              SQLCustomType, cachedprop)
-from .helpers.methods import (archive_record, attempt_upload_on_insert,
-                              attempt_upload_on_update, bar_decode_integer,
-                              bar_decode_string, bar_encode, cleanup,
-                              delete_uploaded_files, list_represent,
-                              use_common_filters, uuidstr)
-from .helpers.regex import (REGEX_ALPHANUMERIC, REGEX_PYTHON_KEYWORDS,
-                            REGEX_TABLE_DOT_FIELD,
-                            REGEX_TABLE_DOT_FIELD_OPTIONAL_QUOTES, REGEX_TYPE,
-                            REGEX_UPLOAD_CLEANUP, REGEX_UPLOAD_EXTENSION,
-                            REGEX_UPLOAD_PATTERN, REGEX_VALID_TB_FLD)
+from .helpers.classes import (
+    SQLALL,
+    BasicStorage,
+    MethodAdder,
+    OpRow,
+    Reference,
+    Serializable,
+    SQLCallableList,
+    SQLCustomType,
+    cachedprop,
+)
+from .helpers.methods import (
+    archive_record,
+    attempt_upload_on_insert,
+    attempt_upload_on_update,
+    bar_decode_integer,
+    bar_decode_string,
+    bar_encode,
+    cleanup,
+    delete_uploaded_files,
+    list_represent,
+    use_common_filters,
+    uuidstr,
+)
+from .helpers.regex import (
+    REGEX_ALPHANUMERIC,
+    REGEX_PYTHON_KEYWORDS,
+    REGEX_TABLE_DOT_FIELD,
+    REGEX_TABLE_DOT_FIELD_OPTIONAL_QUOTES,
+    REGEX_TYPE,
+    REGEX_UPLOAD_CLEANUP,
+    REGEX_UPLOAD_EXTENSION,
+    REGEX_UPLOAD_PATTERN,
+    REGEX_VALID_TB_FLD,
+)
 from .helpers.serializers import serializers
 from .utils import deprecated
 
@@ -499,7 +537,7 @@ class Table(Serializable, BasicStorage):
             archive_name,
             Field(current_record, field_type, label=current_record_label),
             *clones,
-            **d
+            **d,
         )
 
         self._before_update.append(
@@ -544,7 +582,6 @@ class Table(Serializable, BasicStorage):
                 field_type.startswith("reference ")
                 or field_type.startswith("list:reference ")
             ):
-
                 is_list = field_type[:15] == "list:reference "
                 if is_list:
                     ref = field_type[15:].strip()
@@ -983,7 +1020,7 @@ class Table(Serializable, BasicStorage):
         transform=None,
         validate=False,
         encoding="utf-8",
-        **kwargs
+        **kwargs,
     ):
         """
         Import records from csv file.
@@ -1872,7 +1909,6 @@ class FieldMethod(object):
 
 @implements_bool
 class Field(Expression, Serializable):
-
     Virtual = FieldVirtual
     Method = FieldMethod
     Lazy = FieldMethod  # for backward compatibility
@@ -1946,7 +1982,7 @@ class Field(Expression, Serializable):
         custom_qualifier=None,
         map_none=None,
         rname=None,
-        **others
+        **others,
     ):
         self._db = self.db = None  # both for backward compatibility
         self.table = self._table = None
@@ -2340,7 +2376,7 @@ class Query(Serializable):
         first=None,
         second=None,
         ignore_common_filters=False,
-        **optional_args
+        **optional_args,
     ):
         self.db = self._db = db
         self.op = op
@@ -3210,7 +3246,7 @@ class Rows(BasicRows):
         if not keyed_virtualfields:
             return self
         for row in self.records:
-            for (tablename, virtualfields) in iteritems(keyed_virtualfields):
+            for tablename, virtualfields in iteritems(keyed_virtualfields):
                 attributes = dir(virtualfields)
                 if tablename not in row:
                     box = row[tablename] = Row()

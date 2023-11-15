@@ -178,7 +178,6 @@ class IMAPAdapter(NoSQLAdapter):
         adapter_args={},
         after_connection=None,
     ):
-
         super(IMAPAdapter, self).__init__(
             db=db,
             uri=uri,

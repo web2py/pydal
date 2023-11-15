@@ -28,9 +28,21 @@ import unicodedata
 import uuid
 from functools import reduce
 
-from ._compat import (PY2, StringIO, basestring, integer_types, ipaddress,
-                      string_types, to_bytes, to_native, to_unicode, unichr,
-                      unicodeT, urllib_unquote, urlparse)
+from ._compat import (
+    PY2,
+    StringIO,
+    basestring,
+    integer_types,
+    ipaddress,
+    string_types,
+    to_bytes,
+    to_native,
+    to_unicode,
+    unichr,
+    unicodeT,
+    urllib_unquote,
+    urlparse,
+)
 from .objects import Field, FieldMethod, FieldVirtual, Table
 
 JSONErrors = (NameError, TypeError, ValueError, AttributeError, KeyError)
@@ -202,7 +214,6 @@ class IS_MATCH(Validator):
         extract=False,
         is_unicode=False,
     ):
-
         if strict or not search:
             if not expression.startswith("^"):
                 expression = "^(%s)" % expression
@@ -465,7 +476,6 @@ class IS_IN_SET(Validator):
         zero="",
         sort=False,
     ):
-
         self.multiple = multiple
         if isinstance(theset, dict):
             self.theset = [str(item) for item in theset]
@@ -553,7 +563,6 @@ class IS_IN_DB(Validator):
         delimiter=None,
         auto_add=False,
     ):
-
         if hasattr(dbset, "define_table"):
             self.dbset = dbset()
         else:
@@ -753,7 +762,6 @@ class IS_NOT_IN_DB(Validator):
         allowed_override=[],
         ignore_common_filters=False,
     ):
-
         if isinstance(field, Table):
             field = field._id
 
@@ -853,7 +861,6 @@ class IS_INT_IN_RANGE(Validator):
     REGEX_INT = r"^[+-]?\d+$"
 
     def __init__(self, minimum=None, maximum=None, error_message=None):
-
         self.minimum = int(minimum) if minimum is not None else None
         self.maximum = int(maximum) if maximum is not None else None
         self.error_message = error_message
@@ -922,7 +929,6 @@ class IS_FLOAT_IN_RANGE(Validator):
     """
 
     def __init__(self, minimum=None, maximum=None, error_message=None, dot="."):
-
         self.minimum = float(minimum) if minimum is not None else None
         self.maximum = float(maximum) if maximum is not None else None
         self.dot = str(dot)
@@ -1007,7 +1013,6 @@ class IS_DECIMAL_IN_RANGE(Validator):
     """
 
     def __init__(self, minimum=None, maximum=None, error_message=None, dot="."):
-
         self.minimum = decimal.Decimal(str(minimum)) if minimum is not None else None
         self.maximum = decimal.Decimal(str(maximum)) if maximum is not None else None
         self.dot = str(dot)
@@ -1447,7 +1452,6 @@ REGEX_AUTHORITY_SPLITTER = "[\u002e\u3002\uff0e\uff61]"
 
 
 def escape_unicode(string):
-
     """
     Converts a unicode string into US-ASCII, using a simple conversion scheme.
     Each unicode character that does not have a US-ASCII equivalent is
@@ -1645,7 +1649,6 @@ class IS_GENERIC_URL(Validator):
         allowed_schemes=None,
         prepend_scheme=None,
     ):
-
         self.error_message = error_message
         if allowed_schemes is None:
             self.allowed_schemes = all_url_schemes
@@ -3354,7 +3357,6 @@ class IS_HTTP_URL(Validator):
         prepend_scheme="http",
         allowed_tlds=None,
     ):
-
         self.error_message = error_message
         if allowed_schemes is None:
             self.allowed_schemes = http_schemes
@@ -3526,7 +3528,6 @@ class IS_URL(Validator):
         prepend_scheme="http",
         allowed_tlds=None,
     ):
-
         self.error_message = error_message
         self.mode = mode.lower()
         if self.mode not in ["generic", "http"]:
@@ -3748,7 +3749,7 @@ class IS_DATETIME(Validator):
             ("%M", "30"),
             ("%S", "59"),
         )
-        for (a, b) in code:
+        for a, b in code:
             format = format.replace(a, b)
         return dict(format=format)
 
@@ -4696,7 +4697,6 @@ class IS_IMAGE(Validator):
         aspectratio=(-1, -1),
         error_message="Invalid image",
     ):
-
         self.extensions = extensions
         self.maxsize = maxsize
         self.minsize = minsize
@@ -5069,7 +5069,6 @@ class IS_IPV4(Validator):
         is_automatic=None,
         error_message="Enter valid IPv4 address",
     ):
-
         for n, value in enumerate((minip, maxip)):
             temp = []
             if isinstance(value, str):
@@ -5220,7 +5219,6 @@ class IS_IPV6(Validator):
         subnets=None,
         error_message="Enter valid IPv6 address",
     ):
-
         self.is_private = is_private
         self.is_link_local = is_link_local
         self.is_reserved = is_reserved
@@ -5437,7 +5435,6 @@ class IS_IPADDRESS(Validator):
         is_ipv6=None,
         error_message="Enter valid IP address",
     ):
-
         self.minip = (minip,)
         self.maxip = (maxip,)
         self.invert = invert

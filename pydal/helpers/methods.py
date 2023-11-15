@@ -4,8 +4,17 @@ import os
 import re
 import uuid
 
-from .._compat import (PY2, BytesIO, exists, integer_types, iteritems, pjoin,
-                       string_types, text_type, to_bytes)
+from .._compat import (
+    PY2,
+    BytesIO,
+    exists,
+    integer_types,
+    iteritems,
+    pjoin,
+    string_types,
+    text_type,
+    to_bytes,
+)
 from .classes import SQLCustomType
 from .regex import REGEX_CONST_STRING, REGEX_CREDENTIALS, REGEX_UNPACK, REGEX_W
 

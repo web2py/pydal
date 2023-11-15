@@ -3,7 +3,7 @@
 venv:
 	python -m venv venv
 test: venv
-	venv/bin/python -m unittest tests.sql
+	venv/bin/python -m unittest tests
 build: venv
 	rm -rf dist/*
 	venv/bin/pip install --upgrade build

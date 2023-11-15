@@ -1,8 +1,7 @@
 import unittest
 
 from pydal import DAL, Field
-from pydal.restapi import (ALLOW_ALL_POLICY, DENY_ALL_POLICY, RestAPI,
-                           __version__)
+from pydal.restapi import ALLOW_ALL_POLICY, DENY_ALL_POLICY, RestAPI, __version__
 from pydal.validators import IS_NOT_IN_DB
 
 
@@ -327,7 +326,6 @@ class TestRestAPI(unittest.TestCase):
         )
 
     def test_REST(self):
-
         api = self.api
         api.policy = ALLOW_ALL_POLICY
 
@@ -389,7 +387,6 @@ class TestRestAPI(unittest.TestCase):
         )
 
     def test_policies(self):
-
         api = self.api
         api.policy = DENY_ALL_POLICY
 

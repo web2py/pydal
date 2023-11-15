@@ -3,8 +3,7 @@ from decimal import Decimal
 
 from ..adapters.sqlite import SQLite
 from . import before_parse, for_type, parsers
-from .base import (DateParser, DateTimeParser, JSONParser, ListsParser,
-                   TimeParser)
+from .base import DateParser, DateTimeParser, JSONParser, ListsParser, TimeParser
 
 
 @parsers.register_for(SQLite)

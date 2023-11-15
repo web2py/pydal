@@ -133,16 +133,37 @@ import time
 import traceback
 import urllib
 
-from ._compat import (PY2, copyreg, hashlib_md5, integer_types, iteritems,
-                      long, pickle, pjoin, unquote, with_metaclass)
+from ._compat import (
+    PY2,
+    copyreg,
+    hashlib_md5,
+    integer_types,
+    iteritems,
+    long,
+    pickle,
+    pjoin,
+    unquote,
+    with_metaclass,
+)
 from ._globals import DEFAULT, GLOBAL_LOCKER, THREAD_LOCAL
 from ._load import OrderedDict
 from .adapters.base import BaseAdapter, NullAdapter
 from .default_validators import default_validators
-from .helpers.classes import (BasicStorage, RecordDeleter, RecordUpdater,
-                              Serializable, SQLCallableList, TimingHandler)
-from .helpers.methods import (auto_represent, auto_validators, hide_password,
-                              smart_query, uuidstr)
+from .helpers.classes import (
+    BasicStorage,
+    RecordDeleter,
+    RecordUpdater,
+    Serializable,
+    SQLCallableList,
+    TimingHandler,
+)
+from .helpers.methods import (
+    auto_represent,
+    auto_validators,
+    hide_password,
+    smart_query,
+    uuidstr,
+)
 from .helpers.regex import REGEX_DBNAME, REGEX_PYTHON_KEYWORDS
 from .helpers.rest import RestParser
 from .helpers.serializers import serializers
@@ -361,12 +382,12 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         thread_key = "%s.%s" % (socket.gethostname(), threading.current_thread())
         instances = enumerate(instances)
         keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
-        for (i, db) in instances:
+        for i, db in instances:
             if not db._adapter.support_distributed_transaction():
                 raise SyntaxError(
                     "distributed transaction not suported by %s" % db._dbname
                 )
-        for (i, db) in instances:
+        for i, db in instances:
             db._adapter.distributed_transaction_begin(keys[i])
 
     @staticmethod
@@ -376,20 +397,20 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         instances = enumerate(instances)
         thread_key = "%s.%s" % (socket.gethostname(), threading.current_thread())
         keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
-        for (i, db) in instances:
+        for i, db in instances:
             if not db._adapter.support_distributed_transaction():
                 raise SyntaxError(
                     "distributed transaction not suported by %s" % db._dbanme
                 )
         try:
-            for (i, db) in instances:
+            for i, db in instances:
                 db._adapter.prepare(keys[i])
         except:
-            for (i, db) in instances:
+            for i, db in instances:
                 db._adapter.rollback_prepared(keys[i])
             raise RuntimeError("failure to commit distributed transaction")
         else:
-            for (i, db) in instances:
+            for i, db in instances:
                 db._adapter.commit_prepared(keys[i])
         return
 
@@ -419,7 +440,6 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         entity_quoting=True,
         table_hash=None,
     ):
-
         if uri == "<zombie>" and db_uid is not None:
             return
         super(DAL, self).__init__()
@@ -597,7 +617,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     self.define_table(
                         name,
                         *[item[1] for item in mf],
-                        **dict(migrate=migrate, fake_migrate=fake_migrate)
+                        **dict(migrate=migrate, fake_migrate=fake_migrate),
                     )
                 finally:
                     self._adapter.migrator.file_close(tfile)
@@ -736,7 +756,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                         "lazy_tables",
                     ]
                 ]
-            )
+            ),
         )
         for table in self:
             db_as_dict["tables"].append(table.as_dict(flat=flat, sanitize=sanitize))
@@ -986,7 +1006,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         map_tablenames=None,
         ignore_missing_tables=False,
         *args,
-        **kwargs
+        **kwargs,
     ):
         # if id_map is None: id_map={}
         id_offset = {}  # only used if id_map is None

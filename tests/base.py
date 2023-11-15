@@ -6,8 +6,7 @@ import tempfile
 from pydal import DAL, Field
 from pydal._compat import PY2
 
-from ._adapt import (DEFAULT_URI, IS_GAE, IS_IMAP, IS_MSSQL, IS_ORACLE,
-                     IS_TERADATA, drop)
+from ._adapt import DEFAULT_URI, IS_GAE, IS_IMAP, IS_MSSQL, IS_ORACLE, IS_TERADATA, drop
 from ._compat import unittest
 
 
@@ -207,7 +206,6 @@ class TestNullAdapter(unittest.TestCase):
 @unittest.skip("")
 class TestSingleTransaction(unittest.TestCase):
     def test_single_transaction(self):
-
         db = DAL(DEFAULT_URI)
         db.define_table("tt", Field("aa"))
         self.assertEqual(db(db.tt).count(), 0)

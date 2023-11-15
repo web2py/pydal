@@ -6,13 +6,16 @@ Unit tests for IS_URL()
 
 import unittest
 
-from pydal.validators import (IS_GENERIC_URL, IS_HTTP_URL, IS_URL,
-                              unicode_to_ascii_authority)
+from pydal.validators import (
+    IS_GENERIC_URL,
+    IS_HTTP_URL,
+    IS_URL,
+    unicode_to_ascii_authority,
+)
 
 
 class TestIsUrl(unittest.TestCase):
     def testModeHttp(self):
-
         # defaults to mode='http'
 
         x = IS_URL()
@@ -87,7 +90,6 @@ class TestIsUrl(unittest.TestCase):
         self.assertEqual(x("google.ca"), ("google.ca", "Enter a valid URL"))
 
     def testModeGeneric(self):
-
         # 'generic' mode
 
         x = IS_URL(mode="generic")
@@ -135,7 +137,6 @@ class TestIsUrl(unittest.TestCase):
         self.assertEqual(x("google.ca"), ("google.ca", "Enter a valid URL"))
 
     def testExceptionalUse(self):
-
         # mode must be in set ['http', 'generic']
 
         try:
@@ -263,13 +264,11 @@ class TestIsUrl(unittest.TestCase):
 
 
 class TestIsGenericUrl(unittest.TestCase):
-
     x = IS_GENERIC_URL()
 
     def testInvalidUrls(self):
         urlsToCheckA = []
         for i in list(range(0, 32)) + [127]:
-
             # Control characters are disallowed in any part of a URL
 
             urlsToCheckA.append("http://www.benn" + chr(i) + ".ca")
@@ -383,7 +382,6 @@ class TestIsGenericUrl(unittest.TestCase):
 
 
 class TestIsHttpUrl(unittest.TestCase):
-
     x = IS_HTTP_URL()
 
     def testInvalidUrls(self):
@@ -441,7 +439,6 @@ class TestIsHttpUrl(unittest.TestCase):
             self.fail(failures)
 
     def testValidUrls(self):
-
         urlsToCheck = [
             "http://abc.com:80/~smith/home.html",
             "http://ABC.com/%7Esmith/home.html",

@@ -315,7 +315,6 @@ class TestFields(unittest.TestCase):
             self.assertRaises(SyntaxError, Field, a, "string")
 
     def testFieldTypes(self):
-
         # Check that string, and password default length is 512
         for typ in ["string", "password"]:
             self.assertTrue(
@@ -336,7 +335,6 @@ class TestFields(unittest.TestCase):
         )
 
     def testFieldLabels(self):
-
         # Check that a label is successfully built from the supplied fieldname
         self.assertTrue(
             Field("abc", "string").label == "Abc", "Label built is incorrect"
@@ -346,7 +344,6 @@ class TestFields(unittest.TestCase):
         )
 
     def testFieldFormatters(self):  # Formatter should be called Validator
-
         # Test the default formatters
         for typ in ALLOWED_DATATYPES:
             f = Field("abc", typ)
@@ -532,7 +529,6 @@ class TestAll(unittest.TestCase):
 @unittest.skipIf(IS_IMAP, "Skip IMAP")
 class TestTable(unittest.TestCase):
     def testTableCreation(self):
-
         # Check for error when not passing type other than Field or Table
 
         self.assertRaises(SyntaxError, Table, None, "test", None)
@@ -1598,7 +1594,7 @@ class TestReference(unittest.TestCase):
             (False, "CASCADE"),
             (False, "SET NULL"),
         )
-        for (b, ondelete) in scenarios:
+        for b, ondelete in scenarios:
             db = DAL(DEFAULT_URI, check_reserved=["all"], bigint_id=b)
             db.define_table(
                 "tt", Field("name"), Field("aa", "reference tt", ondelete=ondelete)
@@ -2426,7 +2422,6 @@ class TestRNameFields(unittest.TestCase):
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
 class TestQuoting(unittest.TestCase):
-
     # tests for case sensitivity
     def testCase(self):
         return
@@ -2460,7 +2455,6 @@ class TestQuoting(unittest.TestCase):
         db.close()
 
     def testPKFK(self):
-
         # test primary keys
 
         db = DAL(DEFAULT_URI, check_reserved=["all"], ignore_field_case=False)

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """Unit tests for http.py """
@@ -301,11 +301,13 @@ class TestValidators(unittest.TestCase):
             Field("name"),
         )
         ret = db.category.validate_and_insert(name="seinfeld")
-        self.assertFalse(list(ret.errors))
-        ret = db.category.validate_and_insert(name="characters", parent_id=ret.id)
-        self.assertFalse(list(ret.errors))
-        rtn = IS_IN_DB(db, "category.id", "%(name)s")(ret.id)
-        self.assertEqual(rtn, (ret.id, None))
+        self.assertFalse(ret.get("errors"))
+        ret = db.category.validate_and_insert(
+            name="characters", parent_id=ret.get("id")
+        )
+        self.assertFalse(ret.get("errors"))
+        rtn = IS_IN_DB(db, "category.id", "%(name)s")(ret.get("id"))
+        self.assertEqual(rtn, (ret.get("id"), None))
         # Test _and
         vldtr = IS_IN_DB(
             db,
@@ -333,11 +335,11 @@ class TestValidators(unittest.TestCase):
             "ref_table", Field("name"), Field("person_id", "reference person")
         )
         ret = db.ref_table.validate_and_insert(name="test reference table")
-        self.assertFalse(list(ret.errors))
+        self.assertTrue(not ret.get("errors"))
         ret = db.ref_table.validate_and_insert(
             name="test reference table", person_id=george_id
         )
-        self.assertFalse(list(ret.errors))
+        self.assertTrue(not ret.get("errors"))
         rtn = IS_IN_DB(db, "ref_table.person_id", "%(name)s")(george_id)
         self.assertEqual(rtn, (george_id, None))
         # Test it works with reference table.field and keyed table
@@ -352,11 +354,11 @@ class TestValidators(unittest.TestCase):
             Field("person_name", "reference person_keyed.name"),
         )
         ret = db.ref_table_field.validate_and_insert(name="test reference table.field")
-        self.assertFalse(list(ret.errors))
+        self.assertTrue(not ret.get("errors"))
         ret = db.ref_table_field.validate_and_insert(
             name="test reference table.field", person_name="george"
         )
-        self.assertFalse(list(ret.errors))
+        self.assertTrue(not ret.get("errors"))
         vldtr = IS_IN_DB(db, "ref_table_field.person_name", "%(name)s")
         vldtr.options()
         rtn = vldtr("george")
@@ -368,34 +370,21 @@ class TestValidators(unittest.TestCase):
             Field("person_list", "list:reference person"),
         )
         ret = db.list_ref_table.validate_and_insert(name="test list:reference table")
-        self.assertFalse(list(ret.errors))
+        self.assertTrue(not ret.get("errors"))
         ret = db.list_ref_table.validate_and_insert(
             name="test list:reference table", person_list=[george_id, costanza_id]
         )
-        self.assertFalse(list(ret.errors))
+        self.assertTrue(not ret.get("errors"))
         vldtr = IS_IN_DB(db, "list_ref_table.person_list")
         vldtr.options()
         rtn = vldtr([george_id, costanza_id])
         self.assertEqual(rtn, ([george_id, costanza_id], None))
-        # Test it works with list:reference table.field and keyed table
-        # db.define_table('list_ref_table_field',
-        #                Field('name'),
-        #                Field('person_list', 'list:reference person_keyed.name'))
-        # ret = db.list_ref_table_field.validate_and_insert(name='test list:reference table.field')
-        # self.assertFalse(list(ret.errors))
-        # ret = db.list_ref_table_field.validate_and_insert(name='test list:reference table.field', person_list=['george','costanza'])
-        # self.assertFalse(list(ret.errors))
-        # vldtr = IS_IN_DB(db, 'list_ref_table_field.person_list')
-        # vldtr.options()
-        # rtn = vldtr(['george','costanza'])
-        # self.assertEqual(rtn, (['george','costanza'], None))
         db.person.drop()
         db.category.drop()
         db.person_keyed.drop()
         db.ref_table.drop()
         db.ref_table_field.drop()
         db.list_ref_table.drop()
-        # db.list_ref_table_field.drop()
 
     def test_IS_NOT_IN_DB(self):
         db = DAL("sqlite:memory")
@@ -755,7 +744,6 @@ class TestValidators(unittest.TestCase):
         # https://github.com/web2py/web2py/issues/1094
 
         class DummyTimezone(datetime.tzinfo):
-
             ONE = datetime.timedelta(hours=1)
 
             def utcoffset(self, dt):

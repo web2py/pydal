@@ -1,6 +1,14 @@
 from .._compat import basestring
-from ..adapters.mssql import (MSSQL, MSSQL3, MSSQL3N, MSSQL4, MSSQL4N, MSSQLN,
-                              Sybase, Vertica)
+from ..adapters.mssql import (
+    MSSQL,
+    MSSQL3,
+    MSSQL3N,
+    MSSQL4,
+    MSSQL4N,
+    MSSQLN,
+    Sybase,
+    Vertica,
+)
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
 from . import dialects, sqltype_for

@@ -3,8 +3,14 @@ import threading
 import time
 
 from pydal._compat import to_bytes
-from pydal.contrib.portalocker import (LOCK_EX, LockedFile, lock, read_locked,
-                                       unlock, write_locked)
+from pydal.contrib.portalocker import (
+    LOCK_EX,
+    LockedFile,
+    lock,
+    read_locked,
+    unlock,
+    write_locked,
+)
 
 from ._adapt import IS_GAE
 from ._compat import unittest
@@ -26,7 +32,6 @@ class testPortalocker(unittest.TestCase):
 
     @unittest.skipIf(IS_GAE, "GAE has no locks")
     def test_openmultiple(self):
-
         t0 = time.time()
 
         def worker1():

@@ -55,17 +55,17 @@ class TestValidateAndInsert(unittest.TestCase):
         )
         rtn = db.val_and_insert.validate_and_insert(aa="test1", bb=2)
         if IS_NOSQL:
-            self.assertEqual(isinstance(rtn.id, long), True)
+            self.assertEqual(isinstance(rtn.get("id"), long), True)
         else:
-            self.assertEqual(rtn.id, 1)
+            self.assertEqual(rtn.get("id"), 1)
         # errors should be empty
-        self.assertEqual(len(rtn.errors.keys()), 0)
+        self.assertTrue(not rtn.get("errors"))
         # this insert won't pass
         rtn = db.val_and_insert.validate_and_insert(bb="a")
         # the returned id should be None
-        self.assertEqual(rtn.id, None)
+        self.assertEqual(rtn.get("id"), None)
         # an error message should be in rtn.errors.bb
-        self.assertNotEqual(rtn.errors.bb, None)
+        self.assertNotEqual(rtn["errors"]["bb"], None)
         # cleanup table
         drop(db.val_and_insert)
 
@@ -80,9 +80,9 @@ class TestValidateUpdateInsert(unittest.TestCase):
         i_response = t1.validate_and_update_or_insert((t1.int_level == 1), int_level=1)
         u_response = t1.validate_and_update_or_insert((t1.int_level == 1), int_level=2)
         e_response = t1.validate_and_update_or_insert((t1.int_level == 1), int_level=6)
-        self.assertTrue(i_response.id != None)
-        self.assertTrue(u_response.id != None)
-        self.assertTrue(e_response.id == None and len(e_response.errors.keys()) != 0)
+        self.assertTrue(i_response["id"] != None)
+        self.assertTrue(u_response["id"] != None)
+        self.assertTrue(e_response.get("id") == None and e_response.get("errors"))
         self.assertEqual(len(db(t1).select()), 1)
         self.assertEqual(db(t1).count(), 1)
         self.assertEqual(db(t1.int_level == 1).count(), 0)

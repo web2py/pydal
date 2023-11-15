@@ -6,8 +6,17 @@ import threading
 import time
 import traceback
 
-from .._compat import (PY2, copyreg, exists, implements_bool, iteritems,
-                       iterkeys, itervalues, long, to_bytes)
+from .._compat import (
+    PY2,
+    copyreg,
+    exists,
+    implements_bool,
+    iteritems,
+    iterkeys,
+    itervalues,
+    long,
+    to_bytes,
+)
 from .._globals import THREAD_LOCAL
 from .serializers import serializers
 
@@ -475,7 +484,6 @@ class TimingHandler(ExecutionHandler):
 
 
 class DatabaseStoredFile:
-
     web2py_filesystems = set()
 
     def escape(self, obj):

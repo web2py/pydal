@@ -4,18 +4,40 @@ import types
 from collections import defaultdict
 from contextlib import contextmanager
 
-from .._compat import (PY2, basestring, hashlib_md5, integer_types, iteritems,
-                       iterkeys, with_metaclass)
+from .._compat import (
+    PY2,
+    basestring,
+    hashlib_md5,
+    integer_types,
+    iteritems,
+    iterkeys,
+    with_metaclass,
+)
 from .._globals import IDENTITY
 from ..connection import ConnectionPool
 from ..exceptions import NotOnNOSQLError
-from ..helpers.classes import (SQLALL, ExecutionHandler, NullDriver, Reference,
-                               SQLCustomType)
+from ..helpers.classes import (
+    SQLALL,
+    ExecutionHandler,
+    NullDriver,
+    Reference,
+    SQLCustomType,
+)
 from ..helpers.methods import merge_tablemaps, use_common_filters, xorify
 from ..helpers.regex import REGEX_SELECT_AS_PARSER, REGEX_TABLE_DOT_FIELD
 from ..migrator import Migrator
-from ..objects import (Expression, Field, IterRows, LazyReferenceGetter,
-                       LazySet, Query, Rows, Select, Table, VirtualCommand)
+from ..objects import (
+    Expression,
+    Field,
+    IterRows,
+    LazyReferenceGetter,
+    LazySet,
+    Query,
+    Rows,
+    Select,
+    Table,
+    VirtualCommand,
+)
 from ..utils import deprecated
 from . import AdapterMeta, with_connection, with_connection_or_raise
 
@@ -239,7 +261,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         new_row = defaultdict(self.db.Row)
         extras = self.db.Row()
         #: let's loop over columns
-        for (j, colname) in enumerate(colnames):
+        for j, colname in enumerate(colnames):
             value = row[j]
             tmp = tmps[j]
             tablename = None

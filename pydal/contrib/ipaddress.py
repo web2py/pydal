@@ -1386,7 +1386,6 @@ class IPv4Address(_BaseV4, _BaseAddress):
     __slots__ = ("_ip", "__weakref__")
 
     def __init__(self, address):
-
         """
         Args:
             address: A string or integer representing the IP
@@ -1589,7 +1588,6 @@ class IPv4Network(_BaseV4, _BaseNetwork):
     _address_class = IPv4Address
 
     def __init__(self, address, strict=True):
-
         """Instantiate a new IPv4 network object.
 
         Args:
@@ -1693,7 +1691,6 @@ class IPv4Network(_BaseV4, _BaseNetwork):
 
 
 class _IPv4Constants(object):
-
     _linklocal_network = IPv4Network("169.254.0.0/16")
 
     _loopback_network = IPv4Network("127.0.0.0/8")
@@ -2399,7 +2396,6 @@ class IPv6Network(_BaseV6, _BaseNetwork):
 
 
 class _IPv6Constants(object):
-
     _linklocal_network = IPv6Network("fe80::/10")
 
     _multicast_network = IPv6Network("ff00::/8")

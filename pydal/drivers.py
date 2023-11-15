@@ -147,6 +147,7 @@ except ImportError:
 try:
     import java.sql
     from com.ziclix.python.sql import zxJDBC
+
     # Try sqlite jdbc driver from http://www.zentus.com/sqlitejdbc/
     from org.sqlite import JDBC  # required by java.sql; ensure we have it
 

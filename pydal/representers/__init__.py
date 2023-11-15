@@ -1,7 +1,6 @@
 from collections import defaultdict
 
-from .._compat import (PY2, iteritems, string_types, to_bytes, to_unicode,
-                       with_metaclass)
+from .._compat import PY2, iteritems, string_types, to_bytes, to_unicode, with_metaclass
 from .._gae import gae
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_TYPE
