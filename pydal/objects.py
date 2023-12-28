@@ -2072,7 +2072,7 @@ class Field(Expression, Serializable):
         uuid_key = self._db.uuid().replace("-", "")[-16:] if self._db else uuidstr()
         encoded_filename = to_native(base64.urlsafe_b64encode(to_bytes(filename)))
         newfilename = "%s.%s.%s.%s" % (
-            self._tablename if '_tablename' in self.__dir__() and self._tablename else 'no_table',
+            getattr(self, '_tablename', 'no_table'),
             self.name,
             uuid_key,
             encoded_filename,
