@@ -664,7 +664,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 raise SyntaxError("table already defined: %s" % tablename)
         elif (
             tablename.startswith("_")
-            or tablename in dir(self)
+            or hasattr(self, tablename)
             or REGEX_PYTHON_KEYWORDS.match(tablename)
         ):
             raise SyntaxError("invalid table name: %s" % tablename)
