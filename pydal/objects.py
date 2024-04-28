@@ -925,7 +925,7 @@ class Table(Serializable, BasicStorage):
                 errors[field.name] = "required"
                 continue
             # if we tried to submit **** as a password, ignore it (perhaps should be error)
-            if field.type == "password" and fields[field.name] == CRYPT.STARS:
+            if field.type == "password" and fields.get(field.name) == CRYPT.STARS:
                 continue
             # if the field has a value use it
             if field.name in fields:
