@@ -627,12 +627,17 @@ class Table(Serializable, BasicStorage):
                 else:
                     self._referenced_by.append(referee)
 
-    def _filter_fields(self, record, id=False):
+    def _filter_fields(self, record, allow_id=False, writable_only=False):
         return dict(
             [
                 (k, v)
                 for (k, v) in iteritems(record)
-                if k in self.fields and (getattr(self, k).type != "id" or id)
+                # include fields if
+                if (
+                    k in self.fields
+                    and (allow_id or getattr(self, k).type != "id")  # are valid
+                    and (not writable_only or getattr(self, k).writable)  # are not ids
+                )  # are writable
             ]
         )
 
@@ -895,41 +900,67 @@ class Table(Serializable, BasicStorage):
                 f(row, ret)
         return ret
 
-    def _validate_fields(self, fields, defattr="default", id=None):
+    def _validate_fields(self, fields, record=None):
         from .validators import CRYPT
-
-        response = {"id": None, "errors": {}}
-        new_fields = Row()
+        # if a field it not writable or is an id or does not exist or
+        # it is a computed field, than it is invalid
+        valid_names = {
+            f.name for f in self if
+            f.writable and
+            f.type != "id" and
+            not f.compute
+        }
+        errors = {}
+        new_fields = {}
+        for name in fields:
+            if name not in valid_names:
+                errors[name] = "invalid"
+        # loop over all expected fields
         for field in self:
-            # we validate even if not passed in case it is required
-            error = default = None
-            if not field.required and not field.compute:
-                default = getattr(field, defattr)
-                if callable(default):
-                    default = default()
-            if not field.compute:
-                ovalue = fields.get(field.name, default)
-                value, error = field.validate(ovalue, id)
+            # the field already resulted in an error, skip it
+            if field.name in errors:
+                continue
+            # if field is required but missing error
+            if record is None and field.required and not field.name in fields:
+                errors[field.name] = "required"
+                continue
+            # if we tried to submit **** as a password, ignore it (perhaps should be error)
+            if field.type == "password" and fields[field.name] == CRYPT.STARS:
+                continue
+            # if the field has a value use it
+            if field.name in fields:
+                id = record and record.id
+                value, error = field.validate(fields[field.name], record_id=id)
+            # this is an insert and no  value use the default value
+            elif not record and field.default:
+                value, error = field.default, None
+            # this is an update and no value use it
+            elif record and field.update:
+                value, error = field.update, None
+            else:
+                continue
+            # if error, record it
             if error:
-                response["errors"][field.name] = "%s" % error
-            elif field.type == "password" and ovalue == CRYPT.STARS:
-                pass
-            elif field.name in fields:
+                errors[field.name] = "%s" % error
+            # if no error and password
+            else:
+                # value can be a function if coming from default of update
+                if callable(value):
+                    value = value()
                 # only write if the field was passed and no error
-                new_fields[field.name] = value
-        return response, new_fields
+                new_fields[field.name] = value        
+        return errors, new_fields
 
     def validate_and_insert(self, **fields):
-        response, new_fields = self._validate_fields(fields, "default")
-        if not response.get("errors"):
-            response["id"] = self.insert(**new_fields)
-        return response
+        errors, new_fields = self._validate_fields(fields)
+        record_id = self.insert(**new_fields) if not errors else None
+        return {"id": record_id, "errors": errors}
 
     def validate_and_update(self, _key, **fields):
         record = self(**_key) if isinstance(_key, dict) else self(_key)
-        response, new_fields = self._validate_fields(fields, "update", record.id)
-        #: do the update
-        if not response.get("errors") and record:
+        errors, new_fields = self._validate_fields(fields, record)
+        updated = None
+        if not errors and record:
             if "_id" in self:
                 myset = self._db(self._id == record[self._id.name])
             else:
@@ -940,10 +971,8 @@ class Table(Serializable, BasicStorage):
                     else:
                         query = query & (getattr(self, key) == value)
                 myset = self._db(query)
-            response["updated"] = myset.update(**new_fields)
-        if record:
-            response["id"] = record.id
-        return response
+            updated = myset.update(**new_fields)
+        return {"id": record and record.id, "updated": updated, "errors": errors}
 
     def update_or_insert(self, _key=DEFAULT, **values):
         if _key is DEFAULT:
@@ -2798,25 +2827,24 @@ class Set(Serializable):
         return ret
 
     def validate_and_update(self, **update_fields):
+        response = {"updated": 0, "errors": {}}
         table = self.db._adapter.get_table(self.query)
-        response = {}
-        response["errors"] = {}
-        new_fields = copy.copy(update_fields)
-        for key, value in iteritems(update_fields):
-            value, error = table[key].validate(value, update_fields.get("id"))
-            if error:
-                response["errors"][key] = "%s" % error
-            else:
-                new_fields[key] = value
-        if response["errors"]:
+        # use {} instead of None to make an empty record
+        # to that we use update values instead of default values
+        errors, new_fields = table._validate_fields(update_fields, {})
+        if errors:
             response["updated"] = 0
+            response["errors"] = errors
         else:
+            print(new_fields)
             row = table._fields_and_values_for_update(new_fields)
+            print(row)
             if not row._values:
                 raise ValueError("No fields to update")
             if any(f(self, row) for f in table._before_update):
                 ret = 0
             else:
+                print(row.op_values())
                 ret = self.db._adapter.update(table, self.query, row.op_values())
                 ret and [f(self, row) for f in table._after_update]
             response["updated"] = ret

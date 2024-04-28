@@ -52,7 +52,10 @@ class TestValidateAndInsert(unittest.TestCase):
             "val_and_insert",
             Field("aa"),
             Field("bb", "integer", requires=IS_INT_IN_RANGE(1, 5)),
+            Field("cc", writable=False)
         )
+        rtn = db.val_and_insert.validate_and_insert(aa="test1", bb=2, cc="not-alloed")
+        self.assertTrue("cc" in rtn["errors"])        
         rtn = db.val_and_insert.validate_and_insert(aa="test1", bb=2)
         if IS_NOSQL:
             self.assertEqual(isinstance(rtn.get("id"), long), True)
