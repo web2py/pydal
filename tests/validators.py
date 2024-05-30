@@ -386,6 +386,19 @@ class TestValidators(unittest.TestCase):
         db.ref_table_field.drop()
         db.list_ref_table.drop()
 
+    def test_IS_IN_DB_options(self):
+        db = DAL("sqlite:memory")
+        db.define_table("thing", Field("name"))
+        db.thing.insert(name="red")
+        db.thing.insert(name="green")
+        assert IS_IN_DB(db, "thing").options() == [('', ''), ('1', '1'), ('2', '2')]
+        # setting a format for the validator
+        db.thing._format = lambda i: i.name
+        assert IS_IN_DB(db, "thing").options() == [('', ''), ('1', 'red'), ('2', 'green')]
+        assert IS_IN_DB(db, "thing", zero=None).options() == [('1', 'red'), ('2', 'green')]
+        assert IS_IN_DB(db, "thing", zero="x").options() == [('', 'x'), ('1', 'red'), ('2', 'green')]
+        
+
     def test_IS_NOT_IN_DB(self):
         db = DAL("sqlite:memory")
         db.define_table("person", Field("name"), Field("nickname"))

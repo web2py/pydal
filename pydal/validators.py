@@ -568,16 +568,30 @@ class IS_IN_DB(Validator):
         else:
             self.dbset = dbset
 
+        table = None
         if isinstance(field, Table):
-            field = field._id
+            table = field
+            field = table._id
+            fname = str(field)
+        if isinstance(field, Field):
+            fname = str(field)
         elif isinstance(field, str):
             items = field.split(".")
-            if len(items) == 1:
-                field = items[0] + ".id"
-
-        (ktable, kfield) = str(field).split(".")
+            if len(items) == 1 or items[1] == "id":
+                table = self.dbset._db.get(items[0])
+                fname = items[0] + ".id"
+            else:
+                fname = field
+        else:
+            raise RuntimeError("IS_IN_DB: a field argument must be specified")
+        (ktable, kfield) = fname.split(".")
         if not label:
-            label = "%%(%s)s" % kfield
+            # if we have a table and it has a _format, use it
+            if table and table._format:
+                label = table._format
+            # else format using the field value
+            else:
+                label = "%%(%s)s" % kfield
         if isinstance(label, str):
             m = re.match(self.REGEX_TABLE_DOT_FIELD, label)
             if m:
