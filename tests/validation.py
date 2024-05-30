@@ -97,6 +97,9 @@ class TestValidateAndInsert(unittest.TestCase):
             names = os.listdir(tempdir)
             self.assertEqual(len(names), 1)
             self.assertEqual(thing.image, names[0])
+            content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x04\x00\x00\x00\xb5\x1c\x0c\x02\x00\x00\x00\x0bIDATx\xdacd\xf8\x0f\x00\x01\x05\x01\x01'\x18\xe3f\x00\x00\x00\x00IEND\xaeB`\x82"
+            with open(os.path.join(tempdir, names[0]), "rb") as stream:
+                self.assertEqual(stream.read(), content)
 
 
 @unittest.skipIf(IS_IMAP, "TODO: IMAP test")
