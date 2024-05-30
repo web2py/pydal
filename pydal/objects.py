@@ -8,6 +8,7 @@ import copy
 import csv
 import datetime
 import decimal
+import io
 import os
 import re
 import shutil
@@ -901,20 +902,22 @@ class Table(Serializable, BasicStorage):
         return ret
 
     def _validate_fields(self, fields, record=None):
+        # do not change the input
+        fields = copy.copy(fields)
         from .validators import CRYPT
+
         # if a field it not writable or is an id or does not exist or
         # it is a computed field, than it is invalid
         valid_names = {
-            f.name for f in self if
-            f.writable and
-            f.type != "id" and
-            not f.compute
+            f.name for f in self if f.writable and f.type != "id" and not f.compute
         }
         errors = {}
         new_fields = {}
         for name in fields:
             if name not in valid_names:
                 errors[name] = "invalid"
+        # temp files
+        temp_files = []
         # loop over all expected fields
         for field in self:
             # the field already resulted in an error, skip it
@@ -927,6 +930,16 @@ class Table(Serializable, BasicStorage):
             # if we tried to submit **** as a password, ignore it (perhaps should be error)
             if field.type == "password" and fields.get(field.name) == CRYPT.STARS:
                 continue
+            # if the field is of type upload but this is JSON content
+            if field.type == "upload" and isinstance(fields.get(field.name), dict):
+                filename = fields[field.name].get("filename")
+                content = fields[field.name].get("content")
+                if filename and content:
+                    file = io.BytesIO(base64.b64decode(content))
+                value = field.store(file, filename, field.uploadfolder)
+                fields[field.name] = value
+                if field.uploadfolder:
+                    temp_files.append(os.path.join(field.uploadfolder, value))
             # if the field has a value use it
             if field.name in fields:
                 id = record and record.id
@@ -948,7 +961,13 @@ class Table(Serializable, BasicStorage):
                 if callable(value):
                     value = value()
                 # only write if the field was passed and no error
-                new_fields[field.name] = value        
+                new_fields[field.name] = value
+        if errors:
+            for path in temp_files:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
         return errors, new_fields
 
     def validate_and_insert(self, **fields):

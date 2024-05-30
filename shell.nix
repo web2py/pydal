@@ -12,7 +12,7 @@ let
     shellHook = ''
       # Allow the use of wheels.
       SOURCE_DATE_EPOCH=$(date +%s)
-      VENV_PATH=/home/$USER/.nix-venvs$(pwd)/venv${myPython.version}
+      VENV_PATH=/home/$USER/.venvs$(pwd)/venv${myPython.version}
       # Augment the dynamic linker path
 
       # Setup the virtual environment if it doesn't already exist.
