@@ -1136,6 +1136,7 @@ class IS_SAFE(Validator):
     def __init__(self, sanitizer=None, error_message="Unsafe Content", mode="error"):
         self.sanitizer = sanitizer or IS_SAFE.default_sanitizer
         self.error_message = error_message
+        assert mode in ("error", "sanitize")
         self.mode = mode
 
     def validate(self, value, record_id=None):

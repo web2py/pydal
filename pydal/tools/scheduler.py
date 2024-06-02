@@ -42,13 +42,13 @@ def make_daemon(func, filename, cwd="."):
     if os.fork():
         sys.exit(0)
     # redirect standard file descriptors
-    sys.stdout.flush()
-    sys.stderr.flush()
+    sys.__stdout__.flush()
+    sys.__stderr__.flush()
     with open(os.devnull, "rb") as stream_in:
-        os.dup2(stream_in.fileno(), sys.stdin.fileno())
+        os.dup2(stream_in.fileno(), sys.__stdin__.fileno())
         with open(filename, "wb") as stream_out:
-            os.dup2(stream_out.fileno(), sys.stdout.fileno())
-            os.dup2(stream_out.fileno(), sys.stderr.fileno())
+            os.dup2(stream_out.fileno(), sys.__stdout__.fileno())
+            os.dup2(stream_out.fileno(), sys.__stderr__.fileno())
             try:
                 func()
             finally:
@@ -69,7 +69,7 @@ def get_logger(name, log_format="[%(asctime)s]%(levelname)s %(message)s"):
     """Get a default logger"""
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(sys.__stdout__)
     handler.setFormatter(logging.Formatter(log_format))
     logger.addHandler(handler)
     return logger
@@ -250,7 +250,7 @@ class Scheduler:  # pylint: disable=too-many-instance-attributes
         db = self.db
         # find the next task to execute
         nruns = db(db.task_run.worker == None)(db.task_run.scheduled_for <= now())
-        orderby = ~db.task_run.priority | db.task_run.queued_on
+        orderby = db.task_run.priority | db.task_run.id
         run = nruns.select(orderby=orderby, limitby=(0, 1)).first()
         self.logger.info("run found #%s %s", run and run.id, run and run.name)
         if run:
@@ -354,9 +354,9 @@ class Scheduler:  # pylint: disable=too-many-instance-attributes
         self,
         name,
         description="",
-        inputs=None,
-        timeout=None,
-        priority=None,
+        inputs={},
+        timeout=3600,
+        priority=0,
         period=None,
         scheduled_for=None,
     ):
