@@ -28,9 +28,21 @@ import unicodedata
 import uuid
 from functools import reduce
 
-from ._compat import (PY2, StringIO, basestring, integer_types, ipaddress,
-                      string_types, to_bytes, to_native, to_unicode, unichr,
-                      unicodeT, urllib_unquote, urlparse)
+from ._compat import (
+    PY2,
+    StringIO,
+    basestring,
+    integer_types,
+    ipaddress,
+    string_types,
+    to_bytes,
+    to_native,
+    to_unicode,
+    unichr,
+    unicodeT,
+    urllib_unquote,
+    urlparse,
+)
 from .objects import Field, FieldMethod, FieldVirtual, Table
 
 JSONErrors = (NameError, TypeError, ValueError, AttributeError, KeyError)
@@ -66,6 +78,7 @@ __all__ = [
     "IS_NOT_EMPTY",
     "IS_NOT_IN_DB",
     "IS_NULL_OR",
+    "IS_SAFE",
     "IS_SLUG",
     "IS_STRONG",
     "IS_TIME",
@@ -1101,6 +1114,44 @@ class IS_NOT_EMPTY(Validator):
         if empty:
             raise ValidationError(self.translator(self.error_message))
         return value
+
+
+class IS_SAFE(Validator):
+    """
+    Example:
+        Used as::
+
+            Field("html", 'text', requires=IS_SAFE())
+
+            >>> IS_SAFE()("<div></div>")
+            ("<div></div>, None)
+            >>> from py4web import XML
+            >>> sanitizer = lambda text: XML(text, sanitize=True)
+            >>> IS_SAFE(sanitizer, mode="error")("<script></script>")
+            ("<script></script>", "Unsafe Content")
+            >>> IS_SAFE(sanitizer, node="sanitize")("<script></script>")
+            ("", None)
+    """
+
+    def __init__(self, sanitizer=None, error_message="Unsafe Content", mode="error"):
+        self.sanitizer = sanitizer or IS_SAFE.default_sanitizer
+        self.error_message = error_message
+        self.mode = mode
+
+    def validate(self, value, record_id=None):
+        sanitized_value = self.sanitizer(value)
+        if sanitized_value != value and self.mode == "error":
+            raise ValidationError(self.translator(self.error_message))
+        return sanitized_value
+
+    default_regex = re.compile(
+        r"(<\s*/?(script|embed|object|iframe|textarea|input|button).*>)|(<[^>]+ on\w+[^>]+>)",
+        re.IGNORECASE | re.DOTALL,
+    )
+
+    @staticmethod
+    def default_sanitizer(text):
+        return IS_SAFE.default_regex.sub("", text)
 
 
 class IS_ALPHANUMERIC(IS_MATCH):

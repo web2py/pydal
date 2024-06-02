@@ -1483,3 +1483,13 @@ this is the content of the fake file
         self.assertEqual(rtn, ("2001::8ffa:fe22:b3af", None))
         rtn = IS_IPADDRESS(subnets="invalidsubnet")("2001::8ffa:fe22:b3af")
         self.assertEqual(rtn, ("2001::8ffa:fe22:b3af", "invalid subnet provided"))
+
+    def test_IS_SAFE(self):
+        rtn = IS_SAFE()("<div>test</div>")
+        ("<div></div>", None)
+
+        rtn = IS_SAFE()("<div><script>xxx</script></div>")
+        ("<div><script>xxx</script></div>", "Unsafe Content")
+
+        rtn = IS_SAFE(mode="sanitize")("<div><script>xxx</script></div>")
+        ("<div>xxx</div>", "Unsafe Content")
