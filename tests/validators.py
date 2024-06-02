@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Unit tests for http.py """
+"""Unit tests for validators.py """
 
 import datetime
 import decimal
@@ -210,6 +210,15 @@ class TestValidators(unittest.TestCase):
         rtn = IS_IN_SET(["id2", "id1"], sort=True).options(zero=False)
         self.assertEqual(rtn, [("id1", "id1"), ("id2", "id2")])
 
+        # sets can be lazy
+        theset = []
+        validator = IS_IN_SET(lambda: theset)
+        rtn = validator("max")
+        self.assertEqual(rtn, ("max", "Value not allowed"))
+        theset.append("max")
+        rtn = validator("max")
+        self.assertEqual(rtn, ("max", None))
+
     def test_IS_IN_DB(self):
         db = DAL("sqlite:memory")
         db.define_table("person", Field("name"))
@@ -391,13 +400,23 @@ class TestValidators(unittest.TestCase):
         db.define_table("thing", Field("name"))
         db.thing.insert(name="red")
         db.thing.insert(name="green")
-        assert IS_IN_DB(db, "thing").options() == [('', ''), ('1', '1'), ('2', '2')]
+        assert IS_IN_DB(db, "thing").options() == [("", ""), ("1", "1"), ("2", "2")]
         # setting a format for the validator
         db.thing._format = lambda i: i.name
-        assert IS_IN_DB(db, "thing").options() == [('', ''), ('1', 'red'), ('2', 'green')]
-        assert IS_IN_DB(db, "thing", zero=None).options() == [('1', 'red'), ('2', 'green')]
-        assert IS_IN_DB(db, "thing", zero="x").options() == [('', 'x'), ('1', 'red'), ('2', 'green')]
-        
+        assert IS_IN_DB(db, "thing").options() == [
+            ("", ""),
+            ("1", "red"),
+            ("2", "green"),
+        ]
+        assert IS_IN_DB(db, "thing", zero=None).options() == [
+            ("1", "red"),
+            ("2", "green"),
+        ]
+        assert IS_IN_DB(db, "thing", zero="x").options() == [
+            ("", "x"),
+            ("1", "red"),
+            ("2", "green"),
+        ]
 
     def test_IS_NOT_IN_DB(self):
         db = DAL("sqlite:memory")
@@ -653,7 +672,7 @@ class TestValidators(unittest.TestCase):
         rtn = IS_EMAIL(banned=r"^.*\.com(|\..*)$")("abc@example.com")
         self.assertEqual(rtn, ("abc@example.com", "Enter a valid email address"))
         # test for forced
-        rtn = IS_EMAIL(forced="^.*\.edu(|\..*)$")("localguy@localhost")
+        rtn = IS_EMAIL(forced=r"^.*\.edu(|\..*)$")("localguy@localhost")
         self.assertEqual(rtn, ("localguy@localhost", "Enter a valid email address"))
         rtn = IS_EMAIL(forced=r"^.*\.edu(|\..*)$")("localguy@example.edu")
         self.assertEqual(rtn, ("localguy@example.edu", None))
