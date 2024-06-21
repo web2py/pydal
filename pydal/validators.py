@@ -484,7 +484,7 @@ class IS_IN_SET(Validator):
         self.zero = zero
         self.sort = sort
 
-    def options(self, zero=None):
+    def options(self, zero=True):
         # could be a lasy set
         iset = self.theset() if callable(self.theset) else self.theset
         # this could be an interator
@@ -500,8 +500,6 @@ class IS_IN_SET(Validator):
             else:
                 theset = map(str, iset)
                 labels = self.labels
-        zero = self.zero if zero is None else zero
-
         if not labels:
             items = [(k, k) for (i, k) in enumerate(theset)]
         else:
@@ -513,7 +511,7 @@ class IS_IN_SET(Validator):
         return items
 
     def validate(self, value, record_id=None):
-        valuemap = dict(self.options())
+        valuemap = dict(self.options(zero=False))
         if self.multiple:
             # if below was values = re.compile("[\w\-:]+").findall(str(value))
             if not value:
