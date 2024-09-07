@@ -26,7 +26,16 @@ class NotFound(ValueError):
 
 
 def maybe_call(value):
+    "call value if callable else return value"
     return value() if callable(value) else value
+
+
+def trydo(f, default):
+    "return f() if no exception else return default"
+    try:
+        return f()
+    except Exception:
+        return default
 
 
 def error_wrapper(func):
@@ -573,12 +582,14 @@ class RestAPI(object):
         if not options_list:
             response["items"] = rows.as_list()
         else:
-            if table._format:
-                response["items"] = [
-                    dict(value=row.id, text=(table._format % row)) for row in rows
-                ]
+            if callable(table._format):
+                f = lambda row: trydo(lambda: table._format(row), str(row.id))
+            elif table._format:
+                f = lambda row: trydo(lambda: table._format % row, str(row.id))
             else:
-                response["items"] = [dict(value=row.id, text=row.id) for row in rows]
+                f = lambda row: str(row.id)
+            response["items"] = [dict(value=row.id, text=f(row)) for row in rows]
+
         if do_count or (self.allow_count == "legacy" and offset == 0):
             response["count"] = db(query).count()
         if model:
