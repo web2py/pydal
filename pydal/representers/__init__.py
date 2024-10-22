@@ -1,7 +1,6 @@
 from collections import defaultdict
 
 from .._compat import PY2, iteritems, string_types, to_bytes, to_unicode, with_metaclass
-from .._gae import gae
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_TYPE
 
@@ -251,6 +250,7 @@ class Representer(with_metaclass(MetaRepresenter)):
 from .base import BaseRepresenter, NoSQLRepresenter, SQLRepresenter
 from .couchdb import CouchDBRepresenter
 from .db2 import DB2Representer
+from .google import FirestoreRepresenter
 from .informix import InformixRepresenter
 from .mongo import MongoRepresenter
 from .mssql import MSSQLRepresenter
@@ -258,6 +258,3 @@ from .mysql import MySQLRepresenter
 from .oracle import OracleRepresenter
 from .postgre import PostgreRepresenter
 from .sqlite import SpatialiteRepresenter, SQLiteRepresenter
-
-if gae is not None:
-    from .google import GoogleDatastoreRepresenter

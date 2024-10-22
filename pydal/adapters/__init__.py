@@ -1,6 +1,5 @@
 import re
 
-from .._gae import gae
 from ..helpers._internals import Dispatcher
 
 

@@ -24,13 +24,13 @@ class CouchDB(NoSQLAdapter):
         conn.commit = lambda: None
         return conn
 
-    def create_table(self, table, migrate=True, fake_migrate=False, polymodel=None):
+    def create_table(self, table, migrate=True, fake_migrate=False):
         if migrate:
             try:
                 self.connection.create(table._tablename)
             except:
                 pass
-        super(CouchDB, self).create_table(table, migrate, fake_migrate, polymodel)
+        super(CouchDB, self).create_table(table, migrate, fake_migrate)
 
     def _expand(self, expression, field_type=None, query_env={}):
         if isinstance(expression, Field):

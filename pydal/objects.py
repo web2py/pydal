@@ -37,7 +37,6 @@ from ._compat import (
     to_unicode,
     xrange,
 )
-from ._gae import Key
 from ._globals import AND, DEFAULT, IDENTITY, OR
 from .exceptions import NotAuthorizedException, NotFoundException
 from .helpers.classes import (
@@ -109,7 +108,6 @@ def csv_reader(utf8_data, dialect=csv.excel, encoding="utf-8", **kwargs):
 
 
 class Row(BasicStorage):
-
     """
     A dictionary that lets you do d['a'] as well as d.a
     this is only used to store a `Row`
@@ -264,7 +262,6 @@ copyreg.pickle(Row, pickle_row)
 
 
 class Table(Serializable, BasicStorage):
-
     """
     Represents a database table
 
@@ -659,7 +656,7 @@ class Table(Serializable, BasicStorage):
         return query
 
     def __getitem__(self, key):
-        if str(key).isdigit() or (Key is not None and isinstance(key, Key)):
+        if str(key).isdigit():
             # non negative key or gae
             return (
                 self._db(self._id == str(key))
@@ -2401,7 +2398,6 @@ class Field(Expression, Serializable):
 
 
 class Query(Serializable):
-
     """
     Necessary to define a set.
     It can be stored or can be passed to `DAL.__call__()` to obtain a `Set`
@@ -2537,7 +2533,6 @@ class Query(Serializable):
 
 
 class Set(Serializable):
-
     """
     Represents a set of records in the database.
     Records are identified by the `query=Query(...)` object.

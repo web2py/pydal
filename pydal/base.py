@@ -111,7 +111,7 @@ Supported DAL URI strings::
     'informix://user:password@server:3050/database'
     'informixu://user:password@server:3050/database' # unicode informix
     'ingres://database'  # or use an ODBC connection string, e.g. 'ingres://dsn=dsn_name'
-    'google:datastore' # for google app engine datastore (uses ndb by default)
+    'firestore' # for google firestore
     'google:sql' # for google app engine with sql (mysql compatible)
     'teradata://DSN=dsn;UID=user;PWD=pass; DATABASE=database' # experimental
     'imap://user:password@server:port' # experimental
@@ -182,7 +182,6 @@ TABLE_ARGS = set(
         "sequence_name",
         "fields",
         "common_filter",
-        "polymodel",
         "table_class",
         "on_define",
         "rname",
@@ -701,22 +700,22 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 field.represent = auto_represent(field)
 
         migrate = self._migrate_enabled and kwargs_get("migrate", self._migrate)
-        if (
-            migrate
-            and self._uri not in (None, "None")
-            or self._adapter.dbengine == "google:datastore"
-        ):
+        if self._adapter.dbengine in ("firestore"):
+            migrate = False
+        elif self._uri in (None, "None"):
+            migrate = False
+        else:
+            migrate = self._migrate_enabled and kwargs_get("migrate", self._migrate)
+        if migrate:
             fake_migrate = self._fake_migrate_all or kwargs_get(
                 "fake_migrate", self._fake_migrate
             )
-            polymodel = kwargs_get("polymodel", None)
             try:
                 GLOBAL_LOCKER.acquire()
                 self._adapter.create_table(
                     table,
                     migrate=migrate,
                     fake_migrate=fake_migrate,
-                    polymodel=polymodel,
                 )
             finally:
                 GLOBAL_LOCKER.release()

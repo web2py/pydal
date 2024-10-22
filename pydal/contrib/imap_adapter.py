@@ -15,7 +15,6 @@ long = integer_types[-1]
 
 
 class IMAPAdapter(NoSQLAdapter):
-
     """IMAP server adapter
 
     This class is intended as an interface with

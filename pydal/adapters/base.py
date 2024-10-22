@@ -1066,7 +1066,7 @@ class NoSQLAdapter(BaseAdapter):
     def id_query(self, table):
         return table._id > 0
 
-    def create_table(self, table, migrate=True, fake_migrate=False, polymodel=None):
+    def create_table(self, table, migrate=True, fake_migrate=False):
         table._dbt = None
         table._notnulls = []
         for field_name in table.fields:

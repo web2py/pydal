@@ -2,15 +2,18 @@
 
 DRIVERS = {}
 
-from ._gae import gae
+try:
+    from firebase_admin import credentials, firestore
+    from google.cloud.firestore_v1.base_query import FieldFilter
 
-if gae is not None:
-    DRIVERS["google"] = gae
+    DRIVERS["firestore"] = firestore
     psycopg2_adapt = None
     cx_Oracle = None
     pyodbc = None
     couchdb = None
     is_jdbc = False
+except ImportError:
+    pass
 
 try:
     from pysqlite2 import dbapi2 as sqlite2

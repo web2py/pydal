@@ -26,7 +26,7 @@ class Migrator(object):
     def dbengine(self):
         return self.adapter.dbengine
 
-    def create_table(self, table, migrate=True, fake_migrate=False, polymodel=None):
+    def create_table(self, table, migrate=True, fake_migrate=False):
         db = table._db
         table._migrate = migrate
         fields = []

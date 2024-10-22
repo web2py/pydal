@@ -1,5 +1,7 @@
+import base64
+
 from .._compat import integer_types, to_unicode
-from ..adapters.google import GoogleDatastore
+from ..adapters.google import Firestore
 from ..helpers.serializers import serializers
 from . import for_type, pre, representers
 from .base import NoSQLRepresenter
@@ -7,8 +9,8 @@ from .base import NoSQLRepresenter
 long = integer_types[-1]
 
 
-@representers.register_for(GoogleDatastore)
-class GoogleDatastoreRepresenter(NoSQLRepresenter):
+@representers.register_for(Firestore)
+class FirestoreRepresenter(NoSQLRepresenter):
     @pre(is_breaking=True)
     def _keep_lists_for_in_operator(self, obj, field_type):
         if (
@@ -21,7 +23,11 @@ class GoogleDatastoreRepresenter(NoSQLRepresenter):
 
     @for_type("json")
     def _json(self, value):
-        return serializers.json(value)
+        return value
+
+    @for_type("blob")
+    def _json(self, value):
+        return base64.b64decode(value)
 
     @for_type("list:integer")
     def _list_integer(self, value):

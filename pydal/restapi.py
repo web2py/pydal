@@ -374,9 +374,11 @@ class RestAPI(object):
             elif key == "@limit":
                 limit = min(
                     int(value),
-                    self.policy.get(tname, "GET", "limit")
-                    if self.policy
-                    else MAX_LIMIT,
+                    (
+                        self.policy.get(tname, "GET", "limit")
+                        if self.policy
+                        else MAX_LIMIT
+                    ),
                 )
             elif key == "@order":
                 orderby = [

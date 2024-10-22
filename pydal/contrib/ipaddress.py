@@ -508,7 +508,6 @@ def get_mixed_type_key(obj):
 
 
 class _IPAddressBase(_TotalOrderingMixin):
-
     """The mother class."""
 
     __slots__ = ()
@@ -665,7 +664,6 @@ class _IPAddressBase(_TotalOrderingMixin):
 
 
 class _BaseAddress(_IPAddressBase):
-
     """A generic IP object.
 
     This IP class contains the version independent methods which are
@@ -723,7 +721,6 @@ class _BaseAddress(_IPAddressBase):
 
 
 class _BaseNetwork(_IPAddressBase):
-
     """A generic IP network object.
 
     This IP class contains the version independent methods which are
@@ -1212,7 +1209,6 @@ class _BaseNetwork(_IPAddressBase):
 
 
 class _BaseV4(object):
-
     """Base IPv4 object.
 
     The following methods are used by IPv4 objects in both single IP
@@ -1380,7 +1376,6 @@ class _BaseV4(object):
 
 
 class IPv4Address(_BaseV4, _BaseAddress):
-
     """Represent and manipulate single IPv4 Addresses."""
 
     __slots__ = ("_ip", "__weakref__")
@@ -1572,7 +1567,6 @@ class IPv4Interface(IPv4Address):
 
 
 class IPv4Network(_BaseV4, _BaseNetwork):
-
     """This class represents and manipulates 32-bit IPv4 network + addresses..
 
     Attributes: [examples for IPv4Network('192.0.2.0/27')]
@@ -1725,7 +1719,6 @@ IPv4Address._constants = _IPv4Constants
 
 
 class _BaseV6(object):
-
     """Base IPv6 object.
 
     The following methods are used by IPv6 objects in both single IP
@@ -2008,7 +2001,6 @@ class _BaseV6(object):
 
 
 class IPv6Address(_BaseV6, _BaseAddress):
-
     """Represent and manipulate single IPv6 Addresses."""
 
     __slots__ = ("_ip", "__weakref__")
@@ -2271,7 +2263,6 @@ class IPv6Interface(IPv6Address):
 
 
 class IPv6Network(_BaseV6, _BaseNetwork):
-
     """This class represents and manipulates 128-bit IPv6 networks.
 
     Attributes: [examples for IPv6('2001:db8::1000/124')]

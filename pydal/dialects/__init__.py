@@ -1,5 +1,4 @@
 from .._compat import iteritems, with_metaclass
-from .._gae import gae
 from .._load import OrderedDict
 from ..helpers._internals import Dispatcher
 from ..objects import Expression
@@ -100,6 +99,7 @@ from .base import SQLDialect
 from .couchdb import CouchDBDialect
 from .db2 import DB2Dialect
 from .firebird import FireBirdDialect
+from .google import FirestoreDialect
 from .informix import InformixDialect
 from .ingres import IngresDialect
 from .mongo import MongoDialect
@@ -111,6 +111,3 @@ from .sap import SAPDBDialect
 from .snowflake import SnowflakeDialect
 from .sqlite import SpatialiteDialect, SQLiteDialect
 from .teradata import TeradataDialect
-
-if gae is not None:
-    from .google import GoogleDatastoreDialect

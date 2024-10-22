@@ -723,7 +723,7 @@ class IS_IN_DB(Validator):
                 def count(values, s=self.dbset, f=field):
                     return s(f.belongs(list(map(int, values)))).count()
 
-                if self.dbset.db._adapter.dbengine == "google:datastore":
+                if self.dbset.db._adapter.dbengine == "firestore":
                     range_ids = range(0, len(values), 30)
                     total = sum(count(values[i : i + 30]) for i in range_ids)
                     if total == len(values):
@@ -1175,7 +1175,6 @@ class IS_ALPHANUMERIC(IS_MATCH):
 
 
 class IS_EMAIL(Validator):
-
     """
     Checks if field's value is a valid email address. Can be set to disallow
     or force addresses from certain domain(s).

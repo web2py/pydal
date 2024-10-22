@@ -255,7 +255,7 @@ def smart_query(fields, text):
                     new_query = field.endswith(value)
                 else:
                     raise RuntimeError("Invalid operation")
-            elif field._db._adapter.dbengine == "google:datastore" and field.type in (
+            elif field._db._adapter.dbengine == "firestore" and field.type in (
                 "list:integer",
                 "list:string",
                 "list:reference",
@@ -327,7 +327,7 @@ class _repr_ref_list(_repr_ref):
             return None
         refs = None
         db, id = self.ref._db, self.ref._id
-        if db._adapter.dbengine == "google:datastore":
+        if db._adapter.dbengine == "firestore":
 
             def count(values):
                 return db(id.belongs(values)).select(id)
