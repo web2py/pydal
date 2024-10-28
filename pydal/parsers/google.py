@@ -1,7 +1,8 @@
 import base64
 
 from ..adapters.google import Firestore
-from . import Parser, before_parse, for_type, parsers
+from ..helpers.classes import Reference
+from . import before_parse, for_type, parsers
 from .base import BasicParser, JSONParser
 
 
@@ -18,7 +19,7 @@ class FirestoreParser(BasicParser, JSONParser):
     @for_type("id")
     def _id(self, value):
         if not isinstance(value, int):
-            return int(value, 16)
+            return int(value)
         return value
 
     @for_type("json")
@@ -36,7 +37,7 @@ class FirestoreParser(BasicParser, JSONParser):
     @for_type("reference")
     def _reference(self, value, referee):
         if not isinstance(value, int):
-            value = long(value, 16)
+            value = int(value)
         if "." not in referee:
             value = Reference(value)
             value._table, value._record = self.adapter.db[referee], None

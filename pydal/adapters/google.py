@@ -106,6 +106,45 @@ class GooglePostgres(GoogleMigratorMixin, PostgrePsyco):
             self.folder = os.path.relpath(self.folder, os.getcwd())
 
 
+# db = DAL("firestore") on Google App Engine
+# db = DAL("firestore://cred=credentials.json") everywhere else
+# (get credentials.json from google console)
+#
+# supports:
+# db(db.table).select(...)
+# db(db.table.id==id).select(...)
+# db(db.table.id>0).select(...)
+# db(db.table.field==value).select(...)
+# db(db.table.field!=value).select(...)
+# db(db.table.field>value).select(...)
+# db(db.table.field<value).select(...)
+# db(db.table.field>=value).select(...)
+# db(db.table.field<=value).select(...)
+# db(db.table.field.belnogs(values)).select(...)
+# db(~db.table.field.belnogs(values)).select(...)
+# db(simple_query1|simple_query2|simple_query3).select(...)
+# db(simple_query1&simple_query2&simple_query3).select(...)
+# db(or_query1&or_query2&or_query3).select(...)
+# db.table(id)
+# db.table(field1=value, field2=value)
+# db.table(id, field1=value, field2=value)
+# db(...).delete()
+# db(...).update(...) but only reliable when updating one or a few records
+#
+# does not support:
+# - joins
+# - transaction
+# - composition of queries involving field id
+# - or of and such as db(query1|(query2&query2))
+# - db.table.field.contains(...)
+# - db.table.field.like(...)
+# - db.table.field.startswith(...)
+# - non-zero offset such as select(limitby=(3,7))
+#
+# supports but unreliable
+# db(...).update(...) for many records
+
+
 @adapters.register_for("firestore")
 class Firestore(NoSQLAdapter):
     dbengine = "firestore"
@@ -174,6 +213,8 @@ class Firestore(NoSQLAdapter):
         if isinstance(query, Query) and query.first is table._id:
             if query.op.__name__ == "eq":
                 return source.document(str(query.second)).get()
+            elif isinstance(query, Table):
+                return source
             elif query.op.__name__ == "gt" and query.second == 0:
                 return source
             raise RuntimeError("operator not supported")
@@ -265,6 +306,9 @@ class Firestore(NoSQLAdapter):
         table = self.get_table(query)
         source = self._client.collection(table._tablename)
         source = self.apply_filter(source, table, query)
+        # deal with the case or returning a single item which may be empty
+        if not hasattr(source, "where"):
+            return 1 if source.to_dict() else 0
         aggregate_query = aggregation.AggregationQuery(source)
         aggregate_query.count()
         results = aggregate_query.get()
@@ -274,12 +318,13 @@ class Firestore(NoSQLAdapter):
 
     def delete(self, table, query):
         counter = 0
-        docs = list(self.get_docs(table, query))
-        batch = self._client.batch()
-        for doc in docs:
-            batch.delete(doc.reference)
-            counter += 1
-        batch.commit()
+        while self.db(query).count() > 0:
+            docs = list(self.get_docs(table, query))
+            batch = self._client.batch()
+            for doc in docs:
+                batch.delete(doc.reference)
+                counter += 1
+            batch.commit()
         return counter
 
     def update(self, table, query, update_fields):

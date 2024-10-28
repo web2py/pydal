@@ -189,14 +189,14 @@ class Serializable(object):
         return serializers.yaml(self.as_dict(flat=True, sanitize=sanitize))
 
 
-class Reference(long):
+class Reference(int):
     def __allocate(self):
         if not self._record:
-            self._record = self._table[long(self)]
+            self._record = self._table[int(self)]
         if not self._record:
             raise RuntimeError(
                 "Using a recursive select but encountered a broken "
-                + "reference: %s %d" % (self._table, long(self))
+                + "reference: %s %d" % (self._table, int(self))
             )
 
     def __getattr__(self, key, default=None):

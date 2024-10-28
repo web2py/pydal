@@ -49,10 +49,10 @@ class FirestoreDialect(NoSQLDialect):
         raise NotImplementedError
 
     def belongs(self, first, second, query_env={}):
-        return FieldFilter(first.name, "in", [[item] for item in second])
+        return FieldFilter(first.name, "in", second)
 
     def contains(self, first, second, case_sensitive=True, query_env={}):
-        return FieldFilter(first.name, "array-contains", second)
+        raise NotImplementedError
 
     def _not(self, val, query_env={}):
         op, f, s = val.op, val.first, val.second
@@ -71,6 +71,8 @@ class FirestoreDialect(NoSQLDialect):
             rv = FieldFilter(f.name, "<=", s)
         elif op == self.gte:
             rv = FieldFilter(f.name, "<", s)
+        elif op == self.belongs:
+            rv = FieldFilter(f.name, "not-in", s)
         else:
             # TODO the IN operator must be split into a sequence of
             # (field!=value) AND (field!=value) AND ...

@@ -29,6 +29,10 @@ class FirestoreRepresenter(NoSQLRepresenter):
     def _json(self, value):
         return base64.b64decode(value)
 
+    @for_type("reference")
+    def _json(self, value):
+        return str(value)
+
     @for_type("list:integer")
     def _list_integer(self, value):
         if not isinstance(value, list):
