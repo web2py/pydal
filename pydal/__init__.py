@@ -1,4 +1,4 @@
-__version__ = "20241027.1"
+__version__ = "20241111.1"
 
 from .base import DAL
 from .helpers.classes import SQLCustomType
