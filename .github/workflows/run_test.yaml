@@ -32,4 +32,4 @@ jobs:
             python -m pip install -r test-requirements.txt
       - name: Test
         run: |
-            python3 -m pytest --cov=py4web --cov-report html:cov.html -v -s tests/
+            python -m unittest tests
