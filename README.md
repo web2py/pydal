@@ -67,6 +67,7 @@ pyDAL supports the following databases:
 * SAPDB
 * IMAP
 * MongoDB
+* Google Firestore
 
 ## License
 
