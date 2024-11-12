@@ -3,8 +3,9 @@
 pyDAL is a pure Python Database Abstraction Layer.
 
 It dynamically generates the SQL/noSQL in realtime using the specified dialect for the database backend, so that you do not have to write SQL code or learn different SQL dialects (the term SQL is used generically), and your code will be portable among different types of databases.
+What makes pyDAL different from most of the other DALs is the syntax: it maps records to python dictionaries, which is simpler and closer to SQL. Other famous frameworks instead strictly rely on an Object Relational Mapping (ORM) like the Django ORM or the SQL Alchemy ORM, that maps tables to Python classes and rows to Objects.
 
-pyDAL comes from the original web2py's DAL, with the aim of being compatible with any Python program. pyDAL doesn't require web2py and can be used in any Python context.
+Historically pyDAL comes from the original web2py's DAL, with the aim of being compatible with any Python program. However, pyDAL nowadays is an indipendent package that can be used in any Python 3.7+ context.
 
 [![pip version](https://img.shields.io/pypi/v/pydal.svg?style=flat-square)](https://pypi.python.org/pypi/pydal)
 [![Build Status](https://img.shields.io/travis/web2py/pydal/master.svg?style=flat-square&label=Travis-CI)](https://travis-ci.com/web2py/pydal)
@@ -35,7 +36,7 @@ Chair
 >>> db.commit()
 ```
 
-The complete documentation is available on http://www.web2py.com/books/default/chapter/29/06/the-database-abstraction-layer
+The complete updated documentation is available on [the py4web manual](https://py4web.com/_documentation/static/en/chapter-07.html)
 
 ## What's in the box?
 
