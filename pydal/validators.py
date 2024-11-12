@@ -12,7 +12,6 @@ Validators
 -----------
 """
 import binascii
-import cgi
 import datetime
 import decimal
 import encodings.idna
@@ -375,7 +374,7 @@ class IS_LENGTH(Validator):
             value = value.encode("utf8")
         elif isinstance(value, (bytes, bytearray, tuple, list)):
             length = len(value)
-        elif isinstance(value, cgi.FieldStorage):
+        elif hasattr(value, "file") and hasattr(value, "filename"):
             if value.file:
                 value.file.seek(0, os.SEEK_END)
                 length = value.file.tell()
