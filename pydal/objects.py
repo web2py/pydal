@@ -2994,7 +2994,7 @@ class BasicRows(object):
             row[children_name] = []
         for row in rows:
             parent = row[parent_name]
-            if parent is None:
+            if parent not in drows:
                 roots.append(row)
             else:
                 drows[parent][children_name].append(row)
