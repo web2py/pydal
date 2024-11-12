@@ -1,1 +1,1 @@
-legacy-cgi
+legacy-cgi; python_version >= "3.13"
