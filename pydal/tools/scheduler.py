@@ -18,11 +18,12 @@ import traceback
 
 from pydal import DAL, Field
 from pydal.validators import IS_IN_SET
+from utils import utcnow
 
 
 def now():
     """Returns the current datetime in UTC"""
-    return datetime.datetime.utcnow()
+    return utcnow()
 
 
 def delta(t_secs):

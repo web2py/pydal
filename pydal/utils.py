@@ -11,7 +11,7 @@
 
 import re
 import warnings
-
+import datetime
 
 class RemovedInNextVersionWarning(DeprecationWarning):
     pass
@@ -19,6 +19,9 @@ class RemovedInNextVersionWarning(DeprecationWarning):
 
 warnings.simplefilter("always", RemovedInNextVersionWarning)
 
+def utcnow():
+    """returns the current time in utc"""
+    return datetime.datetime.now(datetime.timezone.utc)
 
 def warn_of_deprecation(old_name, new_name, prefix=None, stack=2):
     msg = "%(old)s is deprecated, use %(new)s instead."

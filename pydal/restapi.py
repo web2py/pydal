@@ -1,10 +1,10 @@
 import collections
 import copy
-import datetime
 import fnmatch
 import functools
 import re
 import traceback
+from .utils import utcnow
 
 __version__ = "0.1"
 
@@ -67,7 +67,7 @@ def error_wrapper(func):
             data["message"] = str(e)
             data["code"] = 400
         finally:
-            data["timestamp"] = datetime.datetime.utcnow().isoformat()
+            data["timestamp"] = utcnow().isoformat()
             data["api_version"] = __version__
         return data
 
