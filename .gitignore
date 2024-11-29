@@ -13,6 +13,8 @@
 Thumbs.db
 .DS_Store
 pyDAL.egg-info/*
+venv/*
+test-venv/*
 dist/*
 build/*
 .project
