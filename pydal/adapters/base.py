@@ -288,10 +288,18 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             #: otherwise we set the value in extras
             else:
                 #: fields[j] may be None if only 'colnames' was specified in db.executesql()
-                f_itype, ftype = (
-                    fields[j] and [fields[j]._itype, fields[j].type] or [None, None]
-                )
+                field = fields[j]
+                f_itype, ftype = (field and [field._itype, field.type] or [None, None])
                 value = self.parse_value(value, f_itype, ftype, blob_decode)
+                # for aliased fields use the aliased name
+                if isinstance(field, Expression) and field.op == self.dialect._as:
+                    colname = field.second
+                    # if the alias is a tablename.fieldname add the column to the table
+                    if field.tablename:
+                        if field.tablename not in new_row:
+                            new_row[field.tablename] = self.db.Row()
+                        new_row[field.tablename][colname] = value
+                        continue
                 extras[colname] = value
                 if not fields[j]:
                     new_row[colname] = value
@@ -300,7 +308,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     if new_column_match is not None:
                         new_column_name = new_column_match.group(1)
                         new_row[new_column_name] = value
-        #: add extras if needed (eg. operations results)
+        #: add extra if not empty
         if extras:
             new_row["_extra"] = extras
         #: add virtuals

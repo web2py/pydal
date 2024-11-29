@@ -1483,12 +1483,23 @@ class Expression(object):
         new_cls = super(Expression, cls).__new__(cls)
         return new_cls
 
-    def __init__(self, db, op, first=None, second=None, type=None, **optional_args):
+    def __init__(
+        self,
+        db,
+        op,
+        first=None,
+        second=None,
+        type=None,
+        tablename=None,
+        **optional_args,
+    ):
         self.db = db
         self.op = op
         self.first = first
         self.second = second
         self._table = getattr(first, "_table", None)
+        # this used to place an expression with alias inside a table
+        self.tablename = tablename
         if not type and first and hasattr(first, "type"):
             self.type = first.type
         else:
@@ -1592,6 +1603,11 @@ class Expression(object):
             return self[i : i + 1]
 
     def __str__(self):
+        if self.op == self._dialect._as:
+            return self.second
+        return str(self.db._adapter.expand(self, self.type))
+
+    def __repr__(self):
         return str(self.db._adapter.expand(self, self.type))
 
     def __or__(self, other):  # for use in sortby
@@ -1733,12 +1749,11 @@ class Expression(object):
         )
 
     def with_alias(self, alias):
-        return Expression(self.db, self._dialect._as, self, alias, self.type)
-
-    @property
-    def alias(self):
-        if self.op == self._dialect._as:
-            return self.second
+        if "." in alias:
+            tablename, alias = alias.split(".", 1)
+        else:
+            tablename = None
+        return Expression(self.db, self._dialect._as, self, alias, self.type, tablename)
 
     # GIS expressions
 
@@ -3359,10 +3374,16 @@ class Rows(BasicRows):
         )
 
     def __getitem__(self, i):
+        """
+        This extract a row from a set of rows and tries to compactify
+        - if there are columns from more than one table, it returns a dict of dicts
+        - if there are columns for a single table it returns a single dict
+        - if there are extra columns (including aliased) and a single table, adds the extra columns to the one table
+        """
         if isinstance(i, slice):
             return self.__getslice__(i.start, i.stop)
         row = self.records[i]
-        keys = list(row.keys())
+        keys = list(row)
         if self.compact and len(keys) == 1 and keys[0] != "_extra":
             return row[keys[0]]
         return row
@@ -3604,7 +3625,7 @@ class Rows(BasicRows):
                                representer in DAL instance"
             )
         row = copy.deepcopy(self.records[i])
-        keys = list(row.keys())
+        keys = list(row)
         if not fields:
             fields = [f for f in self.fields if isinstance(f, Field) and f.represent]
         for field in fields:
@@ -3676,7 +3697,7 @@ class IterRows(BasicRows):
             # in
             # <Row {'id': 1L, 'name': 'web2py'}>
             # normally accomplished by Rows.__get_item__
-            keys = list(row.keys())
+            keys = list(row)
             if len(keys) == 1 and keys[0] != "_extra":
                 row = row[keys[0]]
         return row
