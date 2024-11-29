@@ -687,18 +687,22 @@ class TestValidators(unittest.TestCase):
     def test_IS_LIST_OF_EMAILS(self):
         emails = ["localguy@localhost", "_Yosemite.Sam@example.com"]
         rtn = IS_LIST_OF_EMAILS()(",".join(emails))
-        self.assertEqual(rtn, (",".join(emails), None))
+        self.assertEqual(rtn, (emails, None))
         rtn = IS_LIST_OF_EMAILS()(";".join(emails))
-        self.assertEqual(rtn, (";".join(emails), None))
+        self.assertEqual(rtn, (emails, None))
         rtn = IS_LIST_OF_EMAILS()(" ".join(emails))
-        self.assertEqual(rtn, (" ".join(emails), None))
+        self.assertEqual(rtn, (emails, None))
         emails.append("a")
         rtn = IS_LIST_OF_EMAILS()(";".join(emails))
         self.assertEqual(
             rtn, ("localguy@localhost;_Yosemite.Sam@example.com;a", "Invalid emails: a")
         )
+        rtn = IS_LIST_OF_EMAILS()("")
+        self.assertEqual(
+            rtn, ([], None)
+        )
         rtn = IS_LIST_OF_EMAILS().formatter(["test@example.com", "dude@example.com"])
-        self.assertEqual(rtn, "test@example.com, dude@example.com")
+        self.assertEqual(rtn, "test@example.com; dude@example.com")
 
     def test_IS_URL(self):
         rtn = IS_URL()("http://example.com")

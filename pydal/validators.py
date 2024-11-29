@@ -1354,19 +1354,27 @@ class IS_LIST_OF_EMAILS(Validator):
 
     def validate(self, value, record_id=None):
         bad_emails = []
-        f = IS_EMAIL()
-        for email in re.findall(self.REGEX_NOT_EMAIL_SPLITTER, value):
+        f = IS_EMAIL()        
+        if isinstance(value, str):
+            emails = re.findall(self.REGEX_NOT_EMAIL_SPLITTER, value)
+        else:
+            emails = value
+        for email in emails:
             error = f(email)[1]
             if error and email not in bad_emails:
                 bad_emails.append(email)
         if bad_emails:
             raise ValidationError(
-                self.translator(self.error_message) % ", ".join(bad_emails)
+                self.translator(self.error_message) % ";".join(bad_emails)
             )
-        return value
+        return emails
 
     def formatter(self, value, row=None):
-        return ", ".join(value or [])
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            value = re.findall(self.REGEX_NOT_EMAIL_SPLITTER, value)
+        return "; ".join(value)
 
 
 # URL scheme source:
