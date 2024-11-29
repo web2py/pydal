@@ -3359,12 +3359,21 @@ class Rows(BasicRows):
         )
 
     def __getitem__(self, i):
+        """
+        This extract a row from a set of rows and tries to compactify
+        - if there are columns from more than one table, it returns a dict of dicts
+        - if there are columns for a single table it returns a single dict
+        - if there are extra columns (including aliased) and a single table, adds the extra columns to the one table
+        """
         if isinstance(i, slice):
             return self.__getslice__(i.start, i.stop)
         row = self.records[i]
-        keys = list(row.keys())
-        if self.compact and len(keys) == 1 and keys[0] != "_extra":
-            return row[keys[0]]
+        keys = [key for key in row if not key == "_extra"]
+        if self.compact and len(keys) == 1:
+            new_row = row[keys[0]]
+            if "_extra" in row:
+                new_row.update(row["_extra"])
+            return new_row
         return row
 
     def __iter__(self):

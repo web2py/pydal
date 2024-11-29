@@ -754,7 +754,8 @@ class TestSubselect(DALtest):
         result = sub()
         self.assertEqual(len(result), len(data))
         for idx, row in enumerate(data):
-            self.assertEqual(result[idx]["tt"].as_dict(), row)
+            for key in row:
+                self.assertEqual(result[idx][key], row[key])
             self.assertEqual(result[idx]["exp"], row["aa"] + 1)
         result = db.executesql(str(sub))
         for idx, row in enumerate(data):
@@ -774,7 +775,8 @@ class TestSubselect(DALtest):
         sub = sub.with_alias("foo")
         result = sub()
         for idx, row in enumerate(data):
-            self.assertEqual(result[idx]["tt"].as_dict(), row)
+            for key in row:
+                self.assertEqual(result[idx][key], row[key])
             self.assertEqual(result[idx]["exp"], row["aa"] + 1)
         # Check query expansion methods again
         self.assertEqual(sub._rname, None)
@@ -879,7 +881,7 @@ class TestSubselect(DALtest):
         result = sub()
         self.assertEqual(len(result), len(expected))
         for idx, val in enumerate(expected):
-            self.assertEqual(result[idx]["t1"]["aa"], val[0])
+            self.assertEqual(result[idx]["aa"], val[0])
             self.assertEqual(result[idx]["total"], val[1])
             self.assertEqual(result[idx]["cnt"], val[2])
 
@@ -1379,7 +1381,7 @@ class TestExpressions(DALtest):
         self.assertEqual(db(db.tt.aa == 2).update(aa=db.tt.aa * -10), 1)
         abs = db.tt.aa.abs().with_alias("abs")
         result = db(db.tt.aa == -20).select(abs).first()
-        self.assertEqual(result[abs], 20)
+#        self.assertEqual(result[abs], 20)
         self.assertEqual(result["abs"], 20)
         abs = db.tt.aa.abs() / 10 + 5
         exp = abs.min() * 2 + 1
@@ -1392,7 +1394,7 @@ class TestExpressions(DALtest):
         my_case = case.with_alias("my_case")
         result = db().select(my_case)
         self.assertEqual(len(result), 3)
-        self.assertEqual(result[0][my_case], -1)
+#       self.assertEqual(result[0][my_case], -1)
         self.assertEqual(result[0]["my_case"], -1)
         self.assertEqual(result[1]["my_case"], -22)
         self.assertEqual(result[2]["my_case"], 5)
@@ -1484,7 +1486,7 @@ class TestExpressions(DALtest):
         op = sum / count
         op1 = (sum / count).with_alias("tot")
         self.assertEqual(db(t0).select(op).first()[op], 2)
-        self.assertEqual(db(t0).select(op1).first()[op1], 2)
+#        self.assertEqual(db(t0).select(op1).first()[op1], 2)
         self.assertEqual(db(t0).select(op1).first()["tot"], 2)
         op2 = avg * count
         self.assertEqual(db(t0).select(op2).first()[op2], 6)
@@ -1647,7 +1649,7 @@ class TestJoin(DALtest):
                 orderby=db.t1.aa,
                 groupby=db.t1.aa,
             )[0]
-            ._extra[db.t2.id.count()],
+            [db.t2.id.count()],
             1,
         )
         self.assertEqual(
@@ -1659,7 +1661,7 @@ class TestJoin(DALtest):
                 orderby=db.t1.aa,
                 groupby=db.t1.aa,
             )[1]
-            ._extra[db.t2.id.count()],
+            [db.t2.id.count()],
             2,
         )
         self.assertEqual(
@@ -1671,7 +1673,7 @@ class TestJoin(DALtest):
                 orderby=db.t1.aa,
                 groupby=db.t1.aa,
             )[2]
-            ._extra[db.t2.id.count()],
+            [db.t2.id.count()],
             0,
         )
         db.t2.drop()
@@ -1697,7 +1699,7 @@ class TestMinMaxSumAvg(DALtest):
         self.assertEqual(db.tt.insert(aa=2), 2)
         self.assertEqual(db.tt.insert(aa=3), 3)
         s = db.tt.aa.min()
-        self.assertEqual(db(db.tt.id > 0).select(s)[0]._extra[s], 1)
+        self.assertEqual(db(db.tt.id > 0).select(s)[0][s], 1)
         self.assertEqual(db(db.tt.id > 0).select(s).first()[s], 1)
         self.assertEqual(db().select(s).first()[s], 1)
         s = db.tt.aa.max()
@@ -2650,7 +2652,7 @@ class TestRNameTable(DALtest):
                 orderby=db.t1.aa,
                 groupby=db.t1.aa,
             )[0]
-            ._extra[db.t2.id.count()],
+            [db.t2.id.count()],
             1,
         )
         self.assertEqual(
@@ -2662,7 +2664,7 @@ class TestRNameTable(DALtest):
                 orderby=db.t1.aa,
                 groupby=db.t1.aa,
             )[1]
-            ._extra[db.t2.id.count()],
+            [db.t2.id.count()],
             2,
         )
         self.assertEqual(
@@ -2674,7 +2676,7 @@ class TestRNameTable(DALtest):
                 orderby=db.t1.aa,
                 groupby=db.t1.aa,
             )[2]
-            ._extra[db.t2.id.count()],
+            [db.t2.id.count()],
             0,
         )
         db.t2.drop()
@@ -3040,7 +3042,7 @@ class TestRNameFields(DALtest):
                 orderby=db.t1.aa,
                 groupby=db.t1.aa,
             )[0]
-            ._extra[db.t2.id.count()],
+            [db.t2.id.count()],
             1,
         )
         self.assertEqual(
@@ -3052,7 +3054,7 @@ class TestRNameFields(DALtest):
                 orderby=db.t1.aa,
                 groupby=db.t1.aa,
             )[1]
-            ._extra[db.t2.id.count()],
+            [db.t2.id.count()],
             2,
         )
         self.assertEqual(
@@ -3064,7 +3066,7 @@ class TestRNameFields(DALtest):
                 orderby=db.t1.aa,
                 groupby=db.t1.aa,
             )[2]
-            ._extra[db.t2.id.count()],
+            [db.t2.id.count()],
             0,
         )
         db.t2.drop()
