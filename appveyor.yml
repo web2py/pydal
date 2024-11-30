@@ -1,7 +1,8 @@
 build: false
+image: Visual Studio 2019
 
 services:
-  - mssql2014
+  - mssql2019
 
 environment:
   matrix:
@@ -19,18 +20,21 @@ clone_depth: 50
 init:
   - "ECHO %PYTHON%"
   - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - powershell -Command "Get-Service | Where-Object { $_.DisplayName -like '*SQL*' }"
+  - ps: Start-Service -Name 'MSSQL$SQL2019' -ErrorAction SilentlyContinue
+  
 
 install:
   - appveyor DownloadFile https://bootstrap.pypa.io/pip/get-pip.py
   - python get-pip.py
-  - pip install tox==1.9.2
+  - pip install tox==4.23.2
   - pip install codecov
 
 before_test:
   - ps: |
         while($LASTEXITCODE -ne 0)
         {
-          & sqlcmd -S "(local)\SQL2014" -b -U "sa" -P "Password12!" -Q "CREATE DATABASE pydal COLLATE Latin1_General_CS_AS;" -d "master"
+          & sqlcmd -S "(local)" -U "sa" -P "Password12!" -Q "CREATE DATABASE pydal COLLATE Latin1_General_CS_AS;" -d "master"
           sleep 10; $val++; Write-Host Waiting ... $val; if($val -ge 10) {break}
         }
 
