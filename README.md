@@ -1,4 +1,4 @@
-# pyDAL test 3
+# pyDAL
 
 [![pip version](https://img.shields.io/pypi/v/pydal.svg?style=flat-square)](https://pypi.python.org/pypi/pydal)
 [![master-test](https://github.com/web2py/pydal/actions/workflows/run_test.yaml/badge.svg)](https://github.com/web2py/pydal/actions/workflows/run_test.yaml)
@@ -12,7 +12,7 @@ What makes pyDAL different from most of the other DALs is the syntax: it maps re
 
 Historically pyDAL comes from the original web2py's DAL, with the aim of being compatible with any Python program. However, pyDAL nowadays is an indipendent package that can be used in any Python 3.7+ context.
 
-## Installation test
+## Installation
 
 You can install pyDAL using `pip`:
 
