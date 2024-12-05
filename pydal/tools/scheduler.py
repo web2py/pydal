@@ -18,7 +18,7 @@ import traceback
 
 from pydal import DAL, Field
 from pydal.validators import IS_IN_SET
-from utils import utcnow
+from ..utils import utcnow
 
 
 def now():
