@@ -2749,11 +2749,11 @@ class Set(Serializable):
                 time_expire = cache["expiration"]
                 key = cache.get("key")
                 if not key:
-                    key = db._uri + "/" + sql
+                    key = f"{db._uri}/sql"
                     key = hashlib_md5(key).hexdigest()
             else:
                 cache_model, time_expire = cache
-                key = db._uri + "/" + sql
+                key = f"{db._uri}/sql"
                 key = hashlib_md5(key).hexdigest()
             return cache_model(
                 key,
