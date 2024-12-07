@@ -624,6 +624,28 @@ class Table(Serializable, BasicStorage):
                 else:
                     self._referenced_by.append(referee)
 
+                field_type = referee.type
+                is_list = field_type[:15] == "list:reference "
+                if is_list:
+                    ref = field_type[15:].strip()
+                else:
+                    ref = field_type[10:].strip()
+
+                if "." in ref:
+                    _, throw_it, myfieldname = ref.partition(".")
+                    if not hasattr(self, "_primarykey"):
+                        raise SyntaxError(
+                            "keyed tables can only reference other keyed tables (for now)"
+                        )
+                    if myfieldname not in self.fields:
+                        raise SyntaxError(
+                            "invalid field '%s' for referenced table '%s'"
+                            " in table '%s'" % (myfieldname, self.name, referee.table.name)
+                        )
+                    referee.referent = self[myfieldname]
+                else:
+                    referee.referent = self._id
+
     def _filter_fields(self, record, allow_id=False, writable_only=False):
         return dict(
             [
