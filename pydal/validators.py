@@ -809,10 +809,10 @@ class IS_NOT_IN_DB(Validator):
         id = record_id or self.record_id
         if isinstance(id, dict):
             id = table(**id)
-        if not id is None:
-            query &= table._id != id
-        subset = self.dbset(query, ignore_common_filters=self.ignore_common_filters)
-        if subset.select(limitby=(0, 1)):
+        record = self.dbset(
+            query, ignore_common_filters=self.ignore_common_filters
+        ).select(table._id, limitby=(0,1)).first()
+        if record and record[table._id.name] != id:
             raise ValidationError(self.translator(self.error_message))
         return value
 

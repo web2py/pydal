@@ -1,11 +1,11 @@
 import os
 import re
 import time
-import uuid
+from urllib.parse import parse_qs
 
 from .._compat import pjoin
 from .._globals import THREAD_LOCAL
-from ..helpers.classes import SQLALL, FakeDriver, Reference, SQLCustomType
+from ..helpers.classes import SQLALL, FakeDriver, Reference
 from ..helpers.methods import use_common_filters, xorify
 from ..migrator import InDBMigrator
 from ..objects import Expression, Field, Query, Table
@@ -13,7 +13,6 @@ from . import adapters, with_connection_or_raise
 from .base import NoSQLAdapter
 from .mysql import MySQL
 from .postgres import PostgrePsyco
-
 
 class GoogleMigratorMixin(object):
     migrator_cls = InDBMigrator
@@ -149,24 +148,25 @@ class GooglePostgres(GoogleMigratorMixin, PostgrePsyco):
 class Firestore(NoSQLAdapter):
     dbengine = "firestore"
 
-    REGEX_NAMESPACE = r".*//cred=(?P<cred>.+\.json)"
-
     def _initialize_(self):
 
         import firebase_admin
         from firebase_admin import credentials, firestore
-
         super(Firestore, self)._initialize_()
-        match = re.match(self.REGEX_NAMESPACE, self.uri)
-        if not match:
+        args = parse_qs(self.uri.split("//")[1]) if "//" in self.uri else {}
+
+        # for thread safety recycle the app in cache
+        if "cred" in args:
+            # not on google app engine
+            cred = credentials.Certificate(args["cred"][0])
+        else:
             # on google app engine
             cred = credentials.ApplicationDefault()
-        else:
-            # not on google app engine
-            cred = credentials.Certificate(match.group("cred"))
-
-        self._app = firebase_admin.initialize_app(cred)
-        self._client = firestore.client()
+        try:
+            app = firebase_admin.initialize_app(cred, args.get("name", [None])[0])
+        except ValueError:
+            app = firebase_admin.get_app()
+        self._client = firestore.client(app, args.get("id", [None])[0])
 
     def find_driver(self):
         return
@@ -208,7 +208,7 @@ class Firestore(NoSQLAdapter):
 
     def apply_filter(self, source, table, query):
 
-        from google.cloud.firestore_v1.base_query import FieldFilter
+        from google.cloud.firestore_v1.base_query import FieldFilter, BaseCompositeFilter
 
         if isinstance(query, Query) and query.first is table._id:
             if query.op.__name__ == "eq":
