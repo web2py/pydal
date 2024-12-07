@@ -317,14 +317,15 @@ class Firestore(NoSQLAdapter):
         return 0
 
     def delete(self, table, query):
-        counter = 0
         while self.db(query).count() > 0:
             docs = list(self.get_docs(table, query))
             batch = self._client.batch()
+            counter = 0
             for doc in docs:
                 batch.delete(doc.reference)
                 counter += 1
-            batch.commit()
+            if counter:
+                batch.commit()
         return counter
 
     def update(self, table, query, update_fields):
@@ -336,7 +337,8 @@ class Firestore(NoSQLAdapter):
         for doc in docs:
             batch.update(doc.reference, {f.name: v for f, v in update_fields})
             counter += 1
-        batch.commit()
+        if counter:
+            batch.commit()
         return counter
 
     def truncate(self, table, mode=""):

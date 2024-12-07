@@ -96,7 +96,7 @@ class MSSQL(SQLAdapter):
 
     def lastrowid(self, table):
         self.execute("SELECT SCOPE_IDENTITY();")
-        return long(self.cursor.fetchone()[0])
+        return int(self.cursor.fetchone()[0])
 
 
 @adapters.register_for("mssql")
@@ -174,7 +174,7 @@ class PyTDS(MSSQL):
 class Vertica(MSSQL1):
     def lastrowid(self, table):
         self.execute("SELECT SCOPE_IDENTITY();")
-        return long(self.cursor.fetchone()[0])
+        return int(self.cursor.fetchone()[0])
 
 
 @adapters.register_for("sybase")

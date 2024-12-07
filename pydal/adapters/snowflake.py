@@ -118,10 +118,10 @@ class Snowflake(SQLAdapter):
 
     def lastrowid(self, table):
         if self._last_insert:
-            return long(self.cursor.fetchone()[0])
+            return int(self.cursor.fetchone()[0])
         sequence_name = table._sequence_name
         self.execute("SELECT currval(%s);" % self.adapt(sequence_name))
-        return long(self.cursor.fetchone()[0])
+        return int(self.cursor.fetchone()[0])
 
     def _insert(self, table, fields):
         self._last_insert = None

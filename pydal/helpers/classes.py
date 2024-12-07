@@ -201,7 +201,7 @@ class Reference(int):
 
     def __getattr__(self, key, default=None):
         if key == "id":
-            return long(self)
+            return int(self)
         if key in self._table:
             self.__allocate()
         if self._record:
@@ -222,7 +222,7 @@ class Reference(int):
 
     def __getitem__(self, key):
         if key == "id":
-            return long(self)
+            return int(self)
         self.__allocate()
         return self._record.get(key, None)
 
@@ -237,9 +237,9 @@ def Reference_unpickler(data):
 
 def Reference_pickler(data):
     try:
-        marshal_dump = marshal.dumps(long(data))
+        marshal_dump = marshal.dumps(int(data))
     except AttributeError:
-        marshal_dump = "i%s" % struct.pack("<i", long(data))
+        marshal_dump = "i%s" % struct.pack("<i", int(data))
     return (Reference_unpickler, (marshal_dump,))
 
 

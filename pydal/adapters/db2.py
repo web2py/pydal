@@ -32,7 +32,7 @@ class DB2(SQLAdapter):
             if table._rname
             else table
         )
-        return long(self.cursor.fetchone()[0])
+        return int(self.cursor.fetchone()[0])
 
     def rowslice(self, rows, minimum=0, maximum=None):
         if maximum is None:

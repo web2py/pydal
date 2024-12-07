@@ -778,11 +778,7 @@ class IS_NOT_IN_DB(Validator):
     ):
         if isinstance(field, Table):
             field = field._id
-
-        if hasattr(dbset, "define_table"):
-            self.dbset = dbset()
-        else:
-            self.dbset = dbset
+        self.dbset = dbset
         self.field = field
         self.error_message = error_message
         self.record_id = 0
@@ -801,17 +797,19 @@ class IS_NOT_IN_DB(Validator):
         if value in self.allowed_override:
             return value
         (tablename, fieldname) = str(self.field).split(".")
-        table = self.dbset.db[tablename]
+        if hasattr(self.dbset, "define_table"):
+            db = self.dbset
+        else:
+            db = self.dbset.db
+        table = db[tablename]
         field = table[fieldname]
-        query = field == value
+        dbset = self.dbset(field == value, ignore_common_filters=self.ignore_common_filters)
 
         # make sure exclude the record_id
         id = record_id or self.record_id
         if isinstance(id, dict):
             id = table(**id)
-        record = self.dbset(
-            query, ignore_common_filters=self.ignore_common_filters
-        ).select(table._id, limitby=(0,1)).first()
+        record = dbset.select(table._id, limitby=(0,1)).first()
         if record and record[table._id.name] != id:
             raise ValidationError(self.translator(self.error_message))
         return value

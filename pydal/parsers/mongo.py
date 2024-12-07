@@ -13,8 +13,8 @@ class MongoParser(Parser):
     @for_type("id")
     def _id(self, value):
         if isinstance(value, self.adapter.ObjectId):
-            return long(str(value), 16)
-        return long(value)
+            return int(str(value), 16)
+        return int(value)
 
     @for_type("blob")
     def _blob(self, value):
@@ -27,7 +27,7 @@ class MongoParser(Parser):
     @for_type("reference")
     def _reference(self, value, referee):
         if isinstance(value, self.adapter.ObjectId):
-            value = long(str(value), 16)
+            value = int(str(value), 16)
         if "." not in referee:
             value = Reference(value)
             value._table, value._record = self.adapter.db[referee], None

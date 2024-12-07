@@ -34,7 +34,7 @@ class SAPDB(SQLAdapter):
 
     def lastrowid(self, table):
         self.execute("select %s.NEXTVAL from dual" % table._sequence_name)
-        return long(self.cursor.fetchone()[0])
+        return int(self.cursor.fetchone()[0])
 
     def create_sequence_and_triggers(self, query, table, **args):
         self.execute("CREATE SEQUENCE %s;" % table._sequence_name)

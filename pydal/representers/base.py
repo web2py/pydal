@@ -23,11 +23,11 @@ class BaseRepresenter(Representer):
 
     @for_type("id", adapt=False)
     def _id(self, value):
-        return str(long(value))
+        return str(int(value))
 
     @for_type("integer", adapt=False)
     def _integer(self, value):
-        return str(long(value))
+        return str(int(value))
 
     @for_type("decimal", adapt=False)
     def _decimal(self, value):
@@ -137,7 +137,7 @@ class SQLRepresenter(BaseRepresenter):
     @for_type("reference", adapt=False)
     def _reference(self, value, referenced):
         if referenced in self.adapter.db.tables:
-            return str(long(value))
+            return str(int(value))
         p = referenced.partition(".")
         if p[2] != "":
             try:
@@ -147,7 +147,7 @@ class SQLRepresenter(BaseRepresenter):
                 return repr(value)
         elif isinstance(value, (Row, Reference)):
             return str(value["id"])
-        return str(long(value))
+        return str(int(value))
 
     @for_type("blob", encode=True)
     def _blob(self, value):
@@ -185,15 +185,15 @@ class NoSQLRepresenter(BaseRepresenter):
 
     @for_type("id")
     def _id(self, value):
-        return long(value)
+        return int(value)
 
     @for_type("integer")
     def _integer(self, value):
-        return long(value)
+        return int(value)
 
     @for_type("bigint")
     def _bigint(self, value):
-        return long(value)
+        return int(value)
 
     @for_type("double")
     def _double(self, value):
@@ -203,7 +203,7 @@ class NoSQLRepresenter(BaseRepresenter):
     def _reference(self, value):
         if isinstance(value, (Row, Reference)):
             value = value["id"]
-        return long(value)
+        return int(value)
 
     @for_type("boolean")
     def _boolean(self, value):

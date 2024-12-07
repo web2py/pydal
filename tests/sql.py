@@ -314,7 +314,7 @@ class TestFields(DALtest):
             None,
             11,
             14.3,
-            long(11),
+            int(11),
         ]
         for obj in objs:
             rtn_id = db.tt.insert(aa=obj)

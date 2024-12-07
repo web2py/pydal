@@ -72,7 +72,7 @@ class Oracle(SQLAdapter):
     def lastrowid(self, table):
         sequence_name = table._sequence_name
         self.execute("SELECT %s.currval FROM dual;" % sequence_name)
-        return long(self.cursor.fetchone()[0])
+        return int(self.cursor.fetchone()[0])
 
     def sqlsafe_table(self, tablename, original_tablename=None):
         if original_tablename is not None:

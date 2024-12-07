@@ -50,7 +50,7 @@ class FireBird(SQLAdapter):
     def lastrowid(self, table):
         sequence_name = table._sequence_name
         self.execute("SELECT gen_id(%s, 0) FROM rdb$database" % sequence_name)
-        return long(self.cursor.fetchone()[0])
+        return int(self.cursor.fetchone()[0])
 
     def create_sequence_and_triggers(self, query, table, **args):
         tablename = table._rname

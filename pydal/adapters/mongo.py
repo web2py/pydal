@@ -118,7 +118,7 @@ class Mongo(NoSQLAdapter):
         elif isinstance(arg, self.ObjectId):
             return arg
         elif isinstance(arg, (Row, Reference)):
-            return self.object_id(long(arg["id"]))
+            return self.object_id(int(arg["id"]))
         elif not isinstance(arg, (int, long)):
             raise TypeError(
                 "object_id argument must be of type ObjectId or an objectid "
@@ -464,7 +464,7 @@ class Mongo(NoSQLAdapter):
 
         if result.acknowledged:
             Oid = result.inserted_id
-            rid = Reference(long(str(Oid), 16))
+            rid = Reference(int(str(Oid), 16))
             (rid._table, rid._record) = (table, None)
             return rid
         else:

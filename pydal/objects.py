@@ -152,7 +152,7 @@ class Row(BasicStorage):
         return self.get("id")
 
     def __long__(self):
-        return long(int(self))
+        return int(int(self))
 
     def __hash__(self):
         return id(self)
@@ -199,7 +199,7 @@ class Row(BasicStorage):
             elif isinstance(v, Row):
                 d[k] = v.as_dict()
             elif isinstance(v, Reference):
-                d[k] = long(v)
+                d[k] = int(v)
             elif isinstance(v, decimal.Decimal):
                 d[k] = float(v)
             elif isinstance(v, DT_INST):
@@ -1123,7 +1123,7 @@ class Table(Serializable, BasicStorage):
                 if not value.strip():
                     value = None
                 else:
-                    value = long(value)
+                    value = int(value)
             elif field.type.startswith("list:string"):
                 value = bar_decode_string(value)
             elif field.type.startswith(list_reference_s):
@@ -1143,7 +1143,7 @@ class Table(Serializable, BasicStorage):
                     pass
             elif id_offset and field.type.startswith("reference"):
                 try:
-                    value = id_offset[field.type[9:].strip()] + long(value)
+                    value = id_offset[field.type[9:].strip()] + int(value)
                 except KeyError:
                     pass
             return value
@@ -1187,7 +1187,7 @@ class Table(Serializable, BasicStorage):
                             if field.type != "id":
                                 ditems[fieldname] = value
                             else:
-                                csv_id = long(value)
+                                csv_id = int(value)
                         except ValueError:
                             raise RuntimeError("Unable to parse line:%s" % (lineno + 1))
                 if not (id_map or csv_id is None or id_offset is None or unique_idx):
@@ -3211,7 +3211,7 @@ class BasicRows(object):
             elif PY2 and isinstance(value, unicode):
                 return value.encode("utf8")
             elif isinstance(value, Reference):
-                return long(value)
+                return int(value)
             elif hasattr(value, "isoformat"):
                 return value.isoformat()[:19].replace("T", " ")
             elif isinstance(value, (list, tuple)):  # for type='list:..'

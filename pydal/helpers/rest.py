@@ -7,7 +7,7 @@ from .regex import REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
 def to_num(num):
     result = 0
     try:
-        result = long(num)
+        result = int(num)
     except NameError as e:
         result = int(num)
     return result

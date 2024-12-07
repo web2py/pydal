@@ -981,7 +981,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return self.representers[name](*args, **kwargs)
 
     def export_to_csv_file(self, ofile, *args, **kwargs):
-        step = long(kwargs.get("max_fetch_rows", 500))
+        step = int(kwargs.get("max_fetch_rows", 500))
         write_colnames = kwargs["write_colnames"] = kwargs.get("write_colnames", True)
         for table in self.tables:
             ofile.write("TABLE %s\r\n" % table)

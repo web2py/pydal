@@ -18,7 +18,7 @@ class CouchDBRepresenter(NoSQLRepresenter):
 
     @for_type("id")
     def _id(self, value):
-        return str(long(value))
+        return str(int(value))
 
     @for_type("reference", adapt=False)
     def _reference(self, value):

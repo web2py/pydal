@@ -613,7 +613,7 @@ class IMAPAdapter(NoSQLAdapter):
                             if typ == "OK":
                                 fr = {
                                     "message": int(data[0][0].split()[0]),
-                                    "uid": long(uid),
+                                    "uid": int(uid),
                                     "email": email.message_from_string(data[0][1]),
                                     "raw_message": data[0][1],
                                 }

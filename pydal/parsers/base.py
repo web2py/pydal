@@ -15,11 +15,11 @@ long = integer_types[-1]
 class BasicParser(Parser):
     @for_type("id")
     def _id(self, value):
-        return long(value)
+        return int(value)
 
     @for_type("integer")
     def _integer(self, value):
-        return long(value)
+        return int(value)
 
     @for_type("float")
     def _float(self, value):
