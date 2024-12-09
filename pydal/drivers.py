@@ -3,7 +3,7 @@
 DRIVERS = {}
 
 try:
-    from firebase_admin import credentials, firestore
+    from google.cloud import firestore
     from google.cloud.firestore_v1.base_query import FieldFilter
 
     DRIVERS["firestore"] = firestore

@@ -27,7 +27,7 @@ class FirestoreRepresenter(NoSQLRepresenter):
 
     @for_type("blob")
     def _blob(self, value):
-        return base64.b64decode(value)
+        return value
 
     @for_type("reference")
     def _reference(self, value):

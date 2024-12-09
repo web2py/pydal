@@ -28,7 +28,7 @@ class FirestoreParser(BasicParser, JSONParser):
 
     @for_type("blob")
     def _json(self, value):
-        return base64.b64encode(value)
+        return value
 
     @before_parse("reference")
     def reference_extras(self, field_type):

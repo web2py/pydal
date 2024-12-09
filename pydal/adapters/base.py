@@ -289,7 +289,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             else:
                 #: fields[j] may be None if only 'colnames' was specified in db.executesql()
                 field = fields[j]
-                f_itype, ftype = (field and [field._itype, field.type] or [None, None])
+                f_itype, ftype = field and [field._itype, field.type] or [None, None]
                 value = self.parse_value(value, f_itype, ftype, blob_decode)
                 # for aliased fields use the aliased name
                 if isinstance(field, Expression) and field.op == self.dialect._as:

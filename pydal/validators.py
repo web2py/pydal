@@ -803,13 +803,15 @@ class IS_NOT_IN_DB(Validator):
             db = self.dbset.db
         table = db[tablename]
         field = table[fieldname]
-        dbset = self.dbset(field == value, ignore_common_filters=self.ignore_common_filters)
+        dbset = self.dbset(
+            field == value, ignore_common_filters=self.ignore_common_filters
+        )
 
         # make sure exclude the record_id
         id = record_id or self.record_id
         if isinstance(id, dict):
             id = table(**id)
-        record = dbset.select(table._id, limitby=(0,1)).first()
+        record = dbset.select(table._id, limitby=(0, 1)).first()
         if record and record[table._id.name] != id:
             raise ValidationError(self.translator(self.error_message))
         return value
@@ -1352,7 +1354,7 @@ class IS_LIST_OF_EMAILS(Validator):
 
     def validate(self, value, record_id=None):
         bad_emails = []
-        f = IS_EMAIL()        
+        f = IS_EMAIL()
         if isinstance(value, str):
             emails = re.findall(self.REGEX_NOT_EMAIL_SPLITTER, value)
         else:

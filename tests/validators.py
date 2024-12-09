@@ -422,7 +422,7 @@ class TestValidators(unittest.TestCase):
         db = DAL("sqlite:memory")
         db.define_table("person", Field("name"), Field("nickname"))
         db.person.insert(name="george")
-        db.person.insert(name="costanza", nickname="T Bone")
+        costanza_id = db.person.insert(name="costanza", nickname="T Bone")
         rtn = IS_NOT_IN_DB(db, "person.name", error_message="oops")("george")
         self.assertEqual(rtn, ("george", "oops"))
         rtn = IS_NOT_IN_DB(
@@ -440,7 +440,7 @@ class TestValidators(unittest.TestCase):
         rtn = IS_NOT_IN_DB(db, db.person, error_message="oops")(1)
         self.assertEqual(rtn, (1, "oops"))
         vldtr = IS_NOT_IN_DB(db, "person.name", error_message="oops")
-        vldtr.set_self_id({"name": "costanza", "nickname": "T Bone"})
+        vldtr.set_self_id(costanza_id)
         rtn = vldtr("george")
         self.assertEqual(rtn, ("george", "oops"))
         rtn = vldtr("costanza")

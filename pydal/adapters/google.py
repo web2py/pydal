@@ -14,6 +14,14 @@ from .base import NoSQLAdapter
 from .mysql import MySQL
 from .postgres import PostgrePsyco
 
+try:
+    from google.cloud import firestore
+except ImportError:
+    pass
+else:
+    from google.cloud.firestore_v1 import aggregation
+
+
 class GoogleMigratorMixin(object):
     migrator_cls = InDBMigrator
 
@@ -150,23 +158,9 @@ class Firestore(NoSQLAdapter):
 
     def _initialize_(self):
 
-        import firebase_admin
-        from firebase_admin import credentials, firestore
         super(Firestore, self)._initialize_()
         args = parse_qs(self.uri.split("//")[1]) if "//" in self.uri else {}
-
-        # for thread safety recycle the app in cache
-        if "cred" in args:
-            # not on google app engine
-            cred = credentials.Certificate(args["cred"][0])
-        else:
-            # on google app engine
-            cred = credentials.ApplicationDefault()
-        try:
-            app = firebase_admin.initialize_app(cred, args.get("name", [None])[0])
-        except ValueError:
-            app = firebase_admin.get_app()
-        self._client = firestore.client(app, args.get("id", [None])[0])
+        self._client = firestore.Client(project=args.get("id", [None])[0])
 
     def find_driver(self):
         return
@@ -208,8 +202,6 @@ class Firestore(NoSQLAdapter):
 
     def apply_filter(self, source, table, query):
 
-        from google.cloud.firestore_v1.base_query import FieldFilter, BaseCompositeFilter
-
         if isinstance(query, Query) and query.first is table._id:
             if query.op.__name__ == "eq":
                 return source.document(str(query.second)).get()
@@ -228,8 +220,6 @@ class Firestore(NoSQLAdapter):
         return source
 
     def get_docs(self, table, query, orderby=None, limitby=None):
-
-        from firebase_admin import firestore
 
         source = self._client.collection(table._tablename)
         source = self.apply_filter(source, table, query)
@@ -299,8 +289,6 @@ class Firestore(NoSQLAdapter):
 
     def count(self, query, distinct=None, limit=None):
         # OK
-        from google.cloud.firestore_v1 import aggregation
-
         if distinct:
             raise RuntimeError("COUNT DISTINCT not supported")
         table = self.get_table(query)
@@ -342,7 +330,6 @@ class Firestore(NoSQLAdapter):
         return counter
 
     def truncate(self, table, mode=""):
-        # OK
         def delete_collection(coll_ref, batch_size):
             if batch_size == 0:
                 return
@@ -352,7 +339,8 @@ class Firestore(NoSQLAdapter):
             for doc in docs:
                 batch.delete(doc)
                 deleted = deleted + 1
-            batch.commit()
+            if deleted:
+                batch.commit()
             if deleted >= batch_size:
                 return delete_collection(coll_ref, batch_size)
 
@@ -390,5 +378,6 @@ class Firestore(NoSQLAdapter):
             rid = Reference(id)
             rid._table, rid._recor = table, None
             ids.append(rid)
-        batch.commit()
+        if items:
+            batch.commit()
         return ids

@@ -3,8 +3,12 @@ from . import dialects, sqltype_for
 from .base import NoSQLDialect
 
 try:
-    from firebase_admin import firestore
-    from google.cloud.firestore_v1.base_query import FieldFilter, Or
+    from google.cloud import firestore
+    from google.cloud.firestore_v1.base_query import (
+        BaseCompositeFilter,
+        FieldFilter,
+        Or,
+    )
 except ImportError:
     pass
 
@@ -13,34 +17,64 @@ except ImportError:
 class FirestoreDialect(NoSQLDialect):
 
     def _and(self, first, second, query_env={}):
-        filters = first if isinstance(first, list) else [first]
-        filters += second if isinstance(second, list) else [second]
-        return filters
+        a = self.expand(first, query_env=query_env)
+        b = self.expand(second, query_env=query_env)
+        filters = (
+            a.filters
+            if isinstance(a, BaseCompositeFilter) and a.operator == "AND"
+            else [a]
+        )
+        filters += (
+            b.filters
+            if isinstance(b, BaseCompositeFilter) and a.operator == "AND"
+            else [b]
+        )
+        return BaseCompositeFilter("AND", filters)
 
     def _or(self, first, second, query_env={}):
         a = self.expand(first, query_env=query_env)
         b = self.expand(second, query_env=query_env)
-        filters = a.filters if isinstance(a, Or) else [a]
-        filters += b.filters if isinstance(b, Or) else [b]
-        return Or(filters)
+        filters = (
+            a.filters
+            if isinstance(a, BaseCompositeFilter) and a.operator == "OR"
+            else [a]
+        )
+        filters += (
+            b.filters
+            if isinstance(b, BaseCompositeFilter) and a.operator == "OR"
+            else [b]
+        )
+        return BaseCompositeFilter("OR", filters)
 
     def eq(self, first, second=None, query_env={}):
-        return FieldFilter(first.name, "==", second)
+        return FieldFilter(
+            first.name, "==", self.expand(second, first.type, query_env=query_env)
+        )
 
     def ne(self, first, second=None, query_env={}):
-        return FieldFilter(first.name, "!=", second)
+        return FieldFilter(
+            first.name, "!=", self.expand(second, first.type, query_env=query_env)
+        )
 
     def lt(self, first, second=None, query_env={}):
-        return FieldFilter(first.name, "<", second)
+        return FieldFilter(
+            first.name, "<", self.expand(second, first.type, query_env=query_env)
+        )
 
     def lte(self, first, second=None, query_env={}):
-        return FieldFilter(first.name, "<=", second)
+        return FieldFilter(
+            first.name, "<=", self.expand(second, first.type, query_env=query_env)
+        )
 
     def gt(self, first, second=None, query_env={}):
-        return FieldFilter(first.name, ">", second)
+        return FieldFilter(
+            first.name, ">", self.expand(second, first.type, query_env=query_env)
+        )
 
     def gte(self, first, second=None, query_env={}):
-        return FieldFilter(first.name, ">=", second)
+        return FieldFilter(
+            first.name, ">=", self.expand(second, first.type, query_env=query_env)
+        )
 
     def invert(self, first, query_env={}):
         raise NotImplementedError
