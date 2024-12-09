@@ -325,8 +325,10 @@ class Firestore(NoSQLAdapter):
         for doc in docs:
             batch.update(doc.reference, {f.name: v for f, v in update_fields})
             counter += 1
-        if counter:
+        try:
             batch.commit()
+        except Exception:
+            pass # google.api_core.exceptions.NotFound: No document to update
         return counter
 
     def truncate(self, table, mode=""):
