@@ -638,6 +638,16 @@ class SQLAdapter(BaseAdapter):
             if isinstance(t, Expression):  # db.table.on(...)
                 explicit_joins.append(t)
                 item = t.first
+
+                # previously a user doing db.foo.with_alias("bar").on(db.baz.foo_id == db.foo.id)
+                # caused a CROSS JOIN to happen automatically, which is unintuitive.
+                # as a basic check, the (maybe) aliased table name just has to appear somewhere in the ON clause
+                if item._tablename not in str(t.second):
+                    raise ValueError(
+                        f"In join, table is aliased as: `{t.first}`\n"
+                        f"but the same table is mentioned without alias in ON clause: `{t.second}`"
+                    )
+
             elif hasattr(t, "_tablename"):
                 implicit_joins.append(t)
                 item = t
@@ -651,19 +661,9 @@ class SQLAdapter(BaseAdapter):
 
         un_joined = {}
         for t in explicit_joins:
-            unrel_in_explicit = self.tables(t)
-            unrel_in_explicit.pop(t.first._tablename, None)
-
-            # previously a user doing db.foo.with_alias("bar").on(db.baz.foo_id == db.foo.id)
-            # caused a CROSS JOIN to happen automatically, which is unintuitive.
-            # (this doesnt trigger if no alias was set, as the .pop above would have removed the entry from unrel_in_explicit)
-            if t.first._dalname in unrel_in_explicit:
-                raise ValueError(
-                    f"In join, table is aliased as: `{t.first}`\n"
-                    f"but the same table is mentioned without alias in ON clause: `{t.second}`"
-                )
-
-            un_joined = merge_tablemaps(un_joined, unrel_in_explicit)
+            un_join_i = self.tables(t)
+            un_join_i.pop(t.first._tablename, None)
+            un_joined = merge_tablemaps(un_joined, un_join_i)
 
         tablemap = merge_tablemaps(tablemap, un_joined)
 
@@ -738,12 +738,12 @@ class SQLAdapter(BaseAdapter):
                 join_tablemap,
             ) = self._build_joins_for_select(joinexpr)
             tablemap = merge_tablemaps(tablemap, join_tablemap)
-            
+
             if len(not_joined) > 0:
                 item = not_joined.pop(0)
-                if base_table is None :
+                if base_table is None:
                     base_table = item
-            
+
             cross_join.extend(not_joined)
             joins.append(
                 (
@@ -775,7 +775,9 @@ class SQLAdapter(BaseAdapter):
                 # would it be better to also just make this explicitly cross joins?
                 # the current behaviour mirrors what was there before.
                 if len(implicit) > 0:
-                    tokens += [joinfunc(",".join(map(table_alias, implicit)), query_env)]
+                    tokens += [
+                        joinfunc(",".join(map(table_alias, implicit)), query_env)
+                    ]
                 tokens += [joinfunc(t, query_env) for t in explicit]
             sql_t = " ".join(tokens)
         else:
