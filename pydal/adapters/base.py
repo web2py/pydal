@@ -660,7 +660,7 @@ class SQLAdapter(BaseAdapter):
             if t.first._dalname in unrel_in_explicit:
                 raise ValueError(
                     f"In join, table is aliased as: `{t.first}`\n"
-                    "but the same table is mentioned without alias in ON clause: `{t.second}`"
+                    f"but the same table is mentioned without alias in ON clause: `{t.second}`"
                 )
 
             un_joined = merge_tablemaps(un_joined, unrel_in_explicit)
