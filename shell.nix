@@ -1,11 +1,11 @@
 let
   nixpkgs-src = builtins.fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/tarball/nixos-23.05";
+    url = "https://github.com/NixOS/nixpkgs/tarball/nixos-24.11";
   };
 
   pkgs = import nixpkgs-src { };
 
-  myPython = pkgs.python311;
+  myPython = pkgs.python312;
 
   shell = pkgs.mkShell {
 

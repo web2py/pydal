@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Unit tests for NoSQL adapters
+Unit tests for NoSQL adapters
 """
 
 from __future__ import print_function

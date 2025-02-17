@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Unit tests for validators.py """
+"""Unit tests for validators.py"""
 
 import datetime
 import decimal
@@ -698,9 +698,7 @@ class TestValidators(unittest.TestCase):
             rtn, ("localguy@localhost;_Yosemite.Sam@example.com;a", "Invalid emails: a")
         )
         rtn = IS_LIST_OF_EMAILS()("")
-        self.assertEqual(
-            rtn, ([], None)
-        )
+        self.assertEqual(rtn, ([], None))
         rtn = IS_LIST_OF_EMAILS().formatter(["test@example.com", "dude@example.com"])
         self.assertEqual(rtn, "test@example.com; dude@example.com")
 
@@ -1165,7 +1163,7 @@ class TestValidators(unittest.TestCase):
                     self.file.write(b"GIF87a")
                     self.file.write(struct.pack("<HHB", width, height, 0))
                 elif ext in ("jpg", "jpeg"):
-                    self.file.write(b"\xFF\xD8")
+                    self.file.write(b"\xff\xd8")
                     self.file.write(struct.pack("!BBH", 0xFF, 0xC0, 5))
                     self.file.write(struct.pack("!xHH", height, width))
                 elif ext == "png":

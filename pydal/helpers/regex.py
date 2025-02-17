@@ -18,7 +18,7 @@ REGEX_PYTHON_KEYWORDS = re.compile(
     "in|is|lambda|nonlocal|not|or|pass|print|raise|return|try|while|with|yield)$"
 )
 REGEX_SELECT_AS_PARSER = r"\s+AS\s+(\S+)$"
-REGEX_CONST_STRING = '("[^"]*")|' "('[^']*')"
+REGEX_CONST_STRING = "(\"[^\"]*\")|('[^']*')"
 REGEX_SEARCH_PATTERN = r"^{[^.]+\.[^.]+(\.(lt|gt|le|ge|eq|ne|contains|startswith|year|month|day|hour|minute|second))?(\.not)?}$"
 REGEX_SQUARE_BRACKETS = r"^.+\[.+\]$"
 REGEX_UPLOAD_EXTENSION = r"\.(\w{1,5})$"

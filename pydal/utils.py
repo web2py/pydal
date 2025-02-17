@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-    pydal.utils
-    -----------
+pydal.utils
+-----------
 
-    Provides some utilities for pydal.
+Provides some utilities for pydal.
 
-    :copyright: (c) 2017 by Giovanni Barillari and contributors
-    :license: BSD, see LICENSE for more details.
+:copyright: (c) 2017 by Giovanni Barillari and contributors
+:license: BSD, see LICENSE for more details.
 """
 
 import datetime

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Unit tests for scheduler.py """
+"""Unit tests for scheduler.py"""
 
 import datetime
 import tempfile

@@ -1,13 +1,15 @@
-.PHONY: test-venv test build deploy
+.PHONY: uv ruff test lock build deploy
 
-test-venv:
-	python -m venv test-venv
-	test-venv/bin/pip install -U pip
-	test-venv/bin/pip install -r test-requirements.txt
-test: test-venv
-	test-venv/bin/python -m unittest tests
-build:
+uv:
+	which uv || curl -LsSf https://astral.sh/uv/install.sh | sh
+check: uv
+	uv tool run ruff check
+format: uv
+	uv tool run ruff format
+test: check
+	uv run -m unittest tests
+build: test
 	rm -rf dist/*
-	python -m build
+	uv build
 deploy: build
-	python -m twine upload dist/*
+	uv run -m twine upload dist/*

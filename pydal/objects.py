@@ -303,8 +303,7 @@ class Table(Serializable, BasicStorage):
             or REGEX_PYTHON_KEYWORDS.match(tablename)
         ):
             raise SyntaxError(
-                "Field: invalid table name: %s, "
-                'use rname for "funny" names' % tablename
+                'Field: invalid table name: %s, use rname for "funny" names' % tablename
             )
         self._rname = args.get("rname") or db and db._adapter.dialect.quote(tablename)
         self._raw_rname = args.get("rname") or db and tablename
@@ -538,9 +537,11 @@ class Table(Serializable, BasicStorage):
         )
 
         self._before_update.append(
-            lambda qset, fs, db=archive_db, an=archive_name, cn=current_record: archive_record(
-                qset, fs, db[an], cn
-            )
+            lambda qset,
+            fs,
+            db=archive_db,
+            an=archive_name,
+            cn=current_record: archive_record(qset, fs, db[an], cn)
         )
         if is_active and is_active in fieldnames:
             self._before_delete.append(lambda qset: qset.update(is_active=False))
@@ -640,7 +641,8 @@ class Table(Serializable, BasicStorage):
                     if myfieldname not in self.fields:
                         raise SyntaxError(
                             "invalid field '%s' for referenced table '%s'"
-                            " in table '%s'" % (myfieldname, self.name, referee.table.name)
+                            " in table '%s'"
+                            % (myfieldname, self.name, referee.table.name)
                         )
                     referee.referent = self[myfieldname]
                 else:
@@ -2083,8 +2085,7 @@ class Field(Expression, Serializable):
             or REGEX_PYTHON_KEYWORDS.match(fieldname)
         ):
             raise SyntaxError(
-                "Field: invalid field name: %s, "
-                'use rname for "funny" names' % fieldname
+                'Field: invalid field name: %s, use rname for "funny" names' % fieldname
             )
 
         if not isinstance(type, (Table, Field)):

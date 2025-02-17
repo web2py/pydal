@@ -5,6 +5,7 @@ This file is part of pydal.
 Created by Massimo Di Pierro<massimo.dipierro@gmail.com>
 License: 3-clause BSD
 """
+
 import datetime
 import logging
 import math

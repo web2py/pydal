@@ -157,7 +157,6 @@ class Firestore(NoSQLAdapter):
     dbengine = "firestore"
 
     def _initialize_(self):
-
         super(Firestore, self)._initialize_()
         args = parse_qs(self.uri.split("//")[1]) if "//" in self.uri else {}
         self._client = firestore.Client(project=args.get("id", [None])[0])
@@ -201,7 +200,6 @@ class Firestore(NoSQLAdapter):
         return super(Firestore, self).represent(obj, field_type)
 
     def apply_filter(self, source, table, query):
-
         if isinstance(query, Query) and query.first is table._id:
             if query.op.__name__ == "eq":
                 return source.document(str(query.second)).get()
@@ -220,7 +218,6 @@ class Firestore(NoSQLAdapter):
         return source
 
     def get_docs(self, table, query, orderby=None, limitby=None):
-
         source = self._client.collection(table._tablename)
         source = self.apply_filter(source, table, query)
 
@@ -328,7 +325,7 @@ class Firestore(NoSQLAdapter):
         try:
             batch.commit()
         except Exception:
-            pass # google.api_core.exceptions.NotFound: No document to update
+            pass  # google.api_core.exceptions.NotFound: No document to update
         return counter
 
     def truncate(self, table, mode=""):

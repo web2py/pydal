@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Basic unit tests
+Basic unit tests
 """
 
 from __future__ import print_function

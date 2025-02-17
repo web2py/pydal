@@ -11,6 +11,7 @@
 Validators
 -----------
 """
+
 import binascii
 import datetime
 import decimal
@@ -4813,7 +4814,7 @@ class IS_IMAGE(Validator):
         return (-1, -1)
 
     def __jpeg(self, stream):
-        if stream.read(2) == b"\xFF\xD8":
+        if stream.read(2) == b"\xff\xd8":
             while True:
                 (marker, code, length) = struct.unpack("!BBH", stream.read(4))
                 if marker != 0xFF:

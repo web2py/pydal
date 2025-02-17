@@ -55,6 +55,7 @@ Web2py Changes
      solution
 
 """
+
 import logging
 import sys
 

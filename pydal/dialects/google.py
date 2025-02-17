@@ -15,7 +15,6 @@ except ImportError:
 
 @dialects.register_for(Firestore)
 class FirestoreDialect(NoSQLDialect):
-
     def _and(self, first, second, query_env={}):
         a = self.expand(first, query_env=query_env)
         b = self.expand(second, query_env=query_env)

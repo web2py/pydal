@@ -933,8 +933,7 @@ class _BaseNetwork(_IPAddressBase):
         else:
             # If we got here, there's a bug somewhere.
             raise AssertionError(
-                "Error performing exclusion: "
-                "s1: %s s2: %s other: %s" % (s1, s2, other)
+                "Error performing exclusion: s1: %s s2: %s other: %s" % (s1, s2, other)
             )
 
     def compare_networks(self, other):
