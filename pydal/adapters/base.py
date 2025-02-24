@@ -157,6 +157,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             elif isinstance(query, (Expression, Query)):
                 tmp = [x for x in (query.first, query.second) if x is not None]
                 tables = merge_tablemaps(tables, self.tables(*tmp))
+            elif isinstance(query, Select):
+                tables = merge_tablemaps(tables, self.tables(*query.fields))
         return tables
 
     def get_table(self, *queries):
@@ -289,15 +291,15 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             else:
                 #: fields[j] may be None if only 'colnames' was specified in db.executesql()
                 field = fields[j]
-                f_itype, ftype = (field and [field._itype, field.type] or [None, None])
+                f_itype, ftype = field and [field._itype, field.type] or [None, None]
                 value = self.parse_value(value, f_itype, ftype, blob_decode)
                 # for aliased fields use the aliased name
                 if isinstance(field, Expression) and field.op == self.dialect._as:
                     alias_colname = field.second
-                    
+
                     # will be None if the alias doesn't contain a dot
                     tablename = field.tablename
-                    
+
                     # if alias doesn't contain a dot
                     # and the epxression mentions a single table
                     # use that.
@@ -306,7 +308,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                         if len(tables) == 1:
                             table = tables.popitem()[1]
                             tablename = table._tablename
-                
+
                     # if the alias lets us determine a correct table name
                     # add it to that table.
                     if tablename:
