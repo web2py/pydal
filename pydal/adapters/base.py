@@ -311,8 +311,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                     # add it to that table.
                     if tablename:
                         new_row[tablename][alias_colname] = value
-                        extras[alias_colname] = value
-                        #extras[colname] = value # if the raw "<expr> as <name>" string is desired in _extras
                         continue
 
                 extras[colname] = value
