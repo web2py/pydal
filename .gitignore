@@ -22,4 +22,4 @@ build/*
 .settings
 .idea
 .vslick
-
+.venv

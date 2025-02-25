@@ -753,9 +753,10 @@ class TestSubselect(DALtest):
         # Check result from executing the query
         result = sub()
         self.assertEqual(len(result), len(data))
-        for idx, row in enumerate(data):
+        # recreate expected query data
+        data_with_exp = [{**d, "exp": d["aa"] + 1} for d in data]
+        for idx, row in enumerate(data_with_exp):
             self.assertEqual(result[idx]["tt"].as_dict(), row)
-            self.assertEqual(result[idx]["exp"], row["aa"] + 1)
         result = db.executesql(str(sub))
         for idx, row in enumerate(data):
             tmp = [row["aa"], row["bb"], row["aa"] + 2, row["aa"] + 1]
@@ -773,9 +774,8 @@ class TestSubselect(DALtest):
         # Alias checks
         sub = sub.with_alias("foo")
         result = sub()
-        for idx, row in enumerate(data):
+        for idx, row in enumerate(data_with_exp):
             self.assertEqual(result[idx]["tt"].as_dict(), row)
-            self.assertEqual(result[idx]["exp"], row["aa"] + 1)
         # Check query expansion methods again
         self.assertEqual(sub._rname, None)
         self.assertEqual(sub._raw_rname, None)
@@ -881,8 +881,8 @@ class TestSubselect(DALtest):
         self.assertEqual(len(result), len(expected))
         for idx, val in enumerate(expected):
             self.assertEqual(result[idx]["t1"]["aa"], val[0])
-            self.assertEqual(result[idx]["total"], val[1])
-            self.assertEqual(result[idx]["cnt"], val[2])
+            self.assertEqual(result[idx]["t2"]["total"], val[1])
+            self.assertEqual(result[idx]["t2"]["cnt"], val[2])
 
         # Check again when nested inside another query
         # Also check that the alias will not conflict with existing table
@@ -1494,6 +1494,96 @@ class TestExpressions(DALtest):
         count = db.t0.vv.count().with_alias("c")
         op = sum / count
         # self.assertEqual(db(t0).select(op).first()[op], 2)
+
+    def testAlias(self):
+        db = self.connect()
+        db.define_table(
+            "t0",
+            Field("c0", type="integer"),
+        )
+        db.define_table(
+            "t1",
+            Field("c1", type="integer"),
+        )
+        amount = 3
+        for i in range(amount):
+            db.t0.insert(c0=i)
+            db.t1.insert(c1=i + 4)
+        db.commit()
+        self.assertEqual(
+            db(db.t0).select(db.t0.id, db.t0.c0).first().as_dict(),
+            {"id": 1, "c0": 0},
+        )
+        # alias one column of table
+        self.assertEqual(
+            db(db.t0).select(db.t0.id, db.t0.c0.with_alias("alias")).first().as_dict(),
+            {"id": 1, "alias": 0},
+        )
+        # rename table entirely
+        self.assertEqual(
+            db(db.t0)
+            .select(
+                db.t0.id.with_alias("data.id"),
+                db.t0.c0.with_alias("data.alias"),
+            )
+            .first()
+            .as_dict(),
+            {"id": 1, "alias": 0},
+        )
+        # mixed dotted and non-dotted alias
+        self.assertEqual(
+            db(db.t0)
+            .select(
+                db.t0.id.with_alias("t0.id"),
+                db.t0.c0.with_alias("alias"),
+            )
+            .first()
+            .as_dict(),
+            {"id": 1, "alias": 0},
+        )
+        # alias with different dotted names
+        self.assertEqual(
+            db(db.t0)
+            .select(
+                db.t0.id.with_alias("data.id"),
+                db.t0.c0.with_alias("otherdata.alias"),
+            )
+            .first()
+            .as_dict(),
+            {"data": {"id": 1}, "otherdata": {"alias": 0}},
+        )
+        # alias with different dotted name from nondotted detected
+        self.assertEqual(
+            db(db.t0)
+            .select(
+                db.t0.id.with_alias("data.id"),
+                db.t0.c0.with_alias("alias"),
+            )
+            .first()
+            .as_dict(),
+            {"data": {"id": 1}, "t0": {"alias": 0}},
+        )
+        # separate tables no alias
+        self.assertEqual(
+            db(db.t0).select(db.t0.id, db.t1.c1).first().as_dict(),
+            {"t0": {"id": 1}, "t1": {"c1": 4}},
+        )
+        # separate tables with one alias making them act as the same
+        self.assertEqual(
+            db(db.t0)
+            .select(db.t0.id, db.t1.c1.with_alias("t0.alias"))
+            .first()
+            .as_dict(),
+            {"id": 1, "alias": 4},
+        )
+        # infer table name through nested expression
+        self.assertEqual(
+            db(db.t0)
+            .select(db.t0.id, db.t0.c0.count().with_alias("alias"))
+            .first()
+            .as_dict(),
+            {"id": 1, "alias": amount},
+        )
 
 
 class TestTableAliasing(DALtest):

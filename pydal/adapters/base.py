@@ -157,6 +157,8 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             elif isinstance(query, (Expression, Query)):
                 tmp = [x for x in (query.first, query.second) if x is not None]
                 tables = merge_tablemaps(tables, self.tables(*tmp))
+            elif isinstance(query, Select):
+                tables = merge_tablemaps(tables, self.tables(*query.fields))
         return tables
 
     def get_table(self, *queries):
@@ -285,7 +287,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                         self._add_reference_sets_to_parsed_row(
                             value, table, tablename, colset
                         )
-            #: otherwise we set the value in extras
+            #: otherwise, alias/expression logic
             else:
                 #: fields[j] may be None if only 'colnames' was specified in db.executesql()
                 field = fields[j]
@@ -293,13 +295,26 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 value = self.parse_value(value, f_itype, ftype, blob_decode)
                 # for aliased fields use the aliased name
                 if isinstance(field, Expression) and field.op == self.dialect._as:
-                    colname = field.second
-                    # if the alias is a tablename.fieldname add the column to the table
-                    if field.tablename:
-                        if field.tablename not in new_row:
-                            new_row[field.tablename] = self.db.Row()
-                        new_row[field.tablename][colname] = value
+                    alias_colname = field.second
+
+                    # will be None if the alias doesn't contain a dot
+                    tablename = field.tablename
+
+                    # if alias doesn't contain a dot
+                    # and the epxression mentions a single table
+                    # use that.
+                    if not tablename:
+                        tables = self.tables(field)
+                        if len(tables) == 1:
+                            table = tables.popitem()[1]
+                            tablename = table._tablename
+
+                    # if the alias lets us determine a correct table name
+                    # add it to that table.
+                    if tablename:
+                        new_row[tablename][alias_colname] = value
                         continue
+
                 extras[colname] = value
                 if not fields[j]:
                     new_row[colname] = value
