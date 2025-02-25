@@ -9,7 +9,7 @@ format: uv
 test: check
 	uv run -m unittest tests
 build: test
-	rm -rf dist/*
+	rm -rf dist/* build/*
 	uv build
 deploy: build
 	uv run -m twine upload dist/*
