@@ -379,14 +379,8 @@ class PostgreDialectArrays(PostgreDialect):
         return super(PostgreDialectArrays, self).eq(first, second, query_env)
 
 
-class PostgreDialectArraysJSON(PostgreDialectArrays):
-    @sqltype_for("json")
-    def type_json(self):
-        return "JSON"
-
-    @sqltype_for("jsonb")
-    def type_jsonb(self):
-        return "JSONB"
+class PostgreDialectArraysJSON(PostgreDialectArrays, PostgreDialectJSON):
+    pass
 
 
 @dialects.register_for(PostgreBoolean)
@@ -396,11 +390,5 @@ class PostgreDialectBoolean(PostgreDialectArrays):
         return "BOOLEAN"
 
 
-class PostgreDialectBooleanJSON(PostgreDialectBoolean):
-    @sqltype_for("json")
-    def type_json(self):
-        return "JSON"
-
-    @sqltype_for("jsonb")
-    def type_jsonb(self):
-        return "JSONB"
+class PostgreDialectBooleanJSON(PostgreDialectBoolean, PostgreDialectJSON):
+    pass
