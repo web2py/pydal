@@ -356,11 +356,11 @@ class PostgreDialectArrays(PostgreDialect):
 
     def contains(self, first, second, case_sensitive=True, query_env={}):
         if first.type.startswith("list:"):
-            f = self.expand(second, "string", query_env=query_env)
+            f = self.expand(second, "string" if first.type == 'list:string' else "integer", query_env=query_env)
             s = self.any(first, query_env)
-            if case_sensitive is True:
-                return self.eq(f, s)
-            return self.ilike(f, s, escape="\\", query_env=query_env)
+            if not case_sensitive and first.type == 'list:string':
+                return self.ilike(f, s, escape="\\", query_env=query_env)
+            return self.eq(f, s)
         return super(PostgreDialectArrays, self).contains(
             first, second, case_sensitive=case_sensitive, query_env=query_env
         )
