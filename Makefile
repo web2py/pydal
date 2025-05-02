@@ -7,7 +7,7 @@ check: uv
 format: uv
 	uv tool run ruff format
 test: check
-	uv run -m unittest tests
+	uv run --extra test -m unittest tests
 build: test
 	rm -rf dist/* build/*
 	uv build
