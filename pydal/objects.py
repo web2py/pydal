@@ -2131,6 +2131,12 @@ class Field(Expression, Serializable):
         self.custom_retrieve = custom_retrieve
         self.custom_retrieve_file_properties = custom_retrieve_file_properties
         self.custom_delete = custom_delete
+        if filter_in is None and type == "date":
+            filter_in = self._todate
+        elif filter_in is None and type == "time":
+            filter_in = self._totime
+        elif filter_in is None and type == "datetime":
+            filter_in = self._todatetime
         self.filter_in = filter_in
         self.filter_out = filter_out
         self.custom_qualifier = custom_qualifier
@@ -2144,6 +2150,30 @@ class Field(Expression, Serializable):
         self._itype = REGEX_TYPE.match(stype).group(0) if stype else None
         for key in others:
             setattr(self, key, others[key])
+
+    @staticmethod
+    def _todate(value, regex=re.compile(r"^\d\d\d\d-\d\d-\d\d$")):
+        if value is None:
+            return value
+        value = str(value)[:10]
+        assert regex.match(value), f"Invalid field value '{value}'"
+        return value
+
+    @staticmethod
+    def _totime(value, regex=re.compile(r"^\d\d:\d\d:\d\d$")):
+        if value is None:
+            return value
+        value = f"{value}:00:00"[:8]
+        assert regex.match(value), f"Invalid field value '{value}'"
+        return value
+
+    @staticmethod
+    def _todatetime(value, regex=re.compile(r"^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d$")):
+        if value is None:
+            return value
+        value = value = f"{value}:00:00"[:19].replace("T", " ")
+        assert regex.match(value), f"Invalid field value '{value}'"
+        return value
 
     def bind(self, table):
         if self._table is not None:
