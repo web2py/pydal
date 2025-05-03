@@ -3300,6 +3300,8 @@ class BasicRows(object):
                             value = field.represent(value, record)
                     row.append(none_exception(value))
                 else:
+                    if ' AS ' in col:
+                        col = col.split(' AS ')[1]
                     row.append(record._extra[col])
             writer.writerow(row)
 
