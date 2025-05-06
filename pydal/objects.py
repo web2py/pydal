@@ -3302,7 +3302,17 @@ class BasicRows(object):
                 else:
                     if ' AS ' in col:
                         col = col.split(' AS ')[1]
-                    row.append(record._extra[col])
+                    if '_extra' in record and col in record._extra:
+                        row.append(record._extra[col])
+                    elif col in record:                        
+                        row.append(record[col])
+                    else:
+                        for value in record.values():
+                            if insinstance(value, Row) and col in value:
+                                row.append(value[col])
+                                break
+                        else:
+                            row.append(None)
             writer.writerow(row)
 
     # for consistent naming yet backwards compatible
