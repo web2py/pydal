@@ -1,10 +1,41 @@
 from .base import DAL
 from .objects import Field
+from .validators import (
+    IS_INT_IN_RANGE,
+    IS_FLOAT_IN_RANGE,
+    IS_TIME,
+    IS_DATE,
+    IS_DATETIME,
+    IS_JSON,
+)
 import re
 
 
 class QueryParseError(RuntimeError):
     pass
+
+
+def validate(field, value):
+    """Validate the value for the field"""
+    error = None
+    if (
+        field.type == "id"
+        or field.type.startswith("reference")
+        or field.type.startswith("list:reference")
+    ):
+        error = IS_INT_IN_RANGE(0)(value)[1]
+    elif field.type == "integer" or field.type == "list:integer":
+        error = IS_INT_IN_RANGE()(value)[1]
+    elif field.type == "double" or field.type.startswith("decimal"):
+        error = IS_FLOAT_IN_RANGE()(value)[1]
+    elif field.type == "time":
+        error = IS_TIME()(value)[1]
+    elif field.type == "date":
+        error = IS_DATE()(value)[1]
+    elif field.type == "datetime":
+        error = IS_DATETIME()(value)[1]
+    if error:
+        raise QueryParseError(f"{value}: {error}")
 
 
 class QueryBuilder:
@@ -184,6 +215,7 @@ class QueryBuilder:
                 else:
                     # the operator requires a value, match a value
                     value, text = next(text, self.re_value)
+                    validate(field, value)
                     token = self.tokens_all[token]
                     if token == "==":
                         query = field == value
@@ -201,11 +233,12 @@ class QueryBuilder:
                         query = field.contains(value)
                     elif is_text and token == "startswith":
                         query = field.startswith(value)
-                    elif token == "belongs":
+                    elif token == "belongs" and field:
                         # the operator allows multiple values, macth next values
                         value = [value]
                         while text.startswith(","):
                             token, text = next(text[1:], self.re_value)
+                            validate(field, token)
                             value.append(token)
                         query = field.belongs(value)
                     else:
