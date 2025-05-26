@@ -1728,7 +1728,7 @@ class Expression(object):
         if isinstance(value, Query):
             value = db(value)._select(value.first._table._id)
         elif not isinstance(value, (Select, basestring)):
-            value = set(value)
+            value = list(sorted(value))
             if kwattr.get("null") and None in value:
                 value.remove(None)
                 return (self == None) | Query(

@@ -7,6 +7,11 @@ import datetime
 import decimal
 import re
 import unittest
+import warnings
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    import cgi
 
 from pydal import DAL, Field
 from pydal._compat import PY2, to_bytes
@@ -131,7 +136,6 @@ class TestValidators(unittest.TestCase):
         rtn = IS_LENGTH(minsize=2)(1)
         self.assertEqual(rtn, (1, "Enter from 2 to 255 characters"))
         # test FieldStorage
-        import cgi
         from io import BytesIO
 
         a = cgi.FieldStorage()
@@ -1218,7 +1222,6 @@ class TestValidators(unittest.TestCase):
         self.assertEqual(rtn, (img, "oops"))
 
     def test_IS_FILE(self):
-        import cgi
         from io import BytesIO
 
         def gen_fake(filename):
@@ -1284,7 +1287,6 @@ this is the content of the fake file
         self.assertEqual(rtn, ("example.pdf", "Enter valid filename"))
 
     def test_IS_UPLOAD_FILENAME(self):
-        import cgi
         from io import BytesIO
 
         def gen_fake(filename):

@@ -36,12 +36,12 @@ class TestQueryBuilder(unittest.TestCase):
         self.assertEqual(str(query), '("thing"."name" <= \'Chair\')')
         query = builder.parse('name >= "Chair"')
         self.assertEqual(str(query), '("thing"."name" >= \'Chair\')')
-        query = builder.parse("name in Chair, John")
-        self.assertEqual(str(query), "(\"thing\".\"name\" IN ('John','Chair'))")
-        query = builder.parse("name belongs Chair, John")
-        self.assertEqual(str(query), "(\"thing\".\"name\" IN ('John','Chair'))")
-        query = builder.parse('name belongs "Chair", "John"')
-        self.assertEqual(str(query), '("thing"."name" IN (\'Chair", "John\'))')
+        query = builder.parse("name in Chair, Table")
+        self.assertEqual(str(query), "(\"thing\".\"name\" IN ('Chair','Table'))")
+        query = builder.parse("name belongs Chair, Table")
+        self.assertEqual(str(query), "(\"thing\".\"name\" IN ('Chair','Table'))")
+        query = builder.parse('name belongs "Chair", "Table"')
+        self.assertEqual(str(query), '("thing"."name" IN (\'Chair", "Table\'))')
         query = builder.parse('name contains "Chair"')
         self.assertEqual(
             str(query), "(LOWER(\"thing\".\"name\") LIKE '%chair%' ESCAPE '\\')"
@@ -62,21 +62,21 @@ class TestQueryBuilder(unittest.TestCase):
         query = builder.parse("not (name == Chair)")
         self.assertEqual(str(query), '(NOT ("thing"."name" = \'Chair\'))')
 
-        query = builder.parse("name == Chair or name is John")
+        query = builder.parse("name == Chair or name is Table")
         self.assertEqual(
-            str(query), '(("thing"."name" = \'Chair\') OR ("thing"."name" = \'John\'))'
+            str(query), '(("thing"."name" = \'Chair\') OR ("thing"."name" = \'Table\'))'
         )
 
-        query = builder.parse("name == Chair and not name is John")
+        query = builder.parse("name == Chair and not name is Table")
         self.assertEqual(
             str(query),
-            '(("thing"."name" = \'Chair\') AND (NOT ("thing"."name" = \'John\')))',
+            '(("thing"."name" = \'Chair\') AND (NOT ("thing"."name" = \'Table\')))',
         )
 
-        query = builder.parse("not ((name == Chair) and not (name == John))")
+        query = builder.parse("not ((name == Chair) and not (name == Table))")
         self.assertEqual(
             str(query),
-            '(NOT (("thing"."name" = \'Chair\') AND (NOT ("thing"."name" = \'John\'))))',
+            '(NOT (("thing"."name" = \'Chair\') AND (NOT ("thing"."name" = \'Table\'))))',
         )
 
     def test_translations(self):

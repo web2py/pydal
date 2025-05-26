@@ -53,17 +53,14 @@ def error_wrapper(func):
                 data["message"] = "Validation Errors"
                 data["code"] = 422
         except PolicyViolation as e:
-            print(traceback.format_exc())
             data["status"] = "error"
             data["message"] = str(e)
             data["code"] = 401
         except NotFound as e:
-            print(traceback.format_exc())
             data["status"] = "error"
             data["message"] = str(e)
             data["code"] = 404
         except (InvalidFormat, KeyError, ValueError) as e:
-            print(traceback.format_exc())
             data["status"] = "error"
             data["message"] = str(e)
             data["code"] = 400

@@ -3,12 +3,20 @@ import platform
 import re
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from time import mktime
 
 from .._compat import PY2, pjoin
 from . import adapters
 from .base import SQLAdapter
+
+
+def convert_date(val):
+    return date.fromisoformat(val.decode("utf-8"))
+
+
+def convert_datetime(val):
+    return datetime.fromisoformat(val.decode("utf-8"))
 
 
 @adapters.register_for("sqlite", "sqlite:memory")
@@ -42,6 +50,12 @@ class SQLite(SQLAdapter):
             self.driver_args["check_same_thread"] = False
         if "detect_types" not in self.driver_args:
             self.driver_args["detect_types"] = self.driver.PARSE_DECLTYPES
+
+        if not PY2:
+            import sqlite3
+
+            sqlite3.register_converter("DATE", convert_date)
+            sqlite3.register_converter("TIMESTAMP", convert_datetime)
 
     def _driver_from_uri(self):
         return None
