@@ -39,25 +39,31 @@ def validate(field, value):
 
 
 class QueryBuilder:
-    token_not = "not"
-    tokens_transform = {
-        "upper": "upper",
-        "lower": "lower",
+    tokens_not = {
+        "not",
     }
-    tokens_op = {
-        "is null": "is null",
-        "is not null": "is not null",
-        "==": "==",
-        "!=": "!=",
-        "<": "<",
-        ">": ">",
-        "<=": "<=",
-        ">=": ">=",
-        "belongs": "belongs",
-        "contains": "contains",
-        "startswith": "startswith",
+    tokens_ops = {
+        "upper",
+        "lower",
+        "is null",
+        "is not null",
+        "is true",
+        "is false",
+        "==",
+        "!=",
+        "<",
+        ">",
+        "<=",
+        ">=",
+        "belongs",
+        "contains",
+        "startswith",
     }
-    tokens_aliases = {
+    tokens_and_or = {
+        "and",
+        "or",
+    }
+    default_token_aliases = {
         "is": "==",
         "is equal": "==",
         "is equal to": "==",
@@ -79,7 +85,6 @@ class QueryBuilder:
         "in": "belongs",
         "starts with": "startswith",
     }
-    tokens_bool = {"and": "and", "or": "or"}
     # regex matching field names, and
     re_token = re.compile(r"^(\w+)\s*(.*)$")
     # regex matching a value or quoted value
@@ -90,37 +95,51 @@ class QueryBuilder:
     def __init__(
         self,
         table,
-        token_not=None,
-        tokens_transform=None,
-        tokens_op=None,
-        tokens_aliases=None,
-        tokens_bool=None,
+        field_aliases=None,
+        token_aliases=None,
         debug=False,
     ):
+        """
+        Creates a QueryBuilder object
+        params:
+        - table: the table object to be searched
+        - field_aliases: an optional mapping between desired field names and actual field names.
+                         If present only listed fields will be searchable. If only only readable fields.
+        - token_aliases: a mapping between expressions like "is equal to" into operations like "==".
+        """
         self.table = table
-        self.token_not = token_not or QueryBuilder.token_not
-        self.tokens_transform = tokens_transform or QueryBuilder.tokens_transform
-        self.tokens_op = tokens_op or QueryBuilder.tokens_op
-        self.tokens_aliases = (
-            QueryBuilder.tokens_aliases if tokens_aliases is None else tokens_aliases
-        )
-        self.tokens_bool = tokens_bool or QueryBuilder.tokens_bool
-        # regex matching a not
-        self.re_not = re.compile(r"^(" + self.token_not + r")(\W.*)$")
-        # regex matcing operators
-        self.tokens_all = {
-            **self.tokens_transform,
-            **self.tokens_op,
-            **self.tokens_aliases,
-        }
+        # we either override all fields or none
+        if field_aliases:
+            self.fields = {k: table[v] for k, v in field_aliases.items()}
+        else:
+            self.fields = {f.name.lower(): f for f in table if f.readable}
+        # use default token aliases if none provided
+        if token_aliases is None:
+            token_aliases = QueryBuilder.default_token_aliases
+        # build a complete list of tokens insluding aliases
+        self.tokens_not = self._augment(token_aliases, QueryBuilder.tokens_not)
+        self.tokens_and_or = self._augment(token_aliases, QueryBuilder.tokens_and_or)
+        self.tokens_ops = self._augment(token_aliases, QueryBuilder.tokens_ops)
+        # build the regexes that depend on tokens
+        self.re_not = re.compile(r"^(" + "|".join(self.tokens_not) + r")(\W.*)$")
+        print(set(sorted(self.tokens_ops, reverse=True)))
         self.re_op = re.compile(
             "^("
             + "|".join(
-                t.replace(" ", r"\s+") for t in sorted(self.tokens_all, reverse=True)
+                t.replace(" ", r"\s+") for t in sorted(self.tokens_ops, reverse=True)
             )
             + r")\s*(.*)$"
         )
+        # true or false
         self.debug = debug
+
+    @staticmethod
+    def _augment(aliases, original):
+        """returns a dict of k:v for k,v in aliases and v in original"""
+        output = {k: k for k in original}
+        if aliases:
+            output.update({k: v for k, v in aliases.items() if v in original})
+        return output
 
     @staticmethod
     def _find_closing_bracket(text):
@@ -161,7 +180,9 @@ class QueryBuilder:
         def next(text, regex, ignore=False):
             text = text.strip()
             if not text:
-                return None, ""
+                if ignore:
+                    return None, text
+                raise QueryParseError("Unable to parse truncated expression")
             match = regex.match(text)
             if not match:
                 if ignore:
@@ -193,32 +214,38 @@ class QueryBuilder:
             else:
                 token, text = next(text, self.re_token)
                 # match a field name
-                if token.lower() not in fields:
+                if token.lower() not in self.fields:
                     raise QueryParseError(
                         f"Unable to parse {token}, expected a field name"
                     )
-                field = self.table[token]
+                field = self.fields[token]
                 is_text = field.type in ("string", "text", "blob")
                 has_contains = is_text or field.type.startswith("list:")
-                # check an operator
+                # match an operator
                 token, text = next(text, self.re_op)
-                token = self.tokens_all[token]
+                print(self.re_op, token)
+                token = self.tokens_ops[token]
                 # if the operator is a field modifier, get the next operator
                 if is_text and token == "lower":
                     token, text = next(text, self.re_op)
+                    token = self.tokens_ops.get(token)
                     field = field.lower()
                 elif is_text and token == "upper":
                     token, text = next(text, self.re_op)
+                    token = self.tokens_ops.get(token)
                     field = field.upper()
                 if token == "is null":
                     query = field == None
                 elif token == "is not null":
                     query = field != None
+                elif field.type == "boolean" and token == "is true":
+                    query = field == True
+                elif field.type == "boolean" and token == "is false":
+                    query = field == False
                 else:
                     # the operator requires a value, match a value
                     value, text = next(text, self.re_value)
                     validate(field, value)
-                    token = self.tokens_all[token]
                     if token == "==":
                         query = field == value
                     elif token == "!=":
@@ -259,11 +286,11 @@ class QueryBuilder:
                 stack.append(query)
 
             # we have a query match next "and" or "or" and put them in stack
-            token, text = next(text, self.re_token)
+            token, text = next(text, self.re_token, ignore=True)
             if not token:
                 break
-            elif token in self.tokens_bool and text:
-                stack.append(self.tokens_bool[token])
+            elif token in self.tokens_and_or and text:
+                stack.append(self.tokens_and_or[token])
             else:
                 raise QueryParseError(f"Unable to parse {token}, expected and/or")
         if len(stack) > 1:
