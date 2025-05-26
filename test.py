@@ -11,6 +11,9 @@ db.define_table(
 )
 
 builder = QueryBuilder(debug=False)
+
+print(builder.parse(db.thing, "not (name == Max)"))
+
 print(
     builder.parse(
         db.thing,
@@ -24,3 +27,12 @@ print(
         'not( not weight is greater than 10.5 and(quantity is not null or((name lower startswith "dog") or name belongs "one", "two", "three")))',
     )
 )
+
+query = builder.parse(db.thing, "not (name == Max)")
+print(repr(query))
+query = builder.parse(db.thing, "name == Max or name is John")
+print(repr(query))
+query = builder.parse(db.thing, "name == Max and not name is John")
+print(repr(query))
+query = builder.parse(db.thing, "not ((name == Max) and not (name is John))")
+print(repr(query))

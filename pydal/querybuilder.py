@@ -73,7 +73,7 @@ class QueryBuilder:
         )
         self.tokens_bool = tokens_bool or QueryBuilder.tokens_bool
         # regex matching a not
-        self.re_not = re.compile(r"^(" + self.token_not + ")(\W.*)$")
+        self.re_not = re.compile(r"^(" + self.token_not + r")(\W.*)$")
         # regex matcing operators
         self.tokens_all = {
             **self.tokens_transform,
@@ -137,11 +137,13 @@ class QueryBuilder:
             is_quoted = text[:1] == '"'
             token, text = match.group(1), match.group(2)
             # if text is not quoted, remove duplicated spaces
-            if not is_quoted:
+            if is_quoted:
+                token = token[1:-1]
+            else:
                 token = self.re_spaces.sub(" ", token)
             if self.debug:
                 print("MATCH", repr(token), repr(text))
-            return token, text
+            return token, text.strip()
 
         # loop until there is more text to process
         while text.strip():
