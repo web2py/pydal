@@ -122,7 +122,6 @@ class QueryBuilder:
         self.tokens_ops = self._augment(token_aliases, QueryBuilder.tokens_ops)
         # build the regexes that depend on tokens
         self.re_not = re.compile(r"^(" + "|".join(self.tokens_not) + r")(\W.*)$")
-        print(set(sorted(self.tokens_ops, reverse=True)))
         self.re_op = re.compile(
             "^("
             + "|".join(
@@ -223,7 +222,6 @@ class QueryBuilder:
                 has_contains = is_text or field.type.startswith("list:")
                 # match an operator
                 token, text = next(text, self.re_op)
-                print(self.re_op, token)
                 token = self.tokens_ops[token]
                 # if the operator is a field modifier, get the next operator
                 if is_text and token == "lower":
