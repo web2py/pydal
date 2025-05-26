@@ -11,5 +11,5 @@ test: check
 build: test
 	rm -rf dist/* build/*
 	uv build
-deploy: build
+publish: build
 	uv run -m twine upload dist/*
