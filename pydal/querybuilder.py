@@ -89,6 +89,7 @@ class QueryBuilder:
 
     def __init__(
         self,
+        table,
         token_not=None,
         tokens_transform=None,
         tokens_op=None,
@@ -96,6 +97,7 @@ class QueryBuilder:
         tokens_bool=None,
         debug=False,
     ):
+        self.table = table
         self.token_not = token_not or QueryBuilder.token_not
         self.tokens_transform = tokens_transform or QueryBuilder.tokens_transform
         self.tokens_op = tokens_op or QueryBuilder.tokens_op
@@ -144,14 +146,14 @@ class QueryBuilder:
             prev_c = c
         raise QueryParseError("Unbalanced brackets")
 
-    def parse(self, table, text):
+    def parse(self, text):
         """
         Builds a query from the table given and english text expression
         """
         if self.debug:
             print("PARSING", repr(text))
         # build names of possible searchable fields
-        fields = {field.name.lower(): field for field in table if field.readable}
+        fields = {field.name.lower(): field for field in self.table if field.readable}
         # in the stack we put queries and logical operators only
         stack = []
 
@@ -187,7 +189,7 @@ class QueryBuilder:
             if text.startswith("("):
                 i = QueryBuilder._find_closing_bracket(text)
                 token, text = text[1:i], text[i + 1 :].strip()
-                query = self.parse(table, token)
+                query = self.parse(token)
             else:
                 token, text = next(text, self.re_token)
                 # match a field name
@@ -195,7 +197,7 @@ class QueryBuilder:
                     raise QueryParseError(
                         f"Unable to parse {token}, expected a field name"
                     )
-                field = table[token]
+                field = self.table[token]
                 is_text = field.type in ("string", "text", "blob")
                 has_contains = is_text or field.type.startswith("list:")
                 # check an operator
@@ -268,4 +270,4 @@ class QueryBuilder:
             # this should never happen
             raise QueryParseError("Internal error: leftover stack")
         # return the one query left in stack
-        return stack[-1] if stack else table.id > 0
+        return stack[-1] if stack else self.table.id > 0
