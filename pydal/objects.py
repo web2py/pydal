@@ -3300,11 +3300,11 @@ class BasicRows(object):
                             value = field.represent(value, record)
                     row.append(none_exception(value))
                 else:
-                    if ' AS ' in col:
-                        col = col.split(' AS ')[1]
-                    if '_extra' in record and col in record._extra:
+                    if " AS " in col:
+                        col = col.split(" AS ")[1]
+                    if "_extra" in record and col in record._extra:
                         row.append(record._extra[col])
-                    elif col in record:                        
+                    elif col in record:
                         row.append(record[col])
                     else:
                         for value in record.values():
