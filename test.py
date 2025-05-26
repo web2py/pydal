@@ -10,7 +10,7 @@ db.define_table(
     Field("tags", "list:string"),
 )
 
-builder = QueryBuilder(debug=False)
+builder = QueryBuilder(debug=True)
 
 print(builder.parse(db.thing, "not (name == Max)"))
 
@@ -28,11 +28,5 @@ print(
     )
 )
 
-query = builder.parse(db.thing, "not (name == Max)")
-print(repr(query))
-query = builder.parse(db.thing, "name == Max or name is John")
-print(repr(query))
-query = builder.parse(db.thing, "name == Max and not name is John")
-print(repr(query))
-query = builder.parse(db.thing, "not ((name == Max) and not (name is John))")
+query = builder.parse(db.thing, "name lower is equal to Max")
 print(repr(query))

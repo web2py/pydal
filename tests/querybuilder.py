@@ -48,6 +48,8 @@ class TestQueryBuilder(unittest.TestCase):
         self.assertEqual(str(query), "(\"thing\".\"name\" LIKE 'Max%' ESCAPE '\\')")
         query = builder.parse(db.thing, "name lower == max")
         self.assertEqual(str(query), '(LOWER("thing"."name") = \'max\')')
+        query = builder.parse(db.thing, "name lower is equal to max")
+        self.assertEqual(str(query), '(LOWER("thing"."name") = \'max\')')
         query = builder.parse(db.thing, "name upper == MAX")
         self.assertEqual(str(query), '(UPPER("thing"."name") = \'MAX\')')
         query = builder.parse(db.thing, "not name == Max")

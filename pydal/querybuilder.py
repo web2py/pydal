@@ -184,6 +184,7 @@ class QueryBuilder:
                 else:
                     # the operator requires a value, match a value
                     value, text = next(text, self.re_value)
+                    token = self.tokens_all[token]
                     if token == "==":
                         query = field == value
                     elif token == "!=":
