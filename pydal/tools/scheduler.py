@@ -112,7 +112,8 @@ class Scheduler:  # pylint: disable=too-many-instance-attributes
         sleep_time=10,
         logger=None,
     ):
-        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGCHLD, signal.SIG_IGN)
         self.db = db
         self.max_concurrent_runs = max_concurrent_runs
         self.folder = folder
