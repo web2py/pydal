@@ -3308,7 +3308,7 @@ class BasicRows(object):
                         row.append(record[col])
                     else:
                         for value in record.values():
-                            if insinstance(value, Row) and col in value:
+                            if isinstance(value, Row) and col in value:
                                 row.append(value[col])
                                 break
                         else:
