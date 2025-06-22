@@ -167,7 +167,7 @@ class TestValidators(unittest.TestCase):
         rtn = IS_JSON(native_json=True)('{"a": 100}')
         self.assertEqual(rtn, ('{"a": 100}', None))
         rtn = IS_JSON().formatter(None)
-        self.assertEqual(rtn, None)
+        self.assertEqual(rtn, "null")
         rtn = IS_JSON().formatter({"a": 100})
         self.assertEqual(rtn, '{"a": 100}')
         rtn = IS_JSON(native_json=True).formatter({"a": 100})

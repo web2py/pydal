@@ -476,7 +476,7 @@ class IS_JSON(Validator):
 
     def formatter(self, value):
         if value is None:
-            return None
+            return "null"
         if self.native_json:
             return value
         else:
