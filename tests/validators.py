@@ -704,7 +704,7 @@ class TestValidators(unittest.TestCase):
         rtn = IS_LIST_OF_EMAILS()("")
         self.assertEqual(rtn, ([], None))
         rtn = IS_LIST_OF_EMAILS().formatter(["test@example.com", "dude@example.com"])
-        self.assertEqual(rtn, "test@example.com; dude@example.com")
+        self.assertEqual(rtn, "test@example.com, dude@example.com")
 
     def test_IS_URL(self):
         rtn = IS_URL()("http://example.com")
@@ -891,6 +891,58 @@ class TestValidators(unittest.TestCase):
         )
         rtn = v("clearly not a date")
         self.assertEqual(rtn, ("clearly not a date", "oops"))
+
+    def test_IS_LIST_OF_STRINRGS(self):
+        rtn = IS_LIST_OF_STRINGS()("abc")
+        self.assertEqual(rtn, (["abc"], None))
+        rtn = IS_LIST_OF_STRINGS()(["a", "b", "c"])
+        self.assertEqual(rtn, (["a", "b", "c"], None))
+        rtn = IS_LIST_OF_STRINGS()("a,b,c")
+        self.assertEqual(rtn, (["a", "b", "c"], None))
+        rtn = IS_LIST_OF_STRINGS()("a,b;c")
+        self.assertEqual(rtn, (["a", "b", "c"], None))
+        rtn = IS_LIST_OF_STRINGS()('a,"hello world"; c')
+        self.assertEqual(rtn, (["a", "hello world", "c"], None))
+        rtn = IS_LIST_OF_STRINGS()('a,"hello\\" world"; c')
+        self.assertEqual(rtn, (["a", 'hello" world', "c"], None))
+        rtn = IS_LIST_OF_STRINGS().formatter(["a", 'hello" world', "c"])
+        self.assertEqual(rtn, 'a, "hello\\" world", c')
+
+    def test_IS_LIST_OF_INTS(self):
+        # can validate a single number
+        rtn = IS_LIST_OF_INTS()(1)
+        self.assertEqual(rtn, ([1], None))
+        # can validate lists
+        rtn = IS_LIST_OF_INTS()([1])
+        self.assertEqual(rtn, ([1], None))
+        rtn = IS_LIST_OF_INTS()([1, 2, 3])
+        self.assertEqual(rtn, ([1, 2, 3], None))
+        # can validate numbers as strings
+        rtn = IS_LIST_OF_INTS()("1")
+        self.assertEqual(rtn, ([1], None))
+        # can validate json lists
+        rtn = IS_LIST_OF_INTS()("[1, 2, 3]")
+        self.assertEqual(rtn, ([1, 2, 3], None))
+        rtn = IS_LIST_OF_INTS()('["1", "2", "3"]')
+        self.assertEqual(rtn, ([1, 2, 3], None))
+        # can validate comma separated of semicolon separated numbers
+        rtn = IS_LIST_OF_INTS()("1, 2, 3")
+        self.assertEqual(rtn, ([1, 2, 3], None))
+        rtn = IS_LIST_OF_INTS()("1, 2; 3")
+        self.assertEqual(rtn, ([1, 2, 3], None))
+        # can validate comma separted quoted numbers
+        rtn = IS_LIST_OF_INTS()('1, "2", 3')
+        self.assertEqual(rtn, ([1, 2, 3], None))
+        # check invalid values
+        rtn = IS_LIST_OF_INTS()("abc")
+        self.assertEqual(rtn, ("abc", "Enter a list of integers"))
+        rtn = IS_LIST_OF_INTS()("1, abc, 3")
+        self.assertEqual(rtn, ("1, abc, 3", "Enter a list of integers"))
+        rtn = IS_LIST_OF_INTS()([1, "abc", 3])
+        self.assertEqual(rtn, ([1, "abc", 3], "Enter a list of integers"))
+        # check formatting
+        rtn = IS_LIST_OF_INTS().formatter([1, 2, 3])
+        self.assertEqual(rtn, "1, 2, 3")
 
     def test_IS_LIST_OF(self):
         values = [0, 1, 2, 3, 4]

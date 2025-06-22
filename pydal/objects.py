@@ -2141,6 +2141,15 @@ class Field(Expression, Serializable):
         self.filter_out = filter_out
         self.custom_qualifier = custom_qualifier
         self.label = label if label is not None else fieldname.replace("_", " ").title()
+        if requires is DEFAULT:
+            if type == "list:string":
+                from .validators import IS_LIST_OF_STRINGS
+
+                requires = [IS_LIST_OF_STRINGS()]
+            elif isinstance(type, str) and type.startswith("list:"):
+                from .validators import IS_LIST_OF_INTS
+
+                requires = [IS_LIST_OF_INTS()]
         self.requires = requires if requires is not None else []
         self.map_none = map_none
         self._rname = self._raw_rname = rname

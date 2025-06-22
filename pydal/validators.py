@@ -72,6 +72,8 @@ __all__ = [
     "IS_IPADDRESS",
     "IS_LENGTH",
     "IS_LIST_OF",
+    "IS_LIST_OF_STRINGS",
+    "IS_LIST_OF_INTS",
     "IS_LOWER",
     "IS_MATCH",
     "IS_EQUAL_TO",
@@ -95,6 +97,49 @@ def options_sorter(x, y):
 
 def translate(text):
     return Validator.translator(text)
+
+
+def quote_token(token):
+    token = str(token)
+    if any(c in token for c in r',; "'):
+        token = token.replace('"', '\\"')
+        return f'"{token}"'
+    return token
+
+
+def parse_tokens(line):
+    tokens = []
+    token = ""
+    in_quotes = False
+    escaped = False
+    i = 0
+    while i < len(line):
+        c = line[i]
+        if in_quotes:
+            if escaped:
+                token += c
+                escaped = False
+            elif c == "\\":
+                escaped = True
+            elif c == '"':
+                in_quotes = False
+            else:
+                token += c
+        else:
+            if c in ",; ":
+                token = token.strip()
+                if token:
+                    tokens.append(token)
+                token = ""
+            elif c == '"':
+                in_quotes = True
+            else:
+                token += c
+        i += 1
+    token = token.strip()
+    if token:
+        tokens.append(token)
+    return tokens
 
 
 class ValidationError(Exception):
@@ -1335,7 +1380,60 @@ class IS_EMAIL(Validator):
         raise ValidationError(self.translator(self.error_message))
 
 
-class IS_LIST_OF_EMAILS(Validator):
+class IS_LIST_OF_STRINGS(Validator):
+    """
+    validates a list of comma or semicolon separated strings, quoted or not quoted, or json
+    hello, world
+    hello; world
+    hello, "world"
+    hello, "hello world"
+    ["hello", "hello world"]
+    """
+
+    def __init__(self, error_message="Enter a list of strings"):
+        self.error_message = error_message
+
+    def validate(self, value, record_id=None):
+        if not value:
+            return []
+        if isinstance(value, list):
+            return [str(item) for item in value]
+        value = str(value)
+        if value[:1] + value[-1:] == "[]":
+            try:
+                values = json.loads(value)
+            except Exception:
+                raise ValidationError(self.translator(self.error_message))
+            return [str(item) for item in values]
+        values = parse_tokens(value)
+        return values
+
+    def formatter(self, value):
+        return "" if not value else ", ".join(map(quote_token, value))
+
+
+class IS_LIST_OF_INTS(IS_LIST_OF_STRINGS):
+    """
+    validates a list of comma or semicolon integers or json
+    1
+    1, 2
+    1; 2
+    1, "2"
+    [1, 2]
+    """
+
+    def __init__(self, error_message="Enter a list of integers"):
+        self.error_message = error_message
+
+    def validate(self, value, record_id=None):
+        values = IS_LIST_OF_STRINGS.validate(self, value)
+        try:
+            return [int(item) for item in values]
+        except ValueError as err:
+            raise ValidationError(self.translator(self.error_message))
+
+
+class IS_LIST_OF_EMAILS(IS_LIST_OF_STRINGS):
     """
     Example:
         Used as::
@@ -1348,34 +1446,22 @@ class IS_LIST_OF_EMAILS(Validator):
              )
     """
 
-    REGEX_NOT_EMAIL_SPLITTER = r"[^,;\s]+"
-
     def __init__(self, error_message="Invalid emails: %s"):
         self.error_message = error_message
 
     def validate(self, value, record_id=None):
+        emails = IS_LIST_OF_STRINGS.validate(self, value)
         bad_emails = []
-        f = IS_EMAIL()
-        if isinstance(value, str):
-            emails = re.findall(self.REGEX_NOT_EMAIL_SPLITTER, value)
-        else:
-            emails = value
+        check_email = IS_EMAIL()
         for email in emails:
-            error = f(email)[1]
+            error = check_email(email)[1]
             if error and email not in bad_emails:
                 bad_emails.append(email)
         if bad_emails:
             raise ValidationError(
-                self.translator(self.error_message) % ";".join(bad_emails)
+                self.translator(self.error_message) % ", ".join(bad_emails)
             )
         return emails
-
-    def formatter(self, value, row=None):
-        if value is None:
-            return ""
-        if isinstance(value, str):
-            value = re.findall(self.REGEX_NOT_EMAIL_SPLITTER, value)
-        return "; ".join(value)
 
 
 # URL scheme source:
@@ -3963,7 +4049,7 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
         return value
 
 
-class IS_LIST_OF(Validator):
+class IS_LIST_OF(IS_LIST_OF_STRINGS):
     def __init__(self, other=None, minimum=None, maximum=None, error_message=None):
         self.other = other
         self.minimum = minimum
@@ -3971,16 +4057,13 @@ class IS_LIST_OF(Validator):
         self.error_message = error_message
 
     def validate(self, value, record_id=None):
-        ivalue = value
-        if not isinstance(value, list):
-            ivalue = [ivalue]
-        ivalue = [i for i in ivalue if str(i).strip()]
-        if self.minimum is not None and len(ivalue) < self.minimum:
+        value = IS_LIST_OF_STRINGS.validate(self, value)
+        if self.minimum is not None and len(value) < self.minimum:
             raise ValidationError(
                 self.translator(self.error_message or "Minimum length is %(min)s")
                 % dict(min=self.minimum, max=self.maximum)
             )
-        if self.maximum is not None and len(ivalue) > self.maximum:
+        if self.maximum is not None and len(value) > self.maximum:
             raise ValidationError(
                 self.translator(self.error_message or "Maximum length is %(max)s")
                 % dict(min=self.minimum, max=self.maximum)
@@ -3990,13 +4073,12 @@ class IS_LIST_OF(Validator):
         if self.other:
             if not isinstance(other, (list, tuple)):
                 other = [other]
-            for item in ivalue:
-                v = item
+            for item in value:
                 for validator in other:
-                    v = validator_caller(validator, v, record_id)
-                new_value.append(v)
-            ivalue = new_value
-        return ivalue
+                    item = validator_caller(validator, item, record_id)
+                new_value.append(item)
+            value = new_value
+        return value
 
 
 class IS_LOWER(Validator):
