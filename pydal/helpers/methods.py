@@ -37,6 +37,7 @@ def cleanup(text):
 
 
 def list_represent(values, row=None):
+    """the row=None is necessary for backward compatibility"""
     return ", ".join(str(v) for v in (values or []))
 
 

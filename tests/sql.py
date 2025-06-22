@@ -1945,6 +1945,7 @@ class TestClientLevelOps(DALtest):
         db = self.connect()
         db.define_table(
             "tt",
+            Field("id", "id", represent=None),
             Field("aa", represent=lambda x, r: "x" + x),
             Field("bb", type="integer", represent=lambda x, r: "y" + str(x)),
         )

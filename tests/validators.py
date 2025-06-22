@@ -364,7 +364,7 @@ class TestValidators(unittest.TestCase):
         db.define_table(
             "ref_table_field",
             Field("name"),
-            Field("person_name", "reference person_keyed.name"),
+            Field("person_name", "reference person_keyed.name", requires=[]),
         )
         ret = db.ref_table_field.validate_and_insert(name="test reference table.field")
         self.assertTrue(not ret.get("errors"))

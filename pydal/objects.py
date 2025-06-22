@@ -106,6 +106,47 @@ def csv_reader(utf8_data, dialect=csv.excel, encoding="utf-8", **kwargs):
         yield [to_unicode(cell, encoding) for cell in row]
 
 
+def get_default_represent(type, default=(lambda value, row=None: str(value))):
+    """returns the default function that represents a value of type"""
+    if isinstance(type, SQLCustomType):
+        return default
+    if type.startswith("list:"):
+        return list_represent
+    return default
+
+
+def get_default_validator(type, _cached_defaults={}):
+    """returns the default validators a value of type"""
+    # this is only for SQLCustomType
+    if not isinstance(type, str):
+        return []
+    # we only cache the validators for speed
+    if not _cached_defaults:
+        from . import validators
+
+        _cached_defaults = {
+            "id": validators.IS_INT_IN_RANGE,
+            "integer": validators.IS_INT_IN_RANGE,
+            "double": validators.IS_FLOAT_IN_RANGE,
+            "decimal": validators.IS_FLOAT_IN_RANGE,
+            "reference": validators.IS_INT_IN_RANGE,
+            "time": validators.IS_TIME,
+            "date": validators.IS_DATE,
+            "datetime": validators.IS_DATETIME,
+            "list:string": validators.IS_LIST_OF_STRINGS,
+            "list:integer": validators.IS_LIST_OF_INTS,
+            "list:reference": validators.IS_LIST_OF_INTS,
+            "password": validators.CRYPT,
+        }
+    # break "reference {table}", "list"deference {table}", "decimal(1,10)"
+    type = type.split(" ")[0].split("(")[0]
+    # if not found then it is a string field and no need not default validator/formatter
+    validator = _cached_defaults.get(type)
+    if not validator:
+        return []
+    return [validator()]
+
+
 class Row(BasicStorage):
     """
     A dictionary that lets you do d['a'] as well as d.a
@@ -2051,7 +2092,7 @@ class Field(Expression, Serializable):
         update=None,
         authorize=None,
         autodelete=False,
-        represent=None,
+        represent=DEFAULT,
         uploadfolder=None,
         uploadseparate=False,
         uploadfs=None,
@@ -2120,11 +2161,10 @@ class Field(Expression, Serializable):
         self.update = update
         self.authorize = authorize
         self.autodelete = autodelete
-        self.represent = (
-            list_represent
-            if represent is None and type in ("list:integer", "list:string")
-            else represent
-        )
+        if represent == DEFAULT:
+            self.represent = get_default_represent(self.type)
+        else:
+            self.represent = represent
         self.compute = compute
         self.isattachment = True
         self.custom_store = custom_store
@@ -2142,15 +2182,11 @@ class Field(Expression, Serializable):
         self.custom_qualifier = custom_qualifier
         self.label = label if label is not None else fieldname.replace("_", " ").title()
         if requires is DEFAULT:
-            if type == "list:string":
-                from .validators import IS_LIST_OF_STRINGS
-
-                requires = [IS_LIST_OF_STRINGS()]
-            elif isinstance(type, str) and type.startswith("list:"):
-                from .validators import IS_LIST_OF_INTS
-
-                requires = [IS_LIST_OF_INTS()]
-        self.requires = requires if requires is not None else []
+            self.requires = get_default_validator(self.type)
+        elif requires is not None:
+            self.requires = requires
+        else:
+            self.requires = []
         self.map_none = map_none
         self._rname = self._raw_rname = rname
         stype = self.type
