@@ -197,7 +197,7 @@ class Validator(object):
 
     @staticmethod
     def validate(value, record_id=None):
-        raise NotImplementedError
+        return value
 
     def __call__(self, value, record_id=None):
         try:
@@ -1409,7 +1409,8 @@ class IS_LIST_OF_STRINGS(Validator):
         return values
 
     def formatter(self, value):
-        return "" if not value else ", ".join(map(quote_token, value))
+        ret = "" if not value else ", ".join(map(quote_token, value))
+        return ret
 
 
 class IS_LIST_OF_INTS(IS_LIST_OF_STRINGS):

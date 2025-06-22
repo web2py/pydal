@@ -141,10 +141,8 @@ def get_default_validator(type, _cached_defaults={}):
     # break "reference {table}", "list"deference {table}", "decimal(1,10)"
     type = type.split(" ")[0].split("(")[0]
     # if not found then it is a string field and no need not default validator/formatter
-    validator = _cached_defaults.get(type)
-    if not validator:
-        return []
-    return [validator()]
+    validator = _cached_defaults.get(type, validators.Validator)
+    return validator()
 
 
 class Row(BasicStorage):
