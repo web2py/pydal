@@ -462,6 +462,8 @@ class IS_JSON(Validator):
         self.error_message = error_message
 
     def validate(self, value, record_id=None):
+        if value is None or value == "null":
+            return None
         if isinstance(value, (str, bytes)):
             try:
                 if self.native_json:
@@ -1451,6 +1453,7 @@ class IS_LIST_OF_EMAILS(IS_LIST_OF_STRINGS):
         self.error_message = error_message
 
     def validate(self, value, record_id=None):
+        print(value)
         emails = IS_LIST_OF_STRINGS.validate(self, value)
         bad_emails = []
         check_email = IS_EMAIL()

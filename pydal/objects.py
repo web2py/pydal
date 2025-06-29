@@ -125,24 +125,23 @@ def get_default_validator(type, _cached_defaults={}):
         from . import validators
 
         _cached_defaults = {
-            "id": validators.IS_INT_IN_RANGE,
-            "integer": validators.IS_INT_IN_RANGE,
-            "double": validators.IS_FLOAT_IN_RANGE,
-            "decimal": validators.IS_FLOAT_IN_RANGE,
-            "reference": validators.IS_INT_IN_RANGE,
-            "time": validators.IS_TIME,
-            "date": validators.IS_DATE,
-            "datetime": validators.IS_DATETIME,
-            "list:string": validators.IS_LIST_OF_STRINGS,
-            "list:integer": validators.IS_LIST_OF_INTS,
-            "list:reference": validators.IS_LIST_OF_INTS,
-            "password": validators.CRYPT,
+            "integer": lambda: validators.IS_NULL_OR(validators.IS_INT_IN_RANGE()),
+            "double": lambda: validators.IS_NULL_OR(validators.IS_FLOAT_IN_RANGE()),
+            "decimal": lambda: validators.IS_NULL_OR(validators.IS_FLOAT_IN_RANGE()),
+            "reference": lambda: validators.IS_NULL_OR(validators.IS_INT_IN_RANGE()),
+            "time": lambda: validators.IS_NULL_OR(validators.IS_TIME()),
+            "date": lambda: validators.IS_NULL_OR(validators.IS_DATE()),
+            "datetime": lambda: validators.IS_NULL_OR(validators.IS_DATETIME()),
+            "list:string": lambda: validators.IS_LIST_OF_STRINGS(),
+            "list:integer": lambda: validators.IS_LIST_OF_INTS(),
+            "list:reference": lambda: validators.IS_LIST_OF_INTS(),
+            "password": lambda: validators.IS_NULL_OR(validators.CRYPT()),
         }
     # break "reference {table}", "list"deference {table}", "decimal(1,10)"
     type = type.split(" ")[0].split("(")[0]
     # if not found then it is a string field and no need not default validator/formatter
-    validator = _cached_defaults.get(type, validators.Validator)
-    return validator()
+    validator_builder = _cached_defaults.get(type, validators.Validator)
+    return validator_builder()
 
 
 class Row(BasicStorage):
