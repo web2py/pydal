@@ -1411,8 +1411,11 @@ class IS_LIST_OF_STRINGS(Validator):
         return values
 
     def formatter(self, value):
-        ret = "" if not value else ", ".join(map(quote_token, value))
-        return ret
+        if not value:
+            return ""
+        if isinstance(value, list):
+            return ", ".join(map(quote_token, value))
+        return str(value)        
 
 
 class IS_LIST_OF_INTS(IS_LIST_OF_STRINGS):
