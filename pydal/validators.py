@@ -4593,7 +4593,7 @@ class CRYPT(Validator):
         return LazyCrypt(self, value)
 
     def formatter(self, value):
-        return self.STARS
+        return "" if not value else self.STARS
 
 
 #  entropy calculator for IS_STRONG
