@@ -2962,15 +2962,12 @@ class Set(Serializable):
             response["updated"] = 0
             response["errors"] = errors
         else:
-            print(new_fields)
             row = table._fields_and_values_for_update(new_fields)
-            print(row)
             if not row._values:
                 raise ValueError("No fields to update")
             if any(f(self, row) for f in table._before_update):
                 ret = 0
             else:
-                print(row.op_values())
                 ret = self.db._adapter.update(table, self.query, row.op_values())
                 ret and [f(self, row) for f in table._after_update]
             response["updated"] = ret
