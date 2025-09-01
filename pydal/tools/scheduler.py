@@ -383,7 +383,7 @@ class Scheduler:  # pylint: disable=too-many-instance-attributes
         )
         db.commit()
         self.logger.info("run enqueued %s", run_id)
-
+        return run_id
 
 def run_example():
     """Example of usage"""
