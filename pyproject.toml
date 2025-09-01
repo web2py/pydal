@@ -31,3 +31,6 @@ ignore = ["E711", "E712"]
 test = [
     "legacy-cgi; python_version >= '3.13'",
 ]
+manage = [
+    "twine",
+]
