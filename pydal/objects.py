@@ -106,15 +106,6 @@ def csv_reader(utf8_data, dialect=csv.excel, encoding="utf-8", **kwargs):
         yield [to_unicode(cell, encoding) for cell in row]
 
 
-def get_default_represent(type, default=(lambda value, row=None: str(value))):
-    """returns the default function that represents a value of type"""
-    if isinstance(type, SQLCustomType):
-        return default
-    if type.startswith("list:"):
-        return list_represent
-    return default
-
-
 def get_default_validator(type, _cached_defaults={}):
     """returns the default validators a value of type"""
     # this is only for SQLCustomType
@@ -2089,7 +2080,7 @@ class Field(Expression, Serializable):
         update=None,
         authorize=None,
         autodelete=False,
-        represent=DEFAULT,
+        represent=None,
         uploadfolder=None,
         uploadseparate=False,
         uploadfs=None,
@@ -2158,10 +2149,9 @@ class Field(Expression, Serializable):
         self.update = update
         self.authorize = authorize
         self.autodelete = autodelete
-        if represent == DEFAULT:
-            self.represent = get_default_represent(self.type)
-        else:
-            self.represent = represent
+        if represent is None and type in ("list:integer", "list:string"):
+            represent = list_represent
+        self.represent = represent
         self.compute = compute
         self.isattachment = True
         self.custom_store = custom_store
