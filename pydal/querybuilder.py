@@ -88,7 +88,7 @@ class QueryBuilder:
     # regex matching field names, and
     re_token = re.compile(r"^(\w+)\s*(.*)$")
     # regex matching a value or quoted value
-    re_value = re.compile(r'^((?:")[^"]*(?:[\]["][^"]*)*(?:")|[^ ,]*)\s*(.*)$')
+    re_value = re.compile(r'^((?:")[^"]*(?:[\]["][^"]*)*?(?:")|[^ ,]*)\s*(.*)$')
     # regex matching repeated spaces
     re_spaces = re.compile(r"\s+")
 
