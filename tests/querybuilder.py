@@ -41,7 +41,9 @@ class TestQueryBuilder(unittest.TestCase):
         query = builder.parse("name belongs Chair, Table")
         self.assertEqual(str(query), "(\"thing\".\"name\" IN ('Chair','Table'))")
         query = builder.parse('name belongs "Chair", "Table"')
-        self.assertEqual(str(query), '("thing"."name" IN (\'Chair", "Table\'))')
+        self.assertEqual(str(query), "(\"thing\".\"name\" IN ('Chair','Table'))")
+        query = builder.parse('name belongs "Chair, Table"')
+        self.assertEqual(str(query), '("thing"."name" IN (\'Chair, Table\'))')
         query = builder.parse('name contains "Chair"')
         self.assertEqual(
             str(query), "(LOWER(\"thing\".\"name\") LIKE '%chair%' ESCAPE '\\')"
@@ -78,6 +80,8 @@ class TestQueryBuilder(unittest.TestCase):
             str(query),
             '(NOT (("thing"."name" = \'Chair\') AND (NOT ("thing"."name" = \'Table\'))))',
         )
+        query = builder.parse('id > "5" and id < "10"')
+        self.assertEqual(str(query), '(("thing"."id" > 5) AND ("thing"."id" < 10))')
 
     def test_translations(self):
         db = DAL("sqlite:memory")
