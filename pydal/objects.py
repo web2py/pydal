@@ -991,13 +991,13 @@ class Table(Serializable, BasicStorage):
                     temp_files.append(os.path.join(field.uploadfolder, value))
             # if the field has a value use it
             if field.name in fields:
-                id = record and record.id
+                id = record and record.get("id")
                 value, error = field.validate(fields[field.name], record_id=id)
             # this is an insert and no  value use the default value
-            elif not record and field.default:
+            elif record is None and field.default:
                 value, error = field.default, None
             # this is an update and no value use it
-            elif record and field.update:
+            elif record is not None and field.update:
                 value, error = field.update, None
             else:
                 continue
