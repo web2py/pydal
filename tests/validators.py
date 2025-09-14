@@ -381,6 +381,7 @@ class TestValidators(unittest.TestCase):
             Field("name"),
             Field("person_list", "list:reference person"),
         )
+        self.assertEqual(db.list_ref_table.person_list.referenced_table(), db.person)
         ret = db.list_ref_table.validate_and_insert(name="test list:reference table")
         self.assertTrue(not ret.get("errors"))
         ret = db.list_ref_table.validate_and_insert(

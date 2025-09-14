@@ -156,6 +156,8 @@ class TestChainedJoinUNIQUE(unittest.TestCase):
         db = DAL(DEFAULT_URI, check_reserved=["all"])
         db.define_table("aa", Field("name"))
         db.define_table("bb", Field("aa", "reference aa"), Field("name"))
+        self.assertEqual(db.bb.aa.referenced_table(), db.aa)
+        self.assertEqual(db.bb.aa.referenced_field(), db.aa.id)
         for k in ("x", "y", "z"):
             i = db.aa.insert(name=k)
             for j in ("u", "v", "w"):

@@ -106,33 +106,35 @@ def csv_reader(utf8_data, dialect=csv.excel, encoding="utf-8", **kwargs):
         yield [to_unicode(cell, encoding) for cell in row]
 
 
-def get_default_validator(type, _cached_defaults={}):
+def get_default_validator(field, _cached_defaults={}):
     """returns the default validators a value of type"""
-    # this is only for SQLCustomType
-    if not isinstance(type, str):
-        return []
     # we only cache the validators for speed
     if not _cached_defaults:
         from . import validators
 
         _cached_defaults = {
-            "integer": lambda: validators.IS_NULL_OR(validators.IS_INT_IN_RANGE()),
-            "double": lambda: validators.IS_NULL_OR(validators.IS_FLOAT_IN_RANGE()),
-            "decimal": lambda: validators.IS_NULL_OR(validators.IS_FLOAT_IN_RANGE()),
-            "reference": lambda: validators.IS_NULL_OR(validators.IS_INT_IN_RANGE()),
-            "time": lambda: validators.IS_NULL_OR(validators.IS_TIME()),
-            "date": lambda: validators.IS_NULL_OR(validators.IS_DATE()),
-            "datetime": lambda: validators.IS_NULL_OR(validators.IS_DATETIME()),
+            "integer": lambda: validators.IS_INT_IN_RANGE(),
+            "bigint": lambda: validators.IS_INT_IN_RANGE(),
+            "double": lambda: validators.IS_FLOAT_IN_RANGE(),
+            "decimal": lambda: validators.IS_FLOAT_IN_RANGE(),
+            "reference": lambda: validators.IS_INT_IN_RANGE(),
+            "big-reference": lambda: validators.IS_INT_IN_RANGE(),
+            "time": lambda: validators.IS_TIME(),
+            "date": lambda: validators.IS_DATE(),
+            "datetime": lambda: validators.IS_DATETIME(),
             "list:string": lambda: validators.IS_LIST_OF_STRINGS(),
             "list:integer": lambda: validators.IS_LIST_OF_INTS(),
             "list:reference": lambda: validators.IS_LIST_OF_INTS(),
-            "password": lambda: validators.IS_NULL_OR(validators.CRYPT()),
+            "password": lambda: validators.CRYPT(),
         }
-    # break "reference {table}", "list"deference {table}", "decimal(1,10)"
-    type = type.split(" ")[0].split("(")[0]
-    # if not found then it is a string field and no need not default validator/formatter
-    validator_builder = _cached_defaults.get(type, validators.Validator)
-    return validator_builder()
+    validator_builder = _cached_defaults.get(field.type_name)
+    if validator_builder:
+        validator = validator_builder()
+    else:
+        validator = validators.Validator()
+    if not (validator is None or field.notnull):
+        validator = validators.IS_NULL_OR(validator)
+    return validator
 
 
 class Row(BasicStorage):
@@ -1980,6 +1982,7 @@ class FieldVirtual(object):
         # for backward compatibility
         (self.name, self.f) = (name, f) if f else ("unknown", name)
         self.type = ftype
+        self.type_name = ftype.split(" ", 1)[0].split("(", 1)[0]
         self.label = label or self.name.replace("_", " ").title()
         self.represent = lambda v, r=None: v
         self.formatter = IDENTITY
@@ -2121,6 +2124,10 @@ class Field(Expression, Serializable):
             self.type = type
         else:
             self.type = "reference %s" % type
+        if isinstance(self.type, str):
+            self.type_name = self.type.split(" ", 1)[0].split("(", 1)[0]
+        else:
+            self.type_name = "custom"
 
         self.length = (
             length if length is not None else DEFAULTLENGTH.get(self.type, 512)
@@ -2168,12 +2175,15 @@ class Field(Expression, Serializable):
         self.filter_out = filter_out
         self.custom_qualifier = custom_qualifier
         self.label = label if label is not None else fieldname.replace("_", " ").title()
+
+        # this must be done after setting the type
         if requires is DEFAULT:
-            self.requires = get_default_validator(self.type)
+            self.requires = get_default_validator(self)
         elif requires is not None:
             self.requires = requires
         else:
             self.requires = []
+
         self.map_none = map_none
         self._rname = self._raw_rname = rname
         stype = self.type
@@ -2469,6 +2479,30 @@ class Field(Expression, Serializable):
                     d.update({attr: getattr(self, attr)})
             d["fieldname"] = d.pop("name")
         return d
+
+    def referenced_field(self):
+        """If this is a reference field, returns the referenced field else None"""
+        if not self.type.startswith(("reference", "big-reference", "list:reference")):
+            return None
+        referenced = self.type.split(" ", 1)[1]
+        if referenced == ".":
+            tablename, fieldname = self._tablename, None
+        elif "." in referenced:
+            tablename, fieldname = referenced.split(".", 1)
+        else:
+            tablename, fieldname = referenced, None
+        if tablename not in self._db:
+            # The table being referenced is not defined yet
+            return None
+        table = self._db[tablename]
+        return table[fieldname] if fieldname else table._id
+
+    def referenced_table(self):
+        """If this is a reference field, returns the referenced table else None"""
+        referenced_field = self.referenced_field()
+        if not referenced_field:
+            return None
+        return referenced_field.table
 
     def __bool__(self):
         return True
