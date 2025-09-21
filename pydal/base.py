@@ -481,6 +481,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         self._decode_credentials = decode_credentials
         self._attempts = attempts
         self._ignore_field_case = ignore_field_case
+        self._dbname = None
 
         if not str(attempts).isdigit() or attempts < 0:
             attempts = 5

@@ -108,10 +108,19 @@ def csv_reader(utf8_data, dialect=csv.excel, encoding="utf-8", **kwargs):
 
 def get_default_validator(field, _cached_defaults={}):
     """returns the default validators a value of type"""
-    # we only cache the validators for speed
-    if not _cached_defaults:
-        from . import validators
+    from . import validators
 
+    # first we handle the special case when called in field.bind(table) and field.db is known
+    ref = field.referenced_table()
+    if ref is not None:
+        validator = validators.IS_IN_DB(field.db, ref, ref._format)
+        if field.type_name == "list:reference":
+            validator = validators.IS_LIST_OF(validator)
+        return validator
+
+    # then follow the normal workflow when field.db is unknown
+    # we cache the validators for speed
+    if not _cached_defaults:
         _cached_defaults = {
             "integer": lambda: validators.IS_INT_IN_RANGE(),
             "bigint": lambda: validators.IS_INT_IN_RANGE(),
@@ -2178,10 +2187,13 @@ class Field(Expression, Serializable):
 
         # this must be done after setting the type
         if requires is DEFAULT:
+            self._has_default_validators = True
             self.requires = get_default_validator(self)
         elif requires is not None:
+            self._has_default_validators = False
             self.requires = requires
         else:
+            self._has_default_validators = False
             self.requires = []
 
         self.map_none = map_none
@@ -2223,6 +2235,8 @@ class Field(Expression, Serializable):
         self.db = self._db = table._db
         self.table = self._table = table
         self.tablename = self._tablename = table._tablename
+        if self._has_default_validators:
+            self.requires = get_default_validator(self)
         if self._db and self._rname is None:
             self._rname = self._db._adapter.sqlsafe_field(self.name)
             self._raw_rname = self.name
@@ -2491,7 +2505,7 @@ class Field(Expression, Serializable):
             tablename, fieldname = referenced.split(".", 1)
         else:
             tablename, fieldname = referenced, None
-        if tablename not in self._db:
+        if not self._db or tablename not in self._db:
             # The table being referenced is not defined yet
             return None
         table = self._db[tablename]
