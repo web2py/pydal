@@ -216,6 +216,24 @@ def validator_caller(func, value, record_id=None):
     return value
 
 
+class DefaultValidatorProxy(Validator):
+    """
+    A proxy for any other validator. Does nothing but used to wrap default validators.
+    """
+
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __call__(self, value, record_id=None):
+        try:
+            return self.obj.validate(value, record_id), None
+        except ValidationError as e:
+            return value, e.message
+
+    def __getattr__(self, attr):
+        return getattr(self.obj, attr)
+
+
 class IS_MATCH(Validator):
     """
     Example:

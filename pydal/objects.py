@@ -116,7 +116,7 @@ def get_default_validator(field, _cached_defaults={}):
         validator = validators.IS_IN_DB(field.db, ref, ref._format)
         if field.type_name == "list:reference":
             validator = validators.IS_LIST_OF(validator)
-        return validator
+        return validators.DefaultValidatorProxy(validator)
 
     # then follow the normal workflow when field.db is unknown
     # we cache the validators for speed
@@ -135,15 +135,16 @@ def get_default_validator(field, _cached_defaults={}):
             "list:integer": lambda: validators.IS_LIST_OF_INTS(),
             "list:reference": lambda: validators.IS_LIST_OF_INTS(),
             "password": lambda: validators.CRYPT(),
+            "json": lambda: validators.IS_JSON(),
         }
     validator_builder = _cached_defaults.get(field.type_name)
     if validator_builder:
         validator = validator_builder()
     else:
         validator = validators.Validator()
-    if not (validator is None or field.notnull):
+    if validator is not None and not field.notnull:
         validator = validators.IS_NULL_OR(validator)
-    return validator
+    return validators.DefaultValidatorProxy(validator)
 
 
 class Row(BasicStorage):
@@ -2187,13 +2188,10 @@ class Field(Expression, Serializable):
 
         # this must be done after setting the type
         if requires is DEFAULT:
-            self._has_default_validators = True
             self.requires = get_default_validator(self)
         elif requires is not None:
-            self._has_default_validators = False
             self.requires = requires
         else:
-            self._has_default_validators = False
             self.requires = []
 
         self.map_none = map_none
@@ -2229,17 +2227,24 @@ class Field(Expression, Serializable):
         assert regex.match(value), f"Invalid field value '{value}'"
         return value
 
+    def has_default_validator(self):
+        """Returns true if the field has a default validator"""
+        from .validators import DefaultValidatorProxy
+
+        return isinstance(self.requires, DefaultValidatorProxy)
+
     def bind(self, table):
         if self._table is not None:
             raise ValueError("Field %s is already bound to a table" % self.longname)
         self.db = self._db = table._db
         self.table = self._table = table
         self.tablename = self._tablename = table._tablename
-        if self._has_default_validators:
-            self.requires = get_default_validator(self)
         if self._db and self._rname is None:
             self._rname = self._db._adapter.sqlsafe_field(self.name)
             self._raw_rname = self.name
+        # if field has a default validator, try get a better one now that we have a db
+        if self.has_default_validator():
+            self.requires = get_default_validator(self)
 
     def set_attributes(self, *args, **attributes):
         self.__dict__.update(*args, **attributes)
