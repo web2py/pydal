@@ -180,6 +180,9 @@ class TestValidators(unittest.TestCase):
         self.assertEqual(rtn, ("massimo", "Value not allowed"))
         rtn = IS_IN_SET(["max", "john"], multiple=True)(("max", "john"))
         self.assertEqual(rtn, (("max", "john"), None))
+        # order reversed should still be fine
+        rtn = IS_IN_SET(["max", "john"], multiple=True)(("john", "max"))
+        self.assertEqual(rtn, (("john", "max"), None))
         rtn = IS_IN_SET(["max", "john"], multiple=True)(("bill", "john"))
         self.assertEqual(rtn, (("bill", "john"), "Value not allowed"))
         rtn = IS_IN_SET(("id1", "id2"), ["first label", "second label"])(
