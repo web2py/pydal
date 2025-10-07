@@ -186,6 +186,12 @@ class Row(BasicStorage):
 
         raise KeyError(key)
 
+    def __contains__(self, k):
+        key = str(k)
+
+        _extra = BasicStorage.get(self, "_extra", None)
+        return (_extra is not None and k in _extra) or BasicStorage.__contains__(self, key)
+
     def __repr__(self):
         return "<Row %s>" % self.as_dict(custom_types=[LazySet])
 
