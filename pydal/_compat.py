@@ -111,7 +111,7 @@ else:
     from urllib.parse import unquote
     from urllib.parse import unquote as urllib_unquote
     from urllib.parse import urlencode
-    from urllib.request import FancyURLopener, urlopen
+    from urllib.request import urlopen
     from xmlrpc.client import ProtocolError
 
     hashlib_md5 = lambda s: hashlib.md5(bytes(s, "utf8"))
