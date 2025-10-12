@@ -2123,6 +2123,41 @@ class TestCommonFilters(DALtest):
         self.assertEqual(db(db.t2).count(), 3)
 
 
+class TestDateAndTimes(DALtest):
+    def testRun(self):
+        db = self.connect()
+        db.define_table(
+            "meeting",
+            Field("start_date", "date"),
+            Field("start_time", "time"),
+            Field("bookedon", "datetime"),
+        )
+        db.meeting.insert(
+            start_date="2025-11-26", start_time="12:30", bookedon="2025-10-20T11:30:00"
+        )
+        db.meeting.insert(
+            start_date=datetime.date(2025, 11, 26),
+            start_time=datetime.time(12, 30),
+            bookedon=datetime.datetime(2025, 10, 20, 11, 30, 0),
+        )
+
+        db(db.meeting.id == 1).update(
+            start_date="2025-11-26", start_time="12:30", bookedon="2025-10-20T11:30:00"
+        )
+        db(db.meeting.id == 3).update(
+            start_date=datetime.date(2025, 11, 26),
+            start_time=datetime.time(12, 30),
+            bookedon=datetime.datetime(2025, 10, 20, 11, 30, 0),
+        )
+
+        db(db.meeting.id == 1).update(bookedon="2025-10-20 11:30:00")
+        db(db.meeting.id == 1).update(bookedon="2025-10-20T11:30:00.00")
+        db(db.meeting.id == 1).update(bookedon="2025-10-20T11:30")
+        db(db.meeting.id == 1).update(bookedon="2025-10-20T11")
+        db(db.meeting.id == 1).update(bookedon="2025-10-20")
+        db(db.meeting.id == 1).update(bookedon=datetime.date(2025, 10, 20))
+
+
 class TestImportExportFields(DALtest):
     def testRun(self):
         db = self.connect()

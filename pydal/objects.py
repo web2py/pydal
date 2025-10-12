@@ -2211,6 +2211,8 @@ class Field(Expression, Serializable):
     def _todate(value, regex=re.compile(r"^\d\d\d\d-\d\d-\d\d$")):
         if value is None:
             return value
+        if isinstance(value, datetime.date):
+            value = value.isoformat()
         value = str(value)[:10]
         assert regex.match(value), f"Invalid field value '{value}'"
         return value
@@ -2219,6 +2221,8 @@ class Field(Expression, Serializable):
     def _totime(value, regex=re.compile(r"^\d\d:\d\d:\d\d$")):
         if value is None:
             return value
+        if isinstance(value, datetime.time):
+            value = str(value)
         value = f"{value}:00:00"[:8]
         assert regex.match(value), f"Invalid field value '{value}'"
         return value
@@ -2227,7 +2231,17 @@ class Field(Expression, Serializable):
     def _todatetime(value, regex=re.compile(r"^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d$")):
         if value is None:
             return value
-        value = value = f"{value}:00:00"[:19].replace("T", " ")
+        if isinstance(value, (datetime.date, datetime.datetime)):
+            value = str(value)
+        value = value.replace("T", " ")
+        if len(value) == 10:
+            value = value + " 00:00:00"
+        elif len(value) == 13:
+            value = value + ":00:00"
+        elif len(value) == 16:
+            value = value + ":00"
+        elif len(value) > 19:
+            value = value[:19]
         assert regex.match(value), f"Invalid field value '{value}'"
         return value
 
