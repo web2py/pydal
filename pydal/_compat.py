@@ -16,7 +16,6 @@ if PY2:
     from email.MIMEText import MIMEText
     from string import maketrans
     from types import ClassType
-    from urllib import FancyURLopener
     from urllib import quote as urllib_quote
     from urllib import quote_plus as urllib_quote_plus
     from urllib import unquote
