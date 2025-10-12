@@ -1668,11 +1668,15 @@ class Expression(object):
             return self[i : i + 1]
 
     def __str__(self):
+        if not self.db:
+            return f"<{self.__class__.__name__}>"
         if self.op == self._dialect._as:
             return self.second
         return str(self.db._adapter.expand(self, self.type))
 
     def __repr__(self):
+        if not self.db:
+            return f"<{self.__class__.__name__}>"
         return str(self.db._adapter.expand(self, self.type))
 
     def __or__(self, other):  # for use in sortby
@@ -2530,6 +2534,9 @@ class Field(Expression, Serializable):
         if self._table:
             return "%s.%s" % (self.tablename, self.name)
         return "<no table>.%s" % self.name
+
+    def __repr__(self):
+        return f"<Field {str(self)}>"
 
     def __hash__(self):
         return id(self)
