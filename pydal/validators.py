@@ -590,7 +590,7 @@ class IS_IN_SET(Validator):
                     raise ValidationError(self.translator(self.error_message))
         else:
             values = [value]
-        strkeys = map(str, valuemap)
+        strkeys = set(map(str, valuemap))
         failures = [x for x in values if not str(x) in strkeys]
         if failures and self.theset:
             raise ValidationError(self.translator(self.error_message))
