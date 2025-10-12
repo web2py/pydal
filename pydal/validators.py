@@ -1424,7 +1424,7 @@ class IS_LIST_OF_STRINGS(Validator):
                 values = json.loads(value)
             except Exception:
                 raise ValidationError(self.translator(self.error_message))
-            return [str(item) for item in values]
+            return [str(item or "") for item in values]
         values = parse_tokens(value)
         return values
 
@@ -4073,7 +4073,7 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
         return value
 
 
-class IS_LIST_OF(IS_LIST_OF_STRINGS):
+class IS_LIST_OF(Validator):
     def __init__(self, other=None, minimum=None, maximum=None, error_message=None):
         self.other = other
         self.minimum = minimum
@@ -4081,7 +4081,17 @@ class IS_LIST_OF(IS_LIST_OF_STRINGS):
         self.error_message = error_message
 
     def validate(self, value, record_id=None):
-        value = IS_LIST_OF_STRINGS.validate(self, value)
+        # if no value assume empty list
+        if not value:
+            return []
+        # if a string try jason
+        if isinstance(value, str) and value[:1] == "[" and value[-1:] == "]":
+            try:
+                value = json.loads(value)
+            except Exception:
+                raise ValidationError(self.translator(self.error_message))
+
+        # check the list size against requirements
         if self.minimum is not None and len(value) < self.minimum:
             raise ValidationError(
                 self.translator(self.error_message or "Minimum length is %(min)s")
@@ -4092,6 +4102,8 @@ class IS_LIST_OF(IS_LIST_OF_STRINGS):
                 self.translator(self.error_message or "Maximum length is %(max)s")
                 % dict(min=self.minimum, max=self.maximum)
             )
+
+        # finally apply the other validators
         new_value = []
         other = self.other
         if self.other:
@@ -4103,6 +4115,13 @@ class IS_LIST_OF(IS_LIST_OF_STRINGS):
                 new_value.append(item)
             value = new_value
         return value
+
+    def formatter(self, value):
+        if not value:
+            return ""
+        if isinstance(value, list):
+            return ", ".join(map(quote_token, map(self.other.fomatter, value)))
+        return str(value)
 
 
 class IS_LOWER(Validator):

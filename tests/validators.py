@@ -1549,3 +1549,19 @@ this is the content of the fake file
 
         rtn = IS_SAFE(mode="sanitize")("<div><script>xxx</script></div>")
         ("<div>xxx</div>", "Unsafe Content")
+
+    def test_IS_LIST_OF(self):
+        validator = IS_LIST_OF(IS_EMPTY_OR(IS_DATE()))
+        self.assertEqual(validator.validate(""), [])
+        self.assertEqual(validator.validate([]), [])
+        self.assertEqual(validator.validate([None]), [None])
+        self.assertEqual(
+            validator.validate(["2025-10-12"]), [datetime.date(2025, 10, 12)]
+        )
+
+        # try json
+        self.assertEqual(validator.validate("[]"), [])
+        self.assertEqual(validator.validate("[null]"), [None])
+        self.assertEqual(
+            validator.validate('["2025-10-12"]'), [datetime.date(2025, 10, 12)]
+        )
