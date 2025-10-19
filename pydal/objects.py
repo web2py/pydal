@@ -894,7 +894,9 @@ class Table(Serializable, BasicStorage):
         empty_fieldnames = OrderedDict((name, name) for name in self.fields)
         for name in list(input_fieldnames & table_fieldnames):
             field = getattr(self, name)
-            value = field.filter_in(fields[name]) if field.filter_in else fields[name]
+            value = fields[name]
+            if field.filter_in and not isinstance(value, Expression):
+                value = field.filter_in(value)
             new_fields[name] = (field, value)
             del empty_fieldnames[name]
         return list(empty_fieldnames), new_fields

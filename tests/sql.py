@@ -2135,9 +2135,15 @@ class TestDateAndTimes(DALtest):
             Field("default_date_str", "date", default="2025-11-26"),
             Field("default_time_str", "time", default="00:01"),
             Field("default_datetime_str", "datetime", default="2025-11-26 00:01:00"),
-            Field("default_date_fun", "date", default=lambda: datetime.date(2025, 11, 26)),
+            Field(
+                "default_date_fun", "date", default=lambda: datetime.date(2025, 11, 26)
+            ),
             Field("default_time_fun", "time", default=lambda: datetime.time(0, 1)),
-            Field("default_datetime_fun", "datetime", default=lambda: datetime.datetime(2025, 11, 26, 0, 1, 0))
+            Field(
+                "default_datetime_fun",
+                "datetime",
+                default=lambda: datetime.datetime(2025, 11, 26, 0, 1, 0),
+            ),
         )
         db.meeting.insert(
             start_date="2025-11-26", start_time="12:30", bookedon="2025-10-20T11:30:00"
@@ -2166,10 +2172,14 @@ class TestDateAndTimes(DALtest):
         db.meeting.insert(
             start_date=datetime.date(2025, 11, 26),
             start_time=datetime.time(12, 30),
-            bookedon=datetime.datetime(2025, 10, 20, 11, 30, 0, tzinfo=zoneinfo.ZoneInfo("UTC"))
+            bookedon=datetime.datetime(
+                2025, 10, 20, 11, 30, 0, tzinfo=zoneinfo.ZoneInfo("UTC")
+            ),
         )
         db(db.meeting.id == 1).update(
-            bookedon=datetime.datetime(2025, 10, 20, 11, 30, 0, tzinfo=zoneinfo.ZoneInfo("UTC"))
+            bookedon=datetime.datetime(
+                2025, 10, 20, 11, 30, 0, tzinfo=zoneinfo.ZoneInfo("UTC")
+            )
         )
         # Test with update expressions
         db(db.meeting.id == 1).update(start_date=db.meeting.start_date)
