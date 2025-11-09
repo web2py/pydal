@@ -3875,13 +3875,13 @@ class IS_DATE(Validator):
             value = datetime.date(y, m, d)
             return value
         except:
-            self.extremes.update(IS_DATETIME.nice(self.format))
+            self.extremes.update(IS_DATETIME.nice(str(self.format)))
             raise ValidationError(self.translator(self.error_message) % self.extremes)
 
     def formatter(self, value):
         if value is None or value == "":
             return None
-        format = self.format
+        format = str(self.format)
         year = value.year
         y = "%.4i" % year
         format = format.replace("%y", y[-2:])
@@ -3952,13 +3952,13 @@ class IS_DATETIME(Validator):
                 )
             return value
         except:
-            self.extremes.update(IS_DATETIME.nice(self.format))
+            self.extremes.update(IS_DATETIME.nice(str(self.format)))
             raise ValidationError(self.translator(self.error_message) % self.extremes)
 
     def formatter(self, value):
         if value is None or value == "":
             return None
-        format = self.format
+        format = str(self.format)
         year = value.year
         y = "%.4i" % year
         format = format.replace("%y", y[-2:])
