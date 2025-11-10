@@ -1,4 +1,5 @@
 import re
+import pymssql
 
 from .._compat import PY2, integer_types, iteritems, long, to_unicode
 from .._globals import IDENTITY
@@ -16,7 +17,7 @@ class Slicer(object):
 
 class MSSQL(SQLAdapter):
     dbengine = "mssql"
-    drivers = ("pyodbc", "pytds")
+    drivers = ("pyodbc", "pytds","pymssql")
 
     REGEX_DSN = "^.+$"
     REGEX_URI = (
@@ -169,6 +170,32 @@ class PyTDS(MSSQL):
     def connector(self):
         return self.driver.connect(self.dsn, **self.driver_args)
 
+# Added support for pymssql connector
+@adapters.register_for("pymssql")
+class PyMssql(MSSQL):
+    def _initialize_(self):
+        self.driver = pymssql
+        super(MSSQL, self)._initialize_()
+        ruri = self.uri.split("://", 1)[1]
+        if "@" not in ruri:
+            m = re.match(self.REGEX_DSN, ruri)
+            if not m:
+                raise SyntaxError("Invalid URI string in DAL")
+            self.dsn = m.group()
+        else:
+            m = re.match(self.REGEX_URI, ruri)
+            if not m:
+                raise SyntaxError("Invalid URI string in DAL: %s" % self.uri)
+            self.dsn = m.group("host")
+            self.driver_args.update(
+                user=self.credential_decoder(m.group("user")),
+                password=self.credential_decoder(m.group("password")) or "",
+                database=m.group("db"),
+                port=m.group("port") or "1433",
+            )
+
+    def connector(self):
+        return self.driver.connect(self.dsn, **self.driver_args)
 
 @adapters.register_for("vertica")
 class Vertica(MSSQL1):
