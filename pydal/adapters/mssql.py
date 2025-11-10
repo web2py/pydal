@@ -1,5 +1,4 @@
 import re
-import pymssql
 
 from .._compat import PY2, integer_types, iteritems, long, to_unicode
 from .._globals import IDENTITY
@@ -174,6 +173,8 @@ class PyTDS(MSSQL):
 @adapters.register_for("pymssql")
 class PyMssql(MSSQL):
     def _initialize_(self):
+        import pymssql
+
         self.driver = pymssql
         super(MSSQL, self)._initialize_()
         ruri = self.uri.split("://", 1)[1]
