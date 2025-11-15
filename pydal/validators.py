@@ -635,12 +635,15 @@ class IS_IN_DB(Validator):
             self.dbset = dbset
 
         table = None
-        if isinstance(field, Table):
+        # if it is a table with an id
+        if isinstance(field, Table) and hasattr(table, "_id"):
             table = field
             field = table._id
             fname = str(field)
+        # if it is a field
         if isinstance(field, Field):
             fname = str(field)
+        # if it is a table.field name
         elif isinstance(field, str):
             items = field.split(".")
             if len(items) == 1 or items[1] == "id":
