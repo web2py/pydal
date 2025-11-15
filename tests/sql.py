@@ -3160,8 +3160,8 @@ class TestRNameFields(DALtest):
         )
         db.define_table(
             "t2",
-            Field("ref1", type=db.t1.id1, rname="bar1"),
-            Field("ref2", type=db.t1.id2, rname="bar2"),
+            Field("ref1", type=db.t1.id1, rname="bar1", requires=None),
+            Field("ref2", type=db.t1.id2, rname="bar2", requires=None),
         )
         db.t1.insert(id1="a", id2=1, val=10)
         db.t1.insert(id1="a", id2=2, val=30)
