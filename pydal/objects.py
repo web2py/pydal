@@ -2539,11 +2539,7 @@ class Field(Expression, Serializable):
         if not self._db or tablename not in self._db:
             # The table being referenced is not defined yet
             return None
-        try:
-            table = self._db[tablename]
-        except AttributeError:
-            # The table being referenced is lazy and not available yet
-            return None
+        table = self._db[tablename]
         return table[fieldname] if fieldname else table._id
 
     def referenced_table(self):
