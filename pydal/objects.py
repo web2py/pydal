@@ -2178,7 +2178,7 @@ class Field(Expression, Serializable):
         self.update = update
         self.authorize = authorize
         self.autodelete = autodelete
-        if represent is None and type in ("list:integer", "list:string"):
+        if represent is None and self.type in ("list:integer", "list:string"):
             represent = list_represent
         self.represent = represent
         self.compute = compute
@@ -2187,12 +2187,13 @@ class Field(Expression, Serializable):
         self.custom_retrieve = custom_retrieve
         self.custom_retrieve_file_properties = custom_retrieve_file_properties
         self.custom_delete = custom_delete
-        if filter_in is None and type == "date":
-            filter_in = self._todate
-        elif filter_in is None and type == "time":
-            filter_in = self._totime
-        elif filter_in is None and type == "datetime":
-            filter_in = self._todatetime
+        if filter_in is None:
+            if self.type_name == "date":
+                filter_in = self._todate
+            elif self.type_name == "time":
+                filter_in = self._totime
+            elif self.type_name == "datetime":
+                filter_in = self._todatetime
         self.filter_in = filter_in
         self.filter_out = filter_out
         self.custom_qualifier = custom_qualifier
