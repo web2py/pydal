@@ -6,12 +6,12 @@ services:
 
 environment:
   matrix:
-    - PYTHON: "C:/Python38-x64"
-      PY_VER: "3.8"
+    - PYTHON: "C:/Python311-x64"
+      PY_VER: "3.11"
       PYTHON_ARCH: "64"
       adapter: "mssql"
-    - PYTHON: "C:/Python38-x64"
-      PY_VER: "3.8"
+    - PYTHON: "C:/Python311-x64"
+      PY_VER: "3.11"
       PYTHON_ARCH: "64"
       adapter: "mssqln"
 
@@ -27,7 +27,7 @@ init:
 install:
   - appveyor DownloadFile https://bootstrap.pypa.io/pip/get-pip.py
   - python get-pip.py
-  - pip install tox==4.23.2
+  - pip install tox==4.32.0
   - pip install codecov
 
 before_test:
