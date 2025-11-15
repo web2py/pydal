@@ -29,6 +29,8 @@ install:
   - python get-pip.py
   - pip install tox==4.32.0
   - pip install codecov
+  - pip install pytz
+  - pip install tzdata
 
 before_test:
   - ps: |
