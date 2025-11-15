@@ -2173,12 +2173,12 @@ class TestDateAndTimes(DALtest):
             start_date=datetime.date(2025, 11, 26),
             start_time=datetime.time(12, 30),
             bookedon=datetime.datetime(
-                2025, 10, 20, 11, 30, 0, tzinfo=zoneinfo.ZoneInfo("Europe/Rome")
+                2025, 10, 20, 11, 30, 0, tzinfo=zoneinfo.ZoneInfo("UTC")
             ),
         )
         db(db.meeting.id == 1).update(
             bookedon=datetime.datetime(
-                2025, 10, 20, 11, 30, 0, tzinfo=zoneinfo.ZoneInfo("Europe/Rome")
+                2025, 10, 20, 11, 30, 0, tzinfo=zoneinfo.ZoneInfo("UTC")
             )
         )
         # Test with update expressions
