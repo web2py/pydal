@@ -189,3 +189,10 @@ try:
     DRIVERS["pytds"] = pytds
 except:
     pass
+
+try:
+    import pymssql
+
+    DRIVERS["pymssql"] = pymssql
+except:
+    pass
