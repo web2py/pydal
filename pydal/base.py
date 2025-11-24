@@ -102,6 +102,7 @@ Supported DAL URI strings::
     'mssql3://web2py:none@A64X2/web2py_test' # better pagination (requires >= 2005)
     'mssql4://web2py:none@A64X2/web2py_test' # best pagination (requires >= 2012)
     'pytds://user:password@server:port/database' # python-tds
+    'pymssql://user:password@server:port/database' # python-pymssql
     'oracle://username:password@database'
     'firebird://user:password@server:3050/database'
     'db2:ibm_db_dbi://DSN=dsn;UID=user;PWD=pass'

@@ -16,7 +16,7 @@ class Slicer(object):
 
 class MSSQL(SQLAdapter):
     dbengine = "mssql"
-    drivers = ("pyodbc", "pytds")
+    drivers = ("pyodbc", "pytds","pymssql")
 
     REGEX_DSN = "^.+$"
     REGEX_URI = (
@@ -205,3 +205,31 @@ class Sybase(MSSQL1):
                 user=self.credential_decoder(user),
                 passwd=self.credential_decoder(password),
             )
+
+#Added support for Pymssql
+@adapters.register_for("pymssql")
+class PyMssql(MSSQL):
+    def _initialize_(self):
+        import pymssql 
+        self.driver = pymssql
+        super(MSSQL, self)._initialize_()
+        ruri = self.uri.split("://", 1)[1]
+        if "@" not in ruri:
+            m = re.match(self.REGEX_DSN, ruri)
+            if not m:
+                raise SyntaxError("Invalid URI string in DAL")
+            self.dsn = m.group()
+        else:
+            m = re.match(self.REGEX_URI, ruri)
+            if not m:
+                raise SyntaxError("Invalid URI string in DAL: %s" % self.uri)
+            self.dsn = m.group("host")
+            self.driver_args.update(
+                user=self.credential_decoder(m.group("user")),
+                password=self.credential_decoder(m.group("password")) or "",
+                database=m.group("db"),
+                port=m.group("port") or "1433",
+            )
+
+    def connector(self):
+        return self.driver.connect(self.dsn, **self.driver_args)
