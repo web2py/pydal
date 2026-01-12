@@ -2545,6 +2545,9 @@ class Field(Expression, Serializable):
         try:
             table = self._db[tablename]
         except (KeyError, AttributeError):
+            # The referenced Table is defined in self._db, but not available yet
+            # => it could be self._table still being constructed via
+            #    lazy_define_table, with this field being a self-reference
             if tablename == self._tablename:
                 table = self._table
             else:
