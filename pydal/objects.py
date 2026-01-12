@@ -903,7 +903,7 @@ class Table(Serializable, BasicStorage):
         for name in list(input_fieldnames & table_fieldnames):
             field = getattr(self, name)
             value = fields[name]
-            if field.filter_in and not isinstance(value, Expression):
+            if field.filter_in and not isinstance(value, Expression) and not callable(value):
                 value = field.filter_in(value)
             new_fields[name] = (field, value)
             del empty_fieldnames[name]
