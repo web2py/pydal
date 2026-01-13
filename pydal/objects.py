@@ -110,38 +110,40 @@ def get_default_validator(field, _cached_defaults={}):
     """returns the default validators a value of type"""
     from . import validators
 
+    validator = None
+
     # first we handle the special case when called in field.bind(table) and field.db is known
     ref = field.referenced_table()
     if ref is not None:
         validator = validators.IS_IN_DB(field.db, ref, ref._format)
         if field.type_name == "list:reference":
             validator = validators.IS_LIST_OF(validator)
-        return validators.DefaultValidatorProxy(validator)
 
-    # then follow the normal workflow when field.db is unknown
-    # we cache the validators for speed
-    if not _cached_defaults:
-        _cached_defaults = {
-            "integer": lambda: validators.IS_INT_IN_RANGE(),
-            "bigint": lambda: validators.IS_INT_IN_RANGE(),
-            "double": lambda: validators.IS_FLOAT_IN_RANGE(),
-            "decimal": lambda: validators.IS_FLOAT_IN_RANGE(),
-            "reference": lambda: validators.IS_INT_IN_RANGE(),
-            "big-reference": lambda: validators.IS_INT_IN_RANGE(),
-            "time": lambda: validators.IS_TIME(),
-            "date": lambda: validators.IS_DATE(),
-            "datetime": lambda: validators.IS_DATETIME(),
-            "list:string": lambda: validators.IS_LIST_OF_STRINGS(),
-            "list:integer": lambda: validators.IS_LIST_OF_INTS(),
-            "list:reference": lambda: validators.IS_LIST_OF_INTS(),
-            "password": lambda: validators.CRYPT(),
-            "json": lambda: validators.IS_JSON(),
-        }
-    validator_builder = _cached_defaults.get(field.type_name)
-    if validator_builder:
-        validator = validator_builder()
-    else:
-        validator = validators.Validator()
+    if validator is None:
+        if not _cached_defaults:
+            _cached_defaults = {
+                "integer": lambda: validators.IS_INT_IN_RANGE(),
+                "bigint": lambda: validators.IS_INT_IN_RANGE(),
+                "double": lambda: validators.IS_FLOAT_IN_RANGE(),
+                "decimal": lambda: validators.IS_FLOAT_IN_RANGE(),
+                "reference": lambda: validators.IS_INT_IN_RANGE(),
+                "big-reference": lambda: validators.IS_INT_IN_RANGE(),
+                "time": lambda: validators.IS_TIME(),
+                "date": lambda: validators.IS_DATE(),
+                "datetime": lambda: validators.IS_DATETIME(),
+                "list:string": lambda: validators.IS_LIST_OF_STRINGS(),
+                "list:integer": lambda: validators.IS_LIST_OF_INTS(),
+                "list:reference": lambda: validators.IS_LIST_OF_INTS(),
+                "password": lambda: validators.CRYPT(),
+                "json": lambda: validators.IS_JSON(),
+            }
+        validator_builder = _cached_defaults.get(field.type_name)
+        if validator_builder:
+            validator = validator_builder()
+        else:
+            validator = validators.Validator()
+
+
     if validator is not None and not field.notnull:
         validator = validators.IS_NULL_OR(validator)
     return validators.DefaultValidatorProxy(validator)
