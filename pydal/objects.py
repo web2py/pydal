@@ -143,7 +143,6 @@ def get_default_validator(field, _cached_defaults={}):
         else:
             validator = validators.Validator()
 
-
     if validator is not None and not field.notnull:
         validator = validators.IS_NULL_OR(validator)
     return validators.DefaultValidatorProxy(validator)
@@ -192,7 +191,9 @@ class Row(BasicStorage):
         key = str(k)
 
         _extra = BasicStorage.get(self, "_extra", None)
-        return (_extra is not None and k in _extra) or BasicStorage.__contains__(self, key)
+        return (_extra is not None and k in _extra) or BasicStorage.__contains__(
+            self, key
+        )
 
     def __repr__(self):
         return "<Row %s>" % self.as_dict(custom_types=[LazySet])

@@ -206,11 +206,13 @@ class Sybase(MSSQL1):
                 passwd=self.credential_decoder(password),
             )
 
-#Added support for Pymssql
+
+# Added support for Pymssql
 @adapters.register_for("pymssql")
 class PyMssql(MSSQL):
     def _initialize_(self):
-        import pymssql 
+        import pymssql
+
         self.driver = pymssql
         super(MSSQL, self)._initialize_()
         ruri = self.uri.split("://", 1)[1]
@@ -240,13 +242,13 @@ class PyMssql(MSSQL):
 class MSSQLPython(MSSQL4):
     """
     MSSQL adapter for Microsoft's official mssql-python driver.
-    
+
     Supports SQL Server 2012+ with modern OFFSET/FETCH pagination.
     Features encryption-by-default and Microsoft Entra ID authentication.
-    
+
     URI format:
         mssqlpython://user:password@server:port/database?param=value
-    
+
     Supported URI parameters:
         - encrypt: Enable encryption (default: yes, values: yes/no/true/false/1/0)
         - trust_server_certificate: Trust self-signed certificates (default: no)
@@ -258,22 +260,25 @@ class MSSQLPython(MSSQL4):
             * ActiveDirectoryIntegrated: Integrated Windows Auth/Kerberos
             * ActiveDirectoryDefault: Default authentication based on environment
             * ActiveDirectoryDeviceCode: Device code flow authentication
-    
+
     Example URIs:
         # Standard SQL authentication with encryption
         mssqlpython://user:pass@server.database.windows.net:1433/mydb
-        
+
         # Entra ID Interactive authentication
         mssqlpython://user@server.database.windows.net/mydb?authentication=ActiveDirectoryInteractive
-        
+
         # Managed Identity (no user/password needed)
         mssqlpython://@server.database.windows.net/mydb?authentication=ActiveDirectoryMSI
-        
+
         # Disable encryption (for testing/legacy)
         mssqlpython://user:pass@localhost:1433/mydb?encrypt=no&trust_server_certificate=yes
     """
-    drivers = ("mssql-python",)  # Note: URI scheme is mssqlpython://, driver name is mssql-python
-    
+
+    drivers = (
+        "mssql-python",
+    )  # Note: URI scheme is mssqlpython://, driver name is mssql-python
+
     # Override REGEX_URI to make user optional for Managed Identity scenarios
     REGEX_URI = (
         r"^(?P<user>[^:@]*)(:(?P<password>[^@]*))?"
@@ -284,6 +289,7 @@ class MSSQLPython(MSSQL4):
 
     def _initialize_(self):
         import mssql_python
+
         self.driver = mssql_python
         # Skip MSSQL._initialize_() and call grandparent to avoid base MSSQL's REGEX
         super(MSSQL, self)._initialize_()
@@ -298,15 +304,17 @@ class MSSQLPython(MSSQL4):
 
         # Extract basic connection parameters
         user = self.credential_decoder(m.group("user")) if m.group("user") else ""
-        password = self.credential_decoder(m.group("password")) if m.group("password") else ""
-        
+        password = (
+            self.credential_decoder(m.group("password")) if m.group("password") else ""
+        )
+
         # Build driver connection arguments
         self.driver_args.update(
             server=m.group("host"),
             database=m.group("db"),
             port=int(m.group("port") or "1433"),
         )
-        
+
         # Add credentials if provided (not required for some Entra ID auth modes)
         if user:
             self.driver_args["user"] = user
@@ -315,7 +323,7 @@ class MSSQLPython(MSSQL4):
 
         # Handle authentication parameter
         # Supported modes: ActiveDirectoryPassword, ActiveDirectoryInteractive,
-        # ActiveDirectoryMSI, ActiveDirectoryServicePrincipal, 
+        # ActiveDirectoryMSI, ActiveDirectoryServicePrincipal,
         # ActiveDirectoryIntegrated, ActiveDirectoryDefault, ActiveDirectoryDeviceCode
         if "authentication" in uri_args:
             self.driver_args["authentication"] = uri_args["authentication"]
