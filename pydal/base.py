@@ -101,6 +101,7 @@ Supported DAL URI strings::
     'mssql2://web2py:none@A64X2/web2py_test' # alternate mappings
     'mssql3://web2py:none@A64X2/web2py_test' # better pagination (requires >= 2005)
     'mssql4://web2py:none@A64X2/web2py_test' # best pagination (requires >= 2012)
+    'mssqlpython://user:password@server:port/database' # mssql with mssql-python driver
     'pytds://user:password@server:port/database' # python-tds
     'pymssql://user:password@server:port/database' # python-pymssql
     'oracle://username:password@database'

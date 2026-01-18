@@ -196,3 +196,10 @@ try:
     DRIVERS["pymssql"] = pymssql
 except:
     pass
+
+try:
+    import mssql_python
+
+    DRIVERS["mssql-python"] = mssql_python
+except:
+    pass
