@@ -4120,7 +4120,7 @@ class IS_LIST_OF(Validator):
         if value in (None, ""):
             return value
         if isinstance(value, list):
-            return ", ".join(map(quote_token, map(self.other.fomatter, value)))
+            return ", ".join(map(quote_token, map(self.other.formatter, value)))
         return str(value)
 
 
