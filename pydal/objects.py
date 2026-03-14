@@ -2221,8 +2221,8 @@ class Field(Expression, Serializable):
 
     @staticmethod
     def _todate(value, regex=re.compile(r"^\d\d\d\d-\d\d-\d\d$")):
-        if value is None:
-            return value
+        if value in (None, ""):
+            return None
         if isinstance(value, datetime.date):
             value = value.isoformat()
         value = str(value)[:10]
@@ -2231,8 +2231,8 @@ class Field(Expression, Serializable):
 
     @staticmethod
     def _totime(value, regex=re.compile(r"^\d\d:\d\d:\d\d$")):
-        if value is None:
-            return value
+        if value in (None, ""):
+            return None
         if isinstance(value, datetime.time):
             value = str(value)
         value = f"{value}:00:00"[:8]
@@ -2241,8 +2241,8 @@ class Field(Expression, Serializable):
 
     @staticmethod
     def _todatetime(value, regex=re.compile(r"^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d$")):
-        if value is None:
-            return value
+        if value in (None, ""):
+            return None
         if isinstance(value, (datetime.date, datetime.datetime)):
             value = str(value)
         value = value.replace("T", " ")
