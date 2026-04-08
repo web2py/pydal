@@ -3530,6 +3530,31 @@ class TestLazy(DALtest):
         row = db(db.tt).select("value").first()
         self.assertEqual(row.value, 1)
 
+    def testSelfReferenceMigration(self):
+        # Simulates web2py auth.define_tables(signature=True):
+        # auth_user has created_by/modified_by self-references
+        db = self.connect(check_reserved=None, lazy_tables=True)
+        db.define_table(
+            "auth_user",
+            Field("name"),
+            Field("created_by", "reference auth_user"),
+            Field("modified_by", "reference auth_user"),
+            migrate=".lazy_auth_user.table",
+        )
+        db.define_table(
+            "auth_event",
+            Field("description"),
+            Field("origin", "reference auth_user"),
+            migrate=".lazy_auth_event.table",
+        )
+        # Access auth_event FIRST — auth_user is still in _LAZY_TABLES.
+        # auth_event's migration hits db["auth_user"] in the migrator,
+        # which must lazily migrate auth_user (with its self-references)
+        # before auth_event's migration can complete.
+        db.auth_event.insert(description="login")
+        self.assertEqual(db(db.auth_event).count(), 1)
+        self.assertEqual(db(db.auth_user).count(), 0)
+
 
 class TestRedefine(unittest.TestCase):
     def testRun(self):
