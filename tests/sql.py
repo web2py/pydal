@@ -3533,12 +3533,14 @@ class TestLazy(DALtest):
     def testSelfReferenceMigration(self):
         # Simulates web2py auth.define_tables(signature=True):
         # auth_user has created_by/modified_by self-references
+        # MSSQL rejects CASCADE on self-referential FKs (multiple cascade paths)
+        ondelete = "NO ACTION" if IS_MSSQL else "CASCADE"
         db = self.connect(check_reserved=None, lazy_tables=True)
         db.define_table(
             "auth_user",
             Field("name"),
-            Field("created_by", "reference auth_user"),
-            Field("modified_by", "reference auth_user"),
+            Field("created_by", "reference auth_user", ondelete=ondelete),
+            Field("modified_by", "reference auth_user", ondelete=ondelete),
             migrate=".lazy_auth_user.table",
         )
         db.define_table(
