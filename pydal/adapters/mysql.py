@@ -57,6 +57,15 @@ class MySQL(SQLAdapter):
             self.driver_args["unix_socket"] = socket
         else:
             self.driver_args.update(host=host, port=port)
+        # Safe socket-level timeout defaults so the pool-checkout SELECT 1
+        # in test_connection can detect dead sockets instead of blocking
+        # forever in recv() when a NAT/LB has silently evicted the entry.
+        # Only applied if the user has not set them via driver_args.
+        # mysqlconnector uses different parameter names, so skip it.
+        if self.driver_name in ("pymysql", "MySQLdb"):
+            self.driver_args.setdefault("connect_timeout", 10)
+            self.driver_args.setdefault("read_timeout", 30)
+            self.driver_args.setdefault("write_timeout", 30)
 
     def connector(self):
         cursor_buffered = self.driver_args.get("cursor_buffered")

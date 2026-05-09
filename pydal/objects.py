@@ -1045,12 +1045,12 @@ class Table(Serializable, BasicStorage):
     def validate_and_insert(self, **fields):
         errors, new_fields = self._validate_fields(fields)
         record_id = self.insert(**new_fields) if not errors else None
-        return {"id": record_id, "errors": errors}
+        return {"id": record_id, "errors": errors, "success": record_id is not None}
 
     def validate_and_update(self, _key, **fields):
         record = self(**_key) if isinstance(_key, dict) else self(_key)
         errors, new_fields = self._validate_fields(fields, record)
-        updated = None
+        updated = 0
         if not errors and record:
             if "_id" in self:
                 myset = self._db(self._id == record[self._id.name])
@@ -1063,7 +1063,7 @@ class Table(Serializable, BasicStorage):
                         query = query & (getattr(self, key) == value)
                 myset = self._db(query)
             updated = myset.update(**new_fields)
-        return {"id": record and record.id, "updated": updated, "errors": errors}
+        return {"id": record and record.id, "updated": updated, "errors": errors, "success": updated > 0}
 
     def update_or_insert(self, _key=DEFAULT, **values):
         if _key is DEFAULT:
