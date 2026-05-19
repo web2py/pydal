@@ -3451,23 +3451,17 @@ class TestJSON(DALtest):
 
         # json_key / json_key_value: string keys go through expand("string"),
         # so single quotes are already escaped - these should be safe.
-        rows = db(
-            db.tj.testjson.json_key("it's").json_key_value("a0") == 1
-        ).select()
+        rows = db(db.tj.testjson.json_key("it's").json_key_value("a0") == 1).select()
         self.assertEqual(len(rows), 0)
 
-        rows = db(
-            db.tj.testjson.json_key_value("it's") == "quoted"
-        ).select()
+        rows = db(db.tj.testjson.json_key_value("it's") == "quoted").select()
         self.assertEqual(len(rows), 1)
 
         # json_path_value: path is interpolated directly into '#>>'%s''
         # without sanitisation - a single quote in the path breaks the SQL
         # string literal. The query must execute safely and return the correct
         # result instead of raising a database error.
-        rows = db(
-            db.tj.testjson.json_path_value("{it's}") == "quoted"
-        ).select()
+        rows = db(db.tj.testjson.json_path_value("{it's}") == "quoted").select()
         self.assertEqual(len(rows), 1)
 
         # json_path: same unescaped interpolation as json_path_value.
@@ -3479,9 +3473,7 @@ class TestJSON(DALtest):
         # json_contains: jsonvalue is interpolated directly into '@>'%s''
         # without sanitisation - a single quote in the JSON value breaks the
         # SQL string literal.
-        rows = db(
-            db.tj.testjson.json_contains('{"it\'s": "quoted"}')
-        ).select()
+        rows = db(db.tj.testjson.json_contains('{"it\'s": "quoted"}')).select()
         self.assertEqual(len(rows), 1)
 
 

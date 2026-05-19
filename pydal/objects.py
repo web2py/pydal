@@ -1063,7 +1063,12 @@ class Table(Serializable, BasicStorage):
                         query = query & (getattr(self, key) == value)
                 myset = self._db(query)
             updated = myset.update(**new_fields)
-        return {"id": record and record.id, "updated": updated, "errors": errors, "success": updated > 0}
+        return {
+            "id": record and record.id,
+            "updated": updated,
+            "errors": errors,
+            "success": updated > 0,
+        }
 
     def update_or_insert(self, _key=DEFAULT, **values):
         if _key is DEFAULT:
