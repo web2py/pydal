@@ -350,6 +350,7 @@ class TestRestAPI(unittest.TestCase):
                 "errors": {},
                 "code": 200,
                 "id": 4,
+                "success": True,
                 "api_version": __version__,
             },
         )
@@ -363,6 +364,7 @@ class TestRestAPI(unittest.TestCase):
                 "code": 422,
                 "message": "Validation Errors",
                 "id": None,
+                "success": False,
                 "api_version": __version__,
             },
         )
@@ -377,6 +379,7 @@ class TestRestAPI(unittest.TestCase):
                 "code": 200,
                 "api_version": "0.1",
                 "id": 4,
+                "success": True,
             },
         )
         response = api("DELETE", "color", 4)

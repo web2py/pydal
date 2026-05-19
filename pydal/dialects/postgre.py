@@ -322,18 +322,18 @@ class PostgreDialectJSON(PostgreDialect):
 
     def json_path(self, first, path, query_env=None):
         """Get the json in path which you can use for more queries"""
-        return "%s#>'%s'" % (self.expand(first, query_env=query_env or {}), path)
+        return "%s#>%s" % (self.expand(first, query_env=query_env or {}), self.adapter.adapt(path))
 
     def json_path_value(self, first, path, query_env=None):
         """Get the json in path which you can use for more queries"""
-        return "%s#>>'%s'" % (self.expand(first, query_env=query_env or {}), path)
+        return "%s#>>%s" % (self.expand(first, query_env=query_env or {}), self.adapter.adapt(path))
 
     # JSON Queries
     def json_contains(self, first, jsonvalue, query_env=None):
         # requires jsonb, value is json e.g. '{"country": "Peru"}'
-        return "%s::jsonb@>'%s'::jsonb" % (
+        return "%s::jsonb@>%s::jsonb" % (
             self.expand(first, query_env=query_env or {}),
-            jsonvalue,
+            self.adapter.adapt(jsonvalue),
         )
 
 
