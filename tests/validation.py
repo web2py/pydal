@@ -86,12 +86,15 @@ class TestValidateAndInsert(unittest.TestCase):
             res = db.thing.validate_and_insert(
                 image=dict(filename="image", content=b64)
             )
-            self.assertEqual(res, {"id": None, "errors": {"name": "required"}})
+            self.assertEqual(
+                res,
+                {"id": None, "errors": {"name": "required"}, "success": False},
+            )
             self.assertEqual(os.listdir(tempdir), [])
             res = db.thing.validate_and_insert(
                 name="something", image=dict(filename="image", content=b64)
             )
-            self.assertEqual(res, {"errors": {}, "id": 1})
+            self.assertEqual(res, {"errors": {}, "id": 1, "success": True})
             thing = db.thing(res["id"])
             self.assertEqual(thing.name, "something")
             names = os.listdir(tempdir)
