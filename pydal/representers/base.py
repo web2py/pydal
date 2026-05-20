@@ -2,7 +2,7 @@ import json
 from base64 import b64encode
 from datetime import date, datetime, time
 
-from .._compat import PY2, basestring, integer_types, to_bytes, to_unicode
+from .._compat import to_bytes, to_unicode
 from ..adapters.base import NoSQLAdapter, SQLAdapter
 from ..helpers.classes import Reference, SQLCustomType
 from ..helpers.methods import bar_encode
@@ -10,7 +10,6 @@ from ..helpers.serializers import serializers
 from ..objects import Expression, Field, Row
 from . import Representer, before_type, for_instance, for_type, pre, representers
 
-long = integer_types[-1]
 NoneType = type(None)
 
 
@@ -78,13 +77,7 @@ class BaseRepresenter(Representer):
     @for_type("list:string")
     def _list_string(self, value):
         value = self._ensure_list(value)
-        if PY2:
-            try:
-                value = map(str, value)
-            except:
-                value = map(lambda x: unicode(x).encode(self.adapter.db_codec), value)
-        else:
-            value = list(map(str, value))
+        value = list(map(str, value))
         return self._listify_elements(value)
 
     @for_type("list:reference", adapt=False)
@@ -231,7 +224,7 @@ class NoSQLRepresenter(BaseRepresenter):
 
     @for_type("json")
     def _json(self, value):
-        if isinstance(value, basestring):
+        if isinstance(value, str):
             value = to_unicode(value)
             value = json.loads(value)
         return value
@@ -286,4 +279,4 @@ class NoSQLRepresenter(BaseRepresenter):
     @for_type("list:reference")
     def _list_reference(self, value):
         values = self._represent_list(value)
-        return list(map(long, values))
+        return list(map(int, values))

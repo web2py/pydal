@@ -2,7 +2,6 @@ import os
 import re
 import sys
 
-from .._compat import integer_types, long
 from ..helpers.classes import Reference
 from ..helpers.methods import use_common_filters
 from ..objects import Expression, Field, Query, Table
@@ -217,7 +216,7 @@ class Oracle(SQLAdapter):
         id = self.lastrowid(table)
         if hasattr(table, "_primarykey") and len(table._primarykey) == 1:
             id = {table._primarykey[0]: id}
-        if not isinstance(id, integer_types):
+        if not isinstance(id, int):
             return id
         rid = Reference(id)
         (rid._table, rid._record) = (table, None)

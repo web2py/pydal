@@ -5,14 +5,10 @@ import re
 import uuid
 
 from .._compat import (
-    PY2,
     BytesIO,
     exists,
-    integer_types,
     iteritems,
     pjoin,
-    string_types,
-    text_type,
     to_bytes,
 )
 from .classes import SQLCustomType
@@ -105,10 +101,9 @@ def bar_encode(items):
 
 
 def bar_decode_integer(value):
-    long = integer_types[-1]
     if not hasattr(value, "split") and hasattr(value, "read"):
         value = value.read()
-    return [long(x) for x in value.split("|") if x.strip()]
+    return [int(x) for x in value.split("|") if x.strip()]
 
 
 def bar_decode_string(value):
@@ -395,8 +390,8 @@ def geoPolygon(*line):
 def attempt_upload(table, fields):
     for fieldname in table._upload_fieldnames & set(fields):
         value = fields[fieldname]
-        if not (value is None or isinstance(value, string_types)):
-            if not PY2 and isinstance(value, bytes):
+        if not (value is None or isinstance(value, str)):
+            if isinstance(value, bytes):
                 continue
             if hasattr(value, "file") and hasattr(value, "filename"):
                 new_name = table[fieldname].store(value.file, filename=value.filename)
@@ -472,7 +467,7 @@ def delete_uploaded_files(dbset, upload_fields=None):
                     )
                 oldpath = pjoin(uploadfolder, oldname)
                 if field.uploadfs:
-                    oldname = text_type(oldname)
+                    oldname = str(oldname)
                     if field.uploadfs.exists(oldname):
                         field.uploadfs.remove(oldname)
                 else:

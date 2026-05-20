@@ -3,7 +3,6 @@ import random
 import re
 from datetime import datetime
 
-from .._compat import basestring, long
 from ..exceptions import NotOnNOSQLError
 from ..helpers.classes import SQLALL, FakeCursor, Reference
 from ..helpers.methods import use_common_filters, xorify
@@ -92,7 +91,7 @@ class Mongo(NoSQLAdapter):
         self.object_id("<random>") -> ObjectId (not unique) instance"""
         if not arg:
             arg = 0
-        if isinstance(arg, basestring):
+        if isinstance(arg, str):
             # we assume an integer as default input
             rawhex = len(arg.replace("0x", "").replace("L", "")) == 24
             if arg.isdigit() and (not rawhex):
@@ -119,7 +118,7 @@ class Mongo(NoSQLAdapter):
             return arg
         elif isinstance(arg, (Row, Reference)):
             return self.object_id(int(arg["id"]))
-        elif not isinstance(arg, (int, long)):
+        elif not isinstance(arg, int):
             raise TypeError(
                 "object_id argument must be of type ObjectId or an objectid "
                 + "representable integer (type %s)" % type(arg)
@@ -971,7 +970,7 @@ class MongoBlob(Binary):
             return Binary.__new__(cls, bytes(value), MongoBlob.MONGO_BLOB_BYTES)
 
         # return non-strings as Binary(), eg: PY3 bytes()
-        if not isinstance(value, basestring):
+        if not isinstance(value, str):
             return Binary(value)
 
         # if string is encodable as UTF-8, then return as string

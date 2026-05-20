@@ -3,13 +3,11 @@ from base64 import b64decode
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from .._compat import PY2, basestring, integer_types, to_bytes, to_native
+from .._compat import to_bytes, to_native
 from ..adapters.base import SQLAdapter
 from ..helpers.classes import Reference
 from ..helpers.methods import bar_decode_integer, bar_decode_string
 from . import Parser, before_parse, for_type, parsers
-
-long = integer_types[-1]
 
 
 class BasicParser(Parser):
@@ -130,10 +128,8 @@ class JSONParser(Parser):
     @for_type("json")
     def _json(self, value):
         # if 'loads' not in self.driver_auto_json:
-        if not isinstance(value, basestring):
+        if not isinstance(value, str):
             raise RuntimeError("json data not a string")
-        if PY2 and isinstance(value, unicode):
-            value = value.encode("utf-8")
         return json.loads(value)
 
 

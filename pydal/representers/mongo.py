@@ -1,6 +1,6 @@
 import datetime
 
-from .._compat import PY2, basestring, to_bytes
+from .._compat import to_bytes
 from ..adapters.mongo import Mongo, MongoBlob
 from ..helpers.classes import Reference
 from ..objects import Row
@@ -42,9 +42,9 @@ class MongoRepresenter(NoSQLRepresenter):
 
     @for_type("blob")
     def _blob(self, value):
-        if isinstance(value, basestring) and value == "":
+        if isinstance(value, str) and value == "":
             value = None
-        return MongoBlob(value) if PY2 else to_bytes(value)
+        return to_bytes(value)
 
     @for_type("list:reference")
     def _list_reference(self, value):

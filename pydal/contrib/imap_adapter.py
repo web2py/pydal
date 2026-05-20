@@ -3,15 +3,12 @@ import datetime
 import re
 import sys
 
-from .._compat import PY2, basestring, integer_types
 from .._globals import GLOBAL_LOCKER, IDENTITY
 from ..adapters.base import NoSQLAdapter
 from ..connection import ConnectionPool
 from ..helpers.classes import SQLALL
 from ..helpers.methods import use_common_filters
 from ..objects import Expression, Field, Query
-
-long = integer_types[-1]
 
 
 class IMAPAdapter(NoSQLAdapter):
@@ -151,10 +148,10 @@ class IMAPAdapter(NoSQLAdapter):
         "text": str,
         "date": datetime.date,
         "datetime": datetime.datetime,
-        "id": long,
+        "id": int,
         "boolean": bool,
         "integer": int,
-        "bigint": long,
+        "bigint": int,
         "blob": str,
         "list:string": str,
     }
@@ -370,7 +367,7 @@ class IMAPAdapter(NoSQLAdapter):
             "NOV",
             "DEC",
         ]
-        if isinstance(date, basestring):
+        if isinstance(date, str):
             # Prevent unexpected date response format
             try:
                 if "," in date:
@@ -408,19 +405,9 @@ class IMAPAdapter(NoSQLAdapter):
         """convert text for mail to unicode"""
         if text is None:
             text = ""
-        if PY2:
-            if isinstance(text, str):
-                if charset is None:
-                    text = unicode(text, "utf-8", errors)
-                else:
-                    text = unicode(text, charset, errors)
-            else:
-                raise Exception("Unsupported mail text type %s" % type(text))
-            return text.encode("utf-8")
-        else:
-            if isinstance(text, bytes):
-                return text.decode("utf-8")
-            return text
+        if isinstance(text, bytes):
+            return text.decode("utf-8")
+        return text
 
     def get_charset(self, message):
         charset = message.get_content_charset()
@@ -619,12 +606,9 @@ class IMAPAdapter(NoSQLAdapter):
                                 }
                                 fr["multipart"] = fr["email"].is_multipart()
                                 # fetch flags for the message
-                                if PY2:
-                                    fr["flags"] = self.driver.ParseFlags(data[1])
-                                else:
-                                    fr["flags"] = self.driver.ParseFlags(
-                                        bytes(data[1], "utf-8")
-                                    )
+                                fr["flags"] = self.driver.ParseFlags(
+                                    bytes(data[1], "utf-8")
+                                )
                                 fetch_results.append(fr)
                             else:
                                 # error retrieving the message body
@@ -633,7 +617,7 @@ class IMAPAdapter(NoSQLAdapter):
                                 )
                 else:
                     raise Exception("IMAP search error: %s" % search_result[1])
-        elif isinstance(query, (Expression, basestring)):
+        elif isinstance(query, (Expression, str)):
             raise NotImplementedError()
         else:
             raise TypeError("Unexpected query type")
@@ -849,14 +833,14 @@ class IMAPAdapter(NoSQLAdapter):
                     message.set_charset(charset)
                 for item in ("to", "cc", "bcc"):
                     value = d.get(item, "")
-                    if isinstance(value, basestring):
+                    if isinstance(value, str):
                         message[item] = value
                     else:
                         message[item] = ";".join([i for i in value])
                 if not message.is_multipart() and (
                     not message.get_content_type().startswith("multipart")
                 ):
-                    if isinstance(content, basestring):
+                    if isinstance(content, str):
                         message.set_payload(content)
                     elif len(content) > 0:
                         message.set_payload(content[0]["text"])

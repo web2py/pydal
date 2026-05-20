@@ -1,11 +1,9 @@
 import copy
 import datetime
-import locale
 import os
 import pickle
-import sys
 
-from ._compat import PY2, exists, iteritems, pjoin, string_types, to_bytes
+from ._compat import exists, iteritems, pjoin, to_bytes
 from ._load import portalocker
 from .helpers.classes import DatabaseStoredFile, SQLCustomType
 
@@ -320,15 +318,7 @@ class Migrator(object):
             dbpath = ""
             self.adapter.folder = ""
         elif uri.startswith("sqlite:///") or uri.startswith("spatialite:///"):
-            if PY2:
-                path_encoding = (
-                    sys.getfilesystemencoding()
-                    or locale.getdefaultlocale()[1]
-                    or "utf8"
-                )
-                dbpath = uri[9 : uri.rfind("/")].decode("utf8").encode(path_encoding)
-            else:
-                dbpath = uri[9 : uri.rfind("/")]
+            dbpath = uri[9 : uri.rfind("/")]
         else:
             dbpath = self.adapter.folder
 
@@ -336,7 +326,7 @@ class Migrator(object):
             return query
         elif uri.startswith("sqlite:memory") or uri.startswith("spatialite:memory"):
             table._dbt = None
-        elif isinstance(migrate, string_types):
+        elif isinstance(migrate, str):
             table._dbt = pjoin(dbpath, migrate)
         else:
             table._dbt = pjoin(dbpath, "%s_%s.table" % (db._uri_hash, tablename))

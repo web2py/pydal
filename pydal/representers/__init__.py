@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from .._compat import PY2, iteritems, string_types, to_bytes, to_unicode, with_metaclass
+from .._compat import iteritems, to_unicode, with_metaclass
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_TYPE
 
@@ -104,10 +104,7 @@ class TReprMethodWrapper(object):
             self.call = self._call_with_extras
         else:
             self.call = self._call
-        if self.obj.encode and PY2:
-            self.inner_call = self._inner_call_with_encode
-        else:
-            self.inner_call = self._inner_call
+        self.inner_call = self._inner_call
         if self.obj.adapt:
             self.adapt = self._adapt
         else:
@@ -120,11 +117,6 @@ class TReprMethodWrapper(object):
         return value
 
     def _inner_call(self, value, **kwargs):
-        return self.obj.f(self.representer, value, **kwargs)
-
-    def _inner_call_with_encode(self, value, **kwargs):
-        if isinstance(value, unicode):
-            value = value.encode(self.representer.adapter.db_codec)
         return self.obj.f(self.representer, value, **kwargs)
 
     def _call_with_extras(self, value, field_type):
@@ -218,16 +210,7 @@ class Representer(with_metaclass(MetaRepresenter)):
         return self.registered_t[key]
 
     def adapt(self, value):
-        if PY2:
-            if not isinstance(value, string_types):
-                value = str(value)
-            value = to_bytes(value)
-            try:
-                value.decode(self.adapter.db_codec)
-            except:
-                value = value.decode("latin1").encode(self.adapter.db_codec)
-        else:
-            value = to_unicode(value)
+        value = to_unicode(value)
         return self.adapter.adapt(value)
 
     def exceptions(self, value, field_type):

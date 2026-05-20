@@ -1,12 +1,9 @@
 import datetime
 
-from .._compat import basestring, integer_types, string_types
 from ..adapters.base import SQLAdapter
 from ..helpers.methods import use_common_filters
 from ..objects import Expression, Field, Select, Table
 from . import Dialect, dialects, sqltype_for
-
-long = integer_types[-1]
 
 
 class CommonDialect(Dialect):
@@ -241,20 +238,20 @@ class SQLDialect(CommonDialect):
     def join(self, val, query_env={}):
         if isinstance(val, (Table, Select)):
             val = val.query_name(query_env.get("parent_scope", []))
-        elif not isinstance(val, basestring):
+        elif not isinstance(val, str):
             val = self.expand(val, query_env=query_env)
         return "JOIN %s" % val
 
     def left_join(self, val, query_env={}):
         # Left join must always have an ON clause
-        if not isinstance(val, basestring):
+        if not isinstance(val, str):
             val = self.expand(val, query_env=query_env)
         return "LEFT JOIN %s" % val
 
     def cross_join(self, val, query_env={}):
         if isinstance(val, (Table, Select)):
             val = val.query_name(query_env.get("parent_scope", []))
-        elif not isinstance(val, basestring):
+        elif not isinstance(val, str):
             val = self.expand(val, query_env=query_env)
         return "CROSS JOIN %s" % val
 
@@ -416,89 +413,48 @@ class SQLDialect(CommonDialect):
         op = case_sensitive and self.like or self.ilike
         return op(first, second, escape="\\", query_env=query_env)
 
-    def eq(self, first, second=None, query_env={}):
+    def _binary_cmp(self, op, first, second, null_form, query_env):
+        """Shared SQL comparison render for eq/ne/lt/lte/gt/gte.
+
+        null_form is the rendered SQL when second is None (e.g. ``"IS NULL"``),
+        or None if comparison with NULL should raise.
+        """
         if second is None:
-            return "(%s IS NULL)" % self.expand(first, query_env=query_env)
-        if first.type in ("json", "jsonb"):
-            if isinstance(second, (string_types, int, float)):
-                return "(%s = '%s')" % (
-                    self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env),
-                )
-        return "(%s = %s)" % (
+            if null_form is None:
+                raise RuntimeError("Cannot compare %s %s None" % (first, op))
+            return "(%s %s)" % (
+                self.expand(first, query_env=query_env),
+                null_form,
+            )
+        if first.type in ("json", "jsonb") and isinstance(second, (str, int, float)):
+            return "(%s %s '%s')" % (
+                self.expand(first, query_env=query_env),
+                op,
+                self.expand(second, query_env=query_env),
+            )
+        return "(%s %s %s)" % (
             self.expand(first, query_env=query_env),
+            op,
             self.expand(second, first.type, query_env=query_env),
         )
+
+    def eq(self, first, second=None, query_env={}):
+        return self._binary_cmp("=", first, second, "IS NULL", query_env)
 
     def ne(self, first, second=None, query_env={}):
-        if second is None:
-            return "(%s IS NOT NULL)" % self.expand(first, query_env=query_env)
-        if first.type in ("json", "jsonb"):
-            if isinstance(second, (string_types, int, float)):
-                return "(%s <> '%s')" % (
-                    self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env),
-                )
-        return "(%s <> %s)" % (
-            self.expand(first, query_env=query_env),
-            self.expand(second, first.type, query_env=query_env),
-        )
+        return self._binary_cmp("<>", first, second, "IS NOT NULL", query_env)
 
     def lt(self, first, second=None, query_env={}):
-        if second is None:
-            raise RuntimeError("Cannot compare %s < None" % first)
-        if first.type in ("json", "jsonb"):
-            if isinstance(second, (string_types, int, float)):
-                return "(%s < '%s')" % (
-                    self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env),
-                )
-        return "(%s < %s)" % (
-            self.expand(first, query_env=query_env),
-            self.expand(second, first.type, query_env=query_env),
-        )
+        return self._binary_cmp("<", first, second, None, query_env)
 
     def lte(self, first, second=None, query_env={}):
-        if second is None:
-            raise RuntimeError("Cannot compare %s <= None" % first)
-        if first.type in ("json", "jsonb"):
-            if isinstance(second, (string_types, int, float)):
-                return "(%s <= '%s')" % (
-                    self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env),
-                )
-        return "(%s <= %s)" % (
-            self.expand(first, query_env=query_env),
-            self.expand(second, first.type, query_env=query_env),
-        )
+        return self._binary_cmp("<=", first, second, None, query_env)
 
     def gt(self, first, second=None, query_env={}):
-        if second is None:
-            raise RuntimeError("Cannot compare %s > None" % first)
-        if first.type in ("json", "jsonb"):
-            if isinstance(second, (string_types, int, float)):
-                return "(%s > '%s')" % (
-                    self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env),
-                )
-        return "(%s > %s)" % (
-            self.expand(first, query_env=query_env),
-            self.expand(second, first.type, query_env=query_env),
-        )
+        return self._binary_cmp(">", first, second, None, query_env)
 
     def gte(self, first, second=None, query_env={}):
-        if second is None:
-            raise RuntimeError("Cannot compare %s >= None" % first)
-        if first.type in ("json", "jsonb"):
-            if isinstance(second, (string_types, int, float)):
-                return "(%s >= '%s')" % (
-                    self.expand(first, query_env=query_env),
-                    self.expand(second, query_env=query_env),
-                )
-        return "(%s >= %s)" % (
-            self.expand(first, query_env=query_env),
-            self.expand(second, first.type, query_env=query_env),
-        )
+        return self._binary_cmp(">=", first, second, None, query_env)
 
     def _is_numerical(self, field_type):
         return field_type in (
@@ -671,7 +627,7 @@ class NoSQLDialect(CommonDialect):
 
     @sqltype_for("integer")
     def type_integer(self):
-        return long
+        return int
 
     @sqltype_for("bigint")
     def type_bigint(self):
@@ -699,11 +655,11 @@ class NoSQLDialect(CommonDialect):
 
     @sqltype_for("id")
     def type_id(self):
-        return long
+        return int
 
     @sqltype_for("reference")
     def type_reference(self):
-        return long
+        return int
 
     @sqltype_for("list:integer")
     def type_list_integer(self):

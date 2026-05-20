@@ -7,14 +7,11 @@ import time
 import traceback
 
 from .._compat import (
-    PY2,
     copyreg,
     exists,
-    implements_bool,
     iteritems,
     iterkeys,
     itervalues,
-    long,
     to_bytes,
 )
 from .._globals import THREAD_LOCAL
@@ -35,7 +32,6 @@ class cachedprop(object):
         return result
 
 
-@implements_bool
 class BasicStorage(object):
     def __init__(self, *args, **kwargs):
         return self.__dict__.__init__(*args, **kwargs)
@@ -215,7 +211,7 @@ class Reference(int):
 
     def __setattr__(self, key, value):
         if key.startswith("_"):
-            long.__setattr__(self, key, value)
+            int.__setattr__(self, key, value)
             return
         self.__allocate()
         self._record[key] = value
@@ -383,11 +379,8 @@ class MethodAdder(object):
             instance = self.table
             import types
 
-            if PY2:
-                method = types.MethodType(f, instance, instance.__class__)
-            else:
-                method = types.MethodType(f, instance)
-            name = method_name or f.func_name
+            method = types.MethodType(f, instance)
+            name = method_name or f.__name__
             setattr(instance, name, method)
             return f
 

@@ -5,10 +5,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 from .._compat import (
-    PY2,
-    basestring,
     hashlib_md5,
-    integer_types,
     iteritems,
     iterkeys,
     with_metaclass,
@@ -171,7 +168,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
     def common_filter(self, query, tablist):
         tenant_fieldname = self.db._request_tenant
         for table in tablist:
-            if isinstance(table, basestring):
+            if isinstance(table, str):
                 table = self.db[table]
             # deal with user provided filters
             if table._common_filter is not None:
@@ -219,8 +216,6 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
                 value = value.decode(self.db._db_codec)
             except Exception:
                 pass
-        if PY2 and isinstance(value, unicode):
-            value = value.encode("utf-8")
         if isinstance(field_type, SQLCustomType):
             value = field_type.decoder(value)
         if not isinstance(field_type, str) or value is None:
@@ -561,7 +556,7 @@ class SQLAdapter(BaseAdapter):
         id = self.lastrowid(table)
         if hasattr(table, "_primarykey") and len(table._primarykey) == 1:
             id = {table._primarykey[0]: id}
-        if not isinstance(id, integer_types):
+        if not isinstance(id, int):
             return id
         rid = Reference(id)
         (rid._table, rid._record) = (table, None)
@@ -1042,7 +1037,7 @@ class SQLAdapter(BaseAdapter):
         return self.dialect.quote(fieldname)
 
     def table_alias(self, tbl, current_scope=[]):
-        if isinstance(tbl, basestring):
+        if isinstance(tbl, str):
             tbl = self.db[tbl]
         return tbl.query_name(current_scope)[0]
 

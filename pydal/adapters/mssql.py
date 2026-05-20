@@ -1,6 +1,6 @@
 import re
 
-from .._compat import PY2, integer_types, iteritems, long, to_unicode
+from .._compat import iteritems
 from .._globals import IDENTITY
 from ..utils import split_uri_args
 from . import adapters, with_connection_or_raise
@@ -123,9 +123,6 @@ class MSSQLN(MSSQL):
 
     @with_connection_or_raise
     def execute(self, *args, **kwargs):
-        if PY2:
-            args = list(args)
-            args[0] = to_unicode(args[0])
         return super(MSSQLN, self).execute(*args, **kwargs)
 
 

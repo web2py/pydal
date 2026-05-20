@@ -1,4 +1,3 @@
-from .._compat import basestring, integer_types
 from ..adapters.postgres import Postgre, PostgreBoolean, PostgreNew
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
@@ -304,17 +303,17 @@ class PostgreDialectJSON(PostgreDialect):
 
     def json_key(self, first, key, query_env=None):
         """Get the json in key which you can use for more queries"""
-        if isinstance(key, basestring):
+        if isinstance(key, str):
             key = self.expand(key, "string", query_env=query_env)
-        elif not isinstance(key, integer_types):
+        elif not isinstance(key, int):
             raise TypeError("Key must be a string or int")
         return "%s->%s" % (self.expand(first, query_env=query_env or {}), key)
 
     def json_key_value(self, first, key, query_env=None):
         """Get the value int or text in key"""
-        if isinstance(key, basestring):
+        if isinstance(key, str):
             key = self.expand(key, "string", query_env=query_env)
-        elif isinstance(key, integer_types):
+        elif isinstance(key, int):
             key = self.expand(key, "integer", query_env=query_env)
         else:
             raise TypeError("Key must be a string or int")

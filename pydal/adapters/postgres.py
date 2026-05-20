@@ -1,7 +1,7 @@
 import os.path
 import re
 
-from .._compat import PY2, iterkeys, long, to_unicode, with_metaclass
+from .._compat import iterkeys, with_metaclass
 from .._globals import IDENTITY, THREAD_LOCAL
 from ..drivers import psycopg2_adapt
 from ..utils import split_uri_args
@@ -194,9 +194,8 @@ class PostgrePsyco(Postgre):
         cxn = getattr(self.connection, "__wrapped__", self.connection)
         adapted.prepare(cxn)
         rv = adapted.getquoted()
-        if not PY2:
-            if isinstance(rv, bytes):
-                return rv.decode("utf-8")
+        if isinstance(rv, bytes):
+            return rv.decode("utf-8")
         return rv
 
 

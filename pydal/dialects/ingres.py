@@ -1,4 +1,3 @@
-from .._compat import basestring
 from ..adapters.ingres import Ingres, IngresUnicode
 from . import dialects, sqltype_for
 from .base import SQLDialect
@@ -81,7 +80,7 @@ class IngresDialect(SQLDialect):
 
     def left_join(self, val, query_env={}):
         # Left join must always have an ON clause
-        if not isinstance(val, basestring):
+        if not isinstance(val, str):
             val = self.expand(val, query_env=query_env)
         return "LEFT OUTER JOIN %s" % val
 

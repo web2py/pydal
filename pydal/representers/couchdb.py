@@ -1,4 +1,3 @@
-from .._compat import integer_types
 from ..adapters.couchdb import CouchDB
 from ..helpers.classes import Reference
 from ..helpers.serializers import serializers
@@ -6,15 +5,13 @@ from ..objects import Row
 from . import for_type, representers
 from .base import NoSQLRepresenter
 
-long = integer_types[-1]
-
 
 @representers.register_for(CouchDB)
 class CouchDBRepresenter(NoSQLRepresenter):
     def adapt(self, value):
-        return repr(
-            not isinstance(value, unicode) and value or value and value.encode("utf8")
-        )
+        if isinstance(value, str):
+            value = value.encode("utf8")
+        return repr(value)
 
     @for_type("id")
     def _id(self, value):

@@ -1,6 +1,5 @@
 import re
 
-from .._compat import PY2, basestring
 from ..adapters.mongo import Mongo
 from ..exceptions import NotOnNOSQLError
 from ..objects import Field
@@ -386,9 +385,7 @@ class MongoDialect(NoSQLDialect):
             if escape:
                 # protect % and _ which are escaped
                 expr = expr.replace(escape + "\\%", "%")
-                if PY2:
-                    expr = expr.replace(escape + "\\_", "_")
-                elif escape + "_" in expr:
+                if escape + "_" in expr:
                     set_aside = str(self.adapter.object_id("<random>"))
                     while set_aside in expr:
                         set_aside = str(self.adapter.object_id("<random>"))
@@ -396,16 +393,11 @@ class MongoDialect(NoSQLDialect):
                 else:
                     set_aside = None
             expr = expr.replace("\\%", ".*")
-            if PY2:
-                expr = expr.replace("\\_", ".")
-            else:
-                expr = expr.replace("_", ".")
+            expr = expr.replace("_", ".")
             if escape:
                 # convert to protected % and _
                 expr = expr.replace("%", "\\%")
-                if PY2:
-                    expr = expr.replace("_", "\\_")
-                elif set_aside:
+                if set_aside:
                     expr = expr.replace(set_aside, "_")
         if starts_with:
             pattern = "^%s"
@@ -472,7 +464,7 @@ class MongoDialect(NoSQLDialect):
                 raise NotImplementedError(
                     "CONTAINS(field) not implemented for field type '%s'" % second.type
                 )
-        elif isinstance(second, (basestring, int)):
+        elif isinstance(second, (str, int)):
             whole_string = isinstance(first, Field) and first.type == "list:string"
             ret = self._build_like_regex(
                 first,
@@ -514,7 +506,7 @@ class MongoDialect(NoSQLDialect):
             expression to be expanded here, or converted length to a string
             to be parsed back to a call to STRLEN()
             """
-            if isinstance(length, basestring):
+            if isinstance(length, str):
                 return (pos0 - 1, eval(length))
             # take the rest of the string
             return (pos0 - 1, -1)

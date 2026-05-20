@@ -29,17 +29,11 @@ import uuid
 from functools import reduce
 
 from ._compat import (
-    PY2,
     StringIO,
-    basestring,
-    integer_types,
     ipaddress,
-    string_types,
     to_bytes,
     to_native,
     to_unicode,
-    unichr,
-    unicodeT,
     urllib_unquote,
     urlparse,
 )
@@ -285,29 +279,21 @@ class IS_MATCH(Validator):
             if not expression.endswith("$"):
                 expression = "(%s)$" % expression
         if is_unicode:
-            if not isinstance(expression, unicodeT):
+            if not isinstance(expression, str):
                 expression = expression.decode("utf8")
             self.regex = re.compile(expression, re.UNICODE)
         else:
             self.regex = re.compile(expression)
         self.error_message = error_message
         self.extract = extract
-        self.is_unicode = is_unicode or not PY2
+        self.is_unicode = True
 
     def validate(self, value, record_id=None):
-        if not PY2:  # PY3 convert bytes to unicode
-            value = to_unicode(value)
-
-        if self.is_unicode or not PY2:
-            if not isinstance(value, unicodeT):
-                match = self.regex.search(str(value).decode("utf8"))
-            else:
-                match = self.regex.search(value)
+        value = to_unicode(value)
+        if not isinstance(value, str):
+            match = self.regex.search(str(value).decode("utf8"))
         else:
-            if not isinstance(value, unicodeT):
-                match = self.regex.search(str(value))
-            else:
-                match = self.regex.search(value.encode("utf8"))
+            match = self.regex.search(value)
         if match is not None:
             return self.extract and match.group() or value
         raise ValidationError(self.translator(self.error_message))
@@ -433,7 +419,7 @@ class IS_LENGTH(Validator):
                 length = len(to_unicode(value))
             except:
                 length = len(value)
-        elif isinstance(value, unicodeT):
+        elif isinstance(value, str):
             length = len(value)
             value = value.encode("utf8")
         elif isinstance(value, (bytes, bytearray, tuple, list)):
@@ -765,7 +751,7 @@ class IS_IN_DB(Validator):
             if field.type in ("id", "integer"):
                 new_values = []
                 for value in values:
-                    if not (isinstance(value, integer_types) or value.isdigit()):
+                    if not (isinstance(value, int) or value.isdigit()):
                         if self.auto_add:
                             value = str(
                                 self.maybe_add(table, self.fieldnames[0], value)
@@ -797,8 +783,8 @@ class IS_IN_DB(Validator):
                     return values
         else:
             if field.type in ("id", "integer"):
-                if isinstance(value, integer_types) or (
-                    isinstance(value, string_types) and value.isdigit()
+                if isinstance(value, int) or (
+                    isinstance(value, str) and value.isdigit()
                 ):
                     value = int(value)
                 elif self.auto_add:
@@ -893,7 +879,7 @@ def range_error_message(error_message, what_to_enter, minimum, maximum):
             error_message += " greater than or equal to %(min)g"
         elif maximum is not None:
             error_message += " less than or equal to %(max)g"
-    if type(maximum) in integer_types:
+    if isinstance(maximum, int):
         maximum -= 1
     return str(translate(error_message)) % dict(min=minimum, max=maximum)
 
@@ -903,6 +889,10 @@ class IS_INT_IN_RANGE(Validator):
     Determines that the argument is (or can be represented as) an int,
     and that it falls within the specified range. The range is interpreted
     in the Pythonic way, so the test is: min <= value < max.
+
+    Note: IS_INT_IN_RANGE has an *exclusive* upper bound (Pythonic), while
+    IS_FLOAT_IN_RANGE and IS_DECIMAL_IN_RANGE use *inclusive* upper bounds.
+    This asymmetry is preserved for backward compatibility.
 
     The minimum and maximum limits can be None, meaning no lower or upper limit,
     respectively.
@@ -1123,7 +1113,7 @@ class IS_DECIMAL_IN_RANGE(Validator):
 def is_empty(value, empty_regex=None):
     _value = value
     """test empty field"""
-    if isinstance(value, (str, unicodeT)):
+    if isinstance(value, str):
         value = value.strip()
         if empty_regex is not None and empty_regex.match(value):
             value = ""
@@ -1368,7 +1358,7 @@ class IS_EMAIL(Validator):
 
     def validate(self, value, record_id=None):
         if (
-            not (isinstance(value, (basestring, unicodeT)))
+            not (isinstance(value, str))
             or not value
             or "@" not in value
         ):
@@ -1694,7 +1684,7 @@ def unicode_to_ascii_authority(authority):
             # don't modify the URL
             asciiLabels.append("")
     # RFC 3490, Section 4, Step 5
-    return str(reduce(lambda x, y: x + unichr(0x002E) + y, asciiLabels))
+    return str(reduce(lambda x, y: x + chr(0x002E) + y, asciiLabels))
 
 
 def unicode_to_ascii_url(url, prepend_scheme):
@@ -3750,7 +3740,7 @@ class IS_URL(Validator):
         else:
             raise SyntaxError("invalid mode '%s' in IS_URL" % self.mode)
 
-        if isinstance(value, unicodeT):
+        if isinstance(value, str):
             try:
                 value = unicode_to_ascii_url(value, self.prepend_scheme)
             except Exception as e:
@@ -3815,9 +3805,9 @@ class IS_TIME(Validator):
             ivalue = value
             value = re.match(self.REGEX_TIME, value.lower())
             (h, m, s) = (int(value.group("h")), 0, 0)
-            if not value.group("m") is None:
+            if value.group("m") is not None:
                 m = int(value.group("m"))
-            if not value.group("s") is None:
+            if value.group("s") is not None:
                 s = int(value.group("s"))
             if value.group("d") == "pm" and 0 < h < 12:
                 h += 12
@@ -4642,7 +4632,7 @@ upperset = frozenset(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 numberset = frozenset(b"0123456789")
 sym1set = frozenset(b"!@#$%^&*() ")
 sym2set = frozenset(b"~`-_=+[]{}\\|;:'\",.<>?/")
-otherset = frozenset(b"".join(chr(x) if PY2 else chr(x).encode() for x in range(256)))
+otherset = frozenset(b"".join(chr(x).encode() for x in range(256)))
 
 
 def calc_entropy(string):

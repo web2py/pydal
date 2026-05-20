@@ -18,24 +18,17 @@ from collections import OrderedDict
 from io import TextIOWrapper
 
 from ._compat import (
-    PY2,
     BytesIO,
     StringIO,
-    basestring,
     copyreg,
     exists,
     hashlib_md5,
-    implements_bool,
-    implements_iterator,
     iteritems,
-    long,
     pjoin,
     reduce,
-    text_type,
     to_bytes,
     to_native,
     to_unicode,
-    xrange,
 )
 from ._globals import AND, DEFAULT, IDENTITY, OR
 from .exceptions import NotAuthorizedException, NotFoundException
@@ -76,9 +69,6 @@ from .helpers.regex import (
 )
 from .helpers.serializers import serializers
 from .utils import deprecated
-
-if not PY2:
-    unicode = str
 
 DEFAULTLENGTH = {
     "string": 512,
@@ -206,6 +196,11 @@ class Row(BasicStorage):
         return int(int(self))
 
     def __hash__(self):
+        # Identity-based hash even though __eq__ is content-based: rows can hold
+        # unhashable values (lists, dicts), and many callers stick rows in sets
+        # or dict keys keyed by identity. The trade-off: two rows with the same
+        # contents won't dedupe in a set, but that's the price of staying
+        # hashable and matches long-standing public behavior.
         return id(self)
 
     __str__ = __repr__
@@ -236,8 +231,6 @@ class Row(BasicStorage):
     def as_dict(self, datetime_to_str=False, custom_types=None):
         SERIALIZABLE_TYPES = [str, int, float, bool, list, dict]
         DT_INST = (datetime.date, datetime.datetime, datetime.time)
-        if PY2:
-            SERIALIZABLE_TYPES += [unicode, long]
         if isinstance(custom_types, (list, tuple, set)):
             SERIALIZABLE_TYPES += custom_types
         elif custom_types:
@@ -574,7 +567,7 @@ class Table(Serializable, BasicStorage):
         d = dict(format=self._format)
         if migrate:
             d["migrate"] = migrate
-        elif isinstance(self._migrate, basestring):
+        elif isinstance(self._migrate, str):
             d["migrate"] = self._migrate + "_archive"
         elif self._migrate:
             d["migrate"] = self._migrate
@@ -1212,7 +1205,7 @@ class Table(Serializable, BasicStorage):
                 ref_table = field.type[len(list_reference_s) :].strip()
                 if id_map is not None:
                     value = [
-                        id_map[ref_table][long(v)] for v in bar_decode_string(value)
+                        id_map[ref_table][int(v)] for v in bar_decode_string(value)
                     ]
                 else:
                     value = [v for v in bar_decode_string(value)]
@@ -1220,7 +1213,7 @@ class Table(Serializable, BasicStorage):
                 value = bar_decode_integer(value)
             elif id_map and field.type.startswith("reference"):
                 try:
-                    value = id_map[field.type[9:].strip()][long(value)]
+                    value = id_map[field.type[9:].strip()][int(value)]
                 except KeyError:
                     pass
             elif id_offset and field.type.startswith("reference"):
@@ -1670,7 +1663,7 @@ class Expression(object):
             else:
                 pos0 = start + 1
 
-            maxint = sys.maxint if PY2 else sys.maxsize
+            maxint = sys.maxsize
             if stop is None or stop == maxint:
                 length = self.len()
             elif stop < 0:
@@ -1789,7 +1782,7 @@ class Expression(object):
             value = value[0]
         if isinstance(value, Query):
             value = db(value)._select(value.first._table._id)
-        elif not isinstance(value, (Select, basestring)):
+        elif not isinstance(value, (Select, str)):
             value = list(sorted(value))
             if kwattr.get("null") and None in value:
                 value.remove(None)
@@ -2053,7 +2046,6 @@ class FieldMethod(object):
             raise ValueError("Cannot rename FieldMethod %s to %s" % (self.name, name))
 
 
-@implements_bool
 class Field(Expression, Serializable):
     Virtual = FieldVirtual
     Method = FieldMethod
@@ -2135,11 +2127,6 @@ class Field(Expression, Serializable):
         self.op = None
         self.first = None
         self.second = None
-        if PY2 and isinstance(fieldname, unicode):
-            try:
-                fieldname = str(fieldname)
-            except UnicodeEncodeError:
-                raise SyntaxError("Field: invalid unicode field name")
         self.name = fieldname = cleanup(fieldname)
         if (
             not isinstance(fieldname, str)
@@ -2352,7 +2339,7 @@ class Field(Expression, Serializable):
             self_uploadfield.table.insert(**keys)
         elif self_uploadfield is True:
             if self.uploadfs:
-                dest_file = self.uploadfs.open(text_type(newfilename), "wb")
+                dest_file = self.uploadfs.open(str(newfilename), "wb")
             else:
                 if path:
                     pass
@@ -2409,7 +2396,7 @@ class Field(Expression, Serializable):
             stream = BytesIO(to_bytes(data))
         elif self.uploadfs:
             # ## if file is on pyfilesystem
-            stream = self.uploadfs.open(text_type(name), "rb")
+            stream = self.uploadfs.open(str(name), "rb")
         else:
             # ## if file is on regular filesystem
             # this is intentionally a string with filename and not a stream
@@ -2530,7 +2517,7 @@ class Field(Expression, Serializable):
             "custom_retrieve_file_properties",
             "filter_in",
         )
-        serializable = (int, long, basestring, float, tuple, bool, type(None))
+        serializable = (int, str, float, tuple, bool, type(None))
 
         def flatten(obj):
             if isinstance(obj, dict):
@@ -2711,9 +2698,8 @@ class Query(Serializable):
             set,
             list,
             int,
-            long,
             float,
-            basestring,
+            str,
             type(None),
             bool,
         )
@@ -2733,11 +2719,11 @@ class Query(Serializable):
                     elif isinstance(
                         v, (datetime.date, datetime.time, datetime.datetime)
                     ):
-                        newd[k] = text_type(v)
+                        newd[k] = str(v)
                 elif k == "op":
                     if callable(v):
                         newd[k] = v.__name__
-                    elif isinstance(v, basestring):
+                    elif isinstance(v, str):
                         newd[k] = v
                     else:
                         pass  # not callable or string
@@ -3039,48 +3025,46 @@ class Set(Serializable):
         ret = db._adapter.delete(table, self.query)
         return ret
 
-    def update(self, **update_fields):
-        db = self.db
-        table = db._adapter.get_table(self.query)
+    def _build_update_row(self, update_fields):
+        """Resolve update kwargs into (table, op_row). Raises if empty."""
+        table = self.db._adapter.get_table(self.query)
         row = table._fields_and_values_for_update(update_fields)
         if not row._values:
             raise ValueError("No fields to update")
-        if any(f(self, row) for f in table._before_update):
+        return table, row
+
+    def _apply_update(self, table, row, run_callbacks):
+        """Run before/after callbacks around the adapter update."""
+        if run_callbacks and any(f(self, row) for f in table._before_update):
             return 0
-        ret = db._adapter.update(table, self.query, row.op_values())
-        ret and [f(self, row) for f in table._after_update]
+        ret = self.db._adapter.update(table, self.query, row.op_values())
+        if run_callbacks and ret:
+            for f in table._after_update:
+                f(self, row)
         return ret
+
+    def update(self, **update_fields):
+        table, row = self._build_update_row(update_fields)
+        return self._apply_update(table, row, run_callbacks=True)
 
     def update_naive(self, **update_fields):
         """
         Same as update but does not call table._before_update and _after_update
         """
-        table = self.db._adapter.get_table(self.query)
-        row = table._fields_and_values_for_update(update_fields)
-        if not row._values:
-            raise ValueError("No fields to update")
-        ret = self.db._adapter.update(table, self.query, row.op_values())
-        return ret
+        table, row = self._build_update_row(update_fields)
+        return self._apply_update(table, row, run_callbacks=False)
 
     def validate_and_update(self, **update_fields):
         response = {"updated": 0, "errors": {}}
         table = self.db._adapter.get_table(self.query)
         # use {} instead of None to make an empty record
-        # to that we use update values instead of default values
+        # so that we use update values instead of default values
         errors, new_fields = table._validate_fields(update_fields, {})
         if errors:
-            response["updated"] = 0
             response["errors"] = errors
-        else:
-            row = table._fields_and_values_for_update(new_fields)
-            if not row._values:
-                raise ValueError("No fields to update")
-            if any(f(self, row) for f in table._before_update):
-                ret = 0
-            else:
-                ret = self.db._adapter.update(table, self.query, row.op_values())
-                ret and [f(self, row) for f in table._after_update]
-            response["updated"] = ret
+            return response
+        _, row = self._build_update_row(new_fields)
+        response["updated"] = self._apply_update(table, row, run_callbacks=True)
         return response
 
 
@@ -3172,7 +3156,6 @@ class VirtualCommand(object):
         return self.method(self.row, *args, **kwargs)
 
 
-@implements_bool
 class BasicRows(object):
     """
     Abstract class for Rows and IterRows
@@ -3264,7 +3247,7 @@ class BasicRows(object):
         # test for multiple rows
         multi = False
         f = self.first()
-        if f and isinstance(key, basestring):
+        if f and isinstance(key, str):
             multi = any([isinstance(v, f.__class__) for v in f.values()])
             if ("." not in key) and multi:
                 # No key provided, default to int indices
@@ -3413,8 +3396,6 @@ class BasicRows(object):
             """
             if value is None:
                 return null
-            elif PY2 and isinstance(value, unicode):
-                return value.encode("utf8")
             elif isinstance(value, Reference):
                 return int(value)
             elif hasattr(value, "isoformat"):
@@ -3610,7 +3591,7 @@ class Rows(BasicRows):
         Iterator over records
         """
 
-        for i in xrange(len(self)):
+        for i in range(len(self)):
             yield self[i]
 
     def __eq__(self, other):
@@ -3760,11 +3741,11 @@ class Rows(BasicRows):
                 if tmp:
                     try:
                         del row[field.name]
-                    except:
+                    except KeyError:
                         del row[field.tablename][field.name]
                         if not row[field.tablename] and len(row.keys()) == 2:
                             del row[field.tablename]
-                            row = row[row.keys()[0]]
+                            row = row[next(iter(row.keys()))]
                 maps[id].append(row)
             for row in self:
                 row[name] = maps.get(row.id, [])
@@ -3868,7 +3849,6 @@ class Rows(BasicRows):
         return self
 
 
-@implements_iterator
 class IterRows(BasicRows):
     def __init__(self, db, sql, fields, colnames, blob_decode, cacheable):
         self.db = db
@@ -3941,7 +3921,7 @@ class IterRows(BasicRows):
         return self._head
 
     def __getitem__(self, key):
-        if not isinstance(key, (int, long)):
+        if not isinstance(key, int):
             raise TypeError
 
         if key == self.last_item_id:
@@ -3955,7 +3935,7 @@ class IterRows(BasicRows):
                 raise IndexError
 
         # fetch and drop the first key - 1 elements
-        for i in xrange(n_to_drop):
+        for i in range(n_to_drop):
             self.cursor.fetchone()
         row = next(self)
         if row is None:

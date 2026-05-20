@@ -1,8 +1,6 @@
 import json
-from base64 import b64decode
 from datetime import date, datetime, time, timedelta
 
-from .._compat import to_bytes, to_native
 from ..adapters.oracle import Oracle
 from . import for_type, parsers
 from .base import BasicParser, ListsParser
@@ -20,16 +18,6 @@ class OracleParser(BasicParser):
     @for_type("clob")
     def _clob(self, value):
         return value
-
-    @for_type("blob")
-    def _blob(self, value):
-        # decoded = b64decode(value.read())
-        decoded = b64decode(to_bytes(value))
-        try:
-            decoded = to_native(decoded)
-        except:
-            pass
-        return decoded
 
     @for_type("json")
     def _json(self, value):

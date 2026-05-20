@@ -137,12 +137,9 @@ import traceback
 import urllib
 
 from ._compat import (
-    PY2,
     copyreg,
     hashlib_md5,
-    integer_types,
     iteritems,
-    long,
     pickle,
     pjoin,
     unquote,
@@ -379,43 +376,38 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return infos
 
     @staticmethod
-    def distributed_transaction_begin(*instances):
-        if not instances:
-            return
+    def _distributed_keys(instances):
         thread_key = "%s.%s" % (socket.gethostname(), threading.current_thread())
-        instances = enumerate(instances)
-        keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
-        for i, db in instances:
+        keys = ["%s.%i" % (thread_key, i) for i in range(len(instances))]
+        for db in instances:
             if not db._adapter.support_distributed_transaction():
                 raise SyntaxError(
                     "distributed transaction not suported by %s" % db._dbname
                 )
-        for i, db in instances:
+        return keys
+
+    @staticmethod
+    def distributed_transaction_begin(*instances):
+        if not instances:
+            return
+        keys = DAL._distributed_keys(instances)
+        for i, db in enumerate(instances):
             db._adapter.distributed_transaction_begin(keys[i])
 
     @staticmethod
     def distributed_transaction_commit(*instances):
         if not instances:
             return
-        instances = enumerate(instances)
-        thread_key = "%s.%s" % (socket.gethostname(), threading.current_thread())
-        keys = ["%s.%i" % (thread_key, i) for (i, db) in instances]
-        for i, db in instances:
-            if not db._adapter.support_distributed_transaction():
-                raise SyntaxError(
-                    "distributed transaction not suported by %s" % db._dbanme
-                )
+        keys = DAL._distributed_keys(instances)
         try:
-            for i, db in instances:
+            for i, db in enumerate(instances):
                 db._adapter.prepare(keys[i])
-        except:
-            for i, db in instances:
+        except Exception:
+            for i, db in enumerate(instances):
                 db._adapter.rollback_prepared(keys[i])
             raise RuntimeError("failure to commit distributed transaction")
-        else:
-            for i, db in instances:
-                db._adapter.commit_prepared(keys[i])
-        return
+        for i, db in enumerate(instances):
+            db._adapter.commit_prepared(keys[i])
 
     def __init__(
         self,
@@ -643,7 +635,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         else:
             pattern = pjoin(path, self._uri_hash + "_*.table")
             for filename in glob.glob(pattern):
-                tfile = self._adapter.migrator.file_open(filename, "r" if PY2 else "rb")
+                tfile = self._adapter.migrator.file_open(filename, "rb")
                 try:
                     sql_fields = pickle.load(tfile)
                     name = filename[len(pattern) - 7 : -6]
@@ -693,13 +685,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         if not fields and "fields" in kwargs:
             fields = kwargs.get("fields", ())
         if not isinstance(tablename, str):
-            if isinstance(tablename, unicode):
-                try:
-                    tablename = str(tablename)
-                except UnicodeEncodeError:
-                    raise SyntaxError("invalid unicode table name")
-            else:
-                raise SyntaxError("missing table name")
+            raise SyntaxError("missing table name")
         redefine = kwargs.get("redefine", False)
         if tablename in self.tables:
             if redefine:
@@ -747,10 +733,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             if field.represent is None:
                 field.represent = auto_represent(field)
 
-        migrate = self._migrate_enabled and kwargs_get("migrate", self._migrate)
-        if self._adapter.dbengine in ("firestore"):
-            migrate = False
-        elif self._uri in (None, "None"):
+        if self._adapter.dbengine == "firestore" or self._uri in (None, "None"):
             migrate = False
         else:
             migrate = self._migrate_enabled and kwargs_get("migrate", self._migrate)
@@ -963,7 +946,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                     "Result set includes duplicate column names. Specify unique column names using the 'colnames' argument"
                 )
             #: avoid bytes strings in columns names (py3)
-            if columns and not PY2:
+            if columns:
                 for i in range(0, len(fields)):
                     if isinstance(fields[i], bytes):
                         fields[i] = fields[i].decode("utf8")

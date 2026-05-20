@@ -1,12 +1,10 @@
-import locale
 import platform
 import re
-import sys
 import uuid
 from datetime import datetime, date
 from time import mktime
 
-from .._compat import PY2, pjoin
+from .._compat import pjoin
 from . import adapters
 from .base import SQLAdapter
 
@@ -27,35 +25,22 @@ class SQLite(SQLAdapter):
     def _initialize_(self):
         self.pool_size = 0
         super(SQLite, self)._initialize_()
-        path_encoding = (
-            sys.getfilesystemencoding() or locale.getdefaultlocale()[1] or "utf8"
-        )
         if ":memory" in self.uri.split("://", 1)[0]:
-            if PY2:
-                # because python2.7 sqlite3 does not support uri=True
-                self.dbpath = ":memory:"
-            else:
-                self.dbpath = "file:%s?mode=memory&cache=shared" % uuid.uuid4()
-                self.driver_args["uri"] = True
+            self.dbpath = "file:%s?mode=memory&cache=shared" % uuid.uuid4()
+            self.driver_args["uri"] = True
         else:
             self.dbpath = self.uri.split("://", 1)[1]
             if self.dbpath[0] != "/":
-                if PY2:
-                    self.dbpath = pjoin(
-                        self.folder.decode(path_encoding).encode("utf8"), self.dbpath
-                    )
-                else:
-                    self.dbpath = pjoin(self.folder, self.dbpath)
+                self.dbpath = pjoin(self.folder, self.dbpath)
         if "check_same_thread" not in self.driver_args:
             self.driver_args["check_same_thread"] = False
         if "detect_types" not in self.driver_args:
             self.driver_args["detect_types"] = self.driver.PARSE_DECLTYPES
 
-        if not PY2:
-            import sqlite3
+        import sqlite3
 
-            sqlite3.register_converter("DATE", convert_date)
-            sqlite3.register_converter("TIMESTAMP", convert_datetime)
+        sqlite3.register_converter("DATE", convert_date)
+        sqlite3.register_converter("TIMESTAMP", convert_datetime)
 
     def _driver_from_uri(self):
         return None

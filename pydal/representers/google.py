@@ -1,12 +1,10 @@
 import base64
 
-from .._compat import integer_types, to_unicode
+from .._compat import to_unicode
 from ..adapters.google import Firestore
 from ..helpers.serializers import serializers
 from . import for_type, pre, representers
 from .base import NoSQLRepresenter
-
-long = integer_types[-1]
 
 
 @representers.register_for(Firestore)

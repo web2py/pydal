@@ -1,4 +1,3 @@
-from .._compat import basestring
 from ..adapters.mssql import (
     MSSQL,
     MSSQL3,
@@ -178,7 +177,7 @@ class MSSQLDialect(SQLDialect):
 
     def left_join(self, val, query_env={}):
         # Left join must always have an ON clause
-        if not isinstance(val, basestring):
+        if not isinstance(val, str):
             val = self.expand(val, query_env=query_env)
         return "LEFT OUTER JOIN %s" % val
 

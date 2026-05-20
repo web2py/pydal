@@ -1,6 +1,5 @@
 import re
 
-from .._compat import basestring, integer_types
 from ..adapters.oracle import Oracle
 from . import dialects, sqltype_for
 from .base import SQLDialect
@@ -68,7 +67,7 @@ class OracleDialect(SQLDialect):
         )
 
     def left_join(self, val, query_env={}):
-        if not isinstance(val, basestring):
+        if not isinstance(val, str):
             val = self.expand(val, query_env=query_env)
         return "LEFT OUTER JOIN %s" % val
 
