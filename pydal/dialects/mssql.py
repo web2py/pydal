@@ -1,3 +1,20 @@
+"""
+MSSQL / Sybase / Vertica dialects.
+
+The MSSQL family is the trickiest in pydal because each major version
+has different pagination support:
+
+* ``MSSQLDialect`` — legacy ``TOP n`` plus nested ROW_NUMBER for OFFSET.
+* ``MSSQL3Dialect`` — ROW_NUMBER (cleaner, MSSQL 2005+).
+* ``MSSQL4Dialect`` — ``OFFSET n ROWS FETCH NEXT m`` (MSSQL 2012+).
+* ``MSSQLNDialect`` / ``MSSQL3NDialect`` / ``MSSQL4NDialect`` —
+  Unicode (``NVARCHAR``) variants of the above.
+* ``SybaseDialect`` / ``VerticaDialect`` — MSSQL-flavored peers.
+
+Booleans render as ``1=1`` / ``1=0`` since MSSQL lacks a native
+``BOOLEAN`` type.
+"""
+
 from ..adapters.mssql import (
     MSSQL,
     MSSQL3,
@@ -16,6 +33,13 @@ from .base import SQLDialect
 
 @dialects.register_for(MSSQL)
 class MSSQLDialect(SQLDialect):
+    """
+    MSSQL base dialect (legacy ``TOP``-based pagination).
+
+    Use only when targeting MSSQL < 2005; newer servers should use
+    ``MSSQL3Dialect`` / ``MSSQL4Dialect`` for better pagination semantics.
+    """
+
     true = 1
     false = 0
     true_exp = "1=1"

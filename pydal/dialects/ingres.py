@@ -1,3 +1,5 @@
+"""Ingres dialect — INTEGER4 ids, ANSIDATE/TIMESTAMP datetimes, FIRST n pagination."""
+
 from ..adapters.ingres import Ingres, IngresUnicode
 from . import dialects, sqltype_for
 from .base import SQLDialect
@@ -5,7 +7,18 @@ from .base import SQLDialect
 
 @dialects.register_for(Ingres)
 class IngresDialect(SQLDialect):
-    SEQNAME = "ii***lineitemsequence"
+    """
+    Ingres dialect.
+
+    Pagination uses ``SELECT FIRST n ... OFFSET m``. Synthetic IDs use
+    a per-table sequence (the ``INGRES_SEQNAME`` placeholder is
+    substituted by the adapter). Date/datetime columns use the ANSI
+    types ``ANSIDATE`` / ``TIMESTAMP WITHOUT TIME ZONE``.
+    """
+    # Sequence name used in the default-next-value clauses for ``id``
+    # and ``big-id`` columns. Read by the Ingres adapter when rewriting
+    # CREATE TABLE statements to substitute a real sequence name.
+    INGRES_SEQNAME = "ii***lineitemsequence"
 
     @sqltype_for("text")
     def type_text(self):
@@ -99,7 +112,22 @@ class IngresDialect(SQLDialect):
         limitby=None,
         distinct=False,
         for_update=False,
+        with_cte=None,
     ):
+        """
+        Ingres-flavored SELECT.
+
+        Differs from the SQL standard in two ways:
+
+        * ``FIRST N`` appears between ``SELECT`` and the field list
+          (instead of ``LIMIT N`` at the end).
+        * ``OFFSET N`` is emitted after the ORDER BY clause, separate
+          from ``FIRST``.
+
+        ``with_cte`` is accepted for signature compatibility with the
+        base ``SQLDialect.select``; Ingres CTE handling is not currently
+        wired through this method.
+        """
         dst, whr, grp, order, limit, offset, upd = "", "", "", "", "", "", ""
         if distinct is True:
             dst = " DISTINCT"
@@ -122,7 +150,7 @@ class IngresDialect(SQLDialect):
                 offset = " OFFSET %i" % lmin
         if for_update:
             upd = " FOR UPDATE"
-        return "SELECT%s%S %s FROM %s%s%s%s%s%s;" % (
+        return "SELECT%s%s %s FROM %s%s%s%s%s%s;" % (
             dst,
             limit,
             fields,

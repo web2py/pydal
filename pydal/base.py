@@ -1,129 +1,45 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=no-member
+
 """
-| This file is part of the web2py Web Framework
-| Copyrighted by Massimo Di Pierro <mdipierro@cs.depaul.edu>
-| License: BSD
-|
+pydal.base — the ``DAL`` class.
 
-This file contains the DAL support for many relational databases, including:
+A DAL ties together a connection URI, an adapter, a dialect, and a
+collection of tables. It's the only entry point most users need.
 
-  - SQLite & SpatiaLite
-  - MySQL
-  - Postgres
-  - Firebird
-  - Oracle
-  - MS SQL
-  - DB2
-  - Interbase
-  - Ingres
-  - Informix (9+ and SE)
-  - SapDB (experimental)
-  - Cubrid (experimental)
-  - CouchDB (experimental)
-  - MongoDB (in progress)
-  - Google:nosql
-  - Google:sql
-  - Teradata
-  - IMAP (experimental)
+Example::
 
-Example of usage::
+    from pydal import DAL, Field
 
-    >>> # from dal import DAL, Field
+    db = DAL("sqlite://storage.sqlite")
+    db.define_table("person", Field("name"))
+    db.person.insert(name="Alice")
+    for row in db(db.person.name.startswith("A")).select():
+        print(row.id, row.name)
+    db.commit()
 
-    ### create DAL connection (and create DB if it doesn't exist)
-    >>> db = DAL(('sqlite://storage.sqlite','mysql://a:b@localhost/x'),
-    ... folder=None)
+Supported URI prefixes (driver may need to be installed separately):
 
-    ### define a table 'person' (create/alter as necessary)
-    >>> person = db.define_table('person',Field('name','string'))
+* ``sqlite://`` / ``spatialite://`` / ``sqlite:memory``
+* ``mysql://``
+* ``postgres://`` (also ``postgres:psycopg2://``, ``postgres:pg8000://``)
+* ``mssql://``, ``mssql2``, ``mssql3``, ``mssql4`` — pagination variants
+* ``mssqlpython``, ``pytds``, ``pymssql`` — alternate MS SQL drivers
+* ``oracle://``
+* ``firebird://`` / ``firebird_embedded://``
+* ``db2:ibm_db_dbi://`` / ``db2:pyodbc://``
+* ``informix://`` / ``informixu://``
+* ``ingres://``
+* ``teradata://``
+* ``snowflake://``
+* ``mongodb://``
+* ``firestore`` / ``google:sql``
+* ``imap://`` (experimental)
+* ``jdbc:<engine>://`` (Jython only)
 
-    ### insert a record
-    >>> id = person.insert(name='James')
-
-    ### retrieve it by id
-    >>> james = person(id)
-
-    ### retrieve it by name
-    >>> james = person(name='James')
-
-    ### retrieve it by arbitrary query
-    >>> query = (person.name=='James') & (person.name.startswith('J'))
-    >>> james = db(query).select(person.ALL)[0]
-
-    ### update one record
-    >>> james.update_record(name='Jim')
-    <Row {'id': 1, 'name': 'Jim'}>
-
-    ### update multiple records by query
-    >>> db(person.name.like('J%')).update(name='James')
-    1
-
-    ### delete records by query
-    >>> db(person.name.lower() == 'jim').delete()
-    0
-
-    ### retrieve multiple records (rows)
-    >>> people = db(person).select(orderby=person.name,
-    ... groupby=person.name, limitby=(0,100))
-
-    ### further filter them
-    >>> james = people.find(lambda row: row.name == 'James').first()
-    >>> print james.id, james.name
-    1 James
-
-    ### check aggregates
-    >>> counter = person.id.count()
-    >>> print db(person).select(counter).first()(counter)
-    1
-
-    ### delete one record
-    >>> james.delete_record()
-    1
-
-    ### delete (drop) entire database table
-    >>> person.drop()
-
-
-Supported DAL URI strings::
-
-    'sqlite://test.db'
-    'spatialite://test.db'
-    'sqlite:memory'
-    'spatialite:memory'
-    'jdbc:sqlite://test.db'
-    'mysql://root:none@localhost/test'
-    'postgres://mdipierro:password@localhost/test'
-    'postgres:psycopg2://mdipierro:password@localhost/test'
-    'postgres:pg8000://mdipierro:password@localhost/test'
-    'jdbc:postgres://mdipierro:none@localhost/test'
-    'mssql://web2py:none@A64X2/web2py_test'
-    'mssql2://web2py:none@A64X2/web2py_test' # alternate mappings
-    'mssql3://web2py:none@A64X2/web2py_test' # better pagination (requires >= 2005)
-    'mssql4://web2py:none@A64X2/web2py_test' # best pagination (requires >= 2012)
-    'mssqlpython://user:password@server:port/database' # mssql with mssql-python driver
-    'pytds://user:password@server:port/database' # python-tds
-    'pymssql://user:password@server:port/database' # python-pymssql
-    'oracle://username:password@database'
-    'firebird://user:password@server:3050/database'
-    'db2:ibm_db_dbi://DSN=dsn;UID=user;PWD=pass'
-    'db2:pyodbc://driver=DB2;hostname=host;database=database;uid=user;pwd=password;port=port'
-    'firebird://username:password@hostname/database'
-    'firebird_embedded://username:password@c://path'
-    'informix://user:password@server:3050/database'
-    'informixu://user:password@server:3050/database' # unicode informix
-    'ingres://database'  # or use an ODBC connection string, e.g. 'ingres://dsn=dsn_name'
-    'firestore' # for google firestore
-    'google:sql' # for google app engine with sql (mysql compatible)
-    'teradata://DSN=dsn;UID=user;PWD=pass; DATABASE=database' # experimental
-    'imap://user:password@server:port' # experimental
-    'mongodb://user:password@server:port/database' # experimental
-
-For more info::
-
-    help(DAL)
-    help(Field)
-
+The DAL constructor accepts a single URI or a list/tuple of URIs.
+With multiple URIs it tries each in order and keeps the first
+connection that succeeds — useful for replication / failover.
 """
 
 import contextlib
@@ -136,16 +52,13 @@ import time
 import traceback
 import urllib
 
-from ._compat import (
-    copyreg,
-    hashlib_md5,
-    iteritems,
-    pickle,
-    pjoin,
-    unquote,
-    with_metaclass,
-)
+import copyreg
+import pickle
+from os.path import join as pjoin
+from urllib.parse import unquote
+
 from ._globals import DEFAULT, GLOBAL_LOCKER, THREAD_LOCAL
+from .utils import hashlib_md5
 from ._load import OrderedDict
 from .adapters.base import BaseAdapter, NullAdapter
 from .default_validators import default_validators
@@ -189,10 +102,20 @@ TABLE_ARGS = set(
 )
 
 
-# TESTING
 class MetaDAL(type):
+    """
+    Metaclass for ``DAL`` that intercepts a fixed set of constructor
+    kwargs and applies them as class-level overrides before the
+    instance is created.
+
+    The intercepted names — ``logger``, ``representers``,
+    ``serializers``, ``uuid``, ``validators``, ``validators_method``,
+    ``Table``, ``Row`` — are pydal customization hooks. Passing one of
+    them to ``DAL(...)`` is equivalent to subclassing DAL and setting
+    the same class attribute.
+    """
+
     def __call__(cls, *args, **kwargs):
-        #: intercept arguments for DAL customisation on call
         intercepts = [
             "logger",
             "representers",
@@ -216,79 +139,46 @@ class MetaDAL(type):
         return obj
 
 
-class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
+class DAL(Serializable, BasicStorage, metaclass=MetaDAL):
     """
-    An instance of this class represents a database connection
+    A pydal database handle: connection + adapter + dialect + tables.
 
     Args:
-        uri(str): contains information for connecting to a database.
-            Defaults to `'sqlite://dummy.db'`
+        uri: connection string or list of connection strings. Defaults
+            to ``"sqlite://dummy.db"``. Multiple URIs are tried in order
+            until one connects (useful for replication / failover).
+        pool_size: max pooled connections. ``0`` disables pooling.
+        folder: where ``.table`` snapshot files are written. Required
+            when using SQLite outside a web framework.
+        db_codec: string encoding the database expects (default UTF-8).
+        check_reserved: list of dialect names to validate identifiers
+            against (``["common"]`` is recommended; ``["all"]`` checks
+            every known SQL keyword; ``["<name>_nonreserved"]`` uses a
+            looser per-adapter set).
+        migrate: default migrate behavior for new tables.
+        fake_migrate: default fake-migrate behavior for new tables.
+        migrate_enabled: master switch — when False, no migration runs
+            regardless of per-table settings.
+        fake_migrate_all: mark every defined table as fake-migrated
+            (use once after a hand-applied schema change).
+        attempts: connection retries.
+        auto_import: True to auto-import table definitions from
+            snapshot files in ``folder``.
+        bigint_id: True to use ``bigint`` instead of ``int`` for ``id``
+            and ``reference`` columns.
+        lazy_tables: True to defer ``define_table`` work until first
+            access — useful with many tables and lazy clients.
+        after_connection: callable run once per fresh connection.
+        table_hash: override the auto-derived hash used to prefix
+            snapshot files. Pass when you want to share snapshots
+            across DAL instances.
 
-            Note:
-                experimental: you can specify a dictionary as uri
-                parameter i.e. with::
+    Example::
 
-                    db = DAL({"uri": "sqlite://storage.sqlite",
-                              "tables": {...}, ...})
+        db = DAL("sqlite://test.db")
+        db.define_table("thing", Field("name"))
 
-                for an example of dict input you can check the output
-                of the scaffolding db model with
-
-                    db.as_dict()
-
-                Note that for compatibility with Python older than
-                version 2.6.5 you should cast your dict input keys
-                to str due to a syntax limitation on kwarg names.
-                for proper DAL dictionary input you can use one of::
-
-                    obj = serializers.cast_keys(dict, [encoding="utf-8"])
-                    #or else (for parsing json input)
-                    obj = serializers.loads_json(data, unicode_keys=False)
-
-        pool_size: How many open connections to make to the database object.
-        folder: where .table files will be created. Automatically set within
-            web2py. Use an explicit path when using DAL outside web2py
-        db_codec: string encoding of the database (default: 'UTF-8')
-        table_hash: database identifier with .tables. If your connection hash
-                    change you can still using old .tables if they have
-                    table_hash as prefix
-        check_reserved: list of adapters to check tablenames and column names
-            against sql/nosql reserved keywords. Defaults to `None`
-
-            - 'common' List of sql keywords that are common to all database
-              types such as "SELECT, INSERT". (recommended)
-            - 'all' Checks against all known SQL keywords
-            - '<adaptername>'' Checks against the specific adapters list of
-              keywords
-            - '<adaptername>_nonreserved' Checks against the specific adapters
-              list of nonreserved keywords. (if available)
-
-        migrate: sets default migrate behavior for all tables
-        fake_migrate: sets default fake_migrate behavior for all tables
-        migrate_enabled: If set to False disables ALL migrations
-        fake_migrate_all: If set to True fake migrates ALL tables
-        attempts: Number of times to attempt connecting
-        auto_import: If set to True, tries import automatically table
-            definitions from the databases folder (works only for simple models)
-        bigint_id: If set, turn on bigint instead of int for id and reference
-            fields
-        lazy_tables: delays table definition until table access
-        after_connection: can a callable that will be executed after the
-            connection
-
-    Example:
-        Use as::
-
-           db = DAL('sqlite://test.db')
-
-        or::
-
-           db = DAL(**{"uri": ..., "tables": [...]...}) # experimental
-
-           db.define_table('tablename', Field('fieldname1'),
-                                        Field('fieldname2'))
-
-
+    See ``README.md`` for the full tour.
     """
 
     serializers = None
@@ -336,9 +226,13 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return db
 
     @staticmethod
-    def set_folder(folder):
-        # ## this allows gluon to set a folder for this thread
-        # ## <<<<<<<<< Should go away as new DAL replaces old sql.py
+    def set_folder(folder: str) -> None:
+        """
+        Set the default snapshot/upload folder for DAL instances
+        created later in this thread.
+
+        Equivalent to passing ``folder=`` to every ``DAL()`` call.
+        """
         BaseAdapter.set_folder(folder)
 
     @staticmethod
@@ -387,7 +281,14 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return keys
 
     @staticmethod
-    def distributed_transaction_begin(*instances):
+    def distributed_transaction_begin(*instances) -> None:
+        """
+        Begin a 2-phase commit spanning multiple DAL instances.
+
+        Pair with ``distributed_transaction_commit`` (or rollback each
+        instance on failure). Every passed adapter must report
+        ``support_distributed_transaction()``.
+        """
         if not instances:
             return
         keys = DAL._distributed_keys(instances)
@@ -395,7 +296,14 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             db._adapter.distributed_transaction_begin(keys[i])
 
     @staticmethod
-    def distributed_transaction_commit(*instances):
+    def distributed_transaction_commit(*instances) -> None:
+        """
+        Two-phase commit across ``instances``.
+
+        Phase 1 runs ``PREPARE`` on every adapter; if any prepare fails,
+        every adapter is rolled back and a ``RuntimeError`` is raised.
+        Phase 2 runs ``COMMIT PREPARED`` on each.
+        """
         if not instances:
             return
         keys = DAL._distributed_keys(instances)
@@ -604,6 +512,16 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
 
     @contextlib.contextmanager
     def single_transaction(self):
+        """
+        Context manager: commit on success, rollback on exception.
+
+        Wraps a fresh connection and closes it at exit. Suitable for
+        background scripts that want all-or-nothing semantics::
+
+            with db.single_transaction():
+                db.thing.insert(...)
+                db.other.insert(...)
+        """
         self._adapter.reconnect()
         try:
             yield self
@@ -650,7 +568,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                                 unique=value.get("unique", False),
                             ),
                         )
-                        for key, value in iteritems(sql_fields)
+                        for key, value in sql_fields.items()
                     ]
                     mf.sort(key=lambda a: a[0])
                     self.define_table(
@@ -674,9 +592,28 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
                 )
 
     def parse_as_rest(self, patterns, args, vars, queries=None, nested_select=True):
+        """
+        Dispatch a REST request against ``RestParser``.
+
+        See ``pydal/helpers/rest.py::RestParser.parse`` for the
+        pattern grammar and response shape.
+        """
         return RestParser(self).parse(patterns, args, vars, queries, nested_select)
 
-    def define_table(self, tablename, *fields, **kwargs):
+    def define_table(self, tablename: str, *fields, **kwargs):
+        """
+        Define (or redefine) a table on this DAL.
+
+        ``fields`` is a sequence of ``Field`` objects. Recognized
+        kwargs are listed in ``TABLE_ARGS`` (``migrate``,
+        ``fake_migrate``, ``primarykey``, ``format``, ``redefine``,
+        ``singular``, ``plural``, ``trigger_name``, ``sequence_name``,
+        ``fields``, ``common_filter``, ``table_class``, ``on_define``,
+        ``rname``).
+
+        Returns the new ``Table`` (or ``None`` when ``lazy_tables`` is
+        enabled and the table hasn't been materialized yet).
+        """
         invalid_kwargs = set(kwargs) - TABLE_ARGS
         if invalid_kwargs:
             raise SyntaxError(
@@ -691,7 +628,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             if redefine:
                 try:
                     delattr(self, tablename)
-                except:
+                except AttributeError:
                     pass
             else:
                 raise SyntaxError("table already defined: %s" % tablename)
@@ -713,7 +650,16 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             self.tables.append(tablename)
         return table
 
-    def lazy_define_table(self, tablename, *fields, **kwargs):
+    def lazy_define_table(self, tablename: str, *fields, **kwargs):
+        """
+        Internal: actually materialize a table previously deferred by
+        ``define_table`` under ``lazy_tables=True``.
+
+        Direct callers should use ``define_table``; this method runs the
+        common-fields merge, instantiates the Table, resolves references,
+        installs default validators/representers, and triggers any
+        pending migration.
+        """
         kwargs_get = kwargs.get
         common_fields = self._common_fields
         if common_fields:
@@ -836,25 +782,35 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         return self.where(query, ignore_common_filters)
 
     def where(self, query=None, ignore_common_filters=None):
+        """
+        Wrap a query into a ``Set``.
+
+        ``query`` is normally a pydal ``Query``, but ``where`` also
+        accepts a ``Table`` (treated as ``table.id > 0``) or a ``Field``
+        (treated as ``field != None``) for ergonomic convenience.
+        """
         if isinstance(query, Table):
             query = self._adapter.id_query(query)
         elif isinstance(query, Field):
-            query = query != None
+            query = query != None  # noqa: E711
         elif isinstance(query, dict):
             icf = query.get("ignore_common_filters")
             if icf:
                 ignore_common_filters = icf
         return Set(self, query, ignore_common_filters=ignore_common_filters)
 
-    def commit(self):
+    def commit(self) -> None:
+        """COMMIT the current transaction and forget per-transaction aliases."""
         self._adapter.commit()
         object.__getattribute__(self, "_aliased_tables").__dict__.clear()
 
-    def rollback(self):
+    def rollback(self) -> None:
+        """ROLLBACK the current transaction and forget per-transaction aliases."""
         self._adapter.rollback()
         object.__getattribute__(self, "_aliased_tables").__dict__.clear()
 
-    def close(self):
+    def close(self) -> None:
+        """Close this DAL's connection and unregister from THREAD_LOCAL."""
         self._adapter.close()
         if self._db_uid in THREAD_LOCAL._pydal_db_instances_:
             db_group = THREAD_LOCAL._pydal_db_instances_[self._db_uid]
@@ -962,7 +918,7 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
             return [_dict(zip(fields, row)) for row in data]
         try:
             data = adapter.fetchall()
-        except:
+        except Exception:
             return None
         if fields or colnames:
             fields = [] if fields is None else fields

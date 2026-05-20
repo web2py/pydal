@@ -1,25 +1,48 @@
+"""
+Parser framework — declarative registration of driver-value → Python
+type decoders.
+
+Decorators:
+
+* ``@for_type("name")`` — register a method as the decoder for a
+  pydal field type. Picked up by the ``MetaParser`` metaclass.
+* ``@before_parse("name")`` — register a method that computes extra
+  per-type context (e.g. decimal precision) before the main decoder runs.
+"""
+
 from collections import defaultdict
 
-from .._compat import iteritems, with_metaclass
 from ..helpers._internals import Dispatcher
 
-parsers = Dispatcher("parser")
+parsers: Dispatcher = Dispatcher("parser")
 
 
 class for_type(object):
+    """Decorator: register a method as the parser for ``field_type``."""
+
     def __init__(self, field_type):
         self.field_type = field_type
 
     def __call__(self, f):
+        """Stash the decorated function for later metaclass binding."""
         self.f = f
         return self
 
 
 class before_parse(object):
+    """
+    Decorator: register a method that returns extra kwargs for the
+    main ``for_type`` parser of the same ``field_type``.
+
+    Used e.g. by SQLite's decimal parser to extract the precision out
+    of the column type string before the decoder runs.
+    """
+
     def __init__(self, field_type):
         self.field_type = field_type
 
     def __call__(self, f):
+        """Stash the decorated function for later metaclass binding."""
         self.f = f
         return self
 
@@ -74,15 +97,15 @@ class ParserMethodWrapper(object):
         return self.call(value, field_type)
 
 
-class Parser(with_metaclass(MetaParser)):
+class Parser(metaclass=MetaParser):
     def __init__(self, adapter):
         self.adapter = adapter
         self.dialect = adapter.dialect
         self._before_registry_ = {}
-        for name, obj in iteritems(self._declared_before_):
+        for name, obj in self._declared_before_.items():
             self._before_registry_[obj.field_type] = obj.f
         self.registered = defaultdict(lambda self=self: self._default)
-        for name, obj in iteritems(self._declared_parsers_):
+        for name, obj in self._declared_parsers_.items():
             if obj.field_type in self._before_registry_:
                 self.registered[obj.field_type] = ParserMethodWrapper(
                     self, obj.f, self._before_registry_[obj.field_type]

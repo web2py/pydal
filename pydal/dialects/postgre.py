@@ -1,3 +1,14 @@
+"""
+PostgreSQL dialects.
+
+* ``PostgreDialect`` — base, no JSON/JSONB/arrays.
+* ``PostgreDialectJSON`` — adds JSON/JSONB ops.
+* ``PostgreDialectArrays`` — adds Postgres array literal/contains ops.
+* ``PostgreDialectArraysJSON`` — both.
+* ``PostgreDialectBoolean`` — drivers that return native booleans.
+* ``PostgreDialectBooleanJSON`` — native boolean + JSON.
+"""
+
 from ..adapters.postgres import Postgre, PostgreBoolean, PostgreNew
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
@@ -7,6 +18,15 @@ from .base import SQLDialect
 
 @dialects.register_for(Postgre)
 class PostgreDialect(SQLDialect):
+    """
+    PostgreSQL dialect (base).
+
+    Native ``BOOLEAN`` and ``BYTEA``; ``regexp`` uses ``~`` /
+    ``regexp_matches``. Sequences are explicit (``SERIAL`` / ``BIGSERIAL``).
+    Distributed transactions supported via ``PREPARE TRANSACTION`` /
+    ``COMMIT PREPARED``.
+    """
+
     true_exp = "TRUE"
     false_exp = "FALSE"
 

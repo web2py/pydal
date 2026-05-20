@@ -1,3 +1,5 @@
+"""Snowflake adapter — cloud data warehouse via ``snowflake-connector-python``."""
+
 import os.path
 import re
 
@@ -14,6 +16,16 @@ except ImportError:
 
 @adapters.register_for("snowflake")
 class Snowflake(SQLAdapter):
+    """
+    Snowflake adapter.
+
+    URI shape:
+    ``snowflake://user:password:role:warehouse:account@schema/database``.
+
+    Snowflake doesn't quote identifiers by default (they're
+    case-insensitive without quotes) and uses native ``BOOLEAN``.
+    """
+
     dbengine = "snowflake"
     drivers = ("snowflakeconnector",)
 

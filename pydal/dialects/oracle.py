@@ -1,3 +1,5 @@
+"""Oracle dialect — VARCHAR2 strings, REGEXP_LIKE, ROWNUM pagination, sequences+triggers."""
+
 import re
 
 from ..adapters.oracle import Oracle
@@ -7,6 +9,20 @@ from .base import SQLDialect
 
 @dialects.register_for(Oracle)
 class OracleDialect(SQLDialect):
+    """
+    Oracle dialect.
+
+    Distinctive features:
+
+    * No native ``BOOLEAN`` — booleans render as ``1=1`` / ``1=0``.
+    * Strings use ``VARCHAR2``.
+    * ``regexp`` maps to ``REGEXP_LIKE``.
+    * Synthetic IDs come from per-table sequences plus BEFORE-INSERT
+      triggers; ``lastrowid`` reads ``seq.CURRVAL``.
+    * Pagination uses a ``ROWNUM`` nested-select wrapper (works on
+      Oracle 8–11; newer releases also accept ``OFFSET ... ROWS``).
+    """
+
     false_exp = "1=0"
     true_exp = "1=1"
 

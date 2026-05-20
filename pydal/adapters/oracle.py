@@ -1,3 +1,5 @@
+"""Oracle adapter (uses ``cx_Oracle``)."""
+
 import os
 import re
 import sys
@@ -11,6 +13,21 @@ from .base import SQLAdapter
 
 @adapters.register_for("oracle")
 class Oracle(SQLAdapter):
+    """
+    Oracle adapter via ``cx_Oracle``.
+
+    Distinctive features:
+
+    * Forces ``threaded=True`` and UTF-8 encodings on the connection.
+    * Sets ANSI-friendly date/timestamp formats via ``ALTER SESSION``
+      so values round-trip cleanly through the dialect.
+    * Pulls CLOB/BLOB literals out of the statement and binds them
+      separately (cx_Oracle won't accept them inline beyond a small
+      size).
+    * ``execute`` parses inline CLOBs out of the query and rebinds
+      them as parameters.
+    """
+
     dbengine = "oracle"
     drivers = ("cx_Oracle",)
 
@@ -198,11 +215,11 @@ class Oracle(SQLAdapter):
             if not values:
                 self.execute(query)
             else:
-                if type(values) == dict:
+                if isinstance(values, dict):
                     self.execute(query, **values)
                 else:
                     self.execute(query, values)
-        except:
+        except Exception:
             e = sys.exc_info()[1]
             if hasattr(table, "_on_insert_error"):
                 return table._on_insert_error(table, fields, e)

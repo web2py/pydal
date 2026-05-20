@@ -1,6 +1,6 @@
 import base64
 
-from .._compat import to_unicode
+from ..utils import to_unicode
 from ..adapters.google import Firestore
 from ..helpers.serializers import serializers
 from . import for_type, pre, representers

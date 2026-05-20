@@ -1,3 +1,5 @@
+"""Teradata dialect — VARCHAR-only text, no native LIMIT/OFFSET."""
+
 from ..adapters.teradata import Teradata
 from . import dialects, sqltype_for
 from .base import SQLDialect
@@ -5,12 +7,23 @@ from .base import SQLDialect
 
 @dialects.register_for(Teradata)
 class TeradataDialect(SQLDialect):
+    """
+    Teradata dialect.
+
+    Has no ``TEXT``/``CLOB`` type — uses ``VARCHAR(2000)``. Has no
+    native ``LIMIT``/``OFFSET``; ``SELECT TOP n`` is used where
+    supported, and slicing otherwise happens client-side via
+    ``rowslice``.
+    """
+
     @sqltype_for("integer")
     def type_integer(self):
+        """Teradata INTEGER as ``INT``."""
         return "INT"
 
     @sqltype_for("text")
     def type_text(self):
+        """Teradata has no TEXT type — fall back to ``VARCHAR(2000)``."""
         return "VARCHAR(2000)"
 
     @sqltype_for("json")

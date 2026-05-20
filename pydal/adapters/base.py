@@ -1,15 +1,29 @@
+"""
+Base adapter classes — the bottom layer between the pydal DSL and a
+DB-API driver.
+
+A pydal adapter owns:
+
+* the URI string and parsed driver_args,
+* the connection pool (via ``ConnectionPool``),
+* the dialect / parser / representer / compiler instances bound to
+  the chosen backend,
+* the migrator,
+* the entry-point methods ``insert`` / ``_select`` / ``_select_wcols`` /
+  ``_update`` / ``_delete`` / ``_count`` and their executable peers
+  ``select`` / ``update`` / ``delete``.
+
+Concrete subclasses (``SQLAdapter`` / ``NoSQLAdapter``) and the
+backend-specific subclasses (``SQLite``, ``Postgre``, ``MySQL``, ...)
+override only the methods that diverge.
+"""
+
 import re
 import sys
 import types
 from collections import defaultdict
 from contextlib import contextmanager
 
-from .._compat import (
-    hashlib_md5,
-    iteritems,
-    iterkeys,
-    with_metaclass,
-)
 from .._globals import IDENTITY
 from ..connection import ConnectionPool
 from ..exceptions import NotOnNOSQLError
@@ -35,7 +49,7 @@ from ..objects import (
     Table,
     VirtualCommand,
 )
-from ..utils import deprecated
+from ..utils import deprecated, hashlib_md5
 from . import AdapterMeta, with_connection, with_connection_or_raise
 
 CALLABLETYPES = (
@@ -47,7 +61,20 @@ CALLABLETYPES = (
 )
 
 
-class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
+class BaseAdapter(ConnectionPool, metaclass=AdapterMeta):
+    """
+    Common base for every adapter.
+
+    Subclasses must override ``dbengine`` (string identifier),
+    ``drivers`` (tuple of preferred driver module names in priority
+    order), and ``connector`` (returns a fresh DB-API connection).
+
+    Many class-level booleans (``uploads_in_blob``,
+    ``support_distributed_transaction``, ``commit_on_alter_table``,
+    ``can_select_for_update``, ...) parameterize feature support so
+    higher layers can branch politely on backend capabilities.
+    """
+
     dbengine = "None"
     drivers = ()
     uploads_in_blob = False
@@ -84,12 +111,26 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
     def _load_dependencies(self):
         from ..dialects import dialects
+        from ..driver import Driver
         from ..parsers import parsers
         from ..representers import representers
 
         self.dialect = dialects.get_for(self)
         self.parser = parsers.get_for(self)
         self.representer = representers.get_for(self)
+        # Layer 4: a thin Driver owns cursor.execute + transactions.
+        # SQLAdapter delegates its execute/commit/rollback/lastrowid
+        # methods to it; everything above doesn't need to change.
+        self.driver_io = Driver(self)
+        # The AST compiler is optional: BaseAdapter has no SQL backing,
+        # and not every SQL adapter has a registered compiler yet. The
+        # five Set/Table entry points check for None and fall back to
+        # the legacy dialect path when missing.
+        try:
+            from ..compilers import compilers
+            self.compiler = compilers.get_for(self)
+        except (ImportError, ValueError):
+            self.compiler = None
 
     def _initialize_(self):
         self._find_work_folder()
@@ -103,7 +144,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
         return [
             driver
             for driver in self.drivers
-            if driver in iterkeys(self.db._drivers_available)
+            if driver in self.db._drivers_available
         ]
 
     def _driver_from_uri(self):
@@ -226,7 +267,7 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
             return self.parser.parse(value, field_itype, field_type)
 
     def _add_operators_to_parsed_row(self, rid, table, row):
-        for key, record_operator in iteritems(self.db.record_operators):
+        for key, record_operator in self.db.record_operators.items():
             setattr(row, key, record_operator(row, table, rid))
         if table._db._lazy_tables:
             row["__get_lazy_reference__"] = LazyReferenceGetter(table, rid)
@@ -412,13 +453,28 @@ class BaseAdapter(with_metaclass(AdapterMeta, ConnectionPool)):
 
 
 class DebugHandler(ExecutionHandler):
+    """ExecutionHandler that logs every executed statement at DEBUG level."""
+
     def before_execute(self, command):
+        """Log the SQL before sending it to the cursor."""
         self.adapter.db.logger.debug("SQL: %s" % command)
 
 
 class SQLAdapter(BaseAdapter):
+    """
+    Base adapter for all SQL backends.
+
+    Adds the SQL-flavored pipeline: expansion of Expressions through
+    the dialect, statement-level entry points (``_select_wcols``,
+    ``_insert``, ``_update``, ``_delete``), and the executable
+    counterparts that issue them via the bound driver.
+
+    The class-level ``execution_handlers`` list (per-class)
+    accumulates ``ExecutionHandler`` instances called around every
+    cursor.execute.
+    """
+
     commit_on_alter_table = False
-    # [Note - gi0baro] can_select_for_update should be deprecated and removed
     can_select_for_update = True
     execution_handlers = []
     migrator_cls = Migrator
@@ -464,14 +520,9 @@ class SQLAdapter(BaseAdapter):
 
     @with_connection_or_raise
     def execute(self, *args, **kwargs):
-        command = self.filter_sql_command(args[0])
-        handlers = self._build_handlers_for_execution()
-        for handler in handlers:
-            handler.before_execute(command)
-        rv = self.cursor.execute(command, *args[1:], **kwargs)
-        for handler in handlers:
-            handler.after_execute(command)
-        return rv
+        # Delegated to the Driver (Layer 4). The Driver handles
+        # ParamSQL forwarding and the before/after_execute handlers.
+        return self.driver_io.execute(*args, **kwargs)
 
     def _expand(self, expression, field_type=None, colnames=False, query_env={}):
         if isinstance(expression, Field):
@@ -527,9 +578,19 @@ class SQLAdapter(BaseAdapter):
         self.expand = self._expand
 
     def lastrowid(self, table):
-        return self.cursor.lastrowid
+        # Delegated to the Driver (Layer 4). ``table`` is unused but
+        # kept on the signature for backward compatibility — some
+        # adapter subclasses override it to do post-insert lookups.
+        return self.driver_io.lastrowid()
 
     def _insert(self, table, fields):
+        # Try AST pipeline first; fall back to legacy on unsupported shapes.
+        if self.compiler is not None:
+            try:
+                from ..ast_translate import table_to_insert
+                return self.compiler.compile_insert(table_to_insert(table, fields))
+            except NotImplementedError:
+                pass
         if fields:
             return self.dialect.insert(
                 table._rname,
@@ -542,7 +603,7 @@ class SQLAdapter(BaseAdapter):
         query = self._insert(table, fields)
         try:
             self.execute(query)
-        except:
+        except Exception:
             e = sys.exc_info()[1]
             if hasattr(table, "_on_insert_error"):
                 return table._on_insert_error(table, fields, e)
@@ -563,6 +624,14 @@ class SQLAdapter(BaseAdapter):
         return rid
 
     def _update(self, table, query, fields):
+        if self.compiler is not None:
+            try:
+                from ..objects import Set
+                from ..ast_translate import set_to_update
+                node = set_to_update(Set(self.db, query), fields)
+                return self.compiler.compile_update(node)
+            except NotImplementedError:
+                pass
         sql_q = ""
         query_env = dict(current_scope=[table._tablename])
         if query:
@@ -582,17 +651,25 @@ class SQLAdapter(BaseAdapter):
         sql = self._update(table, query, fields)
         try:
             self.execute(sql)
-        except:
+        except Exception:
             e = sys.exc_info()[1]
             if hasattr(table, "_on_update_error"):
                 return table._on_update_error(table, query, fields, e)
             raise e
         try:
             return self.cursor.rowcount
-        except:
+        except AttributeError:
             return None
 
     def _delete(self, table, query):
+        if self.compiler is not None:
+            try:
+                from ..objects import Set
+                from ..ast_translate import set_to_delete
+                node = set_to_delete(Set(self.db, query))
+                return self.compiler.compile_delete(node)
+            except NotImplementedError:
+                pass
         sql_q = ""
         query_env = dict(current_scope=[table._tablename])
         if query:
@@ -606,7 +683,7 @@ class SQLAdapter(BaseAdapter):
         self.execute(sql)
         try:
             return self.cursor.rowcount
-        except:
+        except AttributeError:
             return None
 
     def _colexpand(self, field, query_env):
@@ -653,6 +730,45 @@ class SQLAdapter(BaseAdapter):
             tablemap,
         )
 
+    def _ast_select_wcols(self, query, fields, attributes):
+        """Try the AST pipeline. Return (colnames, sql) or None on
+        NotImplementedError. Colnames are still computed the legacy
+        way; only SQL generation flips to the new path.
+        """
+        if self.compiler is None:
+            return None
+        try:
+            from ..objects import Set
+            from ..ast_translate import set_to_select
+            s = Set(self.db, query)
+            node = set_to_select(s, fields, attributes)
+            sql = self.compiler.compile_select(node)
+        except NotImplementedError:
+            return None
+        # Replicate _select_wcols' colnames-side computation: discover
+        # the tablemap, apply common filters, expand fields, compute
+        # query_env, then map each field through ``_colexpand``.
+        tablemap = self.tables(
+            query,
+            attributes.get("join", None),
+            attributes.get("left", None),
+            attributes.get("orderby", None),
+            attributes.get("groupby", None),
+        )
+        if use_common_filters(query):
+            query = self.common_filter(query, list(tablemap.values()))
+        expanded = list(self.expand_all(fields, tablemap))
+        tablemap = merge_tablemaps(tablemap, self.tables(*expanded))
+        outer_scoped = attributes.get("outer_scoped", [])
+        for item in outer_scoped:
+            tablemap.pop(item, None)
+        query_env = dict(
+            current_scope=outer_scoped + list(tablemap),
+            parent_scope=outer_scoped,
+        )
+        colnames = [self._colexpand(x, query_env) for x in expanded]
+        return colnames, sql
+
     def _select_wcols(
         self,
         query,
@@ -673,6 +789,19 @@ class SQLAdapter(BaseAdapter):
         processor=None,
         cte_collector=None,
     ):
+        # Layer 3: route SQL generation through the AST/Compiler pipeline
+        # when it handles the requested shape. The legacy block below is
+        # the fallback for joins/CTE/outer-scoped/unsupported corners.
+        _attrs_for_ast = dict(
+            left=left, join=join, distinct=distinct,
+            orderby=orderby, groupby=groupby, having=having,
+            limitby=limitby, orderby_on_limitby=orderby_on_limitby,
+            for_update=for_update, outer_scoped=outer_scoped,
+            cte_collector=cte_collector,
+        )
+        _ast_result = self._ast_select_wcols(query, fields, _attrs_for_ast)
+        if _ast_result is not None:
+            return _ast_result
         if cte_collector is None:
             cte_collector = dict(stack=[], seen=set(), is_recursive=False)
             is_toplevel = True
@@ -915,6 +1044,14 @@ class SQLAdapter(BaseAdapter):
         return self.iterparse(sql, fields, colnames, cacheable=cacheable)
 
     def _count(self, query, distinct=None):
+        if self.compiler is not None:
+            try:
+                from ..objects import Set
+                from ..ast_translate import set_to_count
+                node = set_to_count(Set(self.db, query), distinct=distinct)
+                return self.compiler.compile_count(node)
+            except NotImplementedError:
+                pass
         tablemap = self.tables(query)
         tablenames = list(tablemap)
         tables = list(tablemap.values())
@@ -1007,11 +1144,13 @@ class SQLAdapter(BaseAdapter):
 
     @with_connection
     def commit(self):
-        return self.connection.commit()
+        # Delegated to the Driver (Layer 4).
+        return self.driver_io.commit()
 
     @with_connection
     def rollback(self):
-        return self.connection.rollback()
+        # Delegated to the Driver (Layer 4).
+        return self.driver_io.rollback()
 
     @with_connection
     def prepare(self, key):
@@ -1049,10 +1188,20 @@ class SQLAdapter(BaseAdapter):
 
 
 class NoSQLAdapter(BaseAdapter):
+    """
+    Base adapter for NoSQL backends — MongoDB, Firestore, CouchDB.
+
+    Drops the SQL-only entry points: nested ``_select`` (which would
+    return a subquery string) and ``SELECT ... FOR UPDATE``. Migration
+    work mostly degrades to bookkeeping (no DDL); transactions are
+    typically no-ops since NoSQL drivers either auto-commit or have
+    their own session model.
+    """
+
     can_select_for_update = False
 
     def commit(self):
-        pass
+        """NoSQL backends typically auto-commit; this is a no-op."""
 
     def rollback(self):
         pass
@@ -1098,7 +1247,17 @@ class NoSQLAdapter(BaseAdapter):
 
 
 class NullAdapter(BaseAdapter):
+    """
+    Stub adapter used when ``DAL(None)`` is requested — no driver,
+    no connection.
+
+    Useful for tests and tooling that needs a DAL surface but won't
+    actually issue any queries. ``connector`` returns a ``NullDriver``
+    whose cursor silently returns empty results.
+    """
+
     def _load_dependencies(self):
+        """Install the bare ``CommonDialect`` — no representer/parser/compiler."""
         from ..dialects.base import CommonDialect
 
         self.dialect = CommonDialect(self)

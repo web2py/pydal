@@ -1,12 +1,30 @@
-from .._compat import iteritems, with_metaclass
-from .._load import OrderedDict
+"""
+Dialect framework — declarative registration of per-backend SQL.
+
+``Dialect`` subclasses use two decorators:
+
+* ``@sqltype_for("foo")`` — declares the SQL type string for a pydal
+  field type. Collected by the metaclass at class-creation time and
+  exposed via ``self.types["foo"]``.
+* ``@register_expression("name")`` — registers a method as a callable
+  expression on every ``Expression`` instance, so ``my_field.name(args)``
+  routes through this dialect.
+
+The module-level ``dialects`` ``Dispatcher`` is the registry adapters
+look up via ``Dispatcher.get_for``.
+"""
+
+from collections import OrderedDict
+
 from ..helpers._internals import Dispatcher
 from ..objects import Expression
 
-dialects = Dispatcher("dialect")
+dialects: Dispatcher = Dispatcher("dialect")
 
 
 class sqltype_for(object):
+    """Decorator: register a method as the SQL-type renderer for ``key``."""
+
     _inst_count_ = 0
 
     def __init__(self, key):
@@ -20,6 +38,11 @@ class sqltype_for(object):
 
 
 class register_expression(object):
+    """
+    Decorator: register a dialect method as a callable on every
+    ``Expression``. The method appears as ``expr.<name>(args)``.
+    """
+
     _inst_count_ = 0
 
     def __init__(self, name):
@@ -28,6 +51,7 @@ class register_expression(object):
         register_expression._inst_count_ += 1
 
     def __call__(self, f):
+        """Stash the decorated function for later metaclass binding."""
         self.f = f
         return self
 
@@ -80,13 +104,13 @@ class MetaDialect(type):
         return new_class
 
 
-class Dialect(with_metaclass(MetaDialect)):
+class Dialect(metaclass=MetaDialect):
     def __init__(self, adapter):
         self.adapter = adapter
         self.types = {}
-        for name, obj in iteritems(self._all_sqltypes_):
+        for name, obj in self._all_sqltypes_.items():
             self.types[obj.key] = obj.f(self)
-        for name, obj in iteritems(self._all_expressions_):
+        for name, obj in self._all_expressions_.items():
             Expression._dialect_expressions_[obj.name] = ExpressionMethodWrapper(
                 self, obj
             )

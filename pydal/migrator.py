@@ -1,30 +1,77 @@
+"""
+Schema migrations: CREATE / ALTER / DROP TABLE generation and metadata
+bookkeeping.
+
+When ``DAL.define_table`` runs with ``migrate=True``, the migrator
+compares the new field definitions against a snapshot stored in a
+per-table ``.table`` file under ``DAL.folder``. Differences are
+emitted as DDL through the bound adapter's dialect.
+
+The default ``Migrator`` reads/writes its snapshots on disk;
+``InDBMigrator`` stores them in a ``web2py_filesystem`` table in the
+database (MySQL/PostgreSQL/SQLite only).
+
+Public surface (called from ``BaseAdapter.create_table`` /
+``drop_table``):
+
+* ``create_table`` — emit ``CREATE TABLE`` and write the snapshot.
+* ``migrate_table`` — compare snapshots and emit ``ALTER TABLE``.
+* ``save_dbt`` — write the snapshot file for ``table``.
+* ``log`` — append a line to the migration log.
+* File helpers (``file_open`` / ``file_close`` / ``file_delete`` /
+  ``file_exists``) — overridden by ``InDBMigrator`` to use the DB.
+"""
+
 import copy
 import datetime
 import os
 import pickle
+from os.path import exists, join as pjoin
+from typing import Any, Optional
 
-from ._compat import exists, iteritems, pjoin, to_bytes
 from ._load import portalocker
 from .helpers.classes import DatabaseStoredFile, SQLCustomType
+from .utils import to_bytes
 
 
-class Migrator(object):
+class Migrator:
+    """
+    Schema-migration controller bound to a single adapter.
+
+    Holds no state of its own; the relevant context (db, dialect,
+    folder, ...) lives on ``self.adapter``.
+    """
+
     def __init__(self, adapter):
         self.adapter = adapter
 
     @property
     def db(self):
+        """The DAL whose schema this migrator manages."""
         return self.adapter.db
 
     @property
     def dialect(self):
+        """The SQL dialect used to render DDL."""
         return self.adapter.dialect
 
     @property
-    def dbengine(self):
+    def dbengine(self) -> str:
+        """The adapter's backend identifier (``"sqlite"``, ``"postgres"``, ...)."""
         return self.adapter.dbengine
 
-    def create_table(self, table, migrate=True, fake_migrate=False):
+    def create_table(self, table, migrate: bool = True, fake_migrate: bool = False):
+        """
+        Emit ``CREATE TABLE`` (or run a migration) for ``table``.
+
+        When ``migrate`` is False, neither a CREATE nor a migration is
+        executed and no snapshot is written — useful when binding to
+        an existing legacy table.
+
+        When ``fake_migrate`` is True, the snapshot is written but no
+        DDL is run — used to mark a hand-applied schema change as
+        applied so future runs don't try to re-emit it.
+        """
         db = table._db
         table._migrate = migrate
         fields = []
@@ -399,9 +446,19 @@ class Migrator(object):
         sql_fields_old,
         sql_fields_aux,
         logfile,
-        fake_migrate=False,
+        fake_migrate: bool = False,
     ):
-        # logfile is deprecated (moved to adapter.log method)
+        """
+        Emit ALTER TABLE statements bringing ``table`` from
+        ``sql_fields_old`` (last snapshot) to ``sql_fields`` (current
+        definition).
+
+        Detects field additions, deletions, type changes, and rname
+        changes; executes them in sequence and updates the snapshot.
+        ``fake_migrate=True`` skips DDL but still updates the snapshot.
+
+        ``logfile`` is deprecated; use ``self.log`` instead.
+        """
         db = table._db
         db._migrated.append(table._tablename)
         tablename = table._tablename
@@ -414,9 +471,9 @@ class Migrator(object):
         )
         # make sure all field names are lower case to avoid
         # migrations because of case change
-        sql_fields = dict(map(self._fix, iteritems(sql_fields)))
-        sql_fields_old = dict(map(self._fix, iteritems(sql_fields_old)))
-        sql_fields_aux = dict(map(self._fix, iteritems(sql_fields_aux)))
+        sql_fields = dict(map(self._fix, sql_fields.items()))
+        sql_fields_old = dict(map(self._fix, sql_fields_old.items()))
+        sql_fields_aux = dict(map(self._fix, sql_fields_aux.items()))
 
         table_rname = table._rname
         if self.dbengine == "oracle":
@@ -566,11 +623,19 @@ class Migrator(object):
             self.log("success!\n", table)
 
     def save_dbt(self, table, sql_fields_current):
+        """Pickle ``sql_fields_current`` to ``table._dbt`` (the snapshot file)."""
         tfile = self.file_open(table._dbt, "wb")
         pickle.dump(sql_fields_current, tfile)
         self.file_close(tfile)
 
-    def log(self, message, table=None):
+    def log(self, message: str, table=None):
+        """
+        Append ``message`` to the migration log.
+
+        Path is determined by ``adapter_args["logfile"]`` (default
+        ``sql.log``); resolved against ``adapter.folder`` when relative.
+        No-op when ``logfile`` is empty.
+        """
         isabs = None
         logfilename = self.adapter.adapter_args.get("logfile", "sql.log")
         writelog = bool(logfilename)
@@ -591,42 +656,58 @@ class Migrator(object):
             self.file_close(logfile)
 
     @staticmethod
-    def file_open(filename, mode="rb", lock=True):
-        # to be used ONLY for files that on GAE may not be on filesystem
+    def file_open(filename: str, mode: str = "rb", lock: bool = True):
+        """
+        Open a file with optional cross-process locking.
+
+        Use ``portalocker.LockedFile`` when ``lock`` so other pydal
+        processes won't race on the same migration file. Subclasses
+        (e.g. ``InDBMigrator``) override to read from non-filesystem
+        backends.
+        """
         if lock:
-            fileobj = portalocker.LockedFile(filename, mode)
-        else:
-            fileobj = open(filename, mode)
-        return fileobj
+            return portalocker.LockedFile(filename, mode)
+        return open(filename, mode)
 
     @staticmethod
-    def file_close(fileobj):
-        # to be used ONLY for files that on GAE may not be on filesystem
+    def file_close(fileobj) -> None:
+        """Close ``fileobj`` if non-None."""
         if fileobj:
             fileobj.close()
 
     @staticmethod
-    def file_delete(filename):
+    def file_delete(filename: str) -> None:
+        """Delete ``filename`` from the filesystem."""
         os.unlink(filename)
 
     @staticmethod
-    def file_exists(filename):
-        # to be used ONLY for files that on GAE may not be on filesystem
+    def file_exists(filename: str) -> bool:
+        """True iff ``filename`` exists on the filesystem."""
         return exists(filename)
 
 
 class InDBMigrator(Migrator):
-    def file_exists(self, filename):
+    """
+    Migrator variant storing snapshots in a ``web2py_filesystem`` table
+    inside the database (MySQL / PostgreSQL / SQLite only).
+
+    Useful when the application has no writable filesystem.
+    """
+
+    def file_exists(self, filename: str) -> bool:
+        """True iff a snapshot row for ``filename`` is present in the DB."""
         return DatabaseStoredFile.exists(self.db, filename)
 
-    def file_open(self, filename, mode="rb", lock=True):
+    def file_open(self, filename: str, mode: str = "rb", lock: bool = True):
+        """Return a ``DatabaseStoredFile`` proxy bound to ``filename``."""
         return DatabaseStoredFile(self.db, filename, mode)
 
     @staticmethod
-    def file_close(fileobj):
+    def file_close(fileobj) -> None:
+        """Persist ``fileobj``'s in-memory buffer back to the DB."""
         fileobj.close_connection()
 
-    def file_delete(self, filename):
+    def file_delete(self, filename: str) -> None:
         query = "DELETE FROM web2py_filesystem WHERE path='%s'" % filename
         self.db.executesql(query)
         self.db.commit()

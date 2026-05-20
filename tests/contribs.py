@@ -2,7 +2,7 @@ import os
 import threading
 import time
 
-from pydal._compat import to_bytes
+from pydal.utils import to_bytes
 from pydal.contrib.portalocker import (
     LOCK_EX,
     LockedFile,

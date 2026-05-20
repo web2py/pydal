@@ -1,13 +1,35 @@
+"""
+Representer framework — declarative registration of Python value →
+SQL literal encoders.
+
+Decorators:
+
+* ``@for_type("name", encode=False, adapt=True)`` — register the
+  primary encoder for a pydal field type. ``encode=True`` means the
+  result is already a string literal (no extra quoting); ``adapt=False``
+  skips the adapter's quoting wrapper around the result.
+* ``@before_type("name")`` — compute per-type context (e.g. SRID for
+  PostGIS types) consumed by the matching ``for_type`` handler.
+* ``@for_instance(type, repr_type=False)`` — dispatch on the value's
+  Python type rather than the field type. Used for ``date`` / ``datetime``
+  / ``Decimal`` etc. so unknown column types still serialize sensibly.
+* ``@pre(is_breaking=...)`` — short-circuiting pre-pass that runs
+  before instance/type dispatch. ``is_breaking=True`` returns
+  ``(True, value)`` from the call site immediately.
+"""
+
 from collections import defaultdict
 
-from .._compat import iteritems, to_unicode, with_metaclass
 from ..helpers._internals import Dispatcher
 from ..helpers.regex import REGEX_TYPE
+from ..utils import to_unicode
 
-representers = Dispatcher("representer")
+representers: Dispatcher = Dispatcher("representer")
 
 
 class for_type(object):
+    """Decorator: primary representer for a pydal field type."""
+
     def __init__(self, field_type, encode=False, adapt=True):
         self.field_type = field_type
         self.encode = encode
@@ -19,25 +41,49 @@ class for_type(object):
 
 
 class before_type(object):
+    """
+    Decorator: compute per-type kwargs for the matching ``for_type``
+    representer (e.g. extract SRID from a ``geometry(...)`` type).
+    """
+
     def __init__(self, field_type):
         self.field_type = field_type
 
     def __call__(self, f):
+        """Stash the decorated function for later metaclass binding."""
         self.f = f
         return self
 
 
 class for_instance(object):
+    """
+    Decorator: dispatch on the value's Python type.
+
+    Triggered when the field type doesn't have a registered
+    representer; e.g. ``datetime`` falls through here even on tables
+    without an explicit datetime column.
+    """
+
     def __init__(self, inst_type, repr_type=False):
         self.inst_type = inst_type
         self.repr_type = repr_type
 
     def __call__(self, f):
+        """Stash the decorated function for later metaclass binding."""
         self.f = f
         return self
 
 
 class pre(object):
+    """
+    Decorator: short-circuiting pre-pass run before type/instance dispatch.
+
+    With ``is_breaking=True`` the call site returns immediately on a
+    non-None result; with ``is_breaking=False`` it always continues
+    (lets you preprocess without ending the pipeline); ``None`` (the
+    default) auto-breaks on non-None.
+    """
+
     _inst_count_ = 0
 
     def __init__(self, is_breaking=None):
@@ -167,15 +213,15 @@ class PreMethodWrapper(object):
         return self.call(value, field_type)
 
 
-class Representer(with_metaclass(MetaRepresenter)):
+class Representer(metaclass=MetaRepresenter):
     def __init__(self, adapter):
         self.adapter = adapter
         self.dialect = adapter.dialect
         self._tbefore_registry_ = {}
-        for name, obj in iteritems(self._declared_tbefore_):
+        for name, obj in self._declared_tbefore_.items():
             self._tbefore_registry_[obj.field_type] = obj.f
         self.registered_t = defaultdict(lambda self=self: self._default)
-        for name, obj in iteritems(self._declared_trepresenters_):
+        for name, obj in self._declared_trepresenters_.items():
             if obj.field_type in self._tbefore_registry_:
                 self.registered_t[obj.field_type] = TReprMethodWrapper(
                     self, obj, self._tbefore_registry_[obj.field_type]
@@ -183,11 +229,11 @@ class Representer(with_metaclass(MetaRepresenter)):
             else:
                 self.registered_t[obj.field_type] = TReprMethodWrapper(self, obj)
         self.registered_i = {}
-        for name, obj in iteritems(self._declared_irepresenters_):
+        for name, obj in self._declared_irepresenters_.items():
             self.registered_i[obj.inst_type] = IReprMethodWrapper(self, obj)
         self._pre_registry_ = []
         pres = []
-        for name, obj in iteritems(self._declared_pres_):
+        for name, obj in self._declared_pres_.items():
             pres.append(obj)
         pres.sort(key=lambda x: x._inst_count_)
         for pre in pres:
@@ -200,7 +246,7 @@ class Representer(with_metaclass(MetaRepresenter)):
         return True, value
 
     def get_representer_for_instance(self, value):
-        for inst, representer in iteritems(self.registered_i):
+        for inst, representer in self.registered_i.items():
             if isinstance(value, inst):
                 return representer
         return self._default_instance

@@ -1,6 +1,14 @@
+"""
+MSSQL adapter family.
+
+One adapter per pagination strategy + driver combo, plus Sybase and
+Vertica which use the MSSQL family but with different drivers. URIs
+can include ``?DSN=...`` and other ODBC keys via the ``uriargs``
+fragment.
+"""
+
 import re
 
-from .._compat import iteritems
 from .._globals import IDENTITY
 from ..utils import split_uri_args
 from . import adapters, with_connection_or_raise
@@ -8,13 +16,28 @@ from .base import SQLAdapter
 
 
 class Slicer(object):
+    """
+    Mixin: client-side slicing for adapters where the dialect can't
+    express ``LIMIT``/``OFFSET`` in pure SQL.
+    """
+
     def rowslice(self, rows, minimum=0, maximum=None):
+        """Slice ``rows[minimum:maximum]`` in Python."""
         if maximum is None:
             return rows[minimum:]
         return rows[minimum:maximum]
 
 
 class MSSQL(SQLAdapter):
+    """
+    MSSQL base adapter — drivers tried in order: ``pyodbc``, ``pytds``,
+    ``pymssql``, ``mssql-python``.
+
+    URI shape: ``mssql://user:pass@host:port/dbname?<odbc_opts>``.
+    The ``srid`` parameter (default 4326) is forwarded to the GIS
+    representer for ``geometry`` / ``geography`` columns.
+    """
+
     dbengine = "mssql"
     drivers = ("pyodbc", "pytds", "pymssql", "mssql-python")
 
@@ -81,7 +104,7 @@ class MSSQL(SQLAdapter):
                     uriargs, separators="&", need_equal=True
                 ).items():
                     argsdict[argkey.upper()] = argvalue
-            uriargs = ";".join(["%s=%s" % (ak, av) for (ak, av) in iteritems(argsdict)])
+            uriargs = ";".join(["%s=%s" % (ak, av) for (ak, av) in argsdict.items()])
             self.dsn = "SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;%s" % (
                 host,
                 port,

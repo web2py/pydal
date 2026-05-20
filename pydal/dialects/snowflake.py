@@ -1,3 +1,5 @@
+"""Snowflake dialect — no quoting, native BOOLEAN, time-travel friendly."""
+
 from ..adapters.snowflake import Snowflake
 from ..helpers.methods import varquote_aux
 from ..objects import Expression
@@ -7,6 +9,16 @@ from .base import SQLDialect
 
 @dialects.register_for(Snowflake)
 class SnowflakeDialect(SQLDialect):
+    """
+    Snowflake dialect.
+
+    Snowflake's identifier resolution is case-insensitive by default
+    and accepts unquoted identifiers freely, so ``quote_template`` is
+    space-padded rather than wrapping in quotes. Native ``BOOLEAN``
+    means ``true_exp`` / ``false_exp`` are ``TRUE`` / ``FALSE``
+    (not ``1=1`` / ``1=0``).
+    """
+
     true_exp = "TRUE"
     false_exp = "FALSE"
     quote_template = " %s "

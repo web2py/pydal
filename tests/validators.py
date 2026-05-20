@@ -14,7 +14,7 @@ with warnings.catch_warnings():
     import cgi
 
 from pydal import DAL, Field
-from pydal._compat import to_bytes
+from pydal.utils import to_bytes
 from pydal.validators import *
 from pydal.validators import UTC, Validator, options_sorter
 

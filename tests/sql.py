@@ -12,7 +12,8 @@ import zoneinfo
 from unittest import skipIf
 
 from pydal import DAL, Field
-from pydal._compat import BytesIO, StringIO, integer_types, to_bytes
+from io import BytesIO, StringIO
+from pydal.utils import to_bytes
 from pydal.helpers.classes import SQLALL, OpRow
 from pydal.objects import Expression, Row, Table
 
@@ -29,7 +30,7 @@ from ._adapt import (
 from ._compat import unittest
 from ._helpers import DALtest
 
-long = integer_types[-1]
+long = int
 
 print("Testing against %s engine (%s)" % (DEFAULT_URI.partition(":")[0], DEFAULT_URI))
 

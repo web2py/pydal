@@ -5,70 +5,802 @@
 [![Coverage Status](https://img.shields.io/codecov/c/github/web2py/pydal.svg?style=flat-square)](https://codecov.io/github/web2py/pydal)
 [![API Docs Status](https://readthedocs.org/projects/pydal/badge/?version=latest&style=flat-square)](http://pydal.rtfd.org/)
 
-pyDAL is a pure Python Database Abstraction Layer.
+A pure-Python **Database Abstraction Layer**. pyDAL generates SQL (or the
+appropriate query objects for NoSQL backends) in real time using the
+dialect of the configured back end, so you write Python instead of SQL
+and the same application runs unchanged against many databases.
 
-It dynamically generates the SQL/noSQL in realtime using the specified dialect for the database backend, so that you do not have to write SQL code or learn different SQL dialects (the term SQL is used generically), and your code will be portable among different types of databases.
-What makes pyDAL different from most of the other DALs is the syntax: it maps records to python dictionaries, which is simpler and closer to SQL. Other famous frameworks instead strictly rely on an Object Relational Mapping (ORM) like the Django ORM or the SQL Alchemy ORM, that maps tables to Python classes and rows to Objects.
+## Why pyDAL
 
-Historically pyDAL comes from the original web2py's DAL, with the aim of being compatible with any Python program. However, pyDAL nowadays is an indipendent package that can be used in any Python 3.7+ context.
+pyDAL is intentionally **not** an Object-Relational Mapper. Most ORMs —
+Django ORM, SQLAlchemy — map tables to Python classes and rows to
+instances of those classes. pyDAL instead treats rows as plain Python
+dictionaries (with attribute access for convenience) and keeps the API
+close to SQL. The result:
+
+- A small, predictable surface. If you know SQL you'll be productive in
+  minutes.
+- No declarative class hierarchies, no metaclass magic, no two-phase
+  schema bootstrap.
+- The same query DSL runs against ~15 backends. Swap the connection
+  string and the app keeps working.
+- Rows are *just dicts* — easy to serialize, easy to pass around, easy
+  to inspect.
 
 ## Installation
-
-You can install pyDAL using `pip`:
 
 ```bash
 pip install pyDAL
 ```
 
-## Usage and Documentation
+The only hard dependency is Python ≥ 3.7. The SQLite driver ships with
+Python, so the first example below runs out of the box. For other
+backends, install the appropriate Python driver (`psycopg2`, `pymysql`,
+`pymongo`, …) — pyDAL picks it up automatically.
 
-Here is a quick example:
+## A first example
 
-```pycon
->>> from pydal import DAL, Field
->>> db = DAL('sqlite://storage.db')
->>> db.define_table('thing', Field('name'))
->>> db.thing.insert(name='Chair')
->>> query = db.thing.name.startswith('C')
->>> rows = db(query).select()
->>> print rows[0].name
-Chair
->>> db.commit()
+```python
+from pydal import DAL, Field
+
+db = DAL("sqlite://storage.db")
+db.define_table("thing", Field("name"))
+
+db.thing.insert(name="Chair")
+db.thing.insert(name="Table")
+
+for row in db(db.thing.name.startswith("C")).select():
+    print(row.id, row.name)
+# 1 Chair
+
+db.commit()
 ```
 
-The complete updated documentation is available on [the py4web manual](https://py4web.com/_documentation/static/en/chapter-07.html)
+Every line of the example above maps directly to a SQL operation:
+`define_table` to `CREATE TABLE`, `insert` to `INSERT`, the call to `db(…)`
+builds a `WHERE` clause, and `.select()` runs the query and returns rows.
 
-## What's in the box?
+## What's in the box
 
-A little *taste* of pyDAL features:
+- **Schema definition** with explicit field types, validators, defaults,
+  foreign keys, and indexes.
+- **Migrations**: when a table definition changes between runs, the
+  appropriate `ALTER TABLE` is generated and applied.
+- **Transactions** with explicit commit/rollback.
+- **A query DSL** covering comparisons, logical operators, string
+  match, regex, aggregates, date/time accessors, `IN`, `CASE`,
+  `COALESCE`, and substring expressions.
+- **Inner joins, left outer joins, cross joins**, with `.on()` syntax or
+  implicit cross-table queries.
+- **Subqueries**: in `IN` clauses, as join sources, or as inline
+  expressions.
+- **Common Table Expressions** (CTEs), including recursive CTEs.
+- **Type-safe parameter binding** with placeholders (`?`, `$1`, `%s`,
+  …) selected per dialect.
+- **Lazy iteration** for large result sets (`iterselect`).
+- **Built-in CSV import/export** per-table or for the whole database.
+- A natural-language **QueryBuilder** that turns
+  `'name starts with C and age >= 18'` into a real query.
 
-* Transactions
-* Aggregates
-* Inner Joins
-* Outer Joins
-* Nested Selects
+## Supported databases
 
-## Which databases are supported?
+A non-exhaustive list:
 
-pyDAL supports the following databases:
+| Database     | Driver                                |
+| ------------ | ------------------------------------- |
+| SQLite       | `sqlite3` (built-in)                  |
+| PostgreSQL   | `psycopg2`, `pg8000`                  |
+| MySQL        | `pymysql`, `MySQLdb`                  |
+| MSSQL        | `pyodbc`                              |
+| Oracle       | `cx_Oracle`                           |
+| FireBird     | `kinterbasdb`, `fdb`, `pyodbc`        |
+| DB2          | `pyodbc`                              |
+| Informix     | `informixdb`                          |
+| Ingres       | `ingresdbi`                           |
+| Sybase / SAP | `Sybase`, `sapdb`                     |
+| Teradata     | `pyodbc`                              |
+| Snowflake    | `snowflake-connector-python`          |
+| MongoDB      | `pymongo`                             |
+| Google Firestore | `google-cloud-firestore`          |
+| IMAP         | `imaplib` (built-in)                  |
 
-* SQLite
-* MySQL
-* PostgreSQL
-* MSSQL
-* FireBird
-* Oracle
-* DB2
-* Ingres
-* Sybase
-* Informix
-* Teradata
-* Cubrid
-* SAPDB
-* IMAP
-* MongoDB
-* Google Firestore
+---
+
+## The DAL API: a guided tour
+
+The DSL is built from seven core objects. Once you've seen them once,
+the rest of the API is just method calls.
+
+### `DAL` — the connection
+
+```python
+db = DAL("sqlite://storage.sqlite")
+```
+
+The constructor accepts a **connection string** (also called the
+`uri`). Examples for the most common backends:
+
+| Database     | Connection string                                          |
+| ------------ | ---------------------------------------------------------- |
+| SQLite       | `sqlite://storage.sqlite` or `sqlite:memory`               |
+| PostgreSQL   | `postgres://user:pass@localhost/test`                      |
+| MySQL        | `mysql://user:pass@localhost/test?set_encoding=utf8mb4`    |
+| MSSQL ≥ 2012 | `mssql4://user:pass@localhost/test`                        |
+| Oracle       | `oracle://user/pass@test`                                  |
+| MongoDB      | `mongodb://user:pass@localhost/test`                       |
+
+You can also pass `None` to build a "dry" DAL that generates SQL
+without connecting, or `do_connect=False` to defer connection until
+needed.
+
+A few commonly-used DAL parameters:
+
+- `pool_size` — number of pooled connections (default `0`). Ignored
+  by SQLite.
+- `folder` — where migration metadata is written. Set this explicitly
+  when using pyDAL standalone with SQLite.
+- `migrate` — global default for whether table changes generate
+  `ALTER TABLE` statements (default `True`).
+- `check_reserved` — list of backend names to validate identifiers
+  against (e.g. `["postgres", "mssql"]`).
+
+### `Table` — a database table
+
+You don't instantiate `Table` directly; you define it via the DAL:
+
+```python
+db.define_table("person", Field("name"), Field("age", "integer"))
+```
+
+This returns a `Table` object also accessible as `db.person`. Every
+table automatically gets an auto-increment integer primary key called
+`id` unless you explicitly opt out via the `primarykey` argument.
+
+Some useful `Table` arguments:
+
+- `format` — a record representation, used for foreign-key display:
+  `format="%(name)s"` or `format=lambda r: r.name`.
+- `rname` — the *real* SQL name when the table is known by a different
+  identifier in the database (e.g. a legacy name, a schema-qualified
+  name like `"app1.dbo.legacy_table"`).
+- `redefine=True` — allow redefining an existing table (triggers a
+  migration if the schema differs).
+
+### `Field` — a column
+
+```python
+Field("name", "string", length=80, default="anonymous", required=True)
+```
+
+The default type is `"string"`. Available types:
+
+| Type                | Notes                                          |
+| ------------------- | ---------------------------------------------- |
+| `string`            | default length 512                             |
+| `text`              | default length 32768                           |
+| `blob`              | binary; default length 2 GiB                   |
+| `boolean`           |                                                |
+| `integer`           | 32-bit                                         |
+| `bigint`            | 64-bit                                         |
+| `double`            |                                                |
+| `decimal(n, m)`     | fixed precision                                |
+| `date`              |                                                |
+| `time`              |                                                |
+| `datetime`          |                                                |
+| `password`          | string with optional hashing validator         |
+| `upload`            | stores a filename; file is saved on disk       |
+| `json`              | any JSON-serializable value                    |
+| `reference <table>` | foreign key to `<table>`                       |
+| `list:string`       | a list of strings, stored encoded             |
+| `list:integer`      | a list of integers                             |
+| `list:reference <t>`| a list of foreign keys                         |
+
+Field options you'll reach for often: `default`, `notnull`, `unique`,
+`required`, `requires=<validator>`, `compute=<func>`, `update=<value>`,
+`label`, `readable`, `writable`, `rname`.
+
+### `Query` — a WHERE clause
+
+A `Query` is the result of comparing or combining fields and values:
+
+```python
+q = (db.person.age >= 18) & (db.person.name != "anonymous")
+```
+
+Supported operators: `==`, `!=`, `<`, `<=`, `>`, `>=`, plus methods
+`like`, `ilike`, `regexp`, `startswith`, `endswith`, `contains`,
+`belongs`. Combine with `&` (AND), `|` (OR), `~` (NOT).
+
+> Python's `and` / `or` can't be overloaded, so you must use `&` and
+> `|` — and because they bind tighter than `==`, the parentheses
+> around each side are required.
+
+### `Set` — a queryable set of records
+
+Calling the DAL with a query produces a `Set`:
+
+```python
+adults = db(db.person.age >= 18)
+```
+
+A `Set` doesn't run any SQL yet — it just remembers the query. The
+real work happens when you call one of its methods:
+
+```python
+adults.count()       # SELECT COUNT(*) FROM person WHERE …
+adults.select()      # SELECT * FROM person WHERE …
+adults.update(age=21)
+adults.delete()
+adults.isempty()
+```
+
+`Set` also has `_select`, `_update`, `_count`, `_delete` (with
+underscore) that **return the generated SQL string instead of
+executing it** — handy for inspection, embedding as a sub-query, or
+debugging.
+
+### `Rows` — the result of `select()`
+
+`select()` returns a `Rows` object: iterable, indexable, sliceable,
+and self-serializing to CSV via `str(rows)`.
+
+```python
+rows = db(db.person.age >= 18).select()
+for row in rows:
+    print(row.id, row.name)
+
+len(rows)             # number of rows
+rows[0]               # first Row
+rows.first()
+rows.last()
+rows.as_dict()        # {id: row, ...}
+rows.as_list()        # [{name: …}, …]
+```
+
+For large result sets, use `iterselect()` instead — it returns rows
+one at a time without loading them all into memory.
+
+### `Row` — a single record
+
+A `Row` is a dict that also supports attribute access:
+
+```python
+row = rows[0]
+row.name          # attribute
+row["name"]       # item
+row("person.name")  # qualified name (useful when join columns collide)
+```
+
+Row methods:
+
+```python
+row.update_record(name="Alice")   # persists the change to the DB
+row.delete_record()
+```
+
+`update_record` is *not* the same as `row.update(...)` — the latter
+updates only the in-memory dict.
+
+### `Expression`
+
+Many things you'd write in SQL — `UPPER(name)`, `age + 1`,
+`SUM(salary)`, ordering clauses — appear as `Expression` objects in
+pyDAL. You build them with field methods and arithmetic, and use
+them anywhere a field is allowed:
+
+```python
+total = db.person.salary.sum()
+db().select(total)
+db().select(db.person.ALL, orderby=db.person.name | db.person.id)
+db().select(db.person.name.upper())
+```
+
+`Field` is itself a subclass of `Expression`.
+
+---
+
+## Inserting, updating, deleting
+
+### Insert
+
+```python
+rid = db.person.insert(name="Alex", age=30)         # returns the new id
+db.person.bulk_insert([                              # one query, many rows
+    {"name": "Bob", "age": 25},
+    {"name": "Carl", "age": 42},
+])
+```
+
+`update_or_insert` writes a new record only if no existing record
+matches:
+
+```python
+db.person.update_or_insert(db.person.name == "John",
+                           name="John", age=30)
+```
+
+`validate_and_insert` / `validate_and_update` run the field validators
+first and return `{"id": …, "errors": {…}, "success": bool}`.
+
+### Update and delete via a Set
+
+```python
+db(db.person.age < 18).delete()                # returns number deleted
+db(db.person.age >= 18).update(adult=True)     # returns number updated
+```
+
+Update values can be **expressions**:
+
+```python
+db(db.person.name == "Alex").update(visits=db.person.visits + 1)
+```
+
+### Shortcuts
+
+```python
+person = db.person[42]               # → Row with id=42, or None
+db.person[42] = {"name": "Alice"}    # update
+db.person[None] = {"name": "Alice"}  # insert
+del db.person[42]                    # delete
+```
+
+---
+
+## Selecting
+
+The basic shape:
+
+```python
+rows = db(query).select(*fields, **options)
+```
+
+Field lists work like a SQL `SELECT` clause:
+
+```python
+db().select(db.person.ALL)                     # all columns
+db().select(db.person.id, db.person.name)      # specific columns
+db(db.person).select(db.person.name)           # query is just the table
+```
+
+### Options
+
+| Option              | Effect                                      |
+| ------------------- | ------------------------------------------- |
+| `orderby=`          | `ORDER BY`. Use `~field` for DESC.          |
+| `groupby=`          | `GROUP BY`                                  |
+| `having=`           | `HAVING` (with `groupby`)                   |
+| `limitby=(off, end)`| `LIMIT end-off OFFSET off`                  |
+| `distinct=True`     | `DISTINCT`                                  |
+| `distinct=field`    | `DISTINCT ON (field)` (PostgreSQL)          |
+| `for_update=True`   | `FOR UPDATE`                                |
+| `join=`             | INNER JOIN (`table.on(condition)`)          |
+| `left=`             | LEFT OUTER JOIN                             |
+| `cache=`            | wrap the result in a cache decorator        |
+
+Example:
+
+```python
+rows = db(db.person.age >= 18).select(
+    db.person.id, db.person.name,
+    orderby=~db.person.age,
+    limitby=(0, 10),
+)
+```
+
+### Joins
+
+The simplest join is implicit — reference fields from two tables in the
+query and pyDAL puts them in `FROM`:
+
+```python
+rows = db(db.person.id == db.thing.owner_id).select()
+for row in rows:
+    print(row.person.name, "owns", row.thing.name)
+```
+
+The explicit form uses `table.on(condition)`:
+
+```python
+rows = db(db.person).select(
+    db.person.name, db.thing.name,
+    join=db.thing.on(db.person.id == db.thing.owner_id),
+)
+```
+
+`left=` produces a LEFT OUTER JOIN — useful when you want all rows of
+the driving table even if the join has no match:
+
+```python
+rows = db().select(
+    db.person.ALL, db.thing.ALL,
+    left=db.thing.on(db.person.id == db.thing.owner_id),
+)
+```
+
+### Self-references and table aliases
+
+When you need to join a table to itself (parent/child trees, etc.),
+use `with_alias`:
+
+```python
+db.define_table("person",
+    Field("name"),
+    Field("father_id", "reference person"))
+
+Father = db.person.with_alias("father")
+rows = db().select(
+    db.person.name, Father.name,
+    left=Father.on(db.person.father_id == Father.id),
+)
+```
+
+---
+
+## Operators and expressions
+
+### Comparison and logical
+
+```python
+db(db.person.age == 21).select()
+db(db.person.age != 21).select()
+db((db.person.age > 18) & (db.person.age < 65)).select()
+db((db.person.name == "Alex") | (db.person.name == "Bob")).select()
+db(~(db.person.role == "admin")).select()
+```
+
+### String matching
+
+```python
+db(db.person.name.like("A%")).select()
+db(db.person.name.ilike("a%")).select()                       # case-insensitive
+db(db.person.name.startswith("A")).select()
+db(db.person.name.endswith("son")).select()
+db(db.person.name.contains("li")).select()
+db(db.person.name.regexp("^A.*")).select()                    # backend-dependent
+db(db.person.name.upper().like("AL%")).select()
+```
+
+### Aggregates
+
+```python
+db.person.salary.sum()
+db.person.salary.avg()
+db.person.salary.min()
+db.person.salary.max()
+db.person.id.count()
+db.person.name.len()
+```
+
+Use them anywhere a field is accepted:
+
+```python
+total = db.person.salary.sum()
+row = db().select(total).first()
+print(row[total])
+```
+
+### Dates
+
+```python
+db(db.log.event_time.year() == 2026).select()
+db(db.log.event_time.month() >= 6).select()
+db(db.log.event_time.day() == 15).select()
+db(db.log.event_time.hour() < 12).select()
+```
+
+### `belongs` / `IN`
+
+```python
+db(db.person.id.belongs([1, 2, 3])).select()
+```
+
+With a subquery (note `_select`, not `select` — we want SQL, not rows):
+
+```python
+recent = db(db.log.severity == 3)._select(db.log.user_id)
+db(db.person.id.belongs(recent)).select()
+```
+
+### `case`
+
+```python
+condition = db.person.age >= 18
+label = condition.case("adult", "minor")
+rows = db().select(db.person.name, label)
+for row in rows:
+    print(row.person.name, row[label])
+```
+
+### Defaults: `coalesce`, `coalesce_zero`
+
+```python
+display = db.user.fullname.coalesce(db.user.username)
+db().select(display)
+
+total = db.user.points.coalesce_zero().sum()
+db().select(total)
+```
+
+### Substrings
+
+```python
+db().select(db.thing.name[:3])                # first 3 characters
+db(db.thing.name[:1] == "A").select()         # name starts with A
+```
+
+---
+
+## Subqueries
+
+pyDAL offers three ways to build a subquery. All three produce the
+same result; the AST-native forms are recommended for new code
+because their bound parameters flow through to the cursor cleanly.
+
+```python
+# 1. Recommended: AST-native.
+sub = db(db.thing.color == "red").subselect(db.thing.owner_id)
+db(db.person.id.belongs(sub)).select()
+
+# 2. Legacy Select object — works as a subquery or as a join source.
+sub = db(db.thing.color == "red").nested_select(db.thing.owner_id)
+db(db.person.id.belongs(sub)).select()
+
+# 3. Raw SQL string (inline only).
+sub = db(db.thing.color == "red")._select(db.thing.owner_id)
+db(db.person.id.belongs(sub)).select()
+```
+
+`nested_select` is also the way to use a SELECT as a join source —
+give it an alias with `.with_alias(name)` and use it like a table:
+
+```python
+sub = db(db.thing.color == "red").nested_select(
+    db.thing.owner_id, db.thing.name
+).with_alias("red_things")
+
+db(db.person).select(
+    db.person.name, sub.name,
+    join=sub.on(sub.owner_id == db.person.id),
+)
+```
+
+## Common Table Expressions
+
+A CTE — `WITH name AS (SELECT …)` — is built with `set.cte(name, *fields)`:
+
+```python
+recent = db(db.event.created > "2026-01-01").cte(
+    "recent", db.event.id, db.event.user_id
+)
+db(db.user.id.belongs(recent.user_id)).select()
+```
+
+Recursive CTEs use `.union(lambda self: …)` to add the recursive step:
+
+```python
+descendants = (
+    db(db.org.id == root_id).cte(
+        "descendants",
+        db.org.id, db.org.name, db.org.parent_id,
+    )
+    .union(lambda descendants:
+        db(db.org.parent_id == descendants.id).nested_select(
+            db.org.id, db.org.name, db.org.parent_id,
+        )
+    )
+)
+db().select(descendants.ALL)
+```
+
+---
+
+## Computed and virtual fields
+
+A **computed field** is calculated on insert/update and stored:
+
+```python
+db.define_table("person",
+    Field("first"),
+    Field("last"),
+    Field("full", compute=lambda row: f"{row['first']} {row['last']}"),
+)
+```
+
+A **virtual field** is computed every time you access it, from the
+result of a select — not stored, not queryable, but free:
+
+```python
+class PersonMethods:
+    def full(row):
+        return row.first + " " + row.last
+
+db.person.full = Field.Virtual("full", lambda row: row.first + " " + row.last)
+```
+
+## Common filters
+
+Attach a query to a table and every `Set` against that table will pick
+it up automatically. Useful for soft-delete or tenant isolation:
+
+```python
+db.thing._common_filter = lambda q: db.thing.deleted == False
+```
+
+Bypass with `db(query, ignore_common_filters=True)`.
+
+## Callbacks
+
+Hook into insert / update / delete events:
+
+```python
+db.thing._before_insert.append(lambda fields: ...)
+db.thing._after_update.append(lambda set, fields: ...)
+db.thing._after_delete.append(lambda set: ...)
+```
+
+Returning a truthy value from a `_before_*` callback cancels the
+operation.
+
+---
+
+## Migrations
+
+By default, when you call `define_table` with a different schema from
+last run, pyDAL emits the appropriate `ALTER TABLE` statements. The
+metadata is kept in a small file under `folder/` (one per table).
+
+Disable per-table:
+
+```python
+db.define_table("legacy", Field("name"), migrate=False)
+```
+
+Disable globally:
+
+```python
+db = DAL("...", migrate_enabled=False)
+```
+
+After a destructive schema change, you may need a *fake* migration —
+tell pyDAL the current state matches the file without running any DDL:
+
+```python
+db.define_table("thing", ..., fake_migrate=True)
+```
+
+## CSV import/export
+
+Per-table:
+
+```python
+db.thing.export_to_csv_file(open("thing.csv", "w"))
+db.thing.import_from_csv_file(open("thing.csv"))
+```
+
+Whole database:
+
+```python
+db.export_to_csv_file(open("dump.csv", "w"))
+db.import_from_csv_file(open("dump.csv"))
+```
+
+## Natural-language queries: `QueryBuilder`
+
+Turn an English-ish string into a real query:
+
+```python
+from pydal import QueryBuilder
+
+builder = QueryBuilder(db.thing)
+q = builder.parse('name starts with "C" and color == "red"')
+db(q).select()
+```
+
+Recognized tokens: `not`, `and`, `or`, `==`, `!=`, `<`, `>`, `<=`,
+`>=`, `is`, `is null`, `is not null`, `is true`, `is false`,
+`contains`, `starts with`, `belongs`, `upper`, `lower`. Custom
+aliases let you localize the vocabulary or rename fields.
+
+## Tagging records
+
+A tiny extension that adds many-to-one tags to any table:
+
+```python
+from pydal.tools.tags import Tags
+
+tags = Tags(db.thing)
+tags.add(thing_id, "color/red")
+tags.add(thing_id, "style/modern")
+ids = tags.find(["color/red"])
+```
+
+## Generating SQL without a database
+
+You can use pyDAL purely as a SQL generator — no Postgres/MySQL driver
+installed, no database server running. Open an in-memory SQLite (always
+available, no driver to install), define your schema, then **swap the
+dialect** on the existing adapter to render the same queries against
+the target backend's syntax:
+
+```python
+from pydal import DAL, Field
+from pydal.dialects.postgre import PostgreDialect
+
+# Always-available "scratch" connection. No external database needed.
+db = DAL("sqlite:memory", migrate=False)
+
+# Retarget SQL emission to PostgreSQL, and ask for inline values
+# (placeholder-free SQL) — handier for human inspection than the
+# parameterized form used at runtime.
+db._adapter.dialect = PostgreDialect(db._adapter)
+db._adapter.compiler.parameterize = False
+
+db.define_table("person", Field("name"), Field("age", "integer"))
+
+q = (db.person.age >= 18) & (db.person.name.like("A%"))
+
+# The five "_underscore" entry points return SQL strings without
+# executing anything against the (in-memory) database.
+print(db(q)._select(db.person.id, db.person.name))
+# SELECT "person"."id", "person"."name" FROM "person"
+# WHERE (("person"."age" >= 18) AND ("person"."name" LIKE 'A%' ESCAPE '\'));
+
+print(db(db.person.age < 18)._delete())
+# DELETE FROM "person" WHERE ("person"."age" < 18);
+
+print(db(db.person.id == 1)._update(name="Alice"))
+# UPDATE "person" SET "name"='Alice' WHERE ("person"."id" = 1);
+
+print(db.person._insert(name="Alice", age=30))
+# INSERT INTO "person"("name","age") VALUES ('Alice',30);
+
+print(db(db.person.age >= 18)._count())
+# SELECT COUNT(*) FROM "person" WHERE ("person"."age" >= 18);
+```
+
+The query AST is dialect-agnostic, so the same `Query` retargets when
+you swap dialects mid-flight — handy for cross-backend comparisons:
+
+```python
+q = db.person.name.regexp("^A")
+
+# Already swapped to Postgres above:
+print(db(q)._select(db.person.id))
+# SELECT "person"."id" FROM "person" WHERE ("person"."name" ~ '^A');
+
+# Switch to MySQL on the spot:
+from pydal.dialects.mysql import MySQLDialect
+db._adapter.dialect = MySQLDialect(db._adapter)
+print(db(q)._select(db.person.id))
+# (MySQL-flavored SQL emitted for the same Query object)
+```
+
+## Raw SQL escape hatch
+
+When the DSL doesn't cover what you need:
+
+```python
+rows = db.executesql("SELECT * FROM thing WHERE name = ?", placeholders=["Chair"])
+```
+
+For inspection without execution, every `Set` method has an underscore
+counterpart that returns the generated SQL:
+
+```python
+db(db.thing.name == "Chair")._select()
+# 'SELECT "thing"."id", "thing"."name" FROM "thing" WHERE ("thing"."name" = ?);'
+```
+
+---
+
+## Ecosystem
+
+pyDAL is a standalone library — drop it into any Python project. It is
+also the data layer used by **py4web**, which can automatically
+generate forms and grids from pyDAL table metadata. If you're building
+a full web app, py4web saves you a lot of plumbing; if you just need a
+database layer, pyDAL alone is enough.
 
 ## License
 
-pyDAL is released under the BSD-3c License.  For further details, please check the `LICENSE` file.
+pyDAL is released under the BSD-3-Clause license. See `LICENSE.txt`.

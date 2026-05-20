@@ -1,22 +1,54 @@
-from .base import DAL
+"""
+Natural-language ``Query`` parser.
+
+``QueryBuilder`` turns a free-text expression like
+``"name is equal to Chair and price > 10"`` into a pydal ``Query`` you
+can pass to ``db(...)``.
+
+Recognized vocabulary (extensible via ``token_aliases``):
+
+* logical operators: ``not``, ``and``, ``or``;
+* comparison: ``==``, ``!=``, ``<``, ``>``, ``<=``, ``>=``,
+  ``is``, ``is equal``, ``is greater than``, ``is less or equal``, ...;
+* string: ``contains``, ``starts with``;
+* list-membership: ``belongs``, ``in``;
+* unary predicates: ``is null``, ``is not null``, ``is true``,
+  ``is false``;
+* field modifiers: ``upper``, ``lower``.
+
+Values may be bare (no spaces, no quotes) or double-quoted to allow
+spaces / commas.
+
+See ``README.md`` for examples; the source-level regexes are the
+authoritative grammar.
+"""
+
+import re
+from typing import Any, Dict, Optional, Set
+
 from .objects import Field
 from .validators import (
-    IS_INT_IN_RANGE,
-    IS_FLOAT_IN_RANGE,
-    IS_TIME,
     IS_DATE,
     IS_DATETIME,
-    IS_JSON,
+    IS_FLOAT_IN_RANGE,
+    IS_INT_IN_RANGE,
+    IS_TIME,
 )
-import re
 
 
 class QueryParseError(RuntimeError):
-    pass
+    """Raised by ``QueryBuilder.parse`` when input can't be parsed."""
 
 
-def validate(field, value):
-    """Validate the value for the field"""
+def validate(field: Field, value: Any) -> None:
+    """
+    Best-effort range/format check before building a ``Query``.
+
+    Picks the appropriate ``IS_*`` validator for the field's pydal type
+    (id/reference -> non-negative int; numeric -> in-range; date/time
+    -> ISO-format). Raises ``QueryParseError`` on failure; types
+    without a known validator pass through unchecked.
+    """
     error = None
     if (
         field.type == "id"
@@ -39,10 +71,17 @@ def validate(field, value):
 
 
 class QueryBuilder:
-    tokens_not = {
-        "not",
-    }
-    tokens_ops = {
+    """
+    Parser for natural-language query expressions over a single table.
+
+    Construction is cheap; you can reuse one builder across many
+    ``parse`` calls. Token vocabularies are class-level constants that
+    can be augmented per-instance via ``token_aliases`` (useful for
+    localization).
+    """
+
+    tokens_not: Set[str] = {"not"}
+    tokens_ops: Set[str] = {
         "upper",
         "lower",
         "is null",
@@ -59,11 +98,8 @@ class QueryBuilder:
         "contains",
         "startswith",
     }
-    tokens_and_or = {
-        "and",
-        "or",
-    }
-    default_token_aliases = {
+    tokens_and_or: Set[str] = {"and", "or"}
+    default_token_aliases: Dict[str, str] = {
         "is": "==",
         "is equal": "==",
         "is equal to": "==",
@@ -85,43 +121,51 @@ class QueryBuilder:
         "in": "belongs",
         "starts with": "startswith",
     }
-    # regex matching field names, and
+    # Matches a bare identifier token at the start of the input.
     re_token = re.compile(r"^(\w+)\s*(.*)$")
-    # regex matching a value or quoted value
+    # Matches a value: a double-quoted string (with ``\"`` escapes)
+    # OR an unquoted run of non-space/comma characters.
     re_value = re.compile(r'^((?:")(?:[^"]*[\\]["])*[^"]*(?:")|[^" ,]*)\s*(.*)$')
-    # regex matching repeated spaces
+    # Collapses runs of whitespace to a single space.
     re_spaces = re.compile(r"\s+")
 
     def __init__(
         self,
         table,
-        field_aliases=None,
-        token_aliases=None,
-        debug=False,
+        field_aliases: Optional[Dict[str, str]] = None,
+        token_aliases: Optional[Dict[str, str]] = None,
+        debug: bool = False,
     ):
         """
-        Creates a QueryBuilder object
-        params:
-        - table: the table object to be searched
-        - field_aliases: an optional mapping between desired field names and actual field names.
-                         If present only listed fields will be searchable. If only only readable fields.
-        - token_aliases: a mapping between expressions like "is equal to" into operations like "==".
+        Construct a parser bound to ``table``.
+
+        ``field_aliases``: map user-facing field names to their actual
+        column names (e.g. for localization or for hiding the
+        underlying column name). When provided, only the listed fields
+        are searchable; otherwise every readable field is.
+
+        ``token_aliases``: map natural-language phrases to one of the
+        canonical operator tokens in ``tokens_ops``/``tokens_not``/
+        ``tokens_and_or``. Defaults to ``default_token_aliases``.
+
+        ``debug``: print each token match to stdout while parsing.
         """
         self.table = table
-        # we either override all fields or none
+        # Either override all fields or none.
         if field_aliases:
             self.fields = {k: table[v] for k, v in field_aliases.items()}
         else:
             self.fields = {f.name.lower(): f for f in table if f.readable}
-        # use default token aliases if none provided
         if token_aliases is None:
             token_aliases = QueryBuilder.default_token_aliases
-        # build a complete list of tokens insluding aliases
+        # Build per-instance token dicts including aliases.
         self.tokens_not = self._augment(token_aliases, QueryBuilder.tokens_not)
         self.tokens_and_or = self._augment(token_aliases, QueryBuilder.tokens_and_or)
         self.tokens_ops = self._augment(token_aliases, QueryBuilder.tokens_ops)
-        # build the regexes that depend on tokens
+        # Build token-driven regexes once per instance.
         self.re_not = re.compile(r"^(" + "|".join(self.tokens_not) + r")(\W.*)$")
+        # Reverse-sort so longest tokens are tried first in the
+        # alternation (so ``is null`` matches before ``is``).
         self.re_op = re.compile(
             "^("
             + "|".join(
@@ -129,25 +173,37 @@ class QueryBuilder:
             )
             + r")\s*(.*)$"
         )
-        # true or false
         self.debug = debug
 
     @staticmethod
-    def _augment(aliases, original):
-        """returns a dict of k:v for k,v in aliases and v in original"""
+    def _augment(
+        aliases: Optional[Dict[str, str]], original: Set[str]
+    ) -> Dict[str, str]:
+        """
+        Build a ``token -> canonical`` map.
+
+        Canonical tokens map to themselves; each alias that targets a
+        canonical token is added.
+        """
         output = {k: k for k in original}
         if aliases:
             output.update({k: v for k, v in aliases.items() if v in original})
         return output
 
     @staticmethod
-    def _find_closing_bracket(text):
-        """Finds the end of a bracketed expression"""
+    def _find_closing_bracket(text: str) -> int:
+        """
+        Return the index of the ``)`` matching the leading ``(``.
+
+        Honors nested parentheses and skips ``)`` inside double-quoted
+        strings (where ``\\"`` escapes a quote). Raises
+        ``QueryParseError`` if brackets are unbalanced.
+        """
         if text[:1] != "(":
             raise QueryParseError("Internal error: missing start bracket")
         level = 0
         quoted = False
-        prev_c = None
+        prev_c: Optional[str] = None
         for i, c in enumerate(text):
             if not quoted:
                 if c == '"':
@@ -164,19 +220,26 @@ class QueryBuilder:
             prev_c = c
         raise QueryParseError("Unbalanced brackets")
 
-    def parse(self, text):
+    def parse(self, text: str):
         """
-        Builds a query from the table given and english text expression
+        Parse ``text`` into a pydal ``Query``.
+
+        The grammar is roughly::
+
+            query  := atom (and/or atom)*
+            atom   := [not] (subexpr | predicate)
+            subexpr := '(' query ')'
+            predicate := field [lower|upper] op [value (',' value)*]
+
+        Returns ``self.table.id > 0`` for empty input (i.e. "all rows").
         """
         if self.debug:
             print("PARSING", repr(text))
-        # build names of possible searchable fields
-        fields = {field.name.lower(): field for field in self.table if field.readable}
-        # in the stack we put queries and logical operators only
+        # In the stack we keep queries and logical operators only.
         stack = []
 
-        # match a token using the regex and return the token and left over text
         def next(text, regex, ignore=False):
+            """Match one token; return ``(token, remaining)`` or raise."""
             text = text.strip()
             if not text:
                 if ignore:
@@ -189,7 +252,6 @@ class QueryBuilder:
                 raise QueryParseError(f"Unable to parse {text}")
             is_quoted = text[:1] == '"'
             token, text = match.group(1), match.group(2)
-            # if text is not quoted, remove duplicated spaces
             if is_quoted:
                 token = token[1:-1]
             else:
@@ -198,21 +260,19 @@ class QueryBuilder:
                 print("MATCH", repr(token), repr(text))
             return token, text.strip()
 
-        # loop until there is more text to process
         while text.strip():
             negate = False
-            # match if we start with "not"
+            # Optional leading ``not``.
             token, text = next(text, self.re_not, ignore=True)
             if token:
                 negate = True
-            # deal with a nested expression or parse the current expression
+            # Nested expression OR a bare predicate.
             if text.startswith("("):
                 i = QueryBuilder._find_closing_bracket(text)
-                token, text = text[1:i], text[i + 1 :].strip()
+                token, text = text[1:i], text[i + 1:].strip()
                 query = self.parse(token)
             else:
                 token, text = next(text, self.re_token)
-                # match a field name
                 if token.lower() not in self.fields:
                     raise QueryParseError(
                         f"Unable to parse {token}, expected a field name"
@@ -220,10 +280,9 @@ class QueryBuilder:
                 field = self.fields[token]
                 is_text = field.type in ("string", "text", "blob")
                 has_contains = is_text or field.type.startswith("list:")
-                # match an operator
                 token, text = next(text, self.re_op)
                 token = self.tokens_ops[token]
-                # if the operator is a field modifier, get the next operator
+                # ``lower``/``upper`` modify the field, then expect another op.
                 if is_text and token == "lower":
                     token, text = next(text, self.re_op)
                     token = self.tokens_ops.get(token)
@@ -233,15 +292,15 @@ class QueryBuilder:
                     token = self.tokens_ops.get(token)
                     field = field.upper()
                 if token == "is null":
-                    query = field == None
+                    query = field == None  # noqa: E711
                 elif token == "is not null":
-                    query = field != None
+                    query = field != None  # noqa: E711
                 elif field.type == "boolean" and token == "is true":
-                    query = field == True
+                    query = field == True  # noqa: E712
                 elif field.type == "boolean" and token == "is false":
-                    query = field == False
+                    query = field == False  # noqa: E712
                 else:
-                    # the operator requires a value, match a value
+                    # The op requires a value — match it.
                     value, text = next(text, self.re_value)
                     validate(field, value)
                     if token == "==":
@@ -261,7 +320,7 @@ class QueryBuilder:
                     elif is_text and token == "startswith":
                         query = field.startswith(value)
                     elif token == "belongs" and field:
-                        # the operator allows multiple values, macth next values
+                        # ``belongs`` accepts a comma-separated list.
                         value = [value]
                         while text.startswith(","):
                             token, text = next(text[1:], self.re_value)
@@ -272,10 +331,9 @@ class QueryBuilder:
                         raise QueryParseError(
                             f"Unable to parse {token}, expected an operator"
                         )
-            # we mad matched a not so negate the whole expression
             if negate:
                 query = ~query
-            # we have a query, put it in stack or combine it into a logical expression
+            # Combine into the running logical expression.
             if len(stack) > 1 and stack[-1] == "and":
                 stack[-2:] = [stack[-2] & query]
             elif len(stack) > 1 and stack[-1] == "or":
@@ -283,7 +341,7 @@ class QueryBuilder:
             else:
                 stack.append(query)
 
-            # we have a query match next "and" or "or" and put them in stack
+            # Trailing ``and``/``or`` connects the next predicate.
             token, text = next(text, self.re_token, ignore=True)
             if not token:
                 break
@@ -292,7 +350,5 @@ class QueryBuilder:
             else:
                 raise QueryParseError(f"Unable to parse {token}, expected and/or")
         if len(stack) > 1:
-            # this should never happen
             raise QueryParseError("Internal error: leftover stack")
-        # return the one query left in stack
         return stack[-1] if stack else self.table.id > 0

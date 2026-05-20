@@ -3,12 +3,12 @@ import re
 import tempfile
 
 from pydal import DAL, Field
-from pydal._compat import integer_types
+# integer_types removed; use int
 
 from ._adapt import DEFAULT_URI, IS_IMAP, IS_NOSQL, drop
 from ._compat import unittest
 
-long = integer_types[-1]
+long = int
 
 regex_isint = re.compile(r"^[+-]?\d+$")
 
@@ -23,7 +23,7 @@ def range_error_message(error_message, what_to_enter, minimum, maximum):
             error_message += " greater than or equal to %(min)g"
         elif maximum is not None:
             error_message += " less than or equal to %(max)g"
-    if type(maximum) in integer_types:
+    if type(maximum) is int:
         maximum -= 1
     return error_message % dict(min=minimum, max=maximum)
 

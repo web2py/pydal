@@ -1,23 +1,53 @@
+"""
+URL-pattern parser backing ``DAL.parse_as_rest``.
+
+A "pattern" describes a URL shape and the table/field it maps onto.
+Tokens inside ``{...}`` are query predicates; tokens inside ``[...]``
+are table joins. ``RestParser.parse`` walks a list of patterns,
+matches the current request path against each, and returns a
+status/response dict.
+
+This module is consumed by ``pydal/restapi.py``.
+"""
+
 import re
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from .regex import REGEX_SEARCH_PATTERN, REGEX_SQUARE_BRACKETS
 
 
-def to_num(num):
-    result = 0
-    try:
-        result = int(num)
-    except NameError as e:
-        result = int(num)
-    return result
+def to_num(num: Any) -> int:
+    """
+    Coerce ``num`` to ``int`` (returns 0 if ``num`` is None).
+
+    Raises ``ValueError`` if ``num`` isn't a parseable int.
+    """
+    if num is None:
+        return 0
+    return int(num)
 
 
-class RestParser(object):
+class RestParser:
+    """
+    Walk a URL request through a list of REST patterns and dispatch
+    against the bound DAL.
+
+    Typically used via ``db.parse_as_rest(patterns, args, vars)``.
+    """
+
     def __init__(self, db):
         self.db = db
 
-    def auto_table(self, table, base="", depth=0):
-        patterns = []
+    def auto_table(self, table: str, base: str = "", depth: int = 0) -> List[str]:
+        """
+        Generate REST patterns for every readable field of ``table``.
+
+        Patterns include type-specific search predicates (``ge``/``lt``
+        ranges for numerics, ``year``/``month``/``day``/``hour``/...
+        for dates, ``contains`` for lists). ``depth`` walks back-
+        references to other tables.
+        """
+        patterns: List[str] = []
         for field in self.db[table].fields:
             if base:
                 tag = "%s/%s" % (base, field.replace("_", "-"))
@@ -69,45 +99,53 @@ class RestParser(object):
                     patterns += self.auto_table(table, base=tag, depth=depth - 1)
         return patterns
 
-    def parse(self, patterns, args, vars, queries=None, nested_select=True):
+    def parse(
+        self,
+        patterns: Union[str, Sequence[Union[str, Tuple]]],
+        args: Sequence[str],
+        vars: Dict[str, Any],
+        queries: Optional[Any] = None,
+        nested_select: bool = True,
+    ):
         """
-        Example:
-            Use as::
+        Dispatch a request against the pattern list.
 
-                db.define_table('person',Field('name'),Field('info'))
-                db.define_table('pet',
-                    Field('ownedby',db.person),
-                    Field('name'),Field('info')
-                )
+        ``patterns`` can be the string ``"auto"`` (generate patterns
+        for every non-auth table) or a sequence of pattern entries.
+        Each entry is either a plain pattern string, a
+        ``(pattern, basequery)`` tuple, or a
+        ``(pattern, basequery, exposedfields)`` tuple.
 
-                @request.restful()
-                def index():
-                    def GET(*args,**vars):
-                        patterns = [
-                            "/friends[person]",
-                            "/{person.name}/:field",
-                            "/{person.name}/pets[pet.ownedby]",
-                            "/{person.name}/pets[pet.ownedby]/{pet.name}",
-                            "/{person.name}/pets[pet.ownedby]/{pet.name}/:field",
-                            ("/dogs[pet]", db.pet.info=='dog'),
-                            ("/dogs[pet]/{pet.name.startswith}", db.pet.info=='dog'),
-                            ]
-                        parser = db.parse_as_rest(patterns,args,vars)
-                        if parser.status == 200:
-                            return dict(content=parser.response)
-                        else:
-                            raise HTTP(parser.status,parser.error)
+        ``args`` is the URL path split on ``/``; ``vars`` is the
+        query-string dict.
 
-                    def POST(table_name,**vars):
-                        if table_name == 'person':
-                            return db.person.validate_and_insert(**vars)
-                        elif table_name == 'pet':
-                            return db.pet.validate_and_insert(**vars)
-                        else:
-                            raise HTTP(400)
-                    return locals()
+        Returns a ``db.Row``-style dict with ``status`` /
+        ``response`` / ``error`` / ``pattern``.
+
+        Example::
+
+            db.define_table('person', Field('name'), Field('info'))
+            db.define_table('pet',
+                Field('ownedby', db.person),
+                Field('name'), Field('info'))
+
+            @request.restful()
+            def index():
+                def GET(*args, **vars):
+                    patterns = [
+                        "/friends[person]",
+                        "/{person.name}/:field",
+                        "/{person.name}/pets[pet.ownedby]",
+                        "/{person.name}/pets[pet.ownedby]/{pet.name}",
+                        "/{person.name}/pets[pet.ownedby]/{pet.name}/:field",
+                        ("/dogs[pet]", db.pet.info == 'dog'),
+                        ("/dogs[pet]/{pet.name.startswith}", db.pet.info == 'dog'),
+                    ]
+                    parser = db.parse_as_rest(patterns, args, vars)
+                    if parser.status == 200:
+                        return dict(content=parser.response)
+                    raise HTTP(parser.status, parser.error)
         """
-
         if patterns == "auto":
             patterns = []
             for table in self.db.tables:
@@ -125,9 +163,10 @@ class RestParser(object):
                     REGEX_SQUARE_BRACKETS, tokens[-1]
                 ):
                     new_patterns = self.auto_table(
-                        tokens[-1][tokens[-1].find("[") + 1 : -1], "/".join(tokens[:-1])
+                        tokens[-1][tokens[-1].find("[") + 1: -1],
+                        "/".join(tokens[:-1]),
                     )
-                    patterns = patterns[:i] + new_patterns + patterns[i + 1 :]
+                    patterns = patterns[:i] + new_patterns + patterns[i + 1:]
                     i += len(new_patterns)
                 else:
                     i += 1
@@ -201,7 +240,7 @@ class RestParser(object):
                     re.match(REGEX_SQUARE_BRACKETS, tag)
                     and args[i] == tag[: tag.find("[")]
                 ):
-                    ref = tag[tag.find("[") + 1 : -1]
+                    ref = tag[tag.find("[") + 1: -1]
                     if "." in ref and otable:
                         table, field = ref.split(".")
                         selfld = "_id"
@@ -247,11 +286,9 @@ class RestParser(object):
                             dbset = self.db(queries[table])
                         dbset = dbset(self.db[table])
                 elif tag == ":field" and table:
-                    # print 're3:'+tag
                     field = args[i]
                     if field not in self.db[table]:
                         break
-                    # hand-built patterns should respect .readable=False as well
                     if not self.db[table][field].readable:
                         return self.db.Row(
                             {
@@ -263,7 +300,7 @@ class RestParser(object):
                         )
                     try:
                         distinct = vars.get("distinct", False) == "True"
-                        offset = to_num(vars.get("offset", None) or 0)
+                        offset = to_num(vars.get("offset", None))
                         limits = (
                             offset,
                             to_num(vars.get("limit", None) or 1000) + offset,
@@ -279,15 +316,14 @@ class RestParser(object):
                         return self.db.Row(
                             {"status": 200, "response": items, "pattern": pattern}
                         )
-                    else:
-                        return self.db.Row(
-                            {
-                                "status": 404,
-                                "pattern": pattern,
-                                "error": "no record found",
-                                " response": None,
-                            }
-                        )
+                    return self.db.Row(
+                        {
+                            "status": 404,
+                            "pattern": pattern,
+                            "error": "no record found",
+                            "response": None,
+                        }
+                    )
                 elif tag != args[i]:
                     break
                 otable = table
@@ -327,7 +363,7 @@ class RestParser(object):
                         fields = [field for field in self.db[table] if field.readable]
                     count = dbset.count()
                     try:
-                        offset = to_num(vars.get("offset", None) or 0)
+                        offset = to_num(vars.get("offset", None))
                         limits = (
                             offset,
                             to_num(vars.get("limit", None) or 1000) + offset,
@@ -336,7 +372,7 @@ class RestParser(object):
                         return self.db.Row(
                             {
                                 "status": 400,
-                                "error": " invalid limits",
+                                "error": "invalid limits",
                                 "response": None,
                             }
                         )

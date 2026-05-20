@@ -1,17 +1,45 @@
-# -*- coding: utf-8 -*-
+"""
+Registry of available DB-API Python drivers.
 
-DRIVERS = {}
+Each backend's driver module is probed by ``try / except ImportError``
+at module load time. Whatever's importable is added to ``DRIVERS`` so
+``find_driver()`` in the adapter base can pick it up later.
+
+Module-level constants exposed for adapters:
+
+* ``DRIVERS`` — ``{driver_name: module}`` mapping of installed drivers.
+* ``is_jdbc`` — True when the zxJDBC driver is importable (Jython).
+* ``psycopg2_adapt`` — psycopg2's ``adapt`` callable, or None.
+* ``cx_Oracle`` — the cx_Oracle module, or None.
+* ``pyodbc`` — pyodbc (or pypyodbc fallback) module, or None.
+* ``couchdb`` — couchdb module, or None.
+
+The unconditional ``None`` assignments at the top guarantee the names
+exist regardless of which drivers are present — a previous version
+only set them inside one ``try`` branch, leaving them unbound when
+that branch's import failed.
+"""
+
+from typing import Any, Dict, Optional
+
+DRIVERS: Dict[str, Any] = {}
+
+# Default sentinels — overwritten below if the relevant driver is
+# present. Keeping them defined unconditionally avoids NameError when
+# adapters do ``from ..drivers import psycopg2_adapt`` etc. on systems
+# where the driver isn't installed.
+psycopg2_adapt: Optional[Any] = None
+cx_Oracle: Optional[Any] = None
+pyodbc: Optional[Any] = None
+couchdb: Optional[Any] = None
+is_jdbc: bool = False
+
 
 try:
     from google.cloud import firestore
-    from google.cloud.firestore_v1.base_query import FieldFilter
+    from google.cloud.firestore_v1.base_query import FieldFilter  # noqa: F401
 
     DRIVERS["firestore"] = firestore
-    psycopg2_adapt = None
-    cx_Oracle = None
-    pyodbc = None
-    couchdb = None
-    is_jdbc = False
 except ImportError:
     pass
 
@@ -40,7 +68,6 @@ try:
     import snowflake.connector as snowflakeconnector
 
     DRIVERS["snowflakeconnector"] = snowflakeconnector
-
 except ImportError:
     pass
 
@@ -64,29 +91,26 @@ try:
 
     DRIVERS["psycopg2"] = psycopg2
 except ImportError:
-    psycopg2_adapt = None
+    pass
 
 try:
-    import cx_Oracle
+    import cx_Oracle  # noqa: F811
 
     DRIVERS["cx_Oracle"] = cx_Oracle
 except ImportError:
-    cx_Oracle = None
+    pass
 
 try:
-    import pyodbc
+    import pyodbc  # noqa: F811
 
     DRIVERS["pyodbc"] = pyodbc
-    # DRIVERS.append('DB2(pyodbc)')
-    # DRIVERS.append('Teradata(pyodbc)')
-    # DRIVERS.append('Ingres(pyodbc)')
 except ImportError:
     try:
-        import pypyodbc as pyodbc
+        import pypyodbc as pyodbc  # noqa: F811
 
         DRIVERS["pyodbc"] = pyodbc
     except ImportError:
-        pyodbc = None
+        pass
 
 try:
     import ibm_db_dbi
@@ -94,6 +118,7 @@ try:
     DRIVERS["ibm_db_dbi"] = ibm_db_dbi
 except ImportError:
     pass
+
 try:
     import Sybase
 
@@ -105,7 +130,6 @@ try:
     import kinterbasdb
 
     DRIVERS["kinterbasdb"] = kinterbasdb
-    # DRIVERS.append('Firebird(kinterbasdb)')
 except ImportError:
     pass
 
@@ -126,7 +150,6 @@ except ImportError:
 try:
     import informixdb
 
-    # LOGGER.warning('Informix support is experimental')
     DRIVERS["informixdb"] = informixdb
 except ImportError:
     pass
@@ -135,7 +158,6 @@ try:
     import sapdb
 
     DRIVERS["sapdb"] = sapdb
-    # LOGGER.warning('SAPDB support is experimental')
 except ImportError:
     pass
 
@@ -143,7 +165,6 @@ try:
     import cubriddb
 
     DRIVERS["cubriddb"] = cubriddb
-    # LOGGER.warning('Cubrid support is experimental')
 except ImportError:
     pass
 
@@ -151,55 +172,54 @@ try:
     import java.sql
     from com.ziclix.python.sql import zxJDBC
 
-    # Try sqlite jdbc driver from http://www.zentus.com/sqlitejdbc/
-    from org.sqlite import JDBC  # required by java.sql; ensure we have it
+    # The org.sqlite Jython driver is needed by java.sql for sqlite
+    # over JDBC; the side-effect import is intentional.
+    from org.sqlite import JDBC  # noqa: F401
 
     zxJDBC_sqlite = java.sql.DriverManager
     DRIVERS["zxJDBC"] = zxJDBC
-    # DRIVERS.append('SQLite(zxJDBC)')
-    # LOGGER.warning('zxJDBC support is experimental')
     is_jdbc = True
 except ImportError:
-    is_jdbc = False
+    pass
 
 try:
-    import couchdb
+    import couchdb  # noqa: F811
 
     DRIVERS["couchdb"] = couchdb
 except ImportError:
-    couchdb = None
+    pass
 
 try:
     import pymongo
 
     DRIVERS["pymongo"] = pymongo
-except:
+except ImportError:
     pass
 
 try:
     import imaplib
 
     DRIVERS["imaplib"] = imaplib
-except:
+except ImportError:
     pass
 
 try:
     import pytds
 
     DRIVERS["pytds"] = pytds
-except:
+except ImportError:
     pass
 
 try:
     import pymssql
 
     DRIVERS["pymssql"] = pymssql
-except:
+except ImportError:
     pass
 
 try:
     import mssql_python
 
     DRIVERS["mssql-python"] = mssql_python
-except:
+except ImportError:
     pass

@@ -9,7 +9,8 @@ import os
 import sys
 
 from pydal import DAL, Field
-from pydal._compat import StringIO, long, to_bytes
+from io import StringIO
+from pydal.utils import to_bytes
 from pydal.exceptions import NotOnNOSQLError
 from pydal.helpers.classes import SQLALL, OpRow
 from pydal.objects import Expression, Query, Table

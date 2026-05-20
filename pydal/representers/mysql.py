@@ -1,3 +1,5 @@
+"""MySQL representer — SQL + JSON, no per-type overrides needed."""
+
 from ..adapters.mysql import MySQL
 from . import representers
 from .base import JSONRepresenter, SQLRepresenter
@@ -5,4 +7,4 @@ from .base import JSONRepresenter, SQLRepresenter
 
 @representers.register_for(MySQL)
 class MySQLRepresenter(SQLRepresenter, JSONRepresenter):
-    pass
+    """Plain SQL + JSON representer. Inherits every type handler."""

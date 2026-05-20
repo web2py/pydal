@@ -1,6 +1,6 @@
 import datetime
 
-from .._compat import to_bytes
+from ..utils import to_bytes
 from ..adapters.mongo import Mongo, MongoBlob
 from ..helpers.classes import Reference
 from ..objects import Row

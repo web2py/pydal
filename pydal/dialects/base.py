@@ -1,3 +1,17 @@
+"""
+Base dialect classes — ``CommonDialect``, ``SQLDialect``, ``NoSQLDialect``.
+
+A dialect knows how to render every pydal operator to its backend
+form: comparisons, arithmetic, JOIN clauses, aggregates, date
+extraction, etc. ``SQLDialect`` is the base for the ~14 SQL backends;
+``NoSQLDialect`` for Mongo / Firestore / CouchDB; ``CommonDialect``
+is the shared ancestor (identifier quoting + type-coercion plumbing).
+
+Per-backend subclasses live in sibling modules (``mysql.py``,
+``postgre.py``, ``mssql.py``, …) and register themselves with the
+``dialects`` dispatcher.
+"""
+
 import datetime
 
 from ..adapters.base import SQLAdapter
@@ -7,6 +21,14 @@ from . import Dialect, dialects, sqltype_for
 
 
 class CommonDialect(Dialect):
+    """
+    Shared base for SQL and NoSQL dialects.
+
+    Provides identifier quoting (``quote``/``varquote``/``constraint_name``),
+    type-coercion plumbing (``coerce``), and the ``_force_bigints``
+    helper used by ``DAL(bigint_id=True)``.
+    """
+
     quote_template = "%s"
 
     def _force_bigints(self):
@@ -32,6 +54,19 @@ class CommonDialect(Dialect):
 
 @dialects.register_for(SQLAdapter)
 class SQLDialect(CommonDialect):
+    """
+    Base SQL dialect — the default for every relational backend.
+
+    Defines the ANSI-ish baseline: double-quoted identifiers,
+    ``T``/``F`` for booleans (since not every backend has native
+    BOOLEAN), comparison/arithmetic/string-match operators, JOIN
+    builders, aggregates, date arithmetic, ``CASE WHEN``, and the
+    statement constructors (``select``/``insert``/``update``/
+    ``delete``/``drop_table``/``create_index``).
+
+    Backend subclasses override only the operators that diverge.
+    """
+
     quote_template = '"%s"'
     true = "T"
     false = "F"
@@ -597,8 +632,18 @@ class SQLDialect(CommonDialect):
 
 
 class NoSQLDialect(CommonDialect):
+    """
+    Base NoSQL dialect — shared by MongoDB, Firestore, CouchDB.
+
+    ``type_*`` methods return Python types rather than SQL type names
+    since NoSQL backends store native Python values. Operators that
+    don't apply to NoSQL (joins, subselects, etc.) raise
+    ``NotOnNOSQLError`` from the adapter rather than rendering SQL.
+    """
+
     @sqltype_for("string")
     def type_string(self):
+        """Python ``str`` is the NoSQL string type."""
         return str
 
     @sqltype_for("boolean")

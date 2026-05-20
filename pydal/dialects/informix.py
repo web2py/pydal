@@ -1,3 +1,5 @@
+"""Informix dialect — SERIAL ids, version-dependent SKIP/FIRST pagination."""
+
 from ..adapters.informix import Informix, InformixSE
 from . import dialects, sqltype_for
 from .firebird import FireBirdDialect
@@ -5,12 +7,23 @@ from .firebird import FireBirdDialect
 
 @dialects.register_for(Informix)
 class InformixDialect(FireBirdDialect):
+    """
+    Informix dialect (versions 9 and up).
+
+    Synthetic IDs use ``SERIAL`` / ``BIGSERIAL``. Pagination uses
+    ``SKIP n FIRST m`` placed between ``SELECT`` and the field list
+    (gated by ``adapter.dbms_version``). Inherits from FireBird for
+    shared trigger/sequence semantics.
+    """
+
     @sqltype_for("id")
     def type_id(self):
+        """Informix synthetic ID: ``SERIAL``."""
         return "SERIAL"
 
     @sqltype_for("big-id")
     def type_big_id(self):
+        """Informix 64-bit ID: ``BIGSERIAL``."""
         return "BIGSERIAL"
 
     @sqltype_for("reference FK")
@@ -43,7 +56,13 @@ class InformixDialect(FireBirdDialect):
         limitby=None,
         distinct=False,
         for_update=False,
+        with_cte=None,
     ):
+        """
+        Informix SELECT. ``SKIP n FIRST m`` between ``SELECT`` and the
+        field list (no ``LIMIT``/``OFFSET``). ``with_cte`` accepted for
+        signature compatibility with the base SQLDialect.
+        """
         dst, whr, grp, order, limit, offset, upd = "", "", "", "", "", "", ""
         if distinct is True:
             dst = " DISTINCT"
@@ -81,6 +100,14 @@ class InformixDialect(FireBirdDialect):
 
 @dialects.register_for(InformixSE)
 class InformixSEDialect(InformixDialect):
+    """
+    Informix Standard Edition dialect.
+
+    SE has no ``SKIP``/``FIRST`` — ``limitby`` is silently dropped at
+    the SQL level and slicing happens client-side via the adapter's
+    ``rowslice``.
+    """
+
     def select(
         self,
         fields,
@@ -92,7 +119,12 @@ class InformixSEDialect(InformixDialect):
         limitby=None,
         distinct=False,
         for_update=False,
+        with_cte=None,
     ):
+        """
+        Informix Standard Edition SELECT — no ``SKIP``/``FIRST`` support;
+        ``limitby`` is silently dropped.
+        """
         dst, whr, grp, order, limit, offset, upd = "", "", "", "", "", "", ""
         if distinct is True:
             dst = " DISTINCT"

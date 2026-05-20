@@ -1,3 +1,5 @@
+"""SQLite + Spatialite dialects."""
+
 from ..adapters.sqlite import Spatialite, SQLite
 from . import dialects, sqltype_for
 from .base import SQLDialect
@@ -5,8 +7,18 @@ from .base import SQLDialect
 
 @dialects.register_for(SQLite)
 class SQLiteDialect(SQLDialect):
+    """
+    SQLite dialect.
+
+    SQLite is dynamically typed at the value level — most column types
+    map to broad affinities (``CHAR``, ``DOUBLE``, ``INTEGER``, ...).
+    Regexp is routed through a user function (``web2py_extract`` for
+    EXTRACT, ``REGEXP`` operator for matching).
+    """
+
     @sqltype_for("string")
     def type_string(self):
+        """Map ``string`` to ``CHAR(n)``."""
         return "CHAR(%(length)s)"
 
     @sqltype_for("float")
@@ -76,8 +88,15 @@ class SQLiteDialect(SQLDialect):
 
 @dialects.register_for(Spatialite)
 class SpatialiteDialect(SQLiteDialect):
+    """
+    SpatiaLite dialect — adds a ``geometry`` column type and a
+    handful of GIS function emitters (``AsGeoJSON``, ``Distance``,
+    ``Within``, ...).
+    """
+
     @sqltype_for("geometry")
     def type_geometry(self):
+        """Map ``geometry`` to SpatiaLite's ``GEOMETRY`` type."""
         return "GEOMETRY"
 
     def st_asgeojson(self, first, second, query_env={}):

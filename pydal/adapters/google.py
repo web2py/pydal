@@ -1,9 +1,9 @@
 import os
 import re
 import time
+from os.path import join as pjoin
 from urllib.parse import parse_qs
 
-from .._compat import pjoin
 from .._globals import THREAD_LOCAL
 from ..helpers.classes import SQLALL, FakeDriver, Reference
 from ..helpers.methods import use_common_filters, xorify

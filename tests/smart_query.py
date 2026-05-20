@@ -1,5 +1,5 @@
 from pydal import DAL, Field
-from pydal._compat import integer_types
+# integer_types removed; use int
 from pydal.helpers.methods import smart_query
 
 from ._adapt import DEFAULT_URI, IS_GAE, IS_IMAP, drop

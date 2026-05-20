@@ -1,21 +1,37 @@
+"""
+Base representers — Python value → backend literal serialization.
+
+A representer is the inverse of a parser. Per-type methods convert
+Python values (``bool``, ``int``, ``date``, ``dict`` for JSON, ...)
+into the string literal each backend expects in a SQL statement.
+Per-backend subclasses override only the types that diverge.
+"""
+
 import json
 from base64 import b64encode
 from datetime import date, datetime, time
 
-from .._compat import to_bytes, to_unicode
 from ..adapters.base import NoSQLAdapter, SQLAdapter
 from ..helpers.classes import Reference, SQLCustomType
 from ..helpers.methods import bar_encode
 from ..helpers.serializers import serializers
 from ..objects import Expression, Field, Row
+from ..utils import to_bytes, to_unicode
 from . import Representer, before_type, for_instance, for_type, pre, representers
 
 NoneType = type(None)
 
 
 class BaseRepresenter(Representer):
+    """
+    Generic representer: id/integer/decimal/double/date/datetime/time
+    plus the boolean ``T``/``F`` mapping via ``dialect.true`` /
+    ``dialect.false``.
+    """
+
     @for_type("boolean", adapt=False)
     def _boolean(self, value):
+        """Render booleans via the dialect's true/false tokens."""
         if value and not str(value)[:1].upper() in "0F":
             return self.adapter.smart_adapt(self.dialect.true)
         return self.adapter.smart_adapt(self.dialect.false)
@@ -86,14 +102,26 @@ class BaseRepresenter(Representer):
 
 
 class JSONRepresenter(Representer):
+    """JSON encoder mixin for backends with a ``json`` column type."""
+
     @for_type("json", encode=True)
     def _json(self, value):
+        """Serialize a Python value to a JSON string literal."""
         return serializers.json(value)
 
 
 @representers.register_for(SQLAdapter)
 class SQLRepresenter(BaseRepresenter):
+    """
+    Default SQL representer — handles strings, text, blobs, password,
+    upload, list-of-* types, reference columns, and SQLCustomType.
+
+    Strings are SQL-quoted via ``adapter.adapt``; blobs are
+    base64-encoded; ``list:*`` values use pipe-delimited encoding.
+    """
+
     def _custom_type(self, value, field_type):
+        """Render a ``SQLCustomType`` via its ``encoder`` callback."""
         value = field_type.encoder(value)
         if value and field_type.type in ("string", "text", "json"):
             return self.adapter.adapt(value)
@@ -149,7 +177,14 @@ class SQLRepresenter(BaseRepresenter):
 
 @representers.register_for(NoSQLAdapter)
 class NoSQLRepresenter(BaseRepresenter):
+    """
+    Default NoSQL representer — stores native Python values without
+    SQL quoting. ``adapt`` is a no-op since NoSQL drivers receive
+    Python objects, not SQL fragments.
+    """
+
     def adapt(self, value):
+        """No-op for NoSQL — drivers handle parameter encoding themselves."""
         return value
 
     @pre(is_breaking=True)

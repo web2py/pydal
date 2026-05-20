@@ -1,3 +1,5 @@
+"""MySQL dialect — backtick quoting, ``LONGTEXT``/``LONGBLOB``, ``REGEXP``."""
+
 from ..adapters.mysql import MySQL
 from ..helpers.methods import varquote_aux
 from . import dialects, sqltype_for
@@ -6,6 +8,18 @@ from .base import SQLDialect
 
 @dialects.register_for(MySQL)
 class MySQLDialect(SQLDialect):
+    """
+    MySQL dialect.
+
+    Identifier quoting uses backticks. Big text/blob columns map to
+    ``LONGTEXT`` / ``LONGBLOB``. Synthetic IDs use ``AUTO_INCREMENT``.
+    ``regexp`` is a native operator; ``substring`` maps to ``SUBSTRING``;
+    ``epoch`` to ``UNIX_TIMESTAMP``.
+
+    ``DROP TABLE`` toggles ``FOREIGN_KEY_CHECKS`` around the statement
+    so circular FKs don't block drops.
+    """
+
     quote_template = "`%s`"
 
     @sqltype_for("datetime")

@@ -1,3 +1,5 @@
+"""MySQL adapter (and CUBRID variant)."""
+
 import re
 
 from ..utils import split_uri_args
@@ -10,6 +12,18 @@ from .base import SQLAdapter
 @adapters.register_for("mysql:MySQLdb")
 @adapters.register_for("mysql")
 class MySQL(SQLAdapter):
+    """
+    MySQL adapter — supports MySQLdb, pymysql, and mysql.connector.
+
+    URI shape: ``mysql://user:pass@host:port/dbname?set_encoding=utf8&unix_socket=...``.
+    Either ``host`` or ``unix_socket`` must be present.
+
+    Distributed transactions are supported via XA. ALTER TABLE
+    auto-commits (MySQL DDL is implicitly transactional). Conservative
+    socket-level timeouts are installed by default for ``pymysql`` /
+    ``MySQLdb`` so dead connections fail fast in a NAT/LB-fronted setup.
+    """
+
     dbengine = "mysql"
     drivers = ("MySQLdb", "pymysql", "mysqlconnector")
     commit_on_alter_table = True
@@ -23,6 +37,7 @@ class MySQL(SQLAdapter):
     )  # set_encoding and unix_socket
 
     def _initialize_(self):
+        """Parse URI components and prepare ``driver_args`` for ``connector``."""
         super(MySQL, self)._initialize_()
         ruri = self.uri.split("://", 1)[1]
         m = re.match(self.REGEX_URI, ruri)
@@ -68,6 +83,7 @@ class MySQL(SQLAdapter):
             self.driver_args.setdefault("write_timeout", 30)
 
     def connector(self):
+        """Open a MySQL connection; pop the optional ``cursor_buffered`` flag."""
         cursor_buffered = self.driver_args.get("cursor_buffered")
         if cursor_buffered:
             del self.driver_args["cursor_buffered"]
@@ -77,31 +93,39 @@ class MySQL(SQLAdapter):
         return conn
 
     def after_connection(self):
+        """Enable FK checks and disable backslash escapes for safer literals."""
         self.execute("SET FOREIGN_KEY_CHECKS=1;")
         self.execute("SET sql_mode='NO_BACKSLASH_ESCAPES';")
 
     def distributed_transaction_begin(self, key):
+        """Open an MySQL XA transaction branch."""
         self.execute("XA START;")
 
     @with_connection
     def prepare(self, key):
+        """End and PREPARE this XA branch (phase 1 of 2PC)."""
         self.execute("XA END;")
         self.execute("XA PREPARE;")
 
     @with_connection
     def commit_prepared(self, key):
+        """Commit the prepared XA branch (phase 2 of 2PC)."""
         self.execute("XA COMMIT;")
 
     @with_connection
     def rollback_prepared(self, key):
+        """Roll back the prepared XA branch."""
         self.execute("XA ROLLBACK;")
 
 
 @adapters.register_for("cubrid")
 class Cubrid(MySQL):
+    """CUBRID adapter — mostly MySQL-compatible; drops the ``charset`` arg."""
+
     dbengine = "cubrid"
     drivers = ("cubriddb",)
 
     def _initialize_(self):
-        super(Cubrid, self)._initialize_()
+        """Same as MySQL but the CUBRID driver doesn't accept ``charset=``."""
+        super()._initialize_()
         del self.driver_args["charset"]

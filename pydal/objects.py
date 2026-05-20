@@ -1,6 +1,27 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=no-member,not-an-iterable
 
+"""
+Core pydal types.
+
+This module contains the building blocks of the DSL:
+
+* ``Row`` — a single fetched record (dict + attribute access).
+* ``Table`` — a column collection, the result of ``define_table``.
+* ``Field`` — a column descriptor passed to ``Table``.
+* ``Expression`` — base class for anything that compiles to a SQL
+  fragment: fields, arithmetic combinations, function calls.
+* ``Query`` — a WHERE clause (subclass of Expression).
+* ``Set`` — a ``Query`` plus its parent DAL. The object you call
+  ``.select()`` / ``.update()`` / ``.delete()`` / ``.count()`` on.
+* ``Select`` — a saved SELECT used as a subquery or join source.
+* ``Rows`` / ``IterRows`` — eager / lazy iterables returned by select.
+* ``DialectOp`` — late-bound dialect method reference; carries op
+  semantics through the AST without baking SQL too early.
+* ``LazyReferenceGetter`` / ``LazySet`` — lazy-resolution helpers used
+  by lazy-tables and reverse-reference traversal.
+"""
+
 import base64
 import binascii
 import copy
@@ -17,20 +38,13 @@ import types
 from collections import OrderedDict
 from io import TextIOWrapper
 
-from ._compat import (
-    BytesIO,
-    StringIO,
-    copyreg,
-    exists,
-    hashlib_md5,
-    iteritems,
-    pjoin,
-    reduce,
-    to_bytes,
-    to_native,
-    to_unicode,
-)
+import copyreg
+from functools import reduce
+from io import BytesIO, StringIO
+from os.path import exists, join as pjoin
+
 from ._globals import AND, DEFAULT, IDENTITY, OR
+from .utils import hashlib_md5, to_bytes, to_native, to_unicode
 from .exceptions import NotAuthorizedException, NotFoundException
 from .helpers.classes import (
     SQLALL,
@@ -306,31 +320,43 @@ copyreg.pickle(Row, pickle_row)
 
 class Table(Serializable, BasicStorage):
     """
-    Represents a database table
+    A database table — collection of ``Field``s plus operations.
 
-    Example::
-        You can create a table as::
-            db = DAL(...)
-            db.define_table('users', Field('name'))
+    Don't instantiate ``Table`` directly; use ``DAL.define_table``::
 
-        And then::
+        db = DAL(...)
+        db.define_table("users", Field("name"))
+        db.users.insert(name="Alice")
+        print(db.users._insert(name="Alice"))   # peek at the SQL
+        db.users.drop()
 
-            db.users.insert(name='me') # print db.users._insert(...) to see SQL
-            db.users.drop()
+    Public surface:
 
+    * ``insert`` / ``bulk_insert`` / ``_insert`` (SQL-only).
+    * ``update_or_insert`` / ``validate_and_insert`` /
+      ``validate_and_update`` / ``validate_and_update_or_insert``.
+    * ``drop`` / ``_drop``.
+    * ``import_from_csv_file`` / ``with_alias``.
+    * ``ALL`` — sentinel expanding to all readable fields.
+    * Indexing: ``table[42]`` returns the row with id 42.
+    * Iteration yields ``Field``s.
+    * ``_before_insert`` / ``_after_insert`` / ``_before_update`` /
+      ``_after_update`` / ``_before_delete`` / ``_after_delete`` —
+      lists of callbacks.
     """
 
     def __init__(self, db, tablename, *fields, **args):
         """
-        Initializes the table and performs checking on the provided fields.
+        Initialize a Table — usually called by ``DAL.define_table``.
 
-        Each table will have automatically an 'id'.
+        An ``id`` primary-key column is added automatically unless
+        ``primarykey=[...]`` is supplied.
 
-        If a field is of type Table, the fields (excluding 'id') from that table
-        will be used instead.
+        If one of ``fields`` is itself a ``Table``, its non-id fields
+        are merged in (used to clone schemas).
 
         Raises:
-            SyntaxError: when a supplied field is of incorrect type.
+            SyntaxError: if the table name or any field is invalid.
         """
         # import DAL here to avoid circular imports
         from .base import DAL
@@ -603,7 +629,7 @@ class Table(Serializable, BasicStorage):
 
     def _validate(self, **vars):
         errors = Row()
-        for key, value in iteritems(vars):
+        for key, value in vars.items():
             value, error = getattr(self, key).validate(value, vars.get("id"))
             if error:
                 errors[key] = error
@@ -694,7 +720,7 @@ class Table(Serializable, BasicStorage):
         return dict(
             [
                 (k, v)
-                for (k, v) in iteritems(record)
+                for (k, v) in record.items()
                 # include fields if
                 if (
                     k in self.fields
@@ -707,7 +733,7 @@ class Table(Serializable, BasicStorage):
     def _build_query(self, key):
         """for keyed table only"""
         query = None
-        for k, v in iteritems(key):
+        for k, v in key.items():
             if k in self._primarykey:
                 if query:
                     query = query & (getattr(self, k) == v)
@@ -737,7 +763,7 @@ class Table(Serializable, BasicStorage):
         elif key is not None:
             try:
                 return getattr(self, key)
-            except:
+            except AttributeError:
                 raise KeyError(key)
 
     def __call__(self, key=DEFAULT, **kwargs):
@@ -775,14 +801,14 @@ class Table(Serializable, BasicStorage):
                     .first()
                 )
             if record:
-                for k, v in iteritems(kwargs):
+                for k, v in kwargs.items():
                     if record[k] != v:
                         return None
             return record
         elif kwargs:
             query = reduce(
                 lambda a, b: a & b,
-                [getattr(self, k) == v for k, v in iteritems(kwargs)],
+                [getattr(self, k) == v for k, v in kwargs.items()],
             )
             return (
                 self._db(query)
@@ -906,7 +932,7 @@ class Table(Serializable, BasicStorage):
 
     def _compute_fields_for_operation(self, fields, to_compute):
         row = OpRow(self)
-        for name, tup in iteritems(fields):
+        for name, tup in fields.items():
             field, value = tup
             if isinstance(
                 value,
@@ -1050,7 +1076,7 @@ class Table(Serializable, BasicStorage):
                 myset = self._db(self._id == record[self._id.name])
             else:
                 query = None
-                for key, value in iteritems(_key):
+                for key, value in _key.items():
                     if query is None:
                         query = getattr(self, key) == value
                     else:
@@ -1081,7 +1107,7 @@ class Table(Serializable, BasicStorage):
     def validate_and_update_or_insert(self, _key=DEFAULT, **fields):
         if _key is DEFAULT or _key == "":
             primary_keys = {}
-            for key, value in iteritems(fields):
+            for key, value in fields.items():
                 if key in self._primarykey:
                     primary_keys[key] = value
             if primary_keys != {}:
@@ -1089,7 +1115,7 @@ class Table(Serializable, BasicStorage):
                 _key = primary_keys
             else:
                 required_keys = {}
-                for key, value in iteritems(fields):
+                for key, value in fields.items():
                     if getattr(self, key).required:
                         required_keys[key] = value
                 record = self(**required_keys)
@@ -1346,6 +1372,19 @@ class Table(Serializable, BasicStorage):
 
 
 class Select(BasicStorage):
+    """
+    A SELECT statement reified as a first-class object.
+
+    Built by ``Set.nested_select(...)`` and used either as the right
+    side of ``Field.belongs(...)`` (in/not-in subquery) or as a
+    FROM-clause source after ``with_alias(...)``. The newer
+    ``Set.subselect(...)`` returns an AST node directly; ``Select``
+    remains for backward compatibility.
+
+    Carries its source DAL, query, field list, and select-attributes;
+    SQL is generated lazily by the bound adapter.
+    """
+
     def __init__(self, db, query, fields, attributes):
         self._db = db
         self._tablename = None  # alias will be stored here
@@ -1530,7 +1569,7 @@ class Select(BasicStorage):
         return dict(
             [
                 (k, v)
-                for (k, v) in iteritems(record)
+                for (k, v) in record.items()
                 if k in self.fields and (self[k].type != "id" or id)
             ]
         )
@@ -1547,13 +1586,104 @@ def _expression_wrap(wrapper):
     return wrap
 
 
+class DialectOp(object):
+    """Late-bound reference to a dialect operation.
+
+    Expression/Query store this instead of a bound dialect method, so the
+    expression AST does not embed SQL or pin a specific dialect. At call time
+    (i.e. when an adapter expands the expression into SQL inside _select,
+    _insert, _update, _delete, _count) the lookup is resolved against the
+    CURRENT db._adapter.dialect, so the dialect/adapter may be swapped at any
+    time and existing expressions retarget transparently.
+    """
+
+    __slots__ = ("_db", "_name")
+
+    def __init__(self, db, name):
+        self._db = db
+        self._name = name
+
+    @property
+    def __name__(self):
+        return self._name
+
+    @property
+    def __self__(self):
+        # backward-compat shim: some code reads bound_method.__self__
+        return self._db._adapter.dialect
+
+    def _resolve(self):
+        return getattr(self._db._adapter.dialect, self._name)
+
+    def __call__(self, *args, **kwargs):
+        return self._resolve()(*args, **kwargs)
+
+    def __eq__(self, other):
+        if isinstance(other, DialectOp):
+            return self._name == other._name
+        # equal to a bound dialect method with the same name
+        if callable(other) and getattr(other, "__name__", None) == self._name:
+            return True
+        return NotImplemented
+
+    def __ne__(self, other):
+        rv = self.__eq__(other)
+        if rv is NotImplemented:
+            return rv
+        return not rv
+
+    def __hash__(self):
+        return hash(("DialectOp", self._name))
+
+    def __repr__(self):
+        return "DialectOp(%r)" % self._name
+
+
+def _abstract_op(db, op):
+    """Coerce a bound dialect method into a backend-agnostic DialectOp.
+
+    Leaves strings, None, plain callables and already-abstract ops untouched.
+    The detection is conservative: only converts callables that are currently
+    bound to db._adapter.dialect — those are exactly the ops produced by the
+    Expression/Query DSL.
+    """
+    if op is None or isinstance(op, (str, DialectOp)):
+        return op
+    if callable(op):
+        owner = getattr(op, "__self__", None)
+        name = getattr(op, "__name__", None)
+        if (
+            name
+            and db is not None
+            and getattr(db, "_adapter", None) is not None
+            and owner is db._adapter.dialect
+        ):
+            return DialectOp(db, name)
+    return op
+
+
 class Expression(object):
+    """
+    Base for anything that compiles to a SQL fragment.
+
+    Holds ``(op, first, second)`` where ``op`` is a ``DialectOp``
+    (late-bound dialect method) or a raw SQL string; ``first``/
+    ``second`` are the operand expressions/values. ``Field`` and
+    ``Query`` both inherit from ``Expression``, so arithmetic and
+    method calls compose uniformly.
+
+    The class attribute ``_dialect_expressions_`` is populated by the
+    dialect metaclass at instantiation: each entry adds a per-dialect
+    method to every Expression instance (used for ``regexp``, JSON
+    accessors, GIS predicates, etc.).
+    """
+
     _dialect_expressions_ = {}
 
     __hash__ = object.__hash__
 
     def __new__(cls, *args, **kwargs):
-        for name, wrapper in iteritems(cls._dialect_expressions_):
+        for name, wrapper in cls._dialect_expressions_.items():
             setattr(cls, name, _expression_wrap(wrapper))
         new_cls = super(Expression, cls).__new__(cls)
         return new_cls
@@ -1569,7 +1699,7 @@ class Expression(object):
         **optional_args,
     ):
         self.db = db
-        self.op = op
+        self.op = _abstract_op(db, op)
         self.first = first
         self.second = second
         self._table = getattr(first, "_table", None)
@@ -1767,6 +1897,8 @@ class Expression(object):
            field.belongs(1, 2)
            field.belongs((1, 2))
            field.belongs(query)
+           field.belongs(set.subselect(field))  # AST-native, recommended
+           field.belongs(set.nested_select(field))  # legacy Select object
 
         Does NOT accept:
 
@@ -1777,9 +1909,13 @@ class Expression(object):
             field.belongs((1, None), null=True)
 
         """
+        from . import ast as _ast  # local import to avoid cycles
         db = self.db
         if len(value) == 1:
             value = value[0]
+        # AST-native subquery (preferred): pass through unchanged.
+        if isinstance(value, _ast.Node):
+            return Query(self.db, self._dialect.belongs, self, value)
         if isinstance(value, Query):
             value = db(value)._select(value.first._table._id)
         elif not isinstance(value, (Select, str)):
@@ -1993,6 +2129,20 @@ class Expression(object):
 
 
 class FieldVirtual(object):
+    """
+    Compute-on-read pseudo-field.
+
+    Unlike a normal ``Field``, a ``FieldVirtual`` has no column in the
+    database — its value is calculated from the surrounding ``Row``
+    every time it's accessed::
+
+        full = FieldVirtual("full", lambda row: row.first + " " + row.last)
+        db.person.full = full
+
+    Useful for derived display values. Virtual fields are not
+    queryable, not writable, and don't participate in migrations.
+    """
+
     def __init__(
         self,
         name,
@@ -2003,7 +2153,9 @@ class FieldVirtual(object):
         readable=True,
         listable=True,
     ):
-        # for backward compatibility
+        # Two calling conventions for backward compatibility:
+        #   FieldVirtual(name, f, ...)          — preferred
+        #   FieldVirtual(f, ...)                — legacy; name becomes "unknown"
         (self.name, self.f) = (name, f) if f else ("unknown", name)
         self.type = ftype
         self.type_name = ftype.split(" ", 1)[0].split("(", 1)[0]
@@ -2034,8 +2186,22 @@ class FieldVirtual(object):
 
 
 class FieldMethod(object):
+    """
+    Bound method exposed as ``row.method_name(args)``.
+
+    Similar to ``FieldVirtual`` but evaluated on demand with arguments,
+    via the ``VirtualCommand`` wrapper. Useful for derived operations
+    that depend on parameters at call time::
+
+        db.thing.distance_to = FieldMethod(
+            "distance_to", lambda row, other: ...,
+        )
+        row.distance_to(some_point)
+    """
+
     def __init__(self, name, f=None, handler=None):
-        # for backward compatibility
+        # Two calling conventions for backward compatibility (see
+        # FieldVirtual).
         (self.name, self.f) = (name, f) if f else ("unknown", name)
         self.handler = handler or VirtualCommand
 
@@ -2047,39 +2213,35 @@ class FieldMethod(object):
 
 
 class Field(Expression, Serializable):
+    """
+    Column descriptor passed to ``DAL.define_table``.
+
+    Example::
+
+        Field("name", "string", length=32, default=None, required=False,
+              requires=IS_NOT_EMPTY(), ondelete="CASCADE",
+              notnull=False, unique=False,
+              regex=None, options=None,
+              widget=None, label=None, comment=None,
+              uploadfield=True,
+                  # True   -> store the uploaded file on disk
+                  # str    -> store its content in this column (blob)
+                  # False  -> discard file content
+              writable=True, readable=True, searchable=True, listable=True,
+              update=None, authorize=None,
+              autodelete=False, represent=None, uploadfolder=None,
+              uploadseparate=False,
+                  # True  -> bucket uploads under a per-uuid subfolder
+                  # False -> all uploads go to one folder
+              uploadfs=None)
+              # uploadfs is a pyfilesystem instance for non-local storage
+
+    See ``README.md`` for the full type catalogue.
+    """
+
     Virtual = FieldVirtual
     Method = FieldMethod
     Lazy = FieldMethod  # for backward compatibility
-
-    """
-    Represents a database field
-
-    Example:
-        Usage::
-
-            a = Field(name, 'string', length=32, default=None, required=False,
-                requires=IS_NOT_EMPTY(), ondelete='CASCADE',
-                notnull=False, unique=False,
-                regex=None, options=None,
-                uploadfield=True, widget=None, label=None, comment=None,
-                uploadfield=True, # True means store on disk,
-                                  # 'a_field_name' means store in this field in db
-                                  # False means file content will be discarded.
-                writable=True, readable=True, searchable=True, listable=True,
-                update=None, authorize=None,
-                autodelete=False, represent=None, uploadfolder=None,
-                uploadseparate=False # upload to separate directories by uuid_keys
-                                     # first 2 character and tablename.fieldname
-                                     # False - old behavior
-                                     # True - put uploaded file in
-                                     #   <uploaddir>/<tablename>.<fieldname>/uuid_key[:2]
-                                     #        directory)
-                uploadfs=None        # a pyfilesystem where to store upload
-                )
-
-    to be used as argument of `DAL.define_table`
-
-    """
 
     def __init__(
         self,
@@ -2608,16 +2770,21 @@ class Field(Expression, Serializable):
 
 class Query(Serializable):
     """
-    Necessary to define a set.
-    It can be stored or can be passed to `DAL.__call__()` to obtain a `Set`
+    A WHERE clause: a boolean predicate over rows.
 
-    Example:
-        Use as::
+    Built by comparing Fields::
 
-            query = db.users.name=='Max'
-            set = db(query)
-            records = set.select()
+        q = db.users.name == "Max"
 
+    Combine with ``&`` (AND), ``|`` (OR), ``~`` (NOT). Pass to
+    ``DAL.__call__`` to make a ``Set``::
+
+        rows = db(q).select()
+
+    Query is itself serializable (``as_dict``) so it can be persisted
+    or shipped to a client. The opaque ``op`` is a ``DialectOp`` —
+    late-bound dialect method reference — so the same Query can be
+    re-rendered against a different backend.
     """
 
     def __init__(
@@ -2630,7 +2797,7 @@ class Query(Serializable):
         **optional_args,
     ):
         self.db = self._db = db
-        self.op = op
+        self.op = _abstract_op(db, op)
         self.first = first
         self.second = second
         self.ignore_common_filters = ignore_common_filters
@@ -2806,15 +2973,52 @@ class Set(Serializable):
 
     def _select(self, *fields, **attributes):
         adapter = self.db._adapter
-        tablenames = adapter.tables(
-            self.query,
-            attributes.get("join", None),
-            attributes.get("left", None),
-            attributes.get("orderby", None),
-            attributes.get("groupby", None),
-        )
-        fields = adapter.expand_all(fields, tablenames)
-        return adapter._select(self.query, fields, attributes)
+        # _select is the public "give me the SQL string" entry point.
+        # It feeds two use cases: (1) user inspection / debugging and
+        # (2) the legacy ``belongs(<sql_string>)`` plumbing which
+        # string-slices the result and embeds it into a parent query.
+        # Both require inline SQL — a ParamSQL would lose its bound
+        # params on the first slice. We force inline mode for the
+        # duration of this call regardless of the compiler's default.
+        compiler = adapter.compiler
+        saved = None
+        if compiler is not None and getattr(compiler, "parameterize", False):
+            saved = compiler.parameterize
+            compiler.parameterize = False
+        try:
+            tablenames = adapter.tables(
+                self.query,
+                attributes.get("join", None),
+                attributes.get("left", None),
+                attributes.get("orderby", None),
+                attributes.get("groupby", None),
+            )
+            fields = adapter.expand_all(fields, tablenames)
+            return adapter._select(self.query, fields, attributes)
+        finally:
+            if saved is not None:
+                compiler.parameterize = saved
+
+    def subselect(self, *fields, **attributes):
+        """Build an AST-native subquery (the recommended new way).
+
+        Unlike ``_select``, which materializes a SQL string at call
+        time, ``subselect`` returns a pure ``ast.Select`` node. Pass it
+        to ``Field.belongs(...)`` and the outer query's compile step
+        embeds it inline — bound parameters flow through cleanly, the
+        dialect can be swapped after construction, and there's no
+        round-trip through SQL strings.
+
+        Use cases::
+
+            sub = db(db.t.flag == True).subselect(db.t.id)
+            rows = db(db.other.t_id.belongs(sub)).select()
+
+        Backward compatibility: ``_select`` and ``nested_select`` keep
+        working unchanged.
+        """
+        from .ast_translate import set_to_select
+        return set_to_select(self, fields, attributes)
 
     def _delete(self):
         db = self.db
@@ -3069,6 +3273,16 @@ class Set(Serializable):
 
 
 class LazyReferenceGetter(object):
+    """
+    Reverse-reference resolver attached to a fetched Row under
+    ``__get_lazy_reference__`` when ``lazy_tables`` is enabled.
+
+    ``row.related("pet")`` walks the ``_referenced_by`` chain and
+    returns a ``LazySet`` for the matching back-reference, so the
+    caller can keep chaining without materializing intermediate
+    tables eagerly.
+    """
+
     def __init__(self, table, id):
         self.db = table._db
         self.tablename = table._tablename
@@ -3086,6 +3300,16 @@ class LazyReferenceGetter(object):
 
 
 class LazySet(object):
+    """
+    Lazy ``Set`` for a back-reference: ``field == id`` query that's
+    rebuilt every time it's used.
+
+    Lets you do ``row.pets.select(...)`` without paying the join cost
+    if the caller never enumerates. Mirrors the ``Set`` interface
+    (``select``, ``count``, ``update``, ``delete``, ``where``,
+    iteration) by forwarding to ``self._getset()``.
+    """
+
     def __init__(self, field, id):
         self.db, self.tablename, self.fieldname, self.id = (
             field.db,
@@ -3148,6 +3372,14 @@ class LazySet(object):
 
 
 class VirtualCommand(object):
+    """
+    Default handler for ``FieldMethod``: binds a row to a method and
+    forwards the call.
+
+    Installed on each row's namespace so ``row.method_name(args)``
+    resolves to ``method(row, args)``.
+    """
+
     def __init__(self, method, row):
         self.method = method
         self.row = row
@@ -3498,7 +3730,7 @@ class Rows(BasicRows):
         if not keyed_virtualfields:
             return self
         for row in self.records:
-            for tablename, virtualfields in iteritems(keyed_virtualfields):
+            for tablename, virtualfields in keyed_virtualfields.items():
                 attributes = dir(virtualfields)
                 if tablename not in row:
                     box = row[tablename] = Row()
@@ -3850,6 +4082,15 @@ class Rows(BasicRows):
 
 
 class IterRows(BasicRows):
+    """
+    Streaming counterpart to ``Rows`` — pulls rows from the cursor on
+    demand instead of loading them all up front.
+
+    Returned by ``Set.iterselect(...)``. Use when the result set is
+    too large to fit comfortably in memory. The trade-off: cannot be
+    indexed, sliced, or counted with ``len()``; iterate it once.
+    """
+
     def __init__(self, db, sql, fields, colnames, blob_decode, cacheable):
         self.db = db
         self.fields = fields

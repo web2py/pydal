@@ -1,24 +1,39 @@
+"""SQLite + Spatialite + JDBC-SQLite adapters."""
+
 import platform
 import re
 import uuid
-from datetime import datetime, date
+from datetime import date, datetime
+from os.path import join as pjoin
 from time import mktime
 
-from .._compat import pjoin
 from . import adapters
 from .base import SQLAdapter
 
 
 def convert_date(val):
+    """Decoder registered with sqlite3 for ``DATE`` declared types."""
     return date.fromisoformat(val.decode("utf-8"))
 
 
 def convert_datetime(val):
+    """Decoder registered with sqlite3 for ``DATETIME`` / ``TIMESTAMP`` types."""
     return datetime.fromisoformat(val.decode("utf-8"))
 
 
 @adapters.register_for("sqlite", "sqlite:memory")
 class SQLite(SQLAdapter):
+    """
+    SQLite adapter — covers ``sqlite://path``, ``sqlite:memory``.
+
+    Drivers tried: ``sqlite2`` (legacy pysqlite2), then ``sqlite3``
+    (stdlib). ``sqlite:memory`` uses a per-DAL shared in-memory
+    database via the ``file:<uuid>?mode=memory&cache=shared`` URI.
+
+    Pool size is forced to 0 — SQLite connections aren't pool-safe
+    across threads.
+    """
+
     dbengine = "sqlite"
     drivers = ("sqlite2", "sqlite3")
 
@@ -106,6 +121,14 @@ class SQLite(SQLAdapter):
 
 @adapters.register_for("spatialite", "spatialite:memory")
 class Spatialite(SQLite):
+    """
+    SpatiaLite adapter — SQLite + the SpatiaLite GIS extension.
+
+    Loads the platform-appropriate ``mod_spatialite`` library via
+    ``SELECT load_extension(...)`` on first connection. The library
+    path is platform-detected from ``SPATIALLIBS``.
+    """
+
     dbengine = "spatialite"
 
     SPATIALLIBS = {
@@ -123,6 +146,8 @@ class Spatialite(SQLite):
 
 @adapters.register_for("jdbc:sqlite", "jdbc:sqlite:memory")
 class JDBCSQLite(SQLite):
+    """SQLite via the zxJDBC bridge (Jython only)."""
+
     drivers = ("zxJDBC_sqlite",)
 
     def connector(self):

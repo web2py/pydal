@@ -1,7 +1,22 @@
+"""
+PostgreSQL adapter family.
+
+Six register_for'd variants, picked at construction time based on the
+URI driver hint:
+
+* ``Postgre`` / ``PostgrePsyco`` — base + psycopg2 driver.
+* ``PostgreNew`` / ``PostgrePsycoNew`` — Postgres array column support.
+* ``PostgreBoolean`` / ``PostgrePsycoBoolean`` — drivers that return
+  native Python booleans (no T/F translation needed).
+* ``JDBCPostgre`` — Jython / zxJDBC variant.
+
+The ``PostgreMeta`` metaclass routes ``DAL("postgres://...")`` to the
+right subclass based on which driver is installed.
+"""
+
 import os.path
 import re
 
-from .._compat import iterkeys, with_metaclass
 from .._globals import IDENTITY, THREAD_LOCAL
 from ..drivers import psycopg2_adapt
 from ..utils import split_uri_args
@@ -10,6 +25,14 @@ from .base import SQLAdapter
 
 
 class PostgreMeta(AdapterMeta):
+    """
+    Metaclass that picks the right Postgres subclass at construction.
+
+    Reads the driver hint out of the URI (e.g. ``postgres:pg8000://``)
+    and the set of installed drivers, then re-dispatches the
+    constructor to the matching registered class.
+    """
+
     def __call__(cls, *args, **kwargs):
         if cls not in [Postgre, PostgreNew, PostgreBoolean]:
             return AdapterMeta.__call__(cls, *args, **kwargs)
@@ -17,7 +40,7 @@ class PostgreMeta(AdapterMeta):
         available_drivers = [
             driver
             for driver in cls.drivers
-            if driver in iterkeys(kwargs["db"]._drivers_available)
+            if driver in kwargs["db"]._drivers_available
         ]
         uri_items = kwargs["uri"].split("://", 1)[0].split(":")
         uri_driver = uri_items[1] if len(uri_items) > 1 else None
@@ -30,7 +53,14 @@ class PostgreMeta(AdapterMeta):
 
 
 @adapters.register_for("postgres")
-class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
+class Postgre(SQLAdapter, metaclass=PostgreMeta):
+    """
+    Base PostgreSQL adapter — psycopg2 driver, distributed transactions
+    via ``PREPARE TRANSACTION`` / ``COMMIT PREPARED``.
+
+    URI shape: ``postgres://user:pass@host:port/dbname?sslmode=...``.
+    """
+
     dbengine = "postgres"
     drivers = ("psycopg2",)
     support_distributed_transaction = True
@@ -176,6 +206,15 @@ class Postgre(with_metaclass(PostgreMeta, SQLAdapter)):
 
 @adapters.register_for("postgres:psycopg2")
 class PostgrePsyco(Postgre):
+    """
+    psycopg2-specific Postgres adapter.
+
+    Detects driver / server version to enable JSON support (psycopg2
+    ≥ 2.0.12 + PostgreSQL ≥ 9.2) and adopts the JSON-aware dialect and
+    parser. ``adapt`` uses psycopg2's native ``adapt`` to defeat SQL
+    injection without round-tripping through pydal's representer.
+    """
+
     drivers = ("psycopg2",)
 
     def _config_json(self):
@@ -201,12 +240,16 @@ class PostgrePsyco(Postgre):
 
 @adapters.register_for("postgres2")
 class PostgreNew(Postgre):
+    """Postgres variant with native ``ARRAY`` column support."""
+
     def _get_json_dialect(self):
+        """JSON-aware dialect that also handles ``ARRAY`` columns."""
         from ..dialects.postgre import PostgreDialectArraysJSON
 
         return PostgreDialectArraysJSON
 
     def _get_json_parser(self):
+        """Parser for drivers that auto-decode JSON columns."""
         from ..parsers.postgre import PostgreNewAutoJSONParser
 
         return PostgreNewAutoJSONParser
@@ -214,17 +257,21 @@ class PostgreNew(Postgre):
 
 @adapters.register_for("postgres2:psycopg2")
 class PostgrePsycoNew(PostgrePsyco, PostgreNew):
-    pass
+    """psycopg2 + native arrays — the most common modern Postgres setup."""
 
 
 @adapters.register_for("postgres3")
 class PostgreBoolean(PostgreNew):
+    """Variant for drivers that return native Python booleans (skip T/F)."""
+
     def _get_json_dialect(self):
+        """JSON-aware dialect that also expects native booleans."""
         from ..dialects.postgre import PostgreDialectBooleanJSON
 
         return PostgreDialectBooleanJSON
 
     def _get_json_parser(self):
+        """Parser that trusts the driver's native boolean decoding."""
         from ..parsers.postgre import PostgreBooleanAutoJSONParser
 
         return PostgreBooleanAutoJSONParser
@@ -232,11 +279,13 @@ class PostgreBoolean(PostgreNew):
 
 @adapters.register_for("postgres3:psycopg2")
 class PostgrePsycoBoolean(PostgrePsycoNew, PostgreBoolean):
-    pass
+    """psycopg2 + native arrays + native booleans."""
 
 
 @adapters.register_for("jdbc:postgres")
 class JDBCPostgre(Postgre):
+    """PostgreSQL via the zxJDBC bridge (Jython only)."""
+
     drivers = ("zxJDBC",)
 
     REGEX_URI = (

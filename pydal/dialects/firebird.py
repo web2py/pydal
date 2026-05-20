@@ -1,3 +1,5 @@
+"""FireBird dialect — BLOB-SUB_TYPE-1 text, generator+trigger ids."""
+
 from ..adapters.firebird import FireBird
 from ..objects import Expression
 from . import dialects, sqltype_for
@@ -6,8 +8,20 @@ from .base import SQLDialect
 
 @dialects.register_for(FireBird)
 class FireBirdDialect(SQLDialect):
+    """
+    FireBird dialect.
+
+    Synthetic IDs come from a per-table generator plus a BEFORE-INSERT
+    trigger (set up by the adapter's ``create_sequence_and_triggers``).
+    Text columns map to ``BLOB SUB_TYPE 1``. Pagination uses
+    ``FIRST n SKIP m`` between ``SELECT`` and the field list.
+
+    Subclassed by ``InformixDialect`` for shared sequence behavior.
+    """
+
     @sqltype_for("text")
     def type_text(self):
+        """FireBird TEXT is a BLOB sub-type 1 (text)."""
         return "BLOB SUB_TYPE 1"
 
     @sqltype_for("bigint")

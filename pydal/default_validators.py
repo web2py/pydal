@@ -1,25 +1,38 @@
 # -*- coding: utf-8 -*-
 
 """
-| This file is part of the web2py Web Framework
-| Copyrighted by Massimo Di Pierro <mdipierro@cs.depaul.edu>
-| License: BSD
+Default validator chains for ``Field`` types.
 
-Takes care of adapting pyDAL to web2py's needs
------------------------------------------------
+When a ``Field`` doesn't specify ``requires=...``, the DAL falls back
+to ``DAL.validators_method`` which defaults to ``default_validators``.
+The result is a validator (or list of validators) that enforces the
+field's type at the form / ``validate_and_insert`` boundary.
+
+Reference fields, list-of-reference fields, and option lists get
+``IS_IN_DB`` / ``IS_IN_SET`` lookups; primitive types get the
+corresponding range/format validators.
 """
+
+from typing import Any, List, Optional, Union
 
 from . import validators
 
 
-def default_validators(db, field):
+def default_validators(db, field) -> Optional[Union[Any, List[Any]]]:
     """
-    Field type validation, using web2py's validators mechanism.
+    Build the default validator chain for ``field``.
 
-    makes sure the content of a field is in line with the declared
-    fieldtype
+    Returns:
+
+    * ``None`` if no validator is appropriate (e.g. type ``id`` or
+      ``upload`` with no explicit constraint).
+    * A single validator instance when there's only one rule.
+    * A list of validators when multiple rules apply.
+
+    The chain reflects ``field.unique``, ``field.notnull``,
+    ``field.length`` and the field's type. References point at the
+    referenced table via ``IS_IN_DB``.
     """
-
     field_type = field.type
     field_unique = field.unique
     field_notnull = field.notnull
@@ -27,7 +40,7 @@ def default_validators(db, field):
     is_ref = field_type.startswith("reference")
     is_list = field_type.startswith("list:")
     if is_ref or field_type.startswith("list:reference"):
-        table_field = field_type[10 if is_ref else 15 :].split(".", 1)
+        table_field = field_type[10 if is_ref else 15:].split(".", 1)
         table_name = table_field[0]
         field_name = table_field[-1]
         requires = None
@@ -58,11 +71,11 @@ def default_validators(db, field):
         requires = validators.IS_IN_SET(field.options, multiple=is_list)
     else:
         requires = []
-        if field_type in (("string", "text", "password")):
+        if field_type in ("string", "text", "password"):
             requires.append(validators.IS_LENGTH(field.length))
         elif field_type == "json":
             requires.append(validators.IS_EMPTY_OR(validators.IS_JSON()))
-        elif field_type == "double" or field_type == "float":
+        elif field_type in ("double", "float"):
             requires.append(validators.IS_FLOAT_IN_RANGE(-1e100, 1e100))
         elif field_type == "integer":
             requires.append(validators.IS_INT_IN_RANGE(-(2**31), 2**31))

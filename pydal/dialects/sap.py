@@ -1,3 +1,5 @@
+"""SAPDB / MaxDB dialect — ``INT`` ids, nested ROWNO for limitby."""
+
 from ..adapters.sap import SAPDB
 from . import dialects, sqltype_for
 from .base import SQLDialect
@@ -5,8 +7,17 @@ from .base import SQLDialect
 
 @dialects.register_for(SAPDB)
 class SAPDBDialect(SQLDialect):
+    """
+    SAPDB / MaxDB dialect.
+
+    Pagination has no native ``LIMIT``/``OFFSET`` — implemented via a
+    nested subquery using ``ROWNO``. ``id`` columns are plain ``INT``
+    populated by explicit per-table sequences.
+    """
+
     @sqltype_for("integer")
     def type_integer(self):
+        """SAPDB INTEGER is the same as ``INT``."""
         return "INT"
 
     @sqltype_for("text")
@@ -61,7 +72,13 @@ class SAPDBDialect(SQLDialect):
         limitby=None,
         distinct=False,
         for_update=False,
+        with_cte=None,
     ):
+        """
+        SAP MaxDB / SAPDB SELECT. ``limitby`` is implemented via a
+        nested ROWNO subquery (no native ``OFFSET``). ``with_cte`` is
+        accepted for signature compatibility with the base SQLDialect.
+        """
         dst, whr, grp, order, limit, offset, upd = "", "", "", "", "", "", ""
         if distinct is True:
             dst = " DISTINCT"

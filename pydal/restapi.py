@@ -1,9 +1,25 @@
+"""
+JSON REST API generator for any pydal database.
+
+``RestAPI(db, policy)(method, tablename, ...)`` dispatches a CRUD
+request against ``db`` according to a ``Policy``. The result is a
+JSON-serializable dict with ``status`` / ``code`` / ``items`` /
+``count`` / etc.
+
+Search expressions support dotted-key predicates
+(``color.name.eq=red`` joins through the ``color`` reference) and
+the special ``@offset`` / ``@limit`` / ``@order`` / ``@lookup`` /
+``@model`` / ``@count`` / ``@options_list`` variables.
+
+See ``RestAPI.search`` for the full query language.
+"""
+
 import collections
 import copy
 import fnmatch
 import functools
 import re
-import traceback
+from typing import Any, Callable, Dict, List, Optional
 
 from .utils import utcnow
 
@@ -15,31 +31,42 @@ MAX_LIMIT = 1000
 
 
 class PolicyViolation(ValueError):
-    pass
+    """A Policy rejected the requested operation."""
 
 
 class InvalidFormat(ValueError):
-    pass
+    """The request format / field names didn't validate."""
 
 
 class NotFound(ValueError):
-    pass
+    """The targeted record does not exist."""
 
 
-def maybe_call(value):
-    "call value if callable else return value"
+def maybe_call(value: Any) -> Any:
+    """Return ``value()`` if it's callable, else ``value`` itself."""
     return value() if callable(value) else value
 
 
-def trydo(f, default):
-    "return f() if no exception else return default"
+def trydo(f: Callable, default: Any) -> Any:
+    """Return ``f()``; on any exception, return ``default`` instead."""
     try:
         return f()
     except Exception:
         return default
 
 
-def error_wrapper(func):
+def error_wrapper(func: Callable) -> Callable:
+    """
+    Decorator that turns exceptions into structured error responses.
+
+    * ``PolicyViolation`` -> ``{status: error, code: 401, message: ...}``
+    * ``NotFound`` -> ``{status: error, code: 404, message: ...}``
+    * ``InvalidFormat`` / ``KeyError`` / ``ValueError`` ->
+      ``{status: error, code: 400, message: ...}``
+    * Otherwise -> the inner function's return value, decorated with
+      ``status``, ``code``, ``timestamp``, ``api_version``.
+    """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         data = {}
@@ -72,7 +99,27 @@ def error_wrapper(func):
     return wrapper
 
 
-class Policy(object):
+class Policy:
+    """
+    Access-control rules for a ``RestAPI``.
+
+    A Policy maps ``(tablename, method)`` pairs to a set of attributes
+    controlling whether the operation is allowed and what fields/query
+    patterns are exposed. ``tablename="*"`` acts as a wildcard fallback.
+
+    Per-method attributes:
+
+    * ``authorize`` — ``True``/``False`` or a callable
+      ``f(tablename, id, get_vars, post_vars) -> bool``.
+    * ``fields`` — list of allowed field names (``None`` means "all
+      readable/writable" depending on method).
+    * GET-only:
+      ``query`` (common filter applied to every GET),
+      ``allowed_patterns`` / ``denied_patterns`` (``fnmatch`` against
+      query-string keys), ``limit`` (max ``@limit``), ``allow_lookup``
+      (whether ``@lookup=`` is honored).
+    """
+
     model = {
         "POST": {"authorize": False, "fields": None},
         "PUT": {"authorize": False, "fields": None},
@@ -89,9 +136,16 @@ class Policy(object):
     }
 
     def __init__(self):
-        self.info = {}
+        self.info: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
-    def set(self, tablename, method="GET", **attributes):
+    def set(self, tablename: str, method: str = "GET", **attributes) -> None:
+        """
+        Set per-table-per-method policy attributes.
+
+        Raises ``InvalidFormat`` for unknown methods or attribute keys.
+        First call for a tablename clones ``Policy.model`` as the
+        starting point; subsequent calls update in place.
+        """
         method = method.upper()
         if not method in self.model:
             raise InvalidFormat("Invalid policy method: %s" % method)
@@ -102,15 +156,30 @@ class Policy(object):
             self.info[tablename] = copy.deepcopy(self.model)
         self.info[tablename][method].update(attributes)
 
-    def get(self, tablename, method, name):
+    def get(self, tablename: str, method: str, name: str) -> Any:
+        """Look up a single policy attribute; ``maybe_call`` if it's a callable."""
         policy = self.info.get(tablename) or self.info.get("*")
         if not policy:
             raise PolicyViolation("No policy for this object")
         return maybe_call(policy[method][name])
 
     def check_if_allowed(
-        self, method, tablename, id=None, get_vars=None, post_vars=None, exceptions=True
-    ):
+        self,
+        method: str,
+        tablename: str,
+        id: Optional[Any] = None,
+        get_vars: Optional[Dict[str, Any]] = None,
+        post_vars: Optional[Dict[str, Any]] = None,
+        exceptions: bool = True,
+    ) -> bool:
+        """
+        Enforce the policy for one request.
+
+        Returns ``True`` if allowed; otherwise either raises
+        ``PolicyViolation`` (when ``exceptions``) or returns ``False``.
+        Validates the per-method ``authorize`` rule and each get-var
+        key against ``allowed_patterns`` / ``denied_patterns``.
+        """
         get_vars = get_vars or {}
         post_vars = post_vars or {}
         policy = self.info.get(tablename) or self.info.get("*")
@@ -144,7 +213,8 @@ class Policy(object):
                 return False
         return True
 
-    def check_if_lookup_allowed(self, tablename, exceptions=True):
+    def check_if_lookup_allowed(self, tablename: str, exceptions: bool = True) -> bool:
+        """True iff GET on ``tablename`` permits ``@lookup=`` joins."""
         policy = self.info.get(tablename) or self.info.get("*")
         if not policy:
             if exceptions:
@@ -159,7 +229,13 @@ class Policy(object):
             return True
         return False
 
-    def allowed_fieldnames(self, table, method="GET"):
+    def allowed_fieldnames(self, table, method: str = "GET") -> List[str]:
+        """
+        Field names the policy permits for ``method`` on ``table``.
+
+        Falls back to all readable (GET) / writable (POST/PUT/DELETE)
+        fields when the policy declares ``fields=None``.
+        """
         method = method.upper()
         policy = self.info.get(table._tablename) or self.info.get("*", {})
         policy = policy[method]
@@ -173,7 +249,8 @@ class Policy(object):
             ]
         return allowed_fieldnames
 
-    def check_fieldnames(self, table, fieldnames, method="GET"):
+    def check_fieldnames(self, table, fieldnames, method: str = "GET") -> None:
+        """Raise ``InvalidFormat`` if ``fieldnames`` aren't all permitted."""
         allowed_fieldnames = self.allowed_fieldnames(table, method)
         invalid_fieldnames = set(fieldnames) - set(allowed_fieldnames)
         if invalid_fieldnames:
@@ -194,14 +271,27 @@ ALLOW_ALL_POLICY.set(tablename="*", method="PUT", authorize=True)
 ALLOW_ALL_POLICY.set(tablename="*", method="DELETE", authorize=True)
 
 
-class RestAPI(object):
+class RestAPI:
+    """
+    JSON REST front-end for a pydal database.
+
+    Construction takes a DAL and a ``Policy``. Calling the instance
+    dispatches a CRUD request::
+
+        api = RestAPI(db, my_policy)
+        api("GET", "person", get_vars={"name.startswith": "A"})
+        api("POST", "person", post_vars={"name": "Alice"})
+        api("PUT", "person", id=42, post_vars={"name": "Bob"})
+        api("DELETE", "person", id=42)
+    """
+
     re_table_and_fields = re.compile(r"\w+([\w+(,\w+)+])?")
     re_lookups = re.compile(
         r"((\w*\!?\:)?(\w+(\[\w+(,\w+)*\])?)(\.\w+(\[\w+(,\w+)*\])?)*)"
     )
     re_no_brackets = re.compile(r"\[.*?\]")
 
-    def __init__(self, db, policy):
+    def __init__(self, db, policy: Optional[Policy]):
         self.db = db
         self.policy = policy
         self.allow_count = "legacy"
@@ -209,13 +299,27 @@ class RestAPI(object):
     @error_wrapper
     def __call__(
         self,
-        method,
-        tablename,
-        id=None,
-        get_vars=None,
-        post_vars=None,
-        allow_count="legacy",
+        method: str,
+        tablename: str,
+        id: Optional[Any] = None,
+        get_vars: Optional[Dict[str, Any]] = None,
+        post_vars: Optional[Dict[str, Any]] = None,
+        allow_count: Any = "legacy",
     ):
+        """
+        Dispatch one CRUD request and return a JSON-friendly dict.
+
+        Routing by ``method``:
+
+        * GET -> ``self.search(tablename, get_vars)``; an ``id`` becomes
+          ``id.eq=<id>``.
+        * POST -> ``table.validate_and_insert(**post_vars)``.
+        * PUT -> ``table.validate_and_update(id, **post_vars)``.
+        * DELETE -> ``db(table._id == id).delete()``.
+
+        Errors are converted to structured responses by
+        ``@error_wrapper``.
+        """
         method = method.upper()
         get_vars = get_vars or {}
         post_vars = post_vars or {}
@@ -258,8 +362,18 @@ class RestAPI(object):
                 raise NotFound("Item not found")
             return {"deleted": deleted}
 
-    def table_model(self, table, fieldnames):
-        """converts a table into its form template"""
+    def table_model(self, table, fieldnames: List[str]) -> List[Dict[str, Any]]:
+        """
+        Describe ``table`` as a list of field definitions for clients.
+
+        Returns one dict per allowed field with keys ``name``,
+        ``label``, ``default``, ``type``, ``references``, ``regex``,
+        ``required``, ``unique``, ``post_writable``, ``put_writable``,
+        ``options``, and (for the id column) ``referenced_by``.
+
+        Fields are filtered by the bound policy's GET-allowed list and
+        the optional ``fieldnames`` whitelist.
+        """
         items = []
         fields = post_fields = put_fields = table.fields
         if self.policy:
@@ -299,7 +413,14 @@ class RestAPI(object):
         return items
 
     @staticmethod
-    def make_query(field, condition, value):
+    def make_query(field, condition: str, value: Any):
+        """
+        Build a Query from a (field, op, value) triple.
+
+        ``condition`` is one of ``eq``/``ne``/``lt``/``gt``/``le``/``ge``/
+        ``startswith``/``contains``/``in``. For ``in``, a comma-separated
+        string is split into the value list.
+        """
         expression = {
             "eq": lambda: field == value,
             "ne": lambda: field != value,
@@ -316,16 +437,44 @@ class RestAPI(object):
         return expression[condition]()
 
     @staticmethod
-    def parse_table_and_fields(text):
+    def parse_table_and_fields(text: str):
+        """
+        Split a ``"table"`` or ``"table[a,b,c]"`` token into
+        ``(tablename, [fields])``.
+
+        Raises ``ValueError`` on syntactically invalid input.
+        """
         if not RestAPI.re_table_and_fields.match(text):
             raise ValueError
         parts = text.split("[")
         if len(parts) == 1:
             return parts[0], []
-        elif len(parts) == 2:
+        if len(parts) == 2:
             return parts[0], parts[1][:-1].split(",")
+        raise ValueError("Malformed table-and-fields: %r" % text)
 
-    def search(self, tname, vars):
+    def search(self, tname: str, vars: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute a search and return the response payload.
+
+        ``tname`` may be ``"table"`` or ``"table[col1,col2]"``.
+        ``vars`` is a dict of URL-style search keys; ``@`` prefixes
+        switch on meta-options:
+
+        * ``@offset`` / ``@limit`` — pagination.
+        * ``@order`` — comma-separated field list, ``~`` for DESC.
+        * ``@lookup`` — comma-separated reference traversal spec.
+        * ``@model`` — include a ``model`` block per ``table_model``.
+        * ``@options_list`` — return ``{value, text}`` pairs instead of full rows.
+        * ``@count`` — include a total ``count`` in the response.
+
+        Regular keys are field predicates of the form
+        ``field[.subfield][.op]`` where ``op`` is in
+        ``eq``/``ne``/``lt``/``gt``/``le``/``ge``/``startswith``/
+        ``contains``/``in`` (default ``eq``). Prefix with ``not.`` for
+        negation. Up to four dots for relational hops.
+        """
+
         def check_table_permission(tablename):
             if self.policy:
                 self.policy.check_if_allowed("GET", tablename)
