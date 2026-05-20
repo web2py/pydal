@@ -6,10 +6,11 @@
 import datetime
 import tempfile
 import time
-import unittest
 
 from pydal import DAL
 from pydal.tools.scheduler import Scheduler, delta, now
+
+from ._compat import unittest
 
 
 class TestScheduler(unittest.TestCase):

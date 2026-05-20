@@ -13,8 +13,10 @@
 Thumbs.db
 .DS_Store
 pyDAL.egg-info/*
+pydal.egg-info/
 venv/*
 test-venv/*
+.venv/
 dist/*
 build/*
 .project
@@ -22,4 +24,8 @@ build/*
 .settings
 .idea
 .vslick
+
+# Local credentials — never commit
+testing-429503-805df6b2752b.json
+*.json.key
 

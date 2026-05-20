@@ -3,15 +3,13 @@
 Unit tests for NoSQL adapters
 """
 
-from __future__ import print_function
-
 import datetime
 import glob
 import os
 import sys
 
 from pydal import DAL, Field
-from pydal._compat import PY2, StringIO, basestring, long, to_bytes
+from pydal._compat import StringIO, long, to_bytes
 from pydal.exceptions import NotOnNOSQLError
 from pydal.helpers.classes import SQLALL, OpRow
 from pydal.objects import Expression, Query, Table
@@ -398,7 +396,7 @@ class TestFields(unittest.TestCase):
             self.assertTrue(isinstance(db.tt.insert(aa=iv[1]), long))
             self.assertTrue(isinstance(db.tt.insert(aa=None), long))
             cv = iv[1]
-            if IS_MONGODB and not PY2 and iv[0] == "blob":
+            if IS_MONGODB and iv[0] == "blob":
                 cv = to_bytes(iv[1])
             self.assertEqual(db().select(db.tt.aa)[0].aa, default_return)
             self.assertEqual(db().select(db.tt.aa)[1].aa, cv)
@@ -1803,7 +1801,7 @@ class TestDALDictImportExport(unittest.TestCase):
         dbdict = db.as_dict(flat=True, sanitize=False)
         assert isinstance(dbdict, dict)
         uri = dbdict["uri"]
-        assert isinstance(uri, basestring) and uri
+        assert isinstance(uri, str) and uri
         assert len(dbdict["tables"]) == 2
         assert len(dbdict["tables"][0]["fields"]) == 3
         assert dbdict["tables"][0]["fields"][1]["type"] == db.person.name.type
@@ -1823,7 +1821,7 @@ class TestDALDictImportExport(unittest.TestCase):
             import serializers
 
             dbjson = db.as_json(sanitize=False)
-            assert isinstance(dbjson, basestring) and len(dbjson) > 0
+            assert isinstance(dbjson, str) and len(dbjson) > 0
 
             unicode_keys = True
             if sys.version < "2.6.5":
@@ -2187,7 +2185,7 @@ class TestRNameFields(unittest.TestCase):
             db.define_table("tt", Field("aa", ft, default="", rname=rname))
             cv = "x"
             self.assertEqual(isinstance(db.tt.insert(aa="x"), long), True)
-            if IS_MONGODB and not PY2 and ft == "blob":
+            if IS_MONGODB and ft == "blob":
                 cv = to_bytes(cv)
             self.assertEqual(db().select(db.tt.aa)[0].aa, cv)
             drop(db.tt)

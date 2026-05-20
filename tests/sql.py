@@ -3,26 +3,16 @@
 Basic unit tests
 """
 
-from __future__ import print_function
-
 import datetime
-import zoneinfo
 import glob
 import json
 import os
 import pickle
+import zoneinfo
 from unittest import skipIf
 
 from pydal import DAL, Field
-from pydal._compat import (
-    PY2,
-    BytesIO,
-    StringIO,
-    basestring,
-    integer_types,
-    to_bytes,
-    xrange,
-)
+from pydal._compat import BytesIO, StringIO, integer_types, to_bytes
 from pydal.helpers.classes import SQLALL, OpRow
 from pydal.objects import Expression, Row, Table
 
@@ -785,7 +775,6 @@ class TestSubselect(DALtest):
         self.assertEqual(sub.sql_shortref, db._adapter.dialect.quote("foo"))
         self.assertIsInstance(sub.on(sub.aa != None), Expression)
 
-    @skipIf(PY2, "sqlite3 on py2 does not allow circular references")
     @unittest.skipIf(IS_MSSQL, "Skip mssql")
     def testCTE(self):
         db = self.connect()
@@ -2238,7 +2227,7 @@ class TestDALDictImportExport(unittest.TestCase):
         dbdict = db.as_dict(flat=True, sanitize=False)
         assert isinstance(dbdict, dict)
         uri = dbdict["uri"]
-        assert isinstance(uri, basestring) and uri
+        assert isinstance(uri, str) and uri
         assert len(dbdict["tables"]) == 2
         assert len(dbdict["tables"][0]["fields"]) == 3
         assert dbdict["tables"][0]["fields"][1]["type"] == db.person.name.type
@@ -2254,7 +2243,7 @@ class TestDALDictImportExport(unittest.TestCase):
         db2.commit()
 
         dbjson = db.as_json(sanitize=False)
-        assert isinstance(dbjson, basestring) and len(dbjson) > 0
+        assert isinstance(dbjson, str) and len(dbjson) > 0
         db3 = DAL(**json.loads(dbjson))
         assert hasattr(db3, "person") and hasattr(db3.person, "uuid")
         assert db3.person.uuid.type == db.person.uuid.type
@@ -3791,7 +3780,7 @@ class TestIterselect(DALtest):
     def testMultiSelectWithCommit(self):
         db = self.connect()
         t0 = db.define_table("t0", Field("nn", "integer"))
-        for n in xrange(1, 100, 1):
+        for n in range(1, 100, 1):
             t0.insert(nn=n)
         db.commit()
         s = db.t0.nn.sum()

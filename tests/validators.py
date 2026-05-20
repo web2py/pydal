@@ -14,16 +14,14 @@ with warnings.catch_warnings():
     import cgi
 
 from pydal import DAL, Field
-from pydal._compat import PY2, to_bytes
+from pydal._compat import to_bytes
 from pydal.validators import *
 from pydal.validators import UTC, Validator, options_sorter
 
 
 class TestValidators(unittest.TestCase):
     def myassertRegex(self, *args, **kwargs):
-        if PY2:
-            return getattr(self, "assertRegexpMatches")(*args, **kwargs)
-        return getattr(self, "assertRegex")(*args, **kwargs)
+        return self.assertRegex(*args, **kwargs)
 
     def test_MISC(self):
         """Test miscelaneous utility functions and some general behavior guarantees"""
@@ -61,10 +59,7 @@ class TestValidators(unittest.TestCase):
         rtn = IS_MATCH("^.hell$", strict=True)("shell")
         self.assertEqual(rtn, ("shell", None))
         rtn = IS_MATCH("hell", is_unicode=True)("àòè")
-        if PY2:
-            self.assertEqual(rtn, ("\xc3\xa0\xc3\xb2\xc3\xa8", "Invalid expression"))
-        else:
-            self.assertEqual(rtn, ("àòè", "Invalid expression"))
+        self.assertEqual(rtn, ("àòè", "Invalid expression"))
         rtn = IS_MATCH("hell", is_unicode=True)("hell")
         self.assertEqual(rtn, ("hell", None))
         rtn = IS_MATCH("hell", is_unicode=True)("hell")
@@ -120,15 +115,9 @@ class TestValidators(unittest.TestCase):
         self.assertEqual(rtn, (cpstr, "Enter from 0 to 3 characters"))
         # test unicode
         rtn = IS_LENGTH(2)("°2")
-        if PY2:
-            self.assertEqual(rtn, ("\xc2\xb02", None))
-        else:
-            self.assertEqual(rtn, ("°2", None))
+        self.assertEqual(rtn, ("°2", None))
         rtn = IS_LENGTH(2)("°12")
-        if PY2:
-            self.assertEqual(rtn, ("\xb012", "Enter from 0 to 2 characters"))
-        else:
-            self.assertEqual(rtn, ("°12", "Enter from 0 to 2 characters"))
+        self.assertEqual(rtn, ("°12", "Enter from 0 to 2 characters"))
         # test automatic str()
         rtn = IS_LENGTH(minsize=1)(1)
         self.assertEqual(rtn, ("1", None))
@@ -1137,10 +1126,7 @@ class TestValidators(unittest.TestCase):
         rtn = IS_STRONG(es=True, entropy=100)("a1d")
         self.assertEqual(rtn, ("a1d", "Password too simple (15.97/100)"))
         rtn = IS_STRONG(es=True, entropy=100)("añd")
-        if PY2:
-            self.assertEqual(rtn, ("a\xc3\xb1d", "Password too simple (32.66/100)"))
-        else:
-            self.assertEqual(rtn, ("añd", "Password too simple (31.26/100)"))
+        self.assertEqual(rtn, ("añd", "Password too simple (31.26/100)"))
         rtn = IS_STRONG()("********")
         self.assertEqual(rtn, ("********", None))
         rtn = IS_STRONG(es=True, max=4)("abcde")

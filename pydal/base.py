@@ -129,6 +129,7 @@ For more info::
 import contextlib
 import glob
 import logging
+import os
 import socket
 import threading
 import time
@@ -445,6 +446,49 @@ class DAL(with_metaclass(MetaDAL, Serializable, BasicStorage)):
         if uri == "<zombie>" and db_uid is not None:
             return
         super(DAL, self).__init__()
+
+        # Detect the common dev paper-cut: someone deleted storage.db but
+        # the per-table *.table migration markers for this exact DB hash
+        # are still on disk. Pydal would then think the schema is already
+        # applied and refuse to recreate it, surfacing later as the
+        # obscure "no such table". We scope the check by uri hash so .table
+        # files belonging to other databases in the same folder don't
+        # trigger a false positive.
+        if (
+            isinstance(uri, str)
+            and uri.startswith("sqlite://")
+            and folder
+            and not fake_migrate_all
+            and not fake_migrate
+            and migrate
+            and migrate_enabled
+        ):
+            db_filename = uri[len("sqlite://"):]
+            if db_filename and "://" not in db_filename and os.path.isdir(folder):
+                db_path = os.path.join(folder, db_filename)
+                if not os.path.exists(db_path):
+                    expected_hash = (
+                        table_hash or hashlib_md5(uri).hexdigest()
+                    )
+                    prefix = expected_hash + "_"
+                    try:
+                        my_markers = [
+                            n for n in os.listdir(folder)
+                            if n.endswith(".table") and n.startswith(prefix)
+                        ]
+                    except OSError:
+                        my_markers = []
+                    if my_markers:
+                        raise RuntimeError(
+                            "pydal: stale migration markers in %r: %d "
+                            ".table file(s) for this database exist but %r "
+                            "is missing. Either delete the matching .table "
+                            "files (rm %s/%s*.table) to force a clean "
+                            "migration, or pass fake_migrate_all=True once "
+                            "to rebuild from the existing markers."
+                            % (folder, len(my_markers), db_filename,
+                               folder, expected_hash)
+                        )
 
         if not issubclass(self.Rows, Rows):
             raise RuntimeError("`Rows` class must be a subclass of pydal.objects.Rows")

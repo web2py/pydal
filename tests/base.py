@@ -4,7 +4,6 @@ import shutil
 import tempfile
 
 from pydal import DAL, Field
-from pydal._compat import PY2
 
 from ._adapt import DEFAULT_URI, IS_GAE, IS_IMAP, IS_MSSQL, IS_ORACLE, IS_TERADATA, drop
 from ._compat import unittest
@@ -96,7 +95,7 @@ class TestReferenceUNIQUENotNull(unittest.TestCase):
 
 
 @unittest.skipIf(IS_IMAP, "Skip unicode on IMAP")
-@unittest.skipIf(IS_MSSQL and not PY2, "Skip unicode on py3 and MSSQL")
+@unittest.skipIf(IS_MSSQL, "Skip unicode on MSSQL")
 class TestUnicode(unittest.TestCase):
     def testRun(self):
         db = DAL(DEFAULT_URI, check_reserved=["all"])

@@ -8,6 +8,7 @@ import csv
 import datetime
 import decimal
 import io
+import logging
 import os
 import re
 import shutil
@@ -2162,6 +2163,25 @@ class Field(Expression, Serializable):
         self.length = (
             length if length is not None else DEFAULTLENGTH.get(self.type, 512)
         )
+        # Guard against the common foot-gun ``default=dict`` / ``default=list``
+        # on json/list fields: pydal stores ``default`` as-is and the bare
+        # class object can leak through to serialization as
+        # "TypeError: <class 'dict'> is not JSON serializable". Rewrite to a
+        # callable that returns a fresh instance, and warn so users notice.
+        # Note: the ``type`` parameter shadows the builtin here, so we
+        # compare via identity against a tuple of classes.
+        if default in (dict, list, set, tuple):
+            logging.getLogger("pydal").warning(
+                "Field(%r): default=%s is the class itself; using "
+                "default=lambda: %s() instead. Pass a callable like "
+                "default=lambda: %s() to silence this warning.",
+                fieldname,
+                default.__name__,
+                default.__name__,
+                default.__name__,
+            )
+            _type_cls = default
+            default = lambda _t=_type_cls: _t()
         self.default = default if default is not DEFAULT else (update or None)
         self.required = required  # is this field required
         self.ondelete = ondelete.upper()  # this is for reference fields only
