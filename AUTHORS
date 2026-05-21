@@ -4,7 +4,179 @@
 - Paolo Valleri <paolo.valleri@gmail.com>
 - Niall Sweeny <niall.sweeny@fonjax.com> for MS SQL support
 - Marcel Leuthi <mluethi@mlsystems.ch> for Oracle support
-- Chris Clark
-- clach05
+- Alan Etkin <spametki@gmail.com>
+- Alex Artigues <alex.artigues@gmail.com>
+- alexdba <alexdba@gmail.com>
+- Alexandre Andrade <alexandremasbr@gmail.com>
+- Alfonso de la Guarda Reyes <alfonsodg@gmail.com>
+- Andrew Greenwood <andrew@agrnwd.com>
+- Carlos Hanson <carlos@clanhanson.com>
+- Carlos José da Costa <yamandu.costa@gmail.com>
+- cccaballero <ccesar@linuxmail.org>
+- Charles Law <charles.law@gmail.com>
+- Charles Winebrinner <cwinebrinner@gmail.com>
+- Chris Clark <Chris.Clark@actian.com>
+- Daniele Sinibaldi <dsinibaldi77@gmail.com>
+- David Orme <davidorme@users.noreply.github.com>
 - Denes Lengyel
-- Stephen Rauch
+- Dinis Lage <dlage@users.noreply.github.com>
+- Diogo Vieira <diogo.mvieira@gmail.com>
+- Dominic König <nursix@users.noreply.github.com>
+- Evandro Oliveira <evandrofranco@gmail.com>
+- Hayden <huanbin.c@gmail.com>
+- Jan Rude <jan-rude@web.de>
+- Jaripekkaf <jaripekkaf@gmail.com>
+- Jason Kirtland <jek@discorporate.us>
+- Jason Phillips <jphillips@ua.edu>
+- jgrazina <jgrazina@users.noreply.github.com>
+- Joel Rathgaber <joel.rathgaber@gmail.com>
+- Johan Englund <tazaar.mail@gmail.com>
+- Jonathan Bohren <jbo@jhu.edu>
+- José Duarte <josetduarte@users.noreply.github.com>
+- JusticeN <JusticeN@users.noreply.github.com>
+- jvanbraekel <jvanbraekel@users.noreply.github.com>
+- Kiran Subbaraman <subbaraman.kiran@gmail.com>
+- Kkeller83 <kellerkev@gmail.com>
+- Kunal <Kunal09001@users.noreply.github.com>
+- Kurt Grutzmacher <grutz@jingojango.net>
+- laund <laurinschmidt2001@gmail.com>
+- Leonel Câmara <leonelcamara@gmail.com>
+- Loïc Espern <loic.espern@gmail.com>
+- luizpedone <luiz.pedone@gmail.com>
+- macneiln <macneil_n@hotmail.com>
+- Marcin Wielgoszewski <marcin.wielgoszewski@gmail.com>
+- Mariano Reingart <reingart@gmail.com>
+- Marin Pranjic <marin.pranjic@gmail.com>
+- Martin Doucha <next_ghost@quick.cz>
+- mcamel <mcamel@gmail.com>
+- mictee <mictee@no.spam>
+- Michele Comitini <mcm@glisco.it>
+- Miguel Cabo Diez <miguelcabodiez@gmail.com>
+- Mirko Galimberti <me@mirkogalimberti.com>
+- Mustafa Baser <mbaser@mail.com>
+- Nico Zanferrari <nicozanf@gmail.com>
+- nikakis <nikolis171@hotmail.com>
+- Nikita Sobolev <mail@sobolevn.me>
+- Oleg Blokhin <blohin.o.d@gmail.com>
+- Oleg Butovich <obutovich@gmail.com>
+- Omar Trinidad Gutiérrez Méndez <omar.vpa@gmail.com>
+- Oscar Fonts <oscar.fonts@gmail.com>
+- Oscar Rodriguez <oscar.rodriguez@sistemasgenomicos.com>
+- Pallav Negi <pallav.negi@gmail.com>
+- Paolo Caruccio <paolo.caruccio66@gmail.com>
+- Peter Govers <peter@formatics.nl>
+- Richard Vézina <ml.richard.vezina@gmail.com>
+- Ricardo Pedroso <rmdpedroso@gmail.com>
+- Roberto Perdomo <robertop23@gmail.com>
+- rodwatkins <rodwatkins@outlook.com>
+- Samuel Bonilla <pythonners@gmail.com>
+- Stefan Pochmann <stefan.pochmann@gmail.com>
+- Stephen Rauch <stephen.rauch+github@gmail.com>
+- Stephen Tanner <stanner@vtti.vt.edu>
+- Szabolcs Gyuris <szimszon@oregpreshaz.eu>
+- sysy <AAtomical@users.noreply.github.com>
+- TierraDelFuego
+- Tim Gates <tim.gates@iress.com>
+- Tim Nyborg <tim.nyborg@gmail.com>
+- Tim Richardson <tim@tim-richardson.net>
+- valq7711 <valq7711@gmail.com>
+- Vinicius Assef <viniciusban@gmail.com>
+- Vinyl Darkscratch <vinyldarkscratch@gmail.com>
+- wangganggithub <124829359@qq.com>
+- willimoa <willimoa@gmail.com>
+- yasinmuaz <yasinmuaz@msn.com>
+- Adam Bryzak
+- Alec Taylor
+- Alexander Rasin
+- Ander Arbelaiz
+- Anders Roos
+- Andre Kablu
+- Andrew Replogle
+- Andrew Willmott
+- Argetlam Akshet
+- Ben Goosman
+- Boris Aramis Aguilar Rodriguez
+- Brent Zeiben
+- Brian Cottingham
+- Carlos Correia
+- Carlos Galindo
+- Cedric Meyer
+- Chris May
+- Clavin Sim
+- Corne Dickens
+- Dan McGee
+- Daniel Haag
+- Dave Stoll
+- David Adley
+- David Herman
+- David Karapetyan
+- Dean Kleissas
+- Dmitry Mosin
+- Donatas Burba
+- Douglas Philips
+- Duffy Nicholas
+- Felipe Meirelles
+- Fernando Pacheco
+- Francisco Betancourt
+- Friedrich Weber
+- Gergely Peli
+- Helko Besemann
+- Hono Sandai
+- Ignacio Ocampo
+- Ivan Di Giusto
+- Jamie Sabin
+- Jesus Alvaro
+- Joachim Breitsprecher
+- Joe Barnhart
+- Joel Carrier
+- Joel Samuelsson
+- Josiel Santos
+- Junior Phanter
+- Karoly Kantor
+- Kirill Spitsin
+- Klaus Kappel
+- Larry Weinberg
+- Lazaro Aulan
+- Louis DaPrato
+- Luca DeAlfaro
+- Manuele Presenti
+- Marc Abramowitz
+- Maria Mitica
+- Marius van Niekerk
+- Mark Breedveld
+- Mark Kirkwood
+- Mark Weissen
+- Mart Senecal
+- Martin Hufsky
+- Matt Doiron
+- Matthew Norris
+- Michael Beller
+- Michael Herman
+- Michael Kallweit
+- Michael Toomim
+- Mike Amy
+- Mike Dickun
+- Nathan Freeze
+- Nick Groenke
+- Olivier Johner
+- Oscar Benjamin
+- Osman Masood
+- Paolo Angulo
+- Paolo Betti
+- Paolo Pastori
+- Pearu Peterson
+- Peter Gastinger
+- Philipp Storz
+- Robert Kooij
+- Robert Valentak
+- Salomon Derossi
+- Sam Sheftel
+- Sasa Kelecevic
+- Steve Rawlinson
+- Steve Van Christie
+- Thomas Dallagnese
+- Tito Garrido
+- Vincent Chevrier
+- Vishal Agarwal
+- Vladyslav Kozlovskyy
+- Yair Eshel
