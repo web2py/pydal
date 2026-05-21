@@ -1026,7 +1026,7 @@ the target backend's syntax:
 
 ```python
 from pydal import DAL, Field
-from pydal.dialects.postgre import PostgreDialect
+from pydal.backends.postgres import PostgresDialect
 
 # Always-available "scratch" connection. No external database needed.
 db = DAL("sqlite:memory", migrate=False)
@@ -1034,7 +1034,7 @@ db = DAL("sqlite:memory", migrate=False)
 # Retarget SQL emission to PostgreSQL, and ask for inline values
 # (placeholder-free SQL) — handier for human inspection than the
 # parameterized form used at runtime.
-db._adapter.dialect = PostgreDialect(db._adapter)
+db._adapter.dialect = PostgresDialect(db._adapter)
 db._adapter.compiler.parameterize = False
 
 db.define_table("person", Field("name"), Field("age", "integer"))
@@ -1071,7 +1071,7 @@ print(db(q)._select(db.person.id))
 # SELECT "person"."id" FROM "person" WHERE ("person"."name" ~ '^A');
 
 # Switch to MySQL on the spot:
-from pydal.dialects.mysql import MySQLDialect
+from pydal.backends.mysql import MySQLDialect
 db._adapter.dialect = MySQLDialect(db._adapter)
 print(db(q)._select(db.person.id))
 # (MySQL-flavored SQL emitted for the same Query object)
@@ -1102,6 +1102,49 @@ also the data layer used by **py4web**, which can automatically
 generate forms and grids from pyDAL table metadata. If you're building
 a full web app, py4web saves you a lot of plumbing; if you just need a
 database layer, pyDAL alone is enough.
+
+## Package layout
+
+Two modules hold everything backend-related:
+
+- **`pydal.backend_base`** — the framework. Defines the four base
+  abstractions (`SQLAdapter` / `NoSQLAdapter`, `SQLDialect` /
+  `NoSQLDialect`, `BasicParser` and friends, `SQLRepresenter` /
+  `NoSQLRepresenter` / `JSONRepresenter`), the four registries
+  (`adapters`, `dialects`, `parsers`, `representers`), and the
+  decorators backends use to register with those registries
+  (`sqltype_for`, `register_expression`, `for_type`, `before_parse`,
+  `repr_for_type`, `before_type`, `for_instance`, `pre`).
+- **`pydal.backends.<name>`** — one module per database (`postgres`,
+  `mysql`, `sqlite`, `mssql`, `oracle`, `db2`, `firebird`, `informix`,
+  `ingres`, `sap`, `snowflake`, `teradata`, `google`, `mongo`,
+  `couchdb`). Each module contains everything for that backend: the
+  adapter class, the dialect, the parser, and the representer.
+
+The four pieces collaborate as follows:
+
+| Layer        | Direction                                | Owner                                        |
+| ------------ | ---------------------------------------- | -------------------------------------------- |
+| Adapter      | session-level — owns the connection      | `BaseAdapter` / `SQLAdapter` / `NoSQLAdapter` |
+| Dialect      | AST node → SQL string                    | `CommonDialect` / `SQLDialect` / `NoSQLDialect` |
+| Representer  | Python value → SQL literal               | `BaseRepresenter` / `SQLRepresenter` / `NoSQLRepresenter` / `JSONRepresenter` |
+| Parser       | driver row value → Python value          | `BasicParser` + per-type `*Parser` mixins   |
+
+When you instantiate `DAL("postgres://…")`, the URI prefix selects a
+registered adapter from `adapters`; that adapter walks its MRO to pick
+the matching dialect, representer, and parser. Per-type behavior is
+declared with decorators rather than overrides — for example, a
+backend's representer adds `@repr_for_type("jsonb")` to expose a JSONB
+encoder, and a backend's parser adds `@for_type("jsonb")` for the
+matching decoder. (Decorator names are split — `for_type` for parsers,
+`repr_for_type` for representers — because both subsystems use the
+same concept and Python doesn't allow two classes with the same name
+in a single module.)
+
+Adding a new backend means writing a single
+`pydal/backends/<name>.py` containing an adapter subclass plus
+whichever of dialect/parser/representer override the defaults, then
+adding the import to `pydal/backends/__init__.py`.
 
 ## License
 

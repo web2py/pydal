@@ -19,12 +19,12 @@ from ._adapt import DEFAULT_URI, IS_GAE, IS_IMAP, IS_MONGODB, _quote, drop
 from ._compat import unittest
 
 if IS_IMAP:
-    from pydal.adapters import IMAPAdapter
+    from pydal.contrib.imap_adapter import IMAPAdapter
     from pydal.contrib import mockimaplib
 
     IMAPAdapter.driver = mockimaplib
 elif IS_MONGODB:
-    from pydal.adapters.mongo import Expansion
+    from pydal.backends.mongo import Expansion
 elif IS_GAE:
     # setup GAE dummy database
     from google.appengine.ext import testbed

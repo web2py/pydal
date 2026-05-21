@@ -4,7 +4,7 @@ import re
 import sys
 
 from .._globals import GLOBAL_LOCKER, IDENTITY
-from ..adapters.base import NoSQLAdapter
+from ..backend_base import NoSQLAdapter
 from ..connection import ConnectionPool
 from ..helpers.classes import SQLALL
 from ..helpers.methods import use_common_filters

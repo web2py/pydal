@@ -60,7 +60,7 @@ from urllib.parse import unquote
 from ._globals import DEFAULT, GLOBAL_LOCKER, THREAD_LOCAL
 from .utils import hashlib_md5
 from ._load import OrderedDict
-from .adapters.base import BaseAdapter, NullAdapter
+from .backend_base import BaseAdapter, NullAdapter
 from .default_validators import default_validators
 from .helpers.classes import (
     BasicStorage,
@@ -437,7 +437,8 @@ class DAL(Serializable, BasicStorage, metaclass=MetaDAL):
             for k in range(attempts):
                 for uri in uris:
                     try:
-                        from .adapters import adapters
+                        from . import backends  # noqa: F401  — triggers backend registration
+                        from .backend_base import adapters
 
                         if is_jdbc and not uri.startswith("jdbc:"):
                             uri = "jdbc:" + uri

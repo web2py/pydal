@@ -203,13 +203,13 @@ class TestAstTranslate(unittest.TestCase):
 
     def test_json_accessors(self):
         # SQLite's dialect has no json_key; the JSON accessors live in
-        # PostgreDialectJSON. Swap it in to exercise the translator —
+        # PostgresDialectJSON. Swap it in to exercise the translator —
         # only possible because the late-bound DialectOp from layer 1
         # makes dialects swappable at runtime.
-        from pydal.dialects.postgre import PostgreDialectJSON
+        from pydal.backends.postgres import PostgresDialectJSON
 
         original = self.db._adapter.dialect
-        self.db._adapter.dialect = PostgreDialectJSON(self.db._adapter)
+        self.db._adapter.dialect = PostgresDialectJSON(self.db._adapter)
         try:
             for builder, op in [
                 (self.db.t.data.json_key, "json_key"),

@@ -21,7 +21,7 @@ class TestRepresenterBugFixes(unittest.TestCase):
         # Previously DB2Representer called ``base64.b64encode(str(obj))``
         # which raises TypeError in Py3. Verify it now accepts bytes
         # and produces a valid base64 string.
-        from pydal.representers.db2 import DB2Representer
+        from pydal.backends.db2 import DB2Representer
 
         # Avoid full adapter wiring — bypass __init__ and just exercise
         # the exceptions hook.
@@ -35,7 +35,7 @@ class TestRepresenterBugFixes(unittest.TestCase):
     def test_db2_blob_accepts_string(self):
         # to_bytes() coerces str → bytes, so str input should also work
         # rather than raising as before.
-        from pydal.representers.db2 import DB2Representer
+        from pydal.backends.db2 import DB2Representer
 
         rep = DB2Representer.__new__(DB2Representer)
         rendered = rep.exceptions("hi", "blob")
@@ -44,7 +44,7 @@ class TestRepresenterBugFixes(unittest.TestCase):
     def test_mssql_geography_arg_order(self):
         # Previously _geography used (srid, value) — wrong order. The
         # WKT must end up inside the quotes; the SRID must follow.
-        from pydal.representers.mssql import MSSQLRepresenter
+        from pydal.backends.mssql import MSSQLRepresenter
 
         rep = MSSQLRepresenter.__new__(MSSQLRepresenter)
         # The method is wrapped by ``for_type``; reach the underlying
@@ -60,7 +60,7 @@ class TestAdapterBugFixes(unittest.TestCase):
 
     def test_ingres_class_attribute_renamed(self):
         # SEQNAME → INGRES_SEQNAME (was a real AttributeError bug).
-        from pydal.dialects.ingres import IngresDialect
+        from pydal.backends.ingres import IngresDialect
 
         self.assertTrue(hasattr(IngresDialect, "INGRES_SEQNAME"))
         self.assertFalse(hasattr(IngresDialect, "SEQNAME"))
@@ -69,7 +69,7 @@ class TestAdapterBugFixes(unittest.TestCase):
         # Informix used to reference self.REGEX_URI without defining
         # it — connection would AttributeError. Verify it's now a
         # compiled regex.
-        from pydal.adapters.informix import Informix
+        from pydal.backends.informix import Informix
 
         self.assertTrue(hasattr(Informix, "REGEX_URI"))
         # Should successfully match a sensible URI.
@@ -92,12 +92,12 @@ class TestDialectSelectSignatures(unittest.TestCase):
         # Check the signatures expose ``with_cte``.
         import inspect
 
-        from pydal.dialects.informix import (
+        from pydal.backends.informix import (
             InformixDialect,
             InformixSEDialect,
         )
-        from pydal.dialects.ingres import IngresDialect
-        from pydal.dialects.sap import SAPDBDialect
+        from pydal.backends.ingres import IngresDialect
+        from pydal.backends.sap import SAPDBDialect
 
         for dialect in (
             IngresDialect,
@@ -123,12 +123,7 @@ class TestDocstringCoverage(unittest.TestCase):
         import os
 
         skip = {"mongo.py", "google.py", "couchdb.py"}
-        roots = [
-            "pydal/adapters",
-            "pydal/dialects",
-            "pydal/parsers",
-            "pydal/representers",
-        ]
+        roots = ["pydal/backends"]
         offenders = []
         for root in roots:
             for fname in sorted(os.listdir(root)):

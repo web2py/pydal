@@ -33,11 +33,11 @@ def _all_sql_dialects():
 
     Returns a list of ``(label, dialect_class)`` pairs.
     """
-    from pydal.dialects.db2 import DB2Dialect
-    from pydal.dialects.firebird import FireBirdDialect
-    from pydal.dialects.informix import InformixDialect, InformixSEDialect
-    from pydal.dialects.ingres import IngresDialect, IngresUnicodeDialect
-    from pydal.dialects.mssql import (
+    from pydal.backends.db2 import DB2Dialect
+    from pydal.backends.firebird import FireBirdDialect
+    from pydal.backends.informix import InformixDialect, InformixSEDialect
+    from pydal.backends.ingres import IngresDialect, IngresUnicodeDialect
+    from pydal.backends.mssql import (
         MSSQL3Dialect,
         MSSQL3NDialect,
         MSSQL4Dialect,
@@ -47,29 +47,29 @@ def _all_sql_dialects():
         SybaseDialect,
         VerticaDialect,
     )
-    from pydal.dialects.mysql import MySQLDialect
-    from pydal.dialects.oracle import OracleDialect
-    from pydal.dialects.postgre import (
-        PostgreDialect,
-        PostgreDialectArrays,
-        PostgreDialectArraysJSON,
-        PostgreDialectBoolean,
-        PostgreDialectBooleanJSON,
-        PostgreDialectJSON,
+    from pydal.backends.mysql import MySQLDialect
+    from pydal.backends.oracle import OracleDialect
+    from pydal.backends.postgres import (
+        PostgresDialect,
+        PostgresDialectArrays,
+        PostgresDialectArraysJSON,
+        PostgresDialectBoolean,
+        PostgresDialectBooleanJSON,
+        PostgresDialectJSON,
     )
-    from pydal.dialects.sap import SAPDBDialect
-    from pydal.dialects.snowflake import SnowflakeDialect
-    from pydal.dialects.sqlite import SQLiteDialect
-    from pydal.dialects.teradata import TeradataDialect
+    from pydal.backends.sap import SAPDBDialect
+    from pydal.backends.snowflake import SnowflakeDialect
+    from pydal.backends.sqlite import SQLiteDialect
+    from pydal.backends.teradata import TeradataDialect
 
     return [
         ("sqlite", SQLiteDialect),
-        ("postgres", PostgreDialect),
-        ("postgres-json", PostgreDialectJSON),
-        ("postgres-arrays", PostgreDialectArrays),
-        ("postgres-arraysjson", PostgreDialectArraysJSON),
-        ("postgres-boolean", PostgreDialectBoolean),
-        ("postgres-booleanjson", PostgreDialectBooleanJSON),
+        ("postgres", PostgresDialect),
+        ("postgres-json", PostgresDialectJSON),
+        ("postgres-arrays", PostgresDialectArrays),
+        ("postgres-arraysjson", PostgresDialectArraysJSON),
+        ("postgres-boolean", PostgresDialectBoolean),
+        ("postgres-booleanjson", PostgresDialectBooleanJSON),
         ("mysql", MySQLDialect),
         ("mssql", MSSQLDialect),
         ("mssql-n", MSSQLNDialect),

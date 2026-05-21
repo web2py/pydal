@@ -12,7 +12,7 @@ Everything else inherits from SQLCompiler unchanged.
 
 from __future__ import annotations
 
-from ..adapters.sqlite import SQLite
+from ..backends.sqlite import SQLite
 from . import compilers
 from .sql import SQLCompiler
 

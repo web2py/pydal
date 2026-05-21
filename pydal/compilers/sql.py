@@ -18,7 +18,7 @@ import datetime as _datetime
 from typing import Any, Callable, List, Optional, Tuple
 
 from .. import ast
-from ..adapters.base import SQLAdapter
+from ..backend_base import SQLAdapter
 from . import compilers
 
 
