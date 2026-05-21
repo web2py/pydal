@@ -643,6 +643,134 @@ operation.
 
 ---
 
+## Validators
+
+A **validator** is a callable that checks (and often coerces) a value
+before it reaches the database. You attach one — or a list — to a
+field via `requires=`:
+
+```python
+from pydal.validators import IS_NOT_EMPTY, IS_EMAIL, IS_INT_IN_RANGE
+
+db.define_table("person",
+    Field("name", requires=IS_NOT_EMPTY()),
+    Field("email", requires=[IS_NOT_EMPTY(), IS_EMAIL()]),
+    Field("age", "integer", requires=IS_INT_IN_RANGE(0, 150)),
+)
+```
+
+Validators run when you call `validate_and_insert` /
+`validate_and_update` (and `Form` in py4web). A plain `insert` does
+**not** invoke them — they're meant for input that crosses a trust
+boundary. Each validator returns `(cleaned_value, error_or_None)`, so
+a string `"42"` going through `IS_INT_IN_RANGE` is stored as the int
+`42`.
+
+```python
+result = db.person.validate_and_insert(name="", email="bad", age=200)
+# result == {"id": None, "errors": {"name": "Enter a value",
+#                                   "email": "Enter a valid email address",
+#                                   "age": "Enter an integer between 0 and 149"},
+#            "success": False}
+```
+
+If you don't set `requires=`, pyDAL installs a **default validator
+chain** appropriate to the field type — `IS_LENGTH` for strings,
+`IS_INT_IN_RANGE` for integers, `IS_DATE` for dates, `IS_IN_DB` for
+references, and so on (see `pydal/default_validators.py`).
+
+### Built-in validators
+
+| Validator                 | Purpose                                              |
+| ------------------------- | ---------------------------------------------------- |
+| `IS_NOT_EMPTY()`          | non-blank (also strips whitespace)                   |
+| `IS_LENGTH(maxsize, minsize)` | string / file length bounds                      |
+| `IS_MATCH(regex)`         | regex match                                          |
+| `IS_EQUAL_TO(value)`      | exact equality (e.g. password confirmation)          |
+| `IS_ALPHANUMERIC()`       | letters, digits, underscore                          |
+| `IS_SLUG(maxlen, check)`  | converts to a URL slug                               |
+| `IS_LOWER()` / `IS_UPPER()` | case coercion                                      |
+| `IS_INT_IN_RANGE(min, max)` | integer, `min <= v < max` (exclusive upper)        |
+| `IS_FLOAT_IN_RANGE(min, max)` | float, inclusive bounds                          |
+| `IS_DECIMAL_IN_RANGE(min, max)` | `Decimal`, inclusive bounds                    |
+| `IS_DATE(format)`         | parses to `datetime.date`                            |
+| `IS_TIME()`               | parses `hh:mm[:ss] [am/pm]` to `datetime.time`       |
+| `IS_DATETIME(format, timezone)` | parses to `datetime.datetime`                  |
+| `IS_DATE_IN_RANGE(min, max)` / `IS_DATETIME_IN_RANGE(...)` | date/datetime + bounds |
+| `IS_EMAIL(banned, forced)` | email address, with optional domain allow/deny      |
+| `IS_LIST_OF_EMAILS()`     | comma- or semicolon-separated email list             |
+| `IS_URL(mode, allowed_schemes, prepend_scheme)` | http(s) URL                    |
+| `IS_IPV4()` / `IS_IPV6()` / `IS_IPADDRESS()` | IP addresses                      |
+| `IS_JSON(native_json)`    | parses / validates JSON                              |
+| `IS_IN_SET(items, multiple, zero, sort)` | value in an explicit list             |
+| `IS_IN_DB(dbset, field, label, multiple)` | value is an existing FK              |
+| `IS_NOT_IN_DB(dbset, field)` | value is unique (enforces a UNIQUE check)         |
+| `IS_LIST_OF(other, minimum, maximum)` | list whose items each pass `other`       |
+| `IS_LIST_OF_STRINGS()` / `IS_LIST_OF_INTS()` | parses CSV / JSON-list input      |
+| `IS_FILE(filename, extension)` | uploaded file name / extension match            |
+| `IS_IMAGE(extensions, maxsize, minsize, aspectratio)` | uploaded image checks      |
+| `IS_UPLOAD_FILENAME(...)` | legacy; prefer `IS_FILE`                             |
+| `IS_SAFE(sanitizer, mode)` | strips/rejects unsafe HTML                          |
+| `CLEANUP(regex)`          | strips control characters                            |
+| `CRYPT(key, digest_alg, min_length, salt)` | hashes passwords lazily             |
+| `IS_STRONG(min, upper, lower, number, special, entropy)` | password complexity   |
+| `IS_EXPR(expression)`     | arbitrary Python expression (`value` in scope)       |
+
+### Combinators
+
+- **`IS_EMPTY_OR(other, null=None)`** — make any validator
+  *optional*. Blank input is converted to `null` (default `None`);
+  non-blank input is passed to `other`. Aliased as `IS_NULL_OR`.
+- **`ANY_OF([v1, v2, ...])`** — succeeds if at least one inner
+  validator passes. Useful when a field accepts more than one shape.
+
+```python
+Field("contact", requires=ANY_OF([IS_EMAIL(), IS_IPADDRESS()]))
+Field("nickname", requires=IS_EMPTY_OR(IS_LENGTH(3, 32)))
+```
+
+### Custom validators
+
+Any callable `f(value) -> (cleaned, error_or_None)` works as a
+validator. For richer behavior (translation, `record_id`-aware
+uniqueness checks), subclass `Validator` and implement `validate`:
+
+```python
+from pydal.validators import Validator, ValidationError
+
+class IS_EVEN(Validator):
+    def __init__(self, error_message="Must be even"):
+        self.error_message = error_message
+
+    def validate(self, value, record_id=None):
+        if int(value) % 2 != 0:
+            raise ValidationError(self.translator(self.error_message))
+        return int(value)
+
+Field("n", "integer", requires=IS_EVEN())
+```
+
+Every validator accepts an `error_message=` constructor argument to
+override the default message. Messages are passed through
+`Validator.translator` if you wire up an i18n hook.
+
+### Passwords
+
+`CRYPT` returns a `LazyCrypt` object that hashes on demand and knows
+how to compare itself with a stored `algo$salt$hash` string:
+
+```python
+db.define_table("user",
+    Field("password", "password",
+          requires=[IS_STRONG(min=10, upper=2, special=2), CRYPT()]),
+)
+db.user.validate_and_insert(password="hunter2-Strong!")
+stored = db.user[1].password           # 'pbkdf2(1000,20,sha512)$...$...'
+CRYPT()("hunter2-Strong!")[0] == stored  # True
+```
+
+---
+
 ## Migrations
 
 By default, when you call `define_table` with a different schema from
