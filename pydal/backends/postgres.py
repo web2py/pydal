@@ -267,7 +267,7 @@ class PostgresPsycoBoolean(PostgresPsycoNew, PostgresBoolean):
 
 
 @adapters.register_for("jdbc:postgres")
-class JDBCPostgre(Postgres):
+class JDBCPostgres(Postgres):
     """PostgreSQL via the zxJDBC bridge (Jython only)."""
 
     drivers = ("zxJDBC",)

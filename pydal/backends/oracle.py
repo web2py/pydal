@@ -575,7 +575,7 @@ import json
 from datetime import date, datetime
 
 from ..backend_base import for_type, parsers
-from ..backend_base import BasicParser, ListsParser
+from ..backend_base import BasicParser, ListsParser  # noqa: F401  imports below stay near consumers
 
 
 class OracleParser(BasicParser):
@@ -641,7 +641,6 @@ class OracleCommonparser(OracleParser, OracleListsParser):
 # Representer
 # ============================================================
 
-import datetime
 from base64 import b64encode
 
 from ..utils import to_bytes, to_native
@@ -661,15 +660,15 @@ class OracleRepresenter(SQLRepresenter, JSONRepresenter):
             obj = to_native(b64encode(obj))
             return ":CLOB('%s')" % obj
         if field_type == "date":
-            if isinstance(obj, (datetime.date, datetime.datetime)):
+            if isinstance(obj, (date, datetime)):
                 obj = obj.isoformat()[:10]
             else:
                 obj = str(obj)
             return "to_date('%s','yyyy-mm-dd')" % obj
         if field_type == "datetime":
-            if isinstance(obj, datetime.datetime):
+            if isinstance(obj, datetime):
                 obj = obj.isoformat()[:19].replace("T", " ")
-            elif isinstance(obj, datetime.date):
+            elif isinstance(obj, date):
                 obj = obj.isoformat()[:10] + " 00:00:00"
             else:
                 obj = str(obj)

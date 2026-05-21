@@ -7,7 +7,7 @@
 import copy
 import random
 import re
-from datetime import datetime
+from datetime import date, datetime, time
 
 from ..exceptions import NotOnNOSQLError
 from ..helpers.classes import SQLALL, FakeCursor, Reference
@@ -1626,8 +1626,6 @@ class MongoDialect(NoSQLDialect):
 # Parser
 # ============================================================
 
-from datetime import datetime
-
 from ..helpers.classes import Reference
 from ..backend_base import Parser, before_parse, for_type, parsers
 
@@ -1681,10 +1679,7 @@ class MongoParser(Parser):
 # Representer
 # ============================================================
 
-import datetime
-
 from ..utils import to_bytes
-from ..helpers.classes import Reference
 from ..objects import Row
 from ..backend_base import repr_for_type, representers
 from ..backend_base import NoSQLRepresenter
@@ -1704,19 +1699,13 @@ class MongoRepresenter(NoSQLRepresenter):
 
     @repr_for_type("date")
     def _date(self, value):
-        # this piece of data can be stripped off based on the fieldtype
-        t = datetime.time(0, 0, 0)
-        # mongodb doesn't have a date object and so it must datetime,
-        # string or integer
-        return datetime.datetime.combine(value, t)
+        # mongodb has no native date — promote to datetime at midnight
+        return datetime.combine(value, time(0, 0, 0))
 
     @repr_for_type("time")
     def _time(self, value):
-        # this piece of data can be stripped off based on the fieldtype
-        d = datetime.date(2000, 1, 1)
-        # mongodb doesn't have a time object and so it must datetime,
-        # string or integer
-        return datetime.datetime.combine(d, value)
+        # mongodb has no native time — pair with a sentinel date
+        return datetime.combine(date(2000, 1, 1), value)
 
     @repr_for_type("datetime")
     def _datetime(self, value):
