@@ -701,18 +701,192 @@ Recognized tokens: `not`, `and`, `or`, `==`, `!=`, `<`, `>`, `<=`,
 `contains`, `starts with`, `belongs`, `upper`, `lower`. Custom
 aliases let you localize the vocabulary or rename fields.
 
-## Tagging records
+---
 
-A tiny extension that adds many-to-one tags to any table:
+## Optional tools
+
+The modules under `pydal.tools` and the top-level `pydal.restapi` are
+**not** part of the core DAL — nothing in pydal imports from them. Use
+them when they fit, ignore them otherwise. Each one persists state in
+DAL-managed tables, so swapping the backend keeps working.
+
+### Tagging records: `pydal.tools.tags`
+
+`Tags` attaches hierarchical tag paths (`color/red`, `style/modern`) to
+any table **without altering its schema** — tags live in a sibling
+`<tablename>_tag_<name>` table that is created on first use.
 
 ```python
 from pydal.tools.tags import Tags
 
-tags = Tags(db.thing)
+tags = Tags(db.thing)                       # creates db.thing_tag_default
 tags.add(thing_id, "color/red")
-tags.add(thing_id, "style/modern")
-ids = tags.find(["color/red"])
+tags.add(thing_id, ["color/red", "style/modern"])   # idempotent
 ```
+
+Reading and removing:
+
+```python
+tags.get(thing_id)                          # ["color/red", "style/modern"]
+tags.remove(thing_id, "color/red")
+```
+
+`find` returns a `Query` you pass to `db(...)`. Tag paths support
+**prefix matching**, so `find("color")` matches every record tagged
+`color/*`:
+
+```python
+db(tags.find("color/red")).select()         # exactly that tag
+db(tags.find("color")).select()             # any color/* tag
+db(tags.find(["color/red", "style/modern"])).select()         # AND
+db(tags.find(["color/red", "color/blue"], mode="or")).select()  # OR
+```
+
+A single table can carry multiple **independent** taxonomies by passing
+a `name` to the constructor:
+
+```python
+categories = Tags(db.thing, name="categories")
+flags      = Tags(db.thing, name="flags")
+# creates db.thing_tag_categories and db.thing_tag_flags
+```
+
+### Background tasks: `pydal.tools.scheduler`
+
+A minimal cron-style scheduler that persists task runs in a DAL-managed
+`task_run` table and executes them in forked child processes.
+
+```python
+from pydal import DAL
+from pydal.tools.scheduler import Scheduler, now, delta
+
+db = DAL("sqlite://storage.sqlite")
+scheduler = Scheduler(db, max_concurrent_runs=2, folder="/tmp/scheduler")
+
+def send_report(user_id):
+    ...
+    return {"sent": True}
+
+scheduler.register_task("send_report", send_report)
+
+scheduler.enqueue_run(name="send_report", inputs={"user_id": 42})
+scheduler.enqueue_run(name="send_report", inputs={"user_id": 7},
+                      scheduled_for=now() + delta(60))         # in 60s
+scheduler.enqueue_run(name="send_report", inputs={"user_id": 1},
+                      period=3600)                              # hourly
+scheduler.enqueue_run(name="send_report", inputs={"user_id": 9},
+                      priority=-10, timeout=30)                 # higher prio, 30s cap
+
+scheduler.start()        # spawns a background loop thread
+# ... your program continues ...
+scheduler.stop()         # joins the loop thread cleanly
+```
+
+Each call to `enqueue_run` inserts a row into `db.task_run`; the loop
+picks the next ready row (lowest `priority` first, then oldest `id`),
+forks a daemon process, and records the outcome:
+
+| Status      | Meaning                                       |
+| ----------- | --------------------------------------------- |
+| `queued`    | waiting for a worker                          |
+| `assigned`  | claimed by a worker, not yet forked           |
+| `running`   | child process is executing                    |
+| `completed` | finished, `output` column holds the return    |
+| `failed`    | raised; traceback captured in `log`           |
+| `timeout`   | exceeded `timeout` seconds, killed            |
+| `dead`      | child process disappeared                     |
+| `unknown`   | enqueued under a name not in `register_task`  |
+
+Inputs and outputs are stored as JSON, so task arguments must be
+JSON-serializable and returns must be too (or `None`). Task `stdout`/
+`stderr` from the child are captured into the row's `log` column.
+
+`Scheduler` constructor parameters:
+
+- `db` — the DAL to persist `task_run` into.
+- `max_concurrent_runs` — per-worker cap on in-flight children (default `2`).
+- `folder` — where per-run log files are buffered (default `/tmp/scheduler`).
+- `sleep_time` — seconds to sleep between idle polls (default `10`).
+- `logger` — custom `logging.Logger` (default writes to stdout).
+
+Multiple processes can share the same `db` and run their own
+`Scheduler` instance — task assignment is race-safe via an
+update-with-where check.
+
+### JSON REST API: `pydal.restapi`
+
+`RestAPI` is a JSON CRUD front-end for any DAL. You hand it a `Policy`
+(what's allowed, on which tables, for which methods), and call it like
+an HTTP handler:
+
+```python
+from pydal.restapi import RestAPI, Policy
+
+policy = Policy()
+policy.set(tablename="person", method="GET",
+           authorize=True,
+           allowed_patterns=["name.*", "age.*"],
+           limit=200, allow_lookup=True)
+policy.set(tablename="person", method="POST", authorize=True,
+           fields=["name", "age"])
+policy.set(tablename="person", method="PUT", authorize=True)
+policy.set(tablename="person", method="DELETE", authorize=True)
+
+api = RestAPI(db, policy)
+
+api("GET",    "person", get_vars={"name.startswith": "A", "@limit": 10})
+api("GET",    "person", id=42)
+api("POST",   "person", post_vars={"name": "Alice", "age": 30})
+api("PUT",    "person", id=42, post_vars={"age": 31})
+api("DELETE", "person", id=42)
+```
+
+Every call returns a JSON-serializable `dict` with `status`, `code`,
+`timestamp`, and `api_version`; errors are converted to structured
+responses (`401` policy violation, `404` not found, `400` invalid,
+`422` validation errors).
+
+Two pre-built policies are shipped: `ALLOW_ALL_POLICY` (wildcard, all
+methods authorized) and `DENY_ALL_POLICY` (empty).
+
+**GET query language.** Regular get-vars are field predicates:
+
+```
+field[.subfield][.op]=value
+```
+
+where `op` is one of `eq` (default), `ne`, `lt`, `gt`, `le`, `ge`,
+`startswith`, `contains`, `in` (comma-separated values). Prefix with
+`not.` to negate. Up to four dotted hops traverse `reference` fields:
+
+```
+api("GET", "thing", get_vars={"owner.name.startswith": "A"})
+```
+
+`@`-prefixed meta-options control the response shape:
+
+| Meta-option       | Effect                                            |
+| ----------------- | ------------------------------------------------- |
+| `@offset`/`@limit`| Pagination (capped by policy `limit`).            |
+| `@order`          | Comma-separated fields; `~field` for DESC.        |
+| `@lookup`         | Reference traversal — include joined records.     |
+| `@model`          | Include the table schema in the response.        |
+| `@options_list`   | Return `{value, text}` pairs instead of full rows.|
+| `@count`          | Include a total `count` (independent of `@limit`).|
+
+`Policy` attributes per `(tablename, method)`:
+
+- `authorize` — `True`/`False` or `f(tablename, id, get_vars, post_vars) -> bool`.
+- `fields` — list of allowed field names (`None` means all readable/writable).
+- `query` — a common filter `Query` applied to every GET (e.g. tenant scoping).
+- `allowed_patterns` / `denied_patterns` — `fnmatch` against get-var keys.
+- `limit` — max value accepted for `@limit`.
+- `allow_lookup` — whether `@lookup=` traversal is honored.
+
+Use `tablename="*"` as a wildcard fallback for any table not explicitly
+listed.
+
+---
 
 ## Generating SQL without a database
 
