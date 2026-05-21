@@ -13,7 +13,7 @@ Public API exposed at the package root:
 See ``README.md`` for the full API tour.
 """
 
-__version__ = "3.20260520.0"
+__version__ = "1.20260520.0"
 
 from .base import DAL
 from .helpers.classes import SQLCustomType
