@@ -16,6 +16,7 @@ from .ast_params import *
 from .ast_statements import *
 from .ast_subselect import *
 from .ast_translate import *
+from .connection import *
 from .cross_dialect import *
 from .driver_io import *
 from .tier2_units import *

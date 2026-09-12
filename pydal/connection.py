@@ -113,7 +113,8 @@ class ConnectionPool:
 
         When ``connection`` is non-None: also issue a cursor; run the
         hooks if requested; run ``test_connection`` if
-        ``check_active_connection`` is True.
+        ``check_active_connection`` is True; then commit any connection
+        initialization work so the connection is returned in an idle state.
         """
         setattr(THREAD_LOCAL, self._connection_uname_, connection)
         if connection:
@@ -122,6 +123,16 @@ class ConnectionPool:
                 self.after_connection_hook()
             if self.check_active_connection:
                 self.test_connection()
+            if run_hooks or self.check_active_connection:
+                # DB-API drivers commonly disable autocommit.  In that mode,
+                # connection hooks and even a read-only liveness query can
+                # start a transaction implicitly.  This method runs only
+                # while acquiring a connection, before it is exposed to the
+                # caller, so this is the safe boundary at which to finalize
+                # that initialization work.  Without it, PostgreSQL can
+                # report an otherwise unused connection as
+                # ``idle in transaction`` indefinitely.
+                connection.commit()
         else:
             setattr(THREAD_LOCAL, self._cursors_uname_, None)
 
