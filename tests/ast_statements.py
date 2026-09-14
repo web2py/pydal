@@ -17,7 +17,10 @@ from pydal.ast_translate import (
     set_to_update,
     table_to_insert,
 )
+from pydal.backends.postgres import JDBCPostgres, Postgres, PostgresDialect
 from pydal.compilers import SQLiteCompiler
+from pydal.compilers import PostgresCompiler, PostgresPsycoCompiler
+from pydal.objects import Expression
 
 from ._adapt import IS_NOSQL
 from ._compat import unittest
@@ -237,3 +240,115 @@ class TestAstStatementsUnsupported(unittest.TestCase):
         s = self.db(self.db.t1.id == self.db.t2.t1_id)
         node = set_to_select(s, (self.db.t1.id,), {"join": self.db.t2})
         self.assertTrue(any(j.kind == "cross" for j in node.joins))
+
+
+@unittest.skipIf(IS_NOSQL, "PostgreSQL insert fallback is SQL-only")
+class TestPostgresInsertFallback(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.db = DAL("sqlite:memory")
+        cls.db.define_table("t", Field("name"))
+        cls.db.define_table(
+            "custom",
+            Field("key"),
+            Field("name"),
+            primarykey=["key", "name"],
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.close()
+
+    def _adapter(self, compiler=PostgresPsycoCompiler, adapter_class=Postgres):
+        adapter = object.__new__(adapter_class)
+        adapter.compiler = (
+            compiler(self.db._adapter)
+            if compiler is not None
+            else None
+        )
+        adapter.dialect = object.__new__(PostgresDialect)
+        adapter.expand = self.db._adapter.expand
+        return adapter
+
+    def _fields(self, table, **values):
+        return table._fields_and_values_for_insert(values).op_values()
+
+    def test_unsupported_expression_fallback_returns_id(self):
+        value = Expression(self.db, lambda: "'fallback'", type="string")
+        adapter = self._adapter(PostgresPsycoCompiler)
+
+        query = adapter._insert(self.db.t, self._fields(self.db.t, name=value))
+
+        self.assertEqual(
+            str(query),
+            'INSERT INTO "t"("name") VALUES (\'fallback\')RETURNING "id";',
+        )
+        self.assertEqual(adapter._last_insert, (self.db.t._id, 1))
+
+    def test_bound_insert_preserves_parameters_and_returning(self):
+        adapter = self._adapter(PostgresPsycoCompiler)
+
+        query = adapter._insert(self.db.t, self._fields(self.db.t, name="alice"))
+
+        self.assertIn("RETURNING \"id\";", query)
+        self.assertEqual(query.params, ("alice",))
+        self.assertEqual(adapter._last_insert, (self.db.t._id, 1))
+
+    def test_empty_insert_does_not_return_id(self):
+        adapter = self._adapter(PostgresPsycoCompiler)
+
+        query = adapter._insert(self.db.t, [])
+
+        self.assertEqual(str(query), 'INSERT INTO "t" DEFAULT VALUES;')
+        self.assertIsNone(adapter._last_insert)
+
+    def test_custom_primary_key_does_not_return_id(self):
+        adapter = self._adapter(PostgresCompiler)
+        table = self.db.custom
+        query = adapter._insert(
+            table,
+            self._fields(table, key="k", name="alice"),
+        )
+
+        self.assertNotIn("RETURNING", query)
+        self.assertIsNone(adapter._last_insert)
+
+    def test_compiler_disabled_uses_postgres_returning(self):
+        adapter = self._adapter(None)
+
+        query = adapter._insert(self.db.t, self._fields(self.db.t, name="alice"))
+
+        self.assertEqual(
+            query,
+            'INSERT INTO "t"("name") VALUES (\'alice\')RETURNING "id";',
+        )
+        self.assertEqual(adapter._last_insert, (self.db.t._id, 1))
+
+    def test_renamed_id_percent_escaping_keeps_one_returning(self):
+        table = self.db.define_table(
+            "renamed",
+            Field("id", "id", rname='"id%renamed"'),
+            Field("name"),
+        )
+        adapter = self._adapter(PostgresPsycoCompiler)
+
+        query = adapter._insert(table, self._fields(table, name="alice"))
+
+        self.assertEqual(
+            str(query),
+            'INSERT INTO "renamed"("name") VALUES (%s) '
+            'RETURNING "id%%renamed";',
+        )
+        self.assertEqual(query.count("RETURNING"), 1)
+        self.assertEqual(query.params, ("alice",))
+        self.assertEqual(adapter._last_insert, (table._id, 1))
+
+    def test_jdbc_inline_insert_keeps_returning(self):
+        adapter = self._adapter(PostgresCompiler, JDBCPostgres)
+
+        query = adapter._insert(self.db.t, self._fields(self.db.t, name="alice"))
+
+        self.assertEqual(
+            query,
+            'INSERT INTO "t"("name") VALUES (\'alice\') RETURNING "id";',
+        )

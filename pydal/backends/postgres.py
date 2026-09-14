@@ -166,9 +166,33 @@ class Postgres(SQLAdapter, metaclass=PostgresMeta):
 
     def _insert(self, table, fields):
         self._last_insert = None
-        if fields and hasattr(table, "_id"):
-            self._last_insert = (table._id, 1)
-        return super(Postgres, self)._insert(table, fields)
+        if self.compiler is not None:
+            try:
+                from ..ast_translate import table_to_insert
+
+                query = self.compiler.compile_insert(
+                    table_to_insert(table, fields)
+                )
+            except NotImplementedError:
+                pass
+            else:
+                if fields and hasattr(table, "_id"):
+                    self._last_insert = (table._id, 1)
+                return query
+        if fields:
+            returning = None
+            if hasattr(table, "_id"):
+                returning = table._id._rname
+            query = self.dialect.insert(
+                table._rname,
+                ",".join(el[0]._rname for el in fields),
+                ",".join(self.expand(v, f.type) for f, v in fields),
+                returning,
+            )
+            if returning:
+                self._last_insert = (table._id, 1)
+            return query
+        return self.dialect.insert_empty(table._rname)
 
     @with_connection
     def prepare(self, key):

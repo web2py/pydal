@@ -177,6 +177,14 @@ class TestAstParamCompilation(unittest.TestCase):
                 )
             )
             self.assertEqual(sql.params, ("alpha",))
+            sql = compiler.compile_select(
+                set_to_select(
+                    db(db.linked.keyed_code == 123),
+                    (db.linked.keyed_code,),
+                    {},
+                )
+            )
+            self.assertEqual(sql.params, ("123",))
         finally:
             db.close()
 
@@ -208,6 +216,42 @@ class TestAstParamCompilation(unittest.TestCase):
                 self.assertIsInstance(sql, ParamSQL)
                 self.assertEqual(sql.params, (expected,))
                 self.assertEqual(sql.count("%s"), 1)
+
+    def test_postgres_pattern_bind_order_follows_sql_order(self):
+        compiler = PostgresPsycoCompiler(represent=self.db._adapter.represent)
+        expressions = (
+            ("like", self.db.t.name.coalesce("fallback").like("a%"), ("fallback", "a%")),
+            ("ilike", self.db.t.name.coalesce("fallback").ilike("A%"), ("fallback", "a%")),
+            (
+                "contains",
+                self.db.t.name.coalesce("fallback").contains("a%b"),
+                ("fallback", r"%a\%b%"),
+            ),
+        )
+        for name, expression, expected in expressions:
+            with self.subTest(expression=name):
+                sql = compiler.compile_select(
+                    set_to_select(self.db(expression), (self.db.t.id,), {})
+                )
+                self.assertEqual(sql.params, expected)
+                self.assertLess(sql.index("%s"), sql.rindex("%s"))
+
+    def test_postgres_pattern_helpers_decode_bytes_and_keep_null(self):
+        compiler = PostgresPsycoCompiler(represent=self.db._adapter.represent)
+        expressions = (
+            ("bytes", self.db.t.name.ilike("Ä\\%".encode("utf-8")), ("ä\\\\%",)),
+            ("null", self.db.t.name.like(None), ()),
+        )
+        for label, expression, expected in expressions:
+            with self.subTest(expression=label):
+                sql = compiler.compile_select(
+                    set_to_select(self.db(expression), (self.db.t.id,), {})
+                )
+                if label == "null":
+                    self.assertEqual(sql.params, ())
+                    self.assertIn("LIKE NULL", sql)
+                else:
+                    self.assertEqual(sql.params, expected)
 
     def test_postgres_case_branch_literals_bind(self):
         compiler = PostgresPsycoCompiler(represent=self.db._adapter.represent)

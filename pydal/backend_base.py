@@ -1583,6 +1583,29 @@ class SQLAdapter(BaseAdapter):
         self.execute(sql)
         return self.cursor.fetchall()
 
+    def _select_cache_key(self, sql, rows=False):
+        params = getattr(sql, "params", ())
+        if not params:
+            key = self.uri + "/" + sql
+        else:
+            def part(value):
+                value = to_unicode(value)
+                return "%d:%s" % (len(value), value)
+
+            key = "pydal-select-cache-v2"
+            key += part(self.uri)
+            key += part(sql)
+            key += part(len(params))
+            for value in params:
+                value_type = type(value)
+                key += part(
+                    "%s.%s" % (value_type.__module__, value_type.__qualname__)
+                )
+                key += part(repr(value))
+        if rows:
+            key += "/rows"
+        return hashlib_md5(key).hexdigest()
+
     def _select_aux(self, sql, fields, attributes, colnames):
         cache = attributes.get("cache", None)
         if not cache:
@@ -1593,12 +1616,10 @@ class SQLAdapter(BaseAdapter):
                 time_expire = cache["expiration"]
                 key = cache.get("key")
                 if not key:
-                    key = self.uri + "/" + sql + "/rows"
-                    key = hashlib_md5(key).hexdigest()
+                    key = self._select_cache_key(sql, rows=True)
             else:
                 (cache_model, time_expire) = cache
-                key = self.uri + "/" + sql + "/rows"
-                key = hashlib_md5(key).hexdigest()
+                key = self._select_cache_key(sql, rows=True)
             rows = cache_model(
                 key,
                 lambda self=self, sql=sql: self._select_aux_execute(sql),
@@ -1615,8 +1636,7 @@ class SQLAdapter(BaseAdapter):
     def _cached_select(self, cache, sql, fields, attributes, colnames):
         del attributes["cache"]
         (cache_model, time_expire) = cache
-        key = self.uri + "/" + sql
-        key = hashlib_md5(key).hexdigest()
+        key = self._select_cache_key(sql)
         args = (sql, fields, attributes, colnames)
         ret = cache_model(
             key, lambda self=self, args=args: self._select_aux(*args), time_expire

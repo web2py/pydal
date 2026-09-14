@@ -849,8 +849,8 @@ class SQLCompiler:
         double = escape is None
         if escape is None:
             escape = "\\"
-        rendered = self._render_like_right(r, lowered_left, escape if double else None)
         left = self._render_like_left(l, lowered_left)
+        rendered = self._render_like_right(r, lowered_left, escape if double else None)
         return "(%s LIKE %s ESCAPE '%s')" % (left, rendered, escape)
 
     def _render_like_left(self, l: ast.Node, lowered_left: bool) -> str:
@@ -868,10 +868,10 @@ class SQLCompiler:
         doubled in a *literal* pattern (``None`` when an explicit ESCAPE was
         supplied, so the pattern is taken verbatim)."""
         if isinstance(r, ast.Literal):
-            value = str(r.value)
-            if lowered_left:
+            value = to_unicode(r.value)
+            if value is not None and lowered_left:
                 value = value.lower()
-            if escape_to_double is not None:
+            if value is not None and escape_to_double is not None:
                 value = value.replace(escape_to_double, escape_to_double * 2)
             return self.visit(ast.Literal(value, r.type or "string"))
         return self.visit(r)
