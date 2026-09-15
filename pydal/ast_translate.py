@@ -27,6 +27,7 @@ from .objects import DialectOp, Expression, Field, Query, Select, Table
 
 # Op names that translate as straight BinOp(name, left, right) with no
 # opts and no structural transformation.
+# Specialized literal type hints are handled before the generic dispatch.
 _PLAIN_BINOPS = frozenset(
     {
         "lt",
@@ -124,6 +125,13 @@ def _select_to_ast(sel: Select) -> ast.Node:
 
 def _field_type(node: Any) -> Optional[str]:
     """Best-effort field-type hint for a left operand."""
+    op_name = getattr(getattr(node, "op", None), "__name__", None)
+    if op_name in ("json_key_value", "json_path_value"):
+        return "string"
+    if op_name in ("lower", "upper", "replace", "substring", "coalesce"):
+        nested_type = _field_type(getattr(node, "first", None))
+        if nested_type:
+            return nested_type
     t = getattr(node, "type", None)
     return t if isinstance(t, str) else None
 
@@ -159,6 +167,20 @@ def _expr_to_ast(expr) -> ast.Node:
             s if isinstance(s, str) else str(s),
             table=getattr(expr, "tablename", None),
         )
+
+    # ---------- JSON operators ----------
+    if name in ("json_key", "json_key_value"):
+        if not isinstance(s, (str, int)):
+            raise TypeError("Key must be a string or int")
+        key_type = "integer" if isinstance(s, int) else "string"
+        return ast.BinOp(name, to_ast(f), to_ast(s, type_hint=key_type))
+    if name in ("json_path", "json_path_value"):
+        path_type = "json_path" if isinstance(s, list) else "string"
+        return ast.BinOp(name, to_ast(f), to_ast(s, type_hint=path_type))
+    if name == "json_contains":
+        # json_contains accepts an already-serialized JSON document. Keep it
+        # as text so parameterized compilation does not serialize it again.
+        return ast.BinOp(name, to_ast(f), to_ast(s, type_hint="string"))
 
     # ---------- comparisons (fold None into is_null/is_not_null) ----------
     if name in ("eq", "ne"):
