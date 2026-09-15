@@ -27,6 +27,7 @@ from .objects import DialectOp, Expression, Field, Query, Select, Table
 
 # Op names that translate as straight BinOp(name, left, right) with no
 # opts and no structural transformation.
+# Specialized literal type hints are handled before the generic dispatch.
 _PLAIN_BINOPS = frozenset(
     {
         "lt",
@@ -224,6 +225,21 @@ def _expr_to_ast(expr) -> ast.Node:
             return ast.FuncCall("count", (to_ast(f),), opts=(("distinct", True),))
         return ast.FuncCall("count", (to_ast(f),))
 
+    # ---------- GIS scalar arguments ----------
+    if name in ("st_simplify", "st_simplifypreservetopology"):
+        return ast.BinOp(
+            name,
+            to_ast(f),
+            to_ast(s, type_hint="double"),
+        )
+    if name == "st_transform":
+        target_type = "integer" if isinstance(s, int) else "string"
+        return ast.BinOp(
+            name,
+            to_ast(f),
+            to_ast(s, type_hint=target_type),
+        )
+
     # ---------- plain BinOps ----------
     if name in _PLAIN_BINOPS:
         return ast.BinOp(name, to_ast(f), to_ast(s, type_hint=_field_type(f)))
@@ -282,14 +298,32 @@ def _expr_to_ast(expr) -> ast.Node:
 
     if name == "st_asgeojson":
         # second is a dict {"precision": ..., "options": ...}
-        opts = tuple(sorted(s.items())) if isinstance(s, dict) else ()
-        return ast.FuncCall("st_asgeojson", (to_ast(f),), opts=opts)
+        if not isinstance(s, dict) or set(s) != {"precision", "options"}:
+            raise TypeError(
+                "st_asgeojson expects {'precision': ..., 'options': ...}"
+            )
+        precision = s["precision"]
+        options = s["options"]
+        opts = tuple(sorted(s.items()))
+        return ast.FuncCall(
+            "st_asgeojson",
+            (
+                to_ast(f),
+                to_ast(precision, type_hint="integer"),
+                to_ast(options, type_hint="integer"),
+            ),
+            opts=opts,
+        )
 
     if name == "st_dwithin":
         other, distance = s
         return ast.FuncCall(
             "st_dwithin",
-            (to_ast(f), to_ast(other), to_ast(distance, type_hint="double")),
+            (
+                to_ast(f),
+                to_ast(other, type_hint=_field_type(f)),
+                to_ast(distance, type_hint="double"),
+            ),
         )
 
     # ---------- fallback: opaque function call ----------

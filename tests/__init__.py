@@ -22,6 +22,7 @@ from .driver_io import *
 from .tier2_units import *
 from .tier4_units import *
 from .tier5_units import *
+from .postgres_geo import *
 from .base import *
 from .caching import TestCache
 from .contribs import *
