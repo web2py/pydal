@@ -806,6 +806,7 @@ class TestSubselect(DALtest):
         insert_workers(tim, "Tom")
         insert_workers(jessy, "John", "Jacob")
 
+        space = Expression(db, "' '", type="string")
         works_for = (
             db(org.name == "Alice")
             .cte(
@@ -815,7 +816,7 @@ class TestSubselect(DALtest):
                 org.name,
                 org.boss,
                 Expression(db, "0", type="integer").with_alias("xdepth"),
-                Expression(db, '" "', type="string").with_alias("boss_chain"),
+                space.with_alias("boss_chain"),
             )
             .union(
                 lambda works_for: db(
@@ -826,7 +827,7 @@ class TestSubselect(DALtest):
                     org.name,
                     org.boss,
                     (works_for.xdepth + 1).with_alias("xdepth"),
-                    (" " + works_for.name + works_for.boss_chain).with_alias(
+                    (space + works_for.name + works_for.boss_chain).with_alias(
                         "boss_chain"
                     ),
                 )
