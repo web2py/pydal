@@ -18,6 +18,7 @@ from .ast_subselect import *
 from .ast_translate import *
 from .connection import *
 from .cross_dialect import *
+from .postgres_json import *
 from .driver_io import *
 from .tier2_units import *
 from .tier4_units import *
